@@ -178,7 +178,9 @@ async def test_rate_limit_reset_header_sets_delay() -> None:
 async def test_gives_up_after_max_retries() -> None:
     h = Harness(
         lambda request: httpx2.Response(
-            503, json={"error": {"type": "internal_error", "message": "busy"}}
+            503,
+            json={"error": {"type": "internal_error", "message": "busy"}},
+            headers={"x-credits-used": "0"},
         ),
         max_retries=2,
     )
@@ -189,8 +191,87 @@ async def test_gives_up_after_max_retries() -> None:
     record = info.value.record
     assert record.status == "failed"
     assert record.attempts == 3
-    assert record.credits_used is None and record.usage_known is False
+    assert record.credits_used == 0 and record.usage_known is True
+    final = h.recorder.final()
+    assert [r.status for r in final] == ["failed"] * 3
+    assert len({r.call_id for r in final}) == 3
+
+
+async def test_5xx_without_credits_header_is_ambiguous_and_not_retried() -> None:
+    h = Harness(
+        sequence(
+            httpx2.Response(502, headers={"x-request-id": "req-502"}),
+            ok(IDENTIFY_BODY),
+        )
+    )
+    with pytest.raises(CrustdataError) as info:
+        await h.client.identify_company(domains=["stripe.com"])
+    assert len(h.requests) == 1
+    record = info.value.record
+    assert record.usage_known is False and record.credits_used is None
+    assert record.provider_request_id == "req-502"
+
+
+async def test_each_dispatch_is_recorded_with_its_own_usage() -> None:
+    h = Harness(
+        sequence(
+            httpx2.Response(500, headers={"x-credits-used": "0.1", "x-request-id": "req-a"}),
+            httpx2.ConnectError("down"),
+            ok(IDENTIFY_BODY, credits="0.2", request_id="req-c"),
+        )
+    )
+    _, record = await h.client.identify_company(domains=["stripe.com"])
+    final = h.recorder.final()
+    assert [r.dispatch_index for r in final] == [0, 1, 2]
+    assert [r.provider_request_id for r in final] == ["req-a", None, "req-c"]
+    assert [r.credits_used for r in final] == [0.1, 0.0, 0.2]
+    assert all(r.usage_known for r in final)
+    assert all(r.credits_estimate == pytest.approx(0.2) for r in final)
+    # Started is reported before every dispatch.
+    assert [r.status for r in h.recorder.records] == [
+        "started",
+        "failed",
+        "started",
+        "failed",
+        "started",
+        "succeeded",
+    ]
+    assert record.call_id == final[-1].call_id
+
+
+async def test_undecodable_success_keeps_the_credits_already_received() -> None:
+    h = Harness(
+        lambda request: httpx2.Response(
+            200, content=b"<html>oops", headers={"x-credits-used": "2", "x-request-id": "r"}
+        ),
+        cache=True,
+    )
+    with pytest.raises(CrustdataError) as info:
+        await h.client.enrich_company(42)
+    record = info.value.record
+    assert record.status == "failed" and record.error == "decode_error"
+    assert record.credits_used == 2 and record.usage_known is True
     assert h.recorder.final()[0].status == "failed"
+    assert len(h.cache) == 0
+
+
+async def test_provider_error_text_never_reaches_records_or_exceptions() -> None:
+    leaky = "No company for founder jane@acme.test (+91 98765 43210)"
+    h = Harness(
+        lambda request: httpx2.Response(
+            400,
+            json={"error": {"type": "made_up_type " + leaky, "message": leaky}},
+            headers={"x-credits-used": "0", "x-request-id": "req-x"},
+        )
+    )
+    with pytest.raises(CrustdataError) as info:
+        await h.client.identify_company(names=["Acme"])
+    assert "jane@acme.test" not in str(info.value)
+    assert info.value.record.error == "other"
+    assert info.value.error_type == "other"
+    assert "req-x" in str(info.value) and "400" in str(info.value)
+    for record in h.recorder.records:
+        assert "jane" not in record.model_dump_json()
 
 
 async def test_client_error_is_not_retried() -> None:
@@ -206,7 +287,8 @@ async def test_client_error_is_not_retried() -> None:
     assert len(h.requests) == 1
     assert info.value.status == 400
     assert info.value.error_type == "invalid_request"
-    assert "Invalid fields" in str(info.value)
+    assert "Invalid fields" not in str(info.value)
+    assert "invalid_request" in str(info.value)
     assert info.value.record.credits_used == 0
     assert info.value.record.usage_known is True
     assert info.value.record.provider_request_id == "req-bad"
@@ -219,11 +301,13 @@ async def test_missing_credits_header_marks_usage_unknown() -> None:
     assert record.usage_known is False
 
 
-async def test_timeout_then_success_marks_usage_unknown() -> None:
+async def test_read_timeout_is_not_retried_and_cost_is_unknown() -> None:
     h = Harness(sequence(httpx2.ReadTimeout("slow"), ok(IDENTIFY_BODY)))
-    _, record = await h.client.identify_company(domains=["stripe.com"])
-    assert record.status == "succeeded"
-    assert record.attempts == 2
+    with pytest.raises(CrustdataError) as info:
+        await h.client.identify_company(domains=["stripe.com"])
+    assert len(h.requests) == 1
+    record = info.value.record
+    assert record.status == "failed" and record.error == "timeout"
     assert record.credits_used is None
     assert record.usage_known is False
 
@@ -274,8 +358,8 @@ async def test_person_search_strips_contact_fields_and_caches_stripped() -> None
     dumped = json.dumps(profile.model_dump())
     for secret in ("a@example.com", "a@gmail.com", "99999", "a@acme.com"):
         assert secret not in dumped
-    extra = profile.model_dump()
-    assert extra["contact"] == {"has_business_email": True}
+    # Not on the person-search allowlist at all.
+    assert "contact" not in profile.model_dump()
     current = profile.experience.employment_details.current[0]
     assert current.crustdata_company_id == 42
     assert current.start_date == "2014-01-01"

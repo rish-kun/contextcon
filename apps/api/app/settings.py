@@ -57,10 +57,13 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("ANTHROPIC_API_KEY", "CLAUDE_API_KEY"),
     )
     anthropic_model: str = "claude-haiku-5-5"
+    # Where the app's LLM calls go. Deliberately not ANTHROPIC_BASE_URL, which agent
+    # and developer shells set for their own proxies; the client never reads it.
+    anthropic_base_url_override: str = "https://api.anthropic.com"
     anthropic_max_tokens: int = Field(default=4096, gt=0)
-    # Unset by default: Haiku 5.5 rejects non-default sampling values, and the API
-    # version the SDK sends (2026-10-21) rejects `temperature` on every model.
-    anthropic_temperature: float | None = Field(default=None, ge=0, le=1)
+    # There is deliberately no temperature / top_p / top_k setting: Haiku 5.5 rejects
+    # non-default sampling values, and the client has no code path that sends them.
+    # A stray ANTHROPIC_TEMPERATURE in the environment is ignored.
     # Thinking depth / token spend. Unset means the model's default (medium on Haiku 5.5).
     anthropic_effort: Literal["low", "medium", "high", "xhigh", "max"] | None = "low"
     anthropic_timeout_seconds: float = Field(default=120.0, gt=0)
@@ -68,6 +71,10 @@ class Settings(BaseSettings):
     # Optional per-model price overrides (USD per million tokens), as JSON, e.g.
     # {"claude-haiku-5-5": {"input_per_mtok": 0.10, "output_per_mtok": 0.50}}
     anthropic_prices: dict[str, dict[str, float]] = Field(default_factory=dict)
+    # Model names the API may return mapped to a priced model, as JSON, e.g.
+    # {"claude-haiku-5-5-20261001": "claude-haiku-5-5"}. Unmatched models are recorded
+    # as unknown cost.
+    anthropic_model_aliases: dict[str, str] = Field(default_factory=dict)
 
     # Email (Resend). Sending stays off unless explicitly enabled.
     resend_api_key: SecretStr = SecretStr("")

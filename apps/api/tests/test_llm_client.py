@@ -74,6 +74,10 @@ def ok(payload: dict) -> httpx2.Response:
     return httpx2.Response(200, json=payload, headers={"request-id": "req_abc"})
 
 
+async def _no_sleep(_: float) -> None:
+    return None
+
+
 FOUNDING_JSON = json.dumps({"founded_year": 2014, "city": "Pune"})
 
 
@@ -153,26 +157,115 @@ async def test_api_error_is_recorded() -> None:
     assert record.http_status == 400
     assert record.provider_request_id == "req_err"
     assert record.cost_usd == 0
-    assert "bad" in record.error
+    assert record.error == "invalid_request_error"
+    assert "bad" not in str(info.value)
 
 
-async def test_draft_text_joins_text_blocks_and_sends_temperature_when_set() -> None:
+async def test_draft_text_joins_text_blocks() -> None:
     h = Harness(
         [ok(message([{"type": "text", "text": "Dear "}, {"type": "text", "text": "seller"}]))],
-        temperature=0.0,
     )
     text, record = await h.client.draft_text("Write politely.", "Request documents.")
     assert text == "Dear seller"
-    assert h.body()["temperature"] == 0.0
     assert "format" not in h.body()["output_config"]
     assert record.status == "succeeded"
 
 
+def test_temperature_cannot_be_configured() -> None:
+    with pytest.raises(TypeError):
+        LLMClient(api_key="k", temperature=0.0)  # type: ignore[call-arg]
+
+
+async def test_configured_temperature_never_reaches_the_wire(monkeypatch) -> None:
+    monkeypatch.setenv("ANTHROPIC_TEMPERATURE", "0.7")
+    monkeypatch.setenv("ANTHROPIC_TOP_P", "0.5")
+    settings = Settings(_env_file=None, anthropic_api_key="k")
+    assert not hasattr(settings, "anthropic_temperature")
+    h = Harness([ok(message([{"type": "text", "text": "hi"}]))])
+    client = LLMClient.from_settings(
+        settings, client=h.client._client, recorder=h.recorder, effort="low"
+    )
+    await client.draft_text("s", "u")
+    body = h.body()
+    for key in ("temperature", "top_p", "top_k"):
+        assert key not in body
+
+
 async def test_unpriced_model_marks_cost_unknown() -> None:
-    h = Harness([ok(message([{"type": "text", "text": "hi"}]))], model="claude-new-model")
+    h = Harness([ok(message([{"type": "text", "text": "hi"}], model="claude-new-model"))])
     _, record = await h.client.draft_text("s", "u")
+    assert record.model == "claude-new-model"
     assert record.cost_usd is None
     assert record.usage_known is False
+
+
+async def test_cost_uses_the_model_the_api_returned() -> None:
+    # Configured for Haiku, but the API says it ran Sonnet: price Sonnet.
+    h = Harness([ok(message([{"type": "text", "text": "hi"}], model="claude-sonnet-5-5"))])
+    _, record = await h.client.draft_text("s", "u")
+    assert record.model == "claude-sonnet-5-5"
+    assert record.cost_usd == pytest.approx(1000 * 2.0 / 1e6 + 200 * 10.0 / 1e6)
+
+
+async def test_dated_model_needs_an_explicit_alias() -> None:
+    dated = "claude-haiku-5-5-20990101"
+    h = Harness([ok(message([{"type": "text", "text": "hi"}], model=dated))])
+    _, record = await h.client.draft_text("s", "u")
+    assert record.usage_known is False and record.cost_usd is None
+
+    h = Harness(
+        [ok(message([{"type": "text", "text": "hi"}], model=dated))],
+        model_aliases={dated: "claude-haiku-5-5"},
+    )
+    _, record = await h.client.draft_text("s", "u")
+    assert record.usage_known is True
+    assert record.cost_usd == pytest.approx(0.0002)
+
+
+async def test_retries_happen_here_one_record_per_dispatch() -> None:
+    overloaded = {"type": "error", "error": {"type": "overloaded_error", "message": "x"}}
+    h = Harness(
+        [
+            httpx2.Response(529, json=overloaded, headers={"request-id": "req_1"}),
+            httpx2.Response(500, json=overloaded, headers={"request-id": "req_2"}),
+            ok(message([{"type": "text", "text": "hi"}])),
+        ],
+        max_retries=2,
+        sleep=_no_sleep,
+    )
+    assert h.client._client.max_retries == 0
+    _, record = await h.client.draft_text("s", "u")
+    final = h.recorder.final()
+    assert [r.provider_request_id for r in final] == ["req_1", "req_2", "req_abc"]
+    assert [r.status for r in final] == ["failed", "failed", "succeeded"]
+    assert [r.error for r in final] == ["overloaded_error", "overloaded_error", None]
+    assert final[0].cost_usd == 0 and final[0].usage_known
+    assert record.attempts == 3
+
+
+async def test_sdk_client_retries_are_disabled() -> None:
+    sdk = AsyncAnthropic(api_key="k", max_retries=5)
+    assert LLMClient(client=sdk)._client.max_retries == 0
+
+
+async def test_confidential_calls_skip_a_cache_without_a_case_scope() -> None:
+    class SharedOnly:
+        def __init__(self) -> None:
+            self.data: dict = {}
+
+        async def get(self, key):  # type: ignore[no-untyped-def]
+            return self.data.get(key)
+
+        async def set(self, key, value) -> None:  # type: ignore[no-untyped-def]
+            self.data[key] = value
+
+    shared = SharedOnly()
+    h = Harness([ok(message([{"type": "text", "text": "hi"}]))] * 2, cache=False)
+    h.client.cache = shared
+    await h.client.draft_text("s", "deck text")
+    assert shared.data == {}
+    await h.client.draft_text("s", "public lookup", public=True)
+    assert len(shared.data) == 1
 
 
 def test_cost_uses_long_context_tier_and_cache_multipliers() -> None:
@@ -204,7 +297,7 @@ def test_from_settings_applies_model_and_price_overrides() -> None:
     assert client.model == "claude-sonnet-5-5"
     assert client.max_tokens == 1000
     assert client.effort == "medium"
-    assert client.temperature is None
+    assert not hasattr(client, "temperature")
     assert client.prices["claude-sonnet-5-5"].output_per_mtok == 2.0
     assert client.prices["claude-haiku-5-5"] == DEFAULT_PRICES["claude-haiku-5-5"]
 
@@ -233,3 +326,30 @@ async def test_no_sampling_params_sent_by_default() -> None:
     body = h.body()
     for key in ("temperature", "top_p", "top_k"):
         assert key not in body
+
+
+async def test_environment_proxy_and_auth_token_are_ignored(monkeypatch) -> None:
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", "http://127.0.0.1:9999/proxy")
+    monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "agent-proxy-token")
+    requests: list[httpx2.Request] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        requests.append(request)
+        return ok(message([{"type": "text", "text": "hi"}]))
+
+    settings = Settings(_env_file=None, anthropic_api_key="app-key")
+    client = LLMClient.from_settings(
+        settings, http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
+    )
+    assert client._client.auth_token is None
+    await client.draft_text("s", "u")
+    request = requests[0]
+    assert request.url.host == "api.anthropic.com"
+    assert request.headers["authorization"] == "Bearer app-key"
+    assert "agent-proxy-token" not in str(request.headers)
+
+
+def test_base_url_override_setting(monkeypatch) -> None:
+    monkeypatch.setenv("ANTHROPIC_BASE_URL_OVERRIDE", "https://llm-gateway.test")
+    client = LLMClient.from_settings(Settings(_env_file=None, anthropic_api_key="k"))
+    assert str(client._client.base_url).startswith("https://llm-gateway.test")

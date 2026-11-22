@@ -12,28 +12,31 @@ Verified against Crustdata's docs (API version 2025-11-01):
 
 Only synchronous endpoints are used; batch endpoints are not on this plan.
 
-Personal contact fields (emails, phone numbers) are removed from every response
-before it is returned or cached. DealProof never collects personal contact details.
+Every response is reduced to an allowlist of the fields DealProof reads, with emails
+and phone numbers redacted from free text, before it is returned or cached
+(`app.clients.sanitize`). DealProof never collects personal contact details.
+
+Every HTTP dispatch is recorded separately (see `app.clients.base`), and a dispatch
+whose cost is ambiguous is never retried automatically.
 """
 
 from __future__ import annotations
 
 import asyncio
 import random
-import re
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Any, NoReturn
 
 import httpx2
 
 from app.clients.base import (
+    CallOperation,
     CallRecord,
     CallRecorder,
     ResponseCache,
     make_cache_key,
-    report,
+    safe_error_code,
     stable_hash,
-    utcnow,
 )
 from app.clients.crustdata_models import (
     CompanySearchResult,
@@ -45,6 +48,7 @@ from app.clients.crustdata_models import (
     WebSearchResult,
 )
 from app.clients.ratelimit import SlidingWindowRateLimiter
+from app.clients.sanitize import sanitize_response, strip_contact_fields  # noqa: F401 (re-export)
 from app.settings import Settings, get_settings
 
 PROVIDER = "crustdata"
@@ -116,26 +120,6 @@ LEADERSHIP_TITLE_KEYWORDS: tuple[str, ...] = (
     "head",
     "partner",
 )
-
-_CONTACT_KEY = re.compile(r"e-?mail|phone|mobile|telephone|whatsapp|fax", re.IGNORECASE)
-
-
-def strip_contact_fields(value: Any) -> Any:
-    """Recursively drop personal contact fields (emails, phone numbers).
-
-    Any key that names an email or phone field is removed unless its value is a
-    boolean flag (e.g. ``has_business_email``), which carries no contact detail.
-    """
-    if isinstance(value, dict):
-        cleaned: dict[str, Any] = {}
-        for key, item in value.items():
-            if _CONTACT_KEY.search(str(key)) and not isinstance(item, bool):
-                continue
-            cleaned[key] = strip_contact_fields(item)
-        return cleaned
-    if isinstance(value, list):
-        return [strip_contact_fields(item) for item in value]
-    return value
 
 
 def parse_credits(headers: httpx2.Headers) -> float | None:
@@ -481,122 +465,123 @@ class CrustdataClient:
         return min(delay + random.uniform(0, self.backoff_base), self.backoff_max)
 
     async def _post(self, endpoint: str, body: dict[str, Any]) -> tuple[Any, CallRecord]:
+        """One operation: cache lookup, then dispatches until success or give-up.
+
+        Each dispatch is recorded on its own. A dispatch is retried only when its cost
+        is known: a connect failure (never reached the API), a 429 (refused before
+        billing), or a 5xx that carried ``X-Credits-Used``. A read timeout, a dropped
+        connection or a 5xx without the header may have been billed, so the call fails
+        there with that dispatch's cost unknown rather than paying again blindly.
+        """
         key = make_cache_key(PROVIDER, endpoint, body)
-        record = CallRecord(
+        estimate = estimate_credits(endpoint, body)
+        async with CallOperation(
+            self.recorder,
+            self.cache,
             provider=PROVIDER,
             endpoint=endpoint,
-            params_hash=stable_hash(body),
             cache_key=key,
-        )
-
-        if self.cache is not None:
-            cached = await self.cache.get(key)
+            params_hash=stable_hash(body),
+        ) as op:
+            cached = await op.lookup()
             if cached is not None:
-                record.status = "cache_hit"
-                record.from_cache = True
-                record.finished_at = utcnow()
-                record.http_status = cached.get("http_status")
-                record.provider_request_id = cached.get("provider_request_id")
-                record.credits_used = 0.0
-                record.usage_known = True
-                await report(self.recorder, record)
+                record = await op.cache_hit(
+                    http_status=cached.get("http_status"),
+                    provider_request_id=cached.get("provider_request_id"),
+                    credits_used=0.0,
+                )
                 return cached["body"], record
 
-        await report(self.recorder, record)
+            url = f"{self._base_url}{endpoint}"
+            attempt = 0
+            while True:
+                await self.rate_limiter.acquire(endpoint)
+                record = op.new_record(credits_estimate=estimate)
+                await op.start(record)
+                try:
+                    response = await self._http.post(
+                        url, json=body, headers=self._headers, timeout=self._timeout
+                    )
+                except httpx2.TransportError as exc:
+                    never_sent = isinstance(exc, httpx2.ConnectError | httpx2.ConnectTimeout)
+                    code = "timeout" if isinstance(exc, httpx2.TimeoutException) else None
+                    record.status = "failed"
+                    record.error = code or "network_error"
+                    record.credits_used = 0.0 if never_sent else None
+                    record.usage_known = never_sent
+                    await op.finish(record)
+                    if never_sent and attempt < self.max_retries:
+                        await self._sleep(self._retry_delay(attempt, None))
+                        attempt += 1
+                        continue
+                    raise CrustdataError(
+                        _message(endpoint, None, record.error, None),
+                        status=None,
+                        error_type=record.error,
+                        record=record,
+                    ) from None
 
-        credits_total = 0.0
-        credits_complete = True
-        url = f"{self._base_url}{endpoint}"
-        attempt = 0
-        while True:
-            record.attempts = attempt + 1
-            await self.rate_limiter.acquire(endpoint)
-            response: httpx2.Response | None = None
-            try:
-                response = await self._http.post(
-                    url, json=body, headers=self._headers, timeout=self._timeout
-                )
-            except httpx2.TransportError as exc:
-                # A connect failure never reached the API; anything later might have.
-                if not isinstance(exc, httpx2.ConnectError):
-                    credits_complete = False
-                if attempt < self.max_retries:
-                    await self._sleep(self._retry_delay(attempt, None))
-                    attempt += 1
-                    continue
-                return await self._fail(
+                status = response.status_code
+                record.http_status = status
+                record.provider_request_id = response.headers.get("x-request-id")
+                credits = parse_credits(response.headers)
+                if status == 429:
+                    # Refused by the rate limiter before reaching the API: not billed.
+                    record.credits_used, record.usage_known = 0.0, True
+                else:
+                    record.credits_used, record.usage_known = credits, credits is not None
+
+                if status in RETRYABLE_STATUSES:
+                    record.status = "failed"
+                    record.error = _error_code(response)
+                    await op.finish(record)
+                    if record.usage_known and attempt < self.max_retries:
+                        await self._sleep(self._retry_delay(attempt, response))
+                        attempt += 1
+                        continue
+                    self._raise(endpoint, body, record, status)
+
+                if status >= 400:
+                    record.status = "failed"
+                    record.error = _error_code(response)
+                    await op.finish(record)
+                    self._raise(endpoint, body, record, status)
+
+                try:
+                    data = sanitize_response(endpoint, response.json())
+                except ValueError:
+                    # The credits header already arrived: the dispatch is billed and
+                    # its cost known even though the body is unusable.
+                    record.status = "failed"
+                    record.error = "decode_error"
+                    await op.finish(record)
+                    raise CrustdataError(
+                        _message(endpoint, status, "decode_error", record.provider_request_id),
+                        status=status,
+                        error_type="decode_error",
+                        record=record,
+                    ) from None
+                record.status = "succeeded"
+                await op.finish(
                     record,
-                    credits_total,
-                    credits_complete,
-                    f"network error: {type(exc).__name__}",
-                    status=None,
-                    error_type="network_error",
-                )
-
-            record.http_status = response.status_code
-            record.provider_request_id = (
-                response.headers.get("x-request-id") or record.provider_request_id
-            )
-            credits = parse_credits(response.headers)
-            if credits is not None:
-                credits_total += credits
-            elif response.status_code != 429:
-                credits_complete = False
-
-            if response.status_code in RETRYABLE_STATUSES and attempt < self.max_retries:
-                await self._sleep(self._retry_delay(attempt, response))
-                attempt += 1
-                continue
-
-            if response.status_code >= 400:
-                error_type, message = _error_details(response)
-                return await self._fail(
-                    record,
-                    credits_total,
-                    credits_complete,
-                    f"HTTP {response.status_code}: {message}",
-                    status=response.status_code,
-                    error_type=error_type,
-                    error_class=_error_class(
-                        response.status_code, natural_language="search" in body
-                    ),
-                )
-
-            data = strip_contact_fields(response.json())
-            record.status = "succeeded"
-            record.finished_at = utcnow()
-            record.credits_used = credits_total if credits_complete else None
-            record.usage_known = credits_complete
-            if self.cache is not None:
-                await self.cache.set(
-                    key,
-                    {
+                    cache_value={
                         "body": data,
-                        "http_status": response.status_code,
+                        "http_status": status,
                         "provider_request_id": record.provider_request_id,
                     },
                 )
-            await report(self.recorder, record)
-            return data, record
+                return data, record
 
-    async def _fail(
-        self,
-        record: CallRecord,
-        credits_total: float,
-        credits_complete: bool,
-        message: str,
-        *,
-        status: int | None,
-        error_type: str | None,
-        error_class: type[CrustdataError] = CrustdataError,
+    def _raise(
+        self, endpoint: str, body: dict[str, Any], record: CallRecord, status: int
     ) -> NoReturn:
-        record.status = "failed"
-        record.finished_at = utcnow()
-        record.credits_used = credits_total if credits_complete else None
-        record.usage_known = credits_complete
-        record.error = message
-        await report(self.recorder, record)
-        raise error_class(message, status=status, error_type=error_type, record=record)
+        error_class = _error_class(status, natural_language="search" in body)
+        raise error_class(
+            _message(endpoint, status, record.error, record.provider_request_id),
+            status=status,
+            error_type=record.error,
+            record=record,
+        )
 
 
 def failed_urls(requested: Sequence[str], pages: Sequence[WebPage]) -> list[str]:
@@ -640,15 +625,62 @@ def leadership_filters(
     return {"op": "or", "conditions": [tense("current"), tense("past")]}
 
 
-def _error_details(response: httpx2.Response) -> tuple[str | None, str]:
+def _error_code(response: httpx2.Response) -> str:
+    """The allowlisted ``error.type`` of an error response; never its message."""
     try:
         payload = response.json()
     except ValueError:
-        return None, response.text[:300]
+        return "http_error"
     if isinstance(payload, dict):
         error = payload.get("error")
         if isinstance(error, dict):
-            return error.get("type"), str(error.get("message", ""))[:300]
-        if "message" in payload:
-            return None, str(payload["message"])[:300]
-    return None, str(payload)[:300]
+            return safe_error_code(error.get("type")) or "http_error"
+    return "http_error"
+
+
+def _message(endpoint: str, status: int | None, code: str | None, request_id: str | None) -> str:
+    parts = [f"crustdata {endpoint}", f"HTTP {status}" if status else "no response"]
+    if code:
+        parts.append(code)
+    if request_id:
+        parts.append(f"request_id={request_id}")
+    return " ".join(parts)
+
+
+def _count(value: Any) -> int:
+    return len(value) if isinstance(value, list) else 1
+
+
+def estimate_credits(endpoint: str, body: dict[str, Any]) -> float:
+    """Upper bound on what one dispatch can cost, reserved against the budget first.
+
+    From Crustdata's published prices (see the v1 plan, "External APIs"); the actual
+    charge comes from ``X-Credits-Used`` and settles the reservation.
+    """
+    if endpoint == COMPANY_IDENTIFY:
+        ids = next((v for k, v in body.items() if k != "exact_match"), [])
+        return 0.2 * _count(ids)
+    if endpoint == COMPANY_ENRICH:
+        return 2.0 * _count(body.get("crustdata_company_ids", []))
+    if endpoint in (WEB_SEARCH_LIVE,):
+        return 1.0
+    if endpoint == WEB_FETCH_LIVE:
+        return 1.0 * _count(body.get("urls", []))
+    limit = int(body.get("limit") or 1)
+    if endpoint == COMPANY_SEARCH:
+        groups = set(body.get("fields") or ("taxonomy", "funding", "headcount", "hiring"))
+        per_side = 0.1 * ("taxonomy" in groups) + 0.2 * len(
+            groups & {"funding", "headcount", "hiring"}
+        )
+        filters = str(body.get("filters") or "")
+        filter_side = 0.1 * ("taxonomy." in filters) + 0.2 * sum(
+            f"{g}." in filters for g in ("funding", "headcount", "hiring")
+        )
+        return round(limit * (0.03 + per_side + filter_side), 4)
+    if endpoint == PERSON_SEARCH:
+        groups = set(body.get("fields") or ("experience",))
+        experience = ("experience" in groups) + ("experience." in str(body.get("filters") or ""))
+        return round(limit * (0.03 + 0.1 * experience), 4)
+    if endpoint == JOB_SEARCH:
+        return round(limit * 0.03, 4)
+    return 1.0
