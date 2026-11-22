@@ -1,0 +1,585 @@
+"""Async Crustdata REST client.
+
+Verified against Crustdata's docs (API version 2025-11-01):
+
+- Base URL ``https://api.crustdata.com``.
+- Auth: ``authorization: Bearer <key>`` plus the required ``x-api-version: 2025-11-01``.
+- Cost: every priced endpoint returns ``X-Credits-Used`` (also on error responses).
+  429s from rate limiting are refused before reaching the API and carry no header.
+- ``X-Request-Id`` identifies the request (``GET /account/usage/events/{id}`` explains
+  a charge).
+- Rate limits: 429 carries ``Retry-After`` or ``X-RateLimit-Reset`` (seconds).
+
+Only synchronous endpoints are used; batch endpoints are not on this plan.
+
+Personal contact fields (emails, phone numbers) are removed from every response
+before it is returned or cached. DealProof never collects personal contact details.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import random
+import re
+from collections.abc import Awaitable, Callable, Sequence
+from typing import Any, NoReturn
+
+import httpx2
+
+from app.clients.base import (
+    CallRecord,
+    CallRecorder,
+    ResponseCache,
+    make_cache_key,
+    report,
+    stable_hash,
+    utcnow,
+)
+from app.clients.crustdata_models import (
+    CompanySearchResult,
+    EnrichResult,
+    IdentifyResult,
+    JobSearchResult,
+    PersonSearchResult,
+    WebPage,
+    WebSearchResult,
+)
+from app.settings import Settings, get_settings
+
+PROVIDER = "crustdata"
+
+RETRYABLE_STATUSES = frozenset({429, 500, 502, 503, 504})
+
+# Endpoint paths (all POST).
+COMPANY_IDENTIFY = "/company/identify"
+COMPANY_SEARCH = "/company/search"
+COMPANY_ENRICH = "/company/enrich"
+PERSON_SEARCH = "/person/search"
+JOB_SEARCH = "/job/search"
+WEB_SEARCH_LIVE = "/web/search/live"
+WEB_FETCH_LIVE = "/web/enrich/live"
+
+# Enrich groups DealProof needs for a company profile. Enrich bills per returned
+# match (2 credits), not per group, except `technographics`, which is left out.
+DEFAULT_ENRICH_FIELDS: tuple[str, ...] = (
+    "basic_info",
+    "headcount",
+    "funding",
+    "locations",
+    "hiring",
+    "taxonomy",
+    "people",
+    "metadata",
+    "updated_at",
+)
+
+# Person search: no `contact` group (it is never needed and must not be stored).
+DEFAULT_PERSON_FIELDS: tuple[str, ...] = (
+    "crustdata_person_id",
+    "basic_profile",
+    "experience",
+    "education",
+    "social_handles",
+)
+
+LEADERSHIP_TITLE_KEYWORDS: tuple[str, ...] = (
+    "founder",
+    "co-founder",
+    "ceo",
+    "chief",
+    "cto",
+    "cfo",
+    "coo",
+    "managing director",
+    "director",
+    "president",
+    "vp",
+    "vice president",
+    "head",
+    "partner",
+)
+
+_CONTACT_KEY = re.compile(r"e-?mail|phone|mobile|telephone|whatsapp|fax", re.IGNORECASE)
+
+
+def strip_contact_fields(value: Any) -> Any:
+    """Recursively drop personal contact fields (emails, phone numbers).
+
+    Any key that names an email or phone field is removed unless its value is a
+    boolean flag (e.g. ``has_business_email``), which carries no contact detail.
+    """
+    if isinstance(value, dict):
+        cleaned: dict[str, Any] = {}
+        for key, item in value.items():
+            if _CONTACT_KEY.search(str(key)) and not isinstance(item, bool):
+                continue
+            cleaned[key] = strip_contact_fields(item)
+        return cleaned
+    if isinstance(value, list):
+        return [strip_contact_fields(item) for item in value]
+    return value
+
+
+def parse_credits(headers: httpx2.Headers) -> float | None:
+    raw = headers.get("x-credits-used")
+    if raw is None:
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        return None
+
+
+class CrustdataError(Exception):
+    """A Crustdata call that failed after retries (or with a non-retryable status)."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status: int | None,
+        error_type: str | None,
+        record: CallRecord,
+    ) -> None:
+        super().__init__(message)
+        self.status = status
+        self.error_type = error_type
+        self.record = record
+
+
+class CrustdataClient:
+    def __init__(
+        self,
+        api_key: str,
+        *,
+        base_url: str = "https://api.crustdata.com",
+        api_version: str = "2025-11-01",
+        timeout: float = 60.0,
+        max_retries: int = 3,
+        backoff_base: float = 0.5,
+        backoff_max: float = 30.0,
+        recorder: CallRecorder | None = None,
+        cache: ResponseCache | None = None,
+        http_client: httpx2.AsyncClient | None = None,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    ) -> None:
+        if not api_key:
+            raise ValueError("Crustdata API key is empty; set CRUSTDATA_API_KEY.")
+        self._headers = {
+            "authorization": f"Bearer {api_key}",
+            "x-api-version": api_version,
+            "content-type": "application/json",
+            "accept": "application/json",
+        }
+        self._owns_http = http_client is None
+        self._http = http_client or httpx2.AsyncClient()
+        self._base_url = base_url.rstrip("/")
+        self._timeout = timeout
+        self.max_retries = max_retries
+        self.backoff_base = backoff_base
+        self.backoff_max = backoff_max
+        self.recorder = recorder
+        self.cache = cache
+        self._sleep = sleep
+
+    @classmethod
+    def from_settings(cls, settings: Settings | None = None, **kwargs: Any) -> CrustdataClient:
+        s = settings or get_settings()
+        return cls(
+            s.crustdata_api_key.get_secret_value(),
+            base_url=s.crustdata_base_url,
+            api_version=s.crustdata_api_version,
+            timeout=s.crustdata_timeout_seconds,
+            max_retries=s.crustdata_max_retries,
+            **kwargs,
+        )
+
+    async def aclose(self) -> None:
+        if self._owns_http:
+            await self._http.aclose()
+
+    async def __aenter__(self) -> CrustdataClient:
+        return self
+
+    async def __aexit__(self, *exc: object) -> None:
+        await self.aclose()
+
+    # --- Companies -------------------------------------------------------------
+
+    async def identify_company(
+        self,
+        *,
+        domains: Sequence[str] | None = None,
+        names: Sequence[str] | None = None,
+        crustdata_company_ids: Sequence[int] | None = None,
+        professional_network_profile_urls: Sequence[str] | None = None,
+        exact_match: bool | None = None,
+    ) -> tuple[list[IdentifyResult], CallRecord]:
+        """Resolve a company to Crustdata ids. One identifier type per call.
+
+        Priced at 0.2 credits per identifier that matches (unmatched ones are free).
+        """
+        identifiers = {
+            "domains": domains,
+            "names": names,
+            "crustdata_company_ids": crustdata_company_ids,
+            "professional_network_profile_urls": professional_network_profile_urls,
+        }
+        given = {k: list(v) for k, v in identifiers.items() if v}
+        if len(given) != 1:
+            raise ValueError("identify_company takes exactly one identifier type.")
+        body: dict[str, Any] = dict(given)
+        if exact_match is not None:
+            body["exact_match"] = exact_match
+        data, record = await self._post(COMPANY_IDENTIFY, body)
+        return [IdentifyResult.model_validate(item) for item in data or []], record
+
+    async def search_companies(
+        self,
+        *,
+        filters: dict[str, Any] | None = None,
+        query: str | None = None,
+        mode: str = "hybrid",
+        limit: int = 20,
+        cursor: str | None = None,
+        sorts: Sequence[dict[str, str]] | None = None,
+        fields: Sequence[str] | None = None,
+    ) -> tuple[CompanySearchResult, CallRecord]:
+        """Company search with structured filters, a natural-language query, or both.
+
+        With ``query`` the results are relevance-ranked (``mode`` = hybrid | lexical |
+        semantic, at most 100 per page) and ``filters`` act as hard constraints;
+        ``sorts`` are rejected in that mode.
+        """
+        if filters is None and not query:
+            raise ValueError("search_companies needs filters, a query, or both.")
+        if query and sorts:
+            raise ValueError("sorts are not supported with natural-language search.")
+        body: dict[str, Any] = {"limit": limit}
+        if filters is not None:
+            body["filters"] = filters
+        if query:
+            body["search"] = {"query": query, "mode": mode}
+        if cursor:
+            body["cursor"] = cursor
+        if sorts:
+            body["sorts"] = list(sorts)
+        if fields:
+            body["fields"] = list(fields)
+        data, record = await self._post(COMPANY_SEARCH, body)
+        return CompanySearchResult.model_validate(data or {}), record
+
+    async def enrich_company(
+        self,
+        crustdata_company_ids: int | Sequence[int],
+        *,
+        fields: Sequence[str] = DEFAULT_ENRICH_FIELDS,
+    ) -> tuple[list[EnrichResult], CallRecord]:
+        """Full profile by Crustdata id: funding rounds and investors, headcount and
+        its time series, locations, founded year, description, key people.
+
+        2 credits per returned match. Enrich by id (from identify) to avoid paying
+        for several fuzzy matches.
+        """
+        ids = (
+            [crustdata_company_ids]
+            if isinstance(crustdata_company_ids, int)
+            else list(crustdata_company_ids)
+        )
+        if not ids:
+            raise ValueError("enrich_company needs at least one company id.")
+        body = {"crustdata_company_ids": ids, "fields": list(fields)}
+        data, record = await self._post(COMPANY_ENRICH, body)
+        return [EnrichResult.model_validate(item) for item in data or []], record
+
+    # --- People ----------------------------------------------------------------
+
+    async def search_people(
+        self,
+        filters: dict[str, Any],
+        *,
+        limit: int = 25,
+        cursor: str | None = None,
+        sorts: Sequence[dict[str, str]] | None = None,
+        fields: Sequence[str] = DEFAULT_PERSON_FIELDS,
+    ) -> tuple[PersonSearchResult, CallRecord]:
+        body: dict[str, Any] = {"filters": filters, "limit": limit, "fields": list(fields)}
+        if cursor:
+            body["cursor"] = cursor
+        if sorts:
+            body["sorts"] = list(sorts)
+        data, record = await self._post(PERSON_SEARCH, body)
+        return PersonSearchResult.model_validate(data or {}), record
+
+    async def search_company_leadership(
+        self,
+        crustdata_company_id: int,
+        *,
+        title_keywords: Sequence[str] = LEADERSHIP_TITLE_KEYWORDS,
+        include_past: bool = True,
+        limit: int = 25,
+        cursor: str | None = None,
+        fields: Sequence[str] = DEFAULT_PERSON_FIELDS,
+    ) -> tuple[PersonSearchResult, CallRecord]:
+        """People currently (and optionally previously) at a company id in leadership
+        titles, with full career history and dates. Matches on company id, never name.
+        """
+        return await self.search_people(
+            leadership_filters(crustdata_company_id, title_keywords, include_past=include_past),
+            limit=limit,
+            cursor=cursor,
+            fields=fields,
+        )
+
+    # --- Jobs ------------------------------------------------------------------
+
+    async def search_jobs(
+        self,
+        crustdata_company_id: int,
+        *,
+        limit: int = 50,
+        cursor: str | None = None,
+        extra_conditions: Sequence[dict[str, Any]] = (),
+        sorts: Sequence[dict[str, str]] | None = None,
+        fields: Sequence[str] | None = None,
+    ) -> tuple[JobSearchResult, CallRecord]:
+        """Job postings for one company id (~0.03 credits per result)."""
+        company_condition = {
+            "field": "company.basic_info.company_id",
+            "type": "=",
+            "value": crustdata_company_id,
+        }
+        filters: dict[str, Any] = (
+            {"op": "and", "conditions": [company_condition, *extra_conditions]}
+            if extra_conditions
+            else company_condition
+        )
+        body: dict[str, Any] = {"filters": filters, "limit": limit}
+        if cursor:
+            body["cursor"] = cursor
+        if sorts:
+            body["sorts"] = list(sorts)
+        if fields:
+            body["fields"] = list(fields)
+        data, record = await self._post(JOB_SEARCH, body)
+        return JobSearchResult.model_validate(data or {}), record
+
+    # --- Web -------------------------------------------------------------------
+
+    async def web_search(
+        self,
+        query: str,
+        *,
+        sources: Sequence[str] | None = None,
+        location: str | None = None,
+        site: str | None = None,
+        start_date: int | None = None,
+        end_date: int | None = None,
+        page: int = 1,
+    ) -> tuple[WebSearchResult, CallRecord]:
+        """Live web/news search. 1 credit per page. Dates are Unix seconds."""
+        if page > 1 and (not sources or len(sources) != 1):
+            raise ValueError("page > 1 needs exactly one source.")
+        body: dict[str, Any] = {"query": query}
+        optional = {
+            "sources": list(sources) if sources else None,
+            "location": location,
+            "site": site,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
+        body.update({k: v for k, v in optional.items() if v is not None})
+        if page != 1:
+            body["page"] = page
+        data, record = await self._post(WEB_SEARCH_LIVE, body)
+        return WebSearchResult.model_validate(data or {}), record
+
+    async def fetch_pages(
+        self, urls: Sequence[str], *, human_mode: bool = False
+    ) -> tuple[list[WebPage], CallRecord]:
+        """Live fetch of up to 10 pages (title + content). 1 credit per page."""
+        url_list = list(urls)
+        if not 1 <= len(url_list) <= 10:
+            raise ValueError("fetch_pages takes between 1 and 10 URLs.")
+        body: dict[str, Any] = {"urls": url_list}
+        if human_mode:
+            body["human_mode"] = True
+        data, record = await self._post(WEB_FETCH_LIVE, body)
+        return [WebPage.model_validate(item) for item in data or []], record
+
+    # --- Transport ---------------------------------------------------------------
+
+    def _retry_delay(self, attempt: int, response: httpx2.Response | None) -> float:
+        if response is not None:
+            for header in ("retry-after", "x-ratelimit-reset"):
+                raw = response.headers.get(header)
+                if raw is None:
+                    continue
+                try:
+                    return min(max(float(raw), 0.0), self.backoff_max)
+                except ValueError:
+                    continue
+        delay = self.backoff_base * (2**attempt)
+        return min(delay + random.uniform(0, self.backoff_base), self.backoff_max)
+
+    async def _post(self, endpoint: str, body: dict[str, Any]) -> tuple[Any, CallRecord]:
+        key = make_cache_key(PROVIDER, endpoint, body)
+        record = CallRecord(
+            provider=PROVIDER,
+            endpoint=endpoint,
+            params_hash=stable_hash(body),
+            cache_key=key,
+        )
+
+        if self.cache is not None:
+            cached = await self.cache.get(key)
+            if cached is not None:
+                record.status = "cache_hit"
+                record.from_cache = True
+                record.finished_at = utcnow()
+                record.http_status = cached.get("http_status")
+                record.provider_request_id = cached.get("provider_request_id")
+                record.credits_used = 0.0
+                record.usage_known = True
+                await report(self.recorder, record)
+                return cached["body"], record
+
+        await report(self.recorder, record)
+
+        credits_total = 0.0
+        credits_complete = True
+        url = f"{self._base_url}{endpoint}"
+        attempt = 0
+        while True:
+            record.attempts = attempt + 1
+            response: httpx2.Response | None = None
+            try:
+                response = await self._http.post(
+                    url, json=body, headers=self._headers, timeout=self._timeout
+                )
+            except httpx2.TransportError as exc:
+                # A connect failure never reached the API; anything later might have.
+                if not isinstance(exc, httpx2.ConnectError):
+                    credits_complete = False
+                if attempt < self.max_retries:
+                    await self._sleep(self._retry_delay(attempt, None))
+                    attempt += 1
+                    continue
+                return await self._fail(
+                    record,
+                    credits_total,
+                    credits_complete,
+                    f"network error: {type(exc).__name__}",
+                    status=None,
+                    error_type="network_error",
+                )
+
+            record.http_status = response.status_code
+            record.provider_request_id = (
+                response.headers.get("x-request-id") or record.provider_request_id
+            )
+            credits = parse_credits(response.headers)
+            if credits is not None:
+                credits_total += credits
+            elif response.status_code != 429:
+                credits_complete = False
+
+            if response.status_code in RETRYABLE_STATUSES and attempt < self.max_retries:
+                await self._sleep(self._retry_delay(attempt, response))
+                attempt += 1
+                continue
+
+            if response.status_code >= 400:
+                error_type, message = _error_details(response)
+                return await self._fail(
+                    record,
+                    credits_total,
+                    credits_complete,
+                    f"HTTP {response.status_code}: {message}",
+                    status=response.status_code,
+                    error_type=error_type,
+                )
+
+            data = strip_contact_fields(response.json())
+            record.status = "succeeded"
+            record.finished_at = utcnow()
+            record.credits_used = credits_total if credits_complete else None
+            record.usage_known = credits_complete
+            if self.cache is not None:
+                await self.cache.set(
+                    key,
+                    {
+                        "body": data,
+                        "http_status": response.status_code,
+                        "provider_request_id": record.provider_request_id,
+                    },
+                )
+            await report(self.recorder, record)
+            return data, record
+
+    async def _fail(
+        self,
+        record: CallRecord,
+        credits_total: float,
+        credits_complete: bool,
+        message: str,
+        *,
+        status: int | None,
+        error_type: str | None,
+    ) -> NoReturn:
+        record.status = "failed"
+        record.finished_at = utcnow()
+        record.credits_used = credits_total if credits_complete else None
+        record.usage_known = credits_complete
+        record.error = message
+        await report(self.recorder, record)
+        raise CrustdataError(message, status=status, error_type=error_type, record=record)
+
+
+def leadership_filters(
+    crustdata_company_id: int,
+    title_keywords: Sequence[str] = LEADERSHIP_TITLE_KEYWORDS,
+    *,
+    include_past: bool = True,
+) -> dict[str, Any]:
+    """Person-search filter: a leadership title held at this company id.
+
+    Each tense (current / past) is its own group so the company id and the title
+    are checked on that tense's positions.
+    """
+    if not title_keywords:
+        raise ValueError("title_keywords must not be empty.")
+
+    def tense(name: str) -> dict[str, Any]:
+        prefix = f"experience.employment_details.{name}"
+        return {
+            "op": "and",
+            "conditions": [
+                {"field": f"{prefix}.company_id", "type": "=", "value": crustdata_company_id},
+                {
+                    "op": "or",
+                    "conditions": [
+                        {"field": f"{prefix}.title", "type": "(.)", "value": keyword}
+                        for keyword in title_keywords
+                    ],
+                },
+            ],
+        }
+
+    if not include_past:
+        return tense("current")
+    return {"op": "or", "conditions": [tense("current"), tense("past")]}
+
+
+def _error_details(response: httpx2.Response) -> tuple[str | None, str]:
+    try:
+        payload = response.json()
+    except ValueError:
+        return None, response.text[:300]
+    if isinstance(payload, dict):
+        error = payload.get("error")
+        if isinstance(error, dict):
+            return error.get("type"), str(error.get("message", ""))[:300]
+        if "message" in payload:
+            return None, str(payload["message"])[:300]
+    return None, str(payload)[:300]
