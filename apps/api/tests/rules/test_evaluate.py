@@ -143,6 +143,10 @@ STRONG = CompanyRecord(
     },
 )  # fit 100, assessable 80%
 
+# The PRD illustration, extended: the PRD gives the six claims, their statuses and
+# "a request list of three documents". This fixture adds what a full case needs on
+# top of that illustration (a thesis with fit, the company profile that makes it an
+# established company), so its request list also asks for audited financials.
 PRD_INPUTS = AssessmentInputs(
     case_id="case-pune",
     version=1,
@@ -158,7 +162,7 @@ PRD_INPUTS = AssessmentInputs(
 # --- The PRD illustration end to end ---------------------------------------------
 
 
-def test_prd_example_investigate_further_with_three_claim_documents():
+def test_prd_example_investigate_further_with_four_documents():
     v = assess(PRD_INPUTS)
     j = v.judgments
     assert [o.status for o in v.outcomes].count(ClaimStatus.SUPPORTED) == 3
@@ -168,14 +172,23 @@ def test_prd_example_investigate_further_with_three_claim_documents():
     assert j.evidence_sufficiency.pct == 50
     assert v.disposition is Disposition.INVESTIGATE_FURTHER
     assert j.disposition.rule == "evidence_incomplete"
+    # The three claim-linked documents are exactly the PRD's.
     claim_docs = [d.document for d in v.requests.documents if d.claim_ids]
     assert claim_docs == [
         "Dated payroll summary",
         "Lease or occupancy evidence for the facility",
         "Lender statements",
     ]
-    # An established company also needs financial inputs; asked for separately.
+    # Extension of the illustration: an established company also needs financial
+    # inputs, so the full list has four documents.
+    assert [(d.document, d.claim_ids) for d in v.requests.documents] == [
+        ("Dated payroll summary", ["c-employees"]),
+        ("Lease or occupancy evidence for the facility", ["c-facility"]),
+        ("Lender statements", ["c-debt"]),
+        ("Audited financial statements", []),
+    ]
     assert any(q.kind == "financial_inputs" for q in v.requests.questions)
+    assert v.requests.analyst_questions == []
     assert j.financial.assessed is False
 
 

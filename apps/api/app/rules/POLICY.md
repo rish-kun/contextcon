@@ -223,12 +223,20 @@ outside the required checks.
 
 ## 6. Requests
 
-Each open question maps to the document that would settle it: every claim that is
-not Supported, an unresolved identity, missing financial inputs for an established
-company, and checks that could not run because no reachable source covers them.
-Documents are listed once, with links to every question they answer. Checks
-skipped for budget or source errors go on a separate list for the analyst to
-re-run. They are not asked of the seller.
+Each open question is about one unresolved component of a claim (for example the
+date and the operating stage of an announced facility, not the facility itself) and
+maps to the document that settles that component. Questions also come from an
+unresolved identity, missing financial inputs for an established company, and checks
+that could not run because no reachable source covers them.
+
+A completed funding round is settled by a share allotment, a closing statement or a
+bank receipt of the funds; a term sheet is never requested as proof.
+
+Whether the seller can resolve a question is recorded separately from its status.
+Questions only the analyst can follow up (such as a registry charge record) go on the
+analyst's list and are never sent to the seller. Documents are listed once, with links
+to every question they answer. Checks skipped for budget or source errors go on a
+separate list for the analyst to re-run.
 
 ## 7. Versions and changes
 

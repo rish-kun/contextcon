@@ -1,5 +1,8 @@
 from app.domain import (
+    Claim,
+    ClaimCategory,
     ClaimCheck,
+    ClaimComponent,
     ClaimStatus,
     FinancialAssessment,
     IdentityStatus,
@@ -32,7 +35,10 @@ def test_documents_are_deduplicated_and_linked_to_every_question():
     claims = {c.claim.id: c.claim for c in checks}
     r = build_request_list(decide_all(checks), claims)
     assert len(r.documents) == 1
-    assert r.documents[0].question_ids == ["q-c-employees", "q-c-employees-2"]
+    assert r.documents[0].question_ids == [
+        "q-c-employees:employee_count",
+        "q-c-employees-2:employee_count",
+    ]
     assert r.documents[0].claim_ids == ["c-employees", "c-employees-2"]
 
 
@@ -94,3 +100,48 @@ def test_supported_claims_ask_for_nothing():
     assert all(o.status is ClaimStatus.SUPPORTED for o in outcomes)
     r = build_request_list(outcomes, CLAIMS)
     assert r.documents == [] and r.questions == []
+
+
+def test_each_question_maps_to_the_precise_unresolved_component():
+    r = build_request_list(decide_all(prd.PRD_CHECKS), CLAIMS)
+    assert [(q.claim_id, q.component) for q in r.questions] == [
+        ("c-employees", "employee_count"),
+        ("c-facility", "event_date"),
+        ("c-facility", "stage"),
+        ("c-debt", "has_debt"),
+    ]
+    # The announced facility itself is matched, so it is not asked about.
+    assert all(q.component != "event" for q in r.questions)
+    facility = next(d for d in r.documents if d.claim_ids == ["c-facility"])
+    assert facility.question_ids == ["q-c-facility:event_date", "q-c-facility:stage"]
+    assert all(q.seller_resolvable for q in r.questions)
+    assert r.analyst_questions == []
+
+
+def test_funding_request_asks_for_proof_of_completion_not_a_term_sheet():
+    announcement_only = prd.FUNDING.model_copy(
+        update={"facts": [f for f in prd.FUNDING.facts if f.evidence.id == "ev-funding-pr"]}
+    )
+    r = build_request_list(decide_all([announcement_only]), CLAIMS)
+    assert [d.document for d in r.documents] == [
+        "Share allotment filing, closing statement or bank receipt of the funds"
+    ]
+    assert not any("term sheet" in d.document.lower() for d in r.documents)
+    assert {q.component for q in r.questions} == {"raised", "round_year", "round_type"}
+
+
+def test_items_the_seller_cannot_resolve_are_not_sent_to_the_seller():
+    claim = Claim(
+        id="c-charge",
+        text="No security has been registered over our assets",
+        category=ClaimCategory.DEBT_SECURITY,
+        components=[ClaimComponent(name="security_registered", value=False)],
+        entity_ids=[prd.COMPANY],
+    )
+    checks = [ClaimCheck(claim=claim), prd.NO_DEBT]
+    r = build_request_list(decide_all(checks), {c.claim.id: c.claim for c in checks})
+    assert [(q.claim_id, q.component, q.seller_resolvable) for q in r.analyst_questions] == [
+        ("c-charge", "security_registered", False)
+    ]
+    assert [d.document for d in r.documents] == ["Lender statements"]
+    assert all(q.claim_id != "c-charge" for q in r.questions)
