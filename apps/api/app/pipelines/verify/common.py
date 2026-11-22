@@ -4,8 +4,10 @@ sources and evidence rows, public web queries, and HTML to text.
 Conventions:
 - `sources.source_class` stores `app.domain.enums.SourceReliability` values; the API
   maps them to the contract's `SourceClass` (see `app.api.cases_sections`).
-- `evidence.entity_ref` says which entity a row is attached to and on which
-  identifiers: `crustdata:<id>#matched_on=domain,crustdata_company_id`. Rows that
+- `evidence.entity_ref` says which entity a row is attached to: `crustdata:<id>` when
+  the Crustdata id itself ties it (profile, identify), or `crustdata:<keys>:<id>` when
+  other identifiers did (e.g. `crustdata:domain+hq_city:123` for a news article). Both
+  end in `:<id>`, which is what `app.pipelines.evaluate.inputs` matches on. Rows that
   could not be corroborated are kept as `unattached:<reason>` (visible in Sources,
   never fed to a status, criterion or memo line).
 - Every write is keyed so a re-run of a step upserts instead of duplicating:
@@ -154,8 +156,11 @@ def update_entity(case: Case, **values: Any) -> None:
 
 
 def attached_ref(entity_ref: str, matched_on: Iterable[str]) -> str:
-    keys = ",".join(dict.fromkeys(matched_on))
-    return f"{entity_ref}#matched_on={keys}" if keys else entity_ref
+    keys = [k for k in dict.fromkeys(matched_on) if k != "crustdata_company_id"]
+    if not keys:
+        return entity_ref
+    prefix, _, cid = entity_ref.rpartition(":")
+    return f"{prefix}:{'+'.join(keys)}:{cid}"
 
 
 def unattached_ref(reason: str) -> str:
@@ -173,8 +178,11 @@ class ParsedRef:
 def parse_ref(entity_ref: str) -> ParsedRef:
     if entity_ref.startswith("unattached:"):
         return ParsedRef(False, None, [], entity_ref.removeprefix("unattached:"))
-    entity, _, rest = entity_ref.partition("#matched_on=")
-    return ParsedRef(True, entity, [k for k in rest.split(",") if k])
+    parts = entity_ref.split(":")
+    if len(parts) == 3:
+        return ParsedRef(True, f"{parts[0]}:{parts[2]}", parts[1].split("+"))
+    basis = ["crustdata_company_id"] if parts[0] == "crustdata" else []
+    return ParsedRef(True, entity_ref, basis)
 
 
 # --- Sources and evidence -------------------------------------------------------

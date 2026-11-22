@@ -1,4 +1,5 @@
-"""Case routes. Create/identity/verify: CP-19. Assessments: CP-22. Memo aggregate: CP-25."""
+"""Case routes. Create/identity/verify/list/detail: CP-19 (detail sections are extended
+through `app.api.cases_sections`). Criteria and assessments: CP-22."""
 
 import uuid
 from collections.abc import AsyncIterator
@@ -7,8 +8,10 @@ from typing import Annotated
 from fastapi import Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api import fixtures
+from app.api import cases_service, fixtures
 from app.api._base import fixture_or_501, fixtures_enabled, make_router, not_found
+from app.api.cases_deps import Actor, CaseSession
+from app.api.cases_sections import build_case_detail, build_case_summary
 from app.api.schemas.assessments import AssessmentVersionOut
 from app.api.schemas.cases import (
     CaseCreate,
@@ -23,7 +26,9 @@ from app.auth.deps import CurrentUser, WorkspaceId
 from app.db.models import AssessmentVersion, Case
 from app.db.repo import NotFound, list_case_children
 from app.db.repo import get_case as repo_get_case
+from app.db.repo import list_cases as repo_list_cases
 from app.db.session import get_session
+from app.jobs import events as run_events
 from app.pipelines import evaluate
 
 router = make_router(prefix="/cases", tags=["cases"])
@@ -65,19 +70,25 @@ def _fixture_case(case_id: str) -> CaseOut:
 
 
 @router.post("", response_model=CaseOut, status_code=status.HTTP_201_CREATED)
-def create_case(body: CaseCreate) -> CaseOut:
+async def create_case(body: CaseCreate, actor: Actor, session: CaseSession) -> CaseOut:
     """Open a case from a shortlist item, or from a name and website. Starts a verify run."""
-    return fixture_or_501("CP-19", lambda: _fixture_case(fixtures.CASE_ID))
+    if actor is None or session is None:
+        return fixture_or_501("CP-19", lambda: _fixture_case(fixtures.CASE_ID))
+    case = await cases_service.create_case(session, actor, body)
+    return await evaluate.case_out(session, case)
 
 
 @router.get("", response_model=list[CaseSummary])
-def list_cases() -> list[CaseSummary]:
+async def list_cases(actor: Actor, session: CaseSession) -> list[CaseSummary]:
     """Cases dashboard: disposition, fit with coverage, and cost per case."""
-    return fixture_or_501("CP-25", fixtures.case_summaries)
+    if actor is None or session is None:
+        return fixture_or_501("CP-25", fixtures.case_summaries)
+    cases = await repo_list_cases(session, actor.workspace_id)
+    return [await build_case_summary(session, actor.workspace_id, c) for c in cases]
 
 
 @router.get("/{case_id}", response_model=CaseDetail)
-def get_case(case_id: str) -> CaseDetail:
+async def get_case(case_id: str, actor: Actor, session: CaseSession) -> CaseDetail:
     """The finished-case memo aggregate, sections in PRD order."""
 
     def build() -> CaseDetail:
@@ -86,17 +97,31 @@ def get_case(case_id: str) -> CaseDetail:
             not_found("Case")
         return detail
 
-    return fixture_or_501("CP-25", build)
+    if actor is None or session is None:
+        return fixture_or_501("CP-25", build)
+    try:
+        case = await _load_case(session, actor.workspace_id, case_id)
+    except NotFound:
+        not_found("Case")
+    return await build_case_detail(session, actor.workspace_id, case)
 
 
 @router.post("/{case_id}/identity", response_model=CaseOut)
-def pick_identity(case_id: str, body: IdentityPickIn) -> CaseOut:
+async def pick_identity(
+    case_id: str, body: IdentityPickIn, actor: Actor, session: CaseSession
+) -> CaseOut:
     """Pick one candidate when identity is ambiguous or unresolved. Records who and when."""
-    return fixture_or_501("CP-19", lambda: _fixture_case(case_id))
+    if actor is None or session is None:
+        return fixture_or_501("CP-19", lambda: _fixture_case(case_id))
+    try:
+        case = await cases_service.pick_identity(session, actor, case_id, body)
+    except NotFound:
+        not_found("Case")
+    return await evaluate.case_out(session, case)
 
 
 @router.post("/{case_id}/verify", response_model=RunOut, status_code=status.HTTP_202_ACCEPTED)
-def start_verify(case_id: str) -> RunOut:
+async def start_verify(case_id: str, actor: Actor, session: CaseSession) -> RunOut:
     """Start (or re-run) verification for the case."""
 
     def build() -> RunOut:
@@ -104,7 +129,13 @@ def start_verify(case_id: str) -> RunOut:
         assert case.run is not None
         return case.run
 
-    return fixture_or_501("CP-19", build)
+    if actor is None or session is None:
+        return fixture_or_501("CP-19", build)
+    try:
+        run = await cases_service.start_verify(session, actor, case_id)
+    except NotFound:
+        not_found("Case")
+    return await run_events.load_run_out(session, actor.workspace_id, run.id)
 
 
 @router.put("/{case_id}/criteria", response_model=CaseOut)

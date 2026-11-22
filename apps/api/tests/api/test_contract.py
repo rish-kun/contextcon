@@ -93,6 +93,10 @@ SESSION_ROUTES = {
     "/runs/{run_id}",
     "/runs/{run_id}/events",
     "/runs/{run_id}/resume",
+    "/cases",  # CP-19: create and list
+    "/cases/{case_id}",  # CP-19
+    "/cases/{case_id}/identity",  # CP-19
+    "/cases/{case_id}/verify",  # CP-19
     "/cases/{case_id}/criteria",
     "/cases/{case_id}/assessments",
     "/cases/{case_id}/claims",  # CP-20
