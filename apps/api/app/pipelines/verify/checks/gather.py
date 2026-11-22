@@ -36,6 +36,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
+from urllib.parse import urlsplit
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -249,6 +250,12 @@ class CheckEnv:
             self._searches[query] = [h for h in result.results if h.url]
         return self._searches[query]
 
+    def issuer_ids(self) -> tuple[str, ...]:
+        """Listing identifiers recorded for the confirmed entity (CIN, ISIN, ticker)."""
+        entity = (self.case.identity_identifiers or {}).get("entity") or {}
+        keys = ("cin", "isin", "ticker", "nse_symbol", "bse_code")
+        return tuple(str(entity[k]).strip() for k in keys if isinstance(entity.get(k), str | int))
+
     def deny_terms(self) -> tuple[str, ...]:
         """Words a lookup must never carry: the name and website typed for the case
         (possibly a deal code name), unless they are the confirmed public name."""
@@ -350,16 +357,38 @@ def is_exchange(url: str | None) -> bool:
     return any(host == h or host.endswith("." + h) for h in EXCHANGE_HOSTS)
 
 
+def _carries_issuer_id(text: str, issuer_ids: tuple[str, ...]) -> bool:
+    folded = text.casefold()
+    return any(len(i) >= 3 and i.casefold() in folded for i in issuer_ids)
+
+
 def attach_hit(
-    hit: WebSearchHit, terms: PublicTerms, corroborators: dict[str, list[str]]
+    hit: WebSearchHit,
+    terms: PublicTerms,
+    corroborators: dict[str, list[str]],
+    issuer_ids: tuple[str, ...] = (),
 ) -> Attachment:
     """Attach a web record to the company only with an identifier beyond its name."""
     if same_site(hit.url, terms.domain):
         return Attachment(True, R.COMPANY_ANNOUNCEMENT, ["domain"], ref_prefix="domain")
     text = f"{hit.title or ''}\n{hit.snippet or ''}\n{hit.content or ''}"
-    if is_exchange(hit.url) and contains_phrase(text, terms.company_name):
-        # An exchange filing copy (unaudited results are not audited statements).
-        return Attachment(True, R.REGISTRY_MIRROR, ["name", "exchange"], ref_prefix="domain")
+    if is_exchange(hit.url):
+        # An exchange filing copy (unaudited results are not audited statements). A
+        # name on an exchange page is not enough (a group company or namesake lists
+        # too): the page must carry the issuer's CIN, ISIN or ticker on record.
+        if contains_phrase(text, terms.company_name) and _carries_issuer_id(text, issuer_ids):
+            return Attachment(
+                True,
+                R.REGISTRY_MIRROR,
+                ["name", "registry_id", "exchange"],
+                ref_prefix="registry_id",
+            )
+        return Attachment(
+            False,
+            R.REGISTRY_MIRROR,
+            [],
+            "exchange page without the issuer's CIN, ISIN or ticker on record",
+        )
     if terms.domain and terms.domain.casefold() in text.casefold():
         return Attachment(True, R.NEWS, ["domain"], ref_prefix="domain")
     if contains_phrase(text, terms.company_name):
@@ -387,7 +416,7 @@ async def _hit_units(
     corroborators = {"hq_city": [c for c in [_hq_city(record)] if c]}
     attached: list[tuple[WebSearchHit, Attachment, SourceRow]] = []
     for hit in hits:
-        att = attach_hit(hit, terms, corroborators)
+        att = attach_hit(hit, terms, corroborators, env.issuer_ids())
         source = await env.store.source(
             SourceSpec(
                 provider="web",
@@ -851,10 +880,18 @@ async def gather_financials(env: CheckEnv, claim: Claim) -> Gathered:
     hits = await env.search("results")
     terms = env.terms()
 
+    ids = env.issuer_ids()
+
     def rank(hit: WebSearchHit) -> int:
+        """Eligible pages first, then the fetch cap: the company's own site, an
+        exchange page carrying the issuer's id, other pages; an exchange page without
+        it cannot attach and goes last."""
         if same_site(hit.url, terms.domain):
             return 0
-        return 1 if is_exchange(hit.url) else 2
+        if is_exchange(hit.url):
+            text = f"{hit.title or ''}\n{hit.snippet or ''}\n{hit.content or ''}"
+            return 1 if _carries_issuer_id(text, ids) else 3
+        return 2
 
     hits = sorted(hits, key=rank)[:MAX_FETCH]
     units = await _hit_units(env, hits, "results", fetch=True)
@@ -899,6 +936,16 @@ class Lookup:
     party_check: Callable[[str, PublicTerms], str | None] | None = field(
         default=None, compare=False
     )
+    # Set when the lookup must not run (e.g. "private_counterparty": the name has no
+    # public provenance). It is listed as not run, and nothing is sent.
+    skip: str | None = None
+
+
+def is_redirect(url: str | None) -> bool:
+    """An opaque search-engine redirect: the page's own host is unknown."""
+    if host_of(url) != "google.com":
+        return False
+    return urlsplit(url or "").path.startswith(("/goto", "/url"))
 
 
 def classify_hit(
@@ -911,7 +958,24 @@ def classify_hit(
     """Attach a lookup result to the company. The other party's own page must name
     the company AND carry a second identifier (its domain or HQ city), like any page;
     then it is the other party's record (`lookup.party_class`). The company's own site
-    is checked first: it is never the other party, whatever the lookup says."""
+    is checked first: it is never the other party, whatever the lookup says.
+
+    An opaque redirect hides the host. Under a `site:` search on the company's own
+    domain it is the company's page; under a platform's domain it may be any page
+    there (a marketplace listing included), so at most a company announcement; with
+    no `site:` it is bound on its text like any page, as news."""
+    if is_redirect(hit.url):
+        if lookup.site and same_site(f"https://{lookup.site}", terms.domain):
+            return Attachment(
+                True, R.COMPANY_ANNOUNCEMENT, ["domain", "site_search"], ref_prefix="domain"
+            )
+        probe = hit.model_copy(update={"url": "", "content": f"{hit.content or ''}\n{page_text}"})
+        att = attach_hit(probe, terms, corroborators)
+        if att.attached and lookup.site:
+            return Attachment(
+                True, R.COMPANY_ANNOUNCEMENT, ["site_search", *att.matched_on], None, att.ref_prefix
+            )
+        return att
     if same_site(hit.url, terms.domain):
         return attach_hit(hit, terms, corroborators)
     on_party = on_party_site(hit.url, lookup, terms)
@@ -980,6 +1044,9 @@ async def run_lookups(env: CheckEnv, claim: Claim, lookups: list[Lookup], out: G
             "skipped": None,
         }
         out.searched.append(entry)
+        if lookup.skip:
+            entry["skipped"] = lookup.skip
+            continue
         try:
             query = build_lookup(
                 terms,
@@ -1000,7 +1067,7 @@ async def run_lookups(env: CheckEnv, claim: Claim, lookups: list[Lookup], out: G
             # The one page worth reading: the other party's own page first, then the
             # company's, and only one that names the company.
             ranked = sorted(
-                (h for h in hits if _names_company(h, terms)),
+                (h for h in hits if _names_company(h, terms) and not is_redirect(h.url)),
                 key=lambda h: (
                     0 if on_party_site(h.url, lookup, terms) else 1,
                     0 if same_site(h.url, terms.domain) else 1,

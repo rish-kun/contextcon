@@ -256,7 +256,10 @@ async def test_lookalike_customer_domain_is_not_the_customers_confirmation(sm, s
     _, ledger, _ = await _verify(sm, session, case, sentences, crust, llm)
 
     outcome = ledger[sentence]
-    assert crust.names().count("fetch_pages") >= 1  # the page was found and read
+    # A customer outside the curated platforms has no public provenance: its name is
+    # never sent (private_counterparty), so its pages are never searched at all.
+    assert all(CUSTOMER.casefold() not in q.casefold() for q in _queries(crust))
+    assert outcome.searched[0].skipped == "private_counterparty"
     assert outcome.status != "supported"
     assert all(e.source.source_class != "counterparty_confirmation" for e in outcome.evidence)
     assert "Searched:" in outcome.reason

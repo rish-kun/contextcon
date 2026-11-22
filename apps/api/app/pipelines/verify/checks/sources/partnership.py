@@ -3,21 +3,24 @@
 Two lookups at most (policy.MAX_LOOKUPS_PER_CLAIM):
 
 1. The counterparty's own site: its partner finder or newsroom
-   (`"<company>" site:<partner domain>`) when the partner is a known platform, else
-   `"<company>" "<counterparty>" <relationship>`.
-2. Press releases on either side: `"<company>" "<counterparty>" <relationship>`.
+   (`"<company>" site:<partner domain>`) when the partner is a known platform.
+2. Press releases: `"<company>" "<platform>" <relationship> press release`.
+
+A counterparty that is not a curated platform is never sent anywhere (it may be a
+private customer or a deal code name): its lookup is listed as not run
+(`private_counterparty`) and the company's own releases are searched instead.
 
 A page on the platform's own curated hosts (`PartnerSite.record_hosts`, exact
 hosts) that names the company with a second identifier is
 `counterparty_confirmation` (adequate: Supported). Marketplace listings the company
-writes itself are `company_announcement`. For other counterparties no host is
-trusted by name alone (a lookalike domain is cheap), so their pages are news.
+writes itself are `company_announcement`. No host is trusted by name resemblance
+(a lookalike domain is cheap).
 The company's own page is `company_announcement`: it counts, but alone it caps the
 claim at partially corroborated (`policy.SELF_STATEMENT_CAPPED`). Other pages are
 news, attached only with a second identifier.
 
-Only public terms go out: the confirmed company name, the counterparty named in the
-claim's structured components (checked by `query.clean_entity`), fixed words.
+Only public terms go out: the confirmed company name, a curated platform's public
+name (`PartnerSite.name`, never the claim's spelling), fixed words.
 """
 
 from __future__ import annotations
@@ -31,8 +34,9 @@ from app.rules.compare import normalize_text
 
 @dataclass(frozen=True)
 class PartnerSite:
-    """A platform's own web presence.
+    """A platform's own web presence, from this curated table only.
 
+    `name`: the platform's public name, the only counterparty name a lookup sends.
     `search`: the domain searched with `site:`. `record_hosts`: exact hosts whose pages
     the platform itself publishes (partner finder, newsroom): the counterparty's record.
     `listing_hosts`: marketplaces where the company writes its own listing: classed
@@ -40,19 +44,23 @@ class PartnerSite:
     Forum and community subdomains are in neither and read as ordinary pages.
     """
 
+    name: str
     search: str
     record_hosts: tuple[str, ...]
     listing_hosts: tuple[str, ...] = ()
 
 
 _MICROSOFT = PartnerSite(
+    "Microsoft",
     "microsoft.com",
     ("partner.microsoft.com", "news.microsoft.com"),
     ("appsource.microsoft.com", "azuremarketplace.microsoft.com", "marketplace.microsoft.com"),
 )
-_QLIK = PartnerSite("qlik.com", ("qlik.com", "partners.qlik.com"))
-_AWS = PartnerSite("aws.amazon.com", ("partners.amazonaws.com",), ("aws.amazon.com",))
-_SALESFORCE = PartnerSite("salesforce.com", ("salesforce.com",), ("appexchange.salesforce.com",))
+_QLIK = PartnerSite("Qlik", "qlik.com", ("qlik.com", "partners.qlik.com"))
+_AWS = PartnerSite("AWS", "aws.amazon.com", ("partners.amazonaws.com",), ("aws.amazon.com",))
+_SALESFORCE = PartnerSite(
+    "Salesforce", "salesforce.com", ("salesforce.com",), ("appexchange.salesforce.com",)
+)
 
 # Keyed by a normalised name the counterparty contains.
 PARTNER_SITES: dict[str, PartnerSite] = {
@@ -62,17 +70,19 @@ PARTNER_SITES: dict[str, PartnerSite] = {
     "qlikview": _QLIK,
     "aws": _AWS,
     "amazon web services": _AWS,
-    "google cloud": PartnerSite("cloud.google.com", ("cloud.google.com",)),
+    "google cloud": PartnerSite("Google Cloud", "cloud.google.com", ("cloud.google.com",)),
     "salesforce": _SALESFORCE,
-    "tableau": PartnerSite("tableau.com", ("tableau.com",)),
-    "sap": PartnerSite("sap.com", ("partnerfinder.sap.com", "news.sap.com")),
-    "oracle": PartnerSite("oracle.com", ("partner-finder.oracle.com",)),
-    "ibm": PartnerSite("ibm.com", ("newsroom.ibm.com",)),
-    "servicenow": PartnerSite("servicenow.com", ("servicenow.com",), ("store.servicenow.com",)),
-    "snowflake": PartnerSite("snowflake.com", ("snowflake.com",)),
-    "databricks": PartnerSite("databricks.com", ("databricks.com",)),
-    "zebra": PartnerSite("zebra.com", ("zebra.com", "partnerportal.zebra.com")),
-    "honeywell": PartnerSite("honeywell.com", ("honeywell.com",)),
+    "tableau": PartnerSite("Tableau", "tableau.com", ("tableau.com",)),
+    "sap": PartnerSite("SAP", "sap.com", ("partnerfinder.sap.com", "news.sap.com")),
+    "oracle": PartnerSite("Oracle", "oracle.com", ("partner-finder.oracle.com",)),
+    "ibm": PartnerSite("IBM", "ibm.com", ("newsroom.ibm.com",)),
+    "servicenow": PartnerSite(
+        "ServiceNow", "servicenow.com", ("servicenow.com",), ("store.servicenow.com",)
+    ),
+    "snowflake": PartnerSite("Snowflake", "snowflake.com", ("snowflake.com",)),
+    "databricks": PartnerSite("Databricks", "databricks.com", ("databricks.com",)),
+    "zebra": PartnerSite("Zebra", "zebra.com", ("zebra.com", "partnerportal.zebra.com")),
+    "honeywell": PartnerSite("Honeywell", "honeywell.com", ("honeywell.com",)),
 }
 
 # Relationship words a lookup may carry (all in query.LOOKUP_WORDS).
@@ -101,41 +111,42 @@ def relationship_words(claim: Claim) -> str:
 
 
 def plan(claim: Claim) -> list[Lookup]:
+    """Two lookups at most. Only a curated platform's public name is ever sent; a
+    counterparty that is not in `PARTNER_SITES` has no public provenance (it may be a
+    private customer or a code name), so its own lookup is listed as not run
+    ("private_counterparty") and the second searches the company's own releases with
+    fixed words only. Labels carry the curated name or fixed words, never the claim's."""
     comps = {c.name: str(c.value) for c in claim.components}
     counterparty = comps.get("counterparty")
     words = relationship_words(claim)
+    releases = Lookup(label=f"the company's {words} announcements", words=f"{words} press release")
     if not counterparty:
-        return [Lookup(label="the company's partner announcements", words=words)]
+        return [releases]
     site = partner_sites(counterparty)
-    record = site.record_hosts if site else ()
-    listing = site.listing_hosts if site else ()
+    if site is None:
+        return [
+            Lookup(label="the counterparty's own pages", words=words, skip="private_counterparty"),
+            releases,
+        ]
     focus = tuple(words.split())
-    first = (
+    return [
         Lookup(
-            label=f"{counterparty} partner directory ({site.search})",
+            label=f"{site.name} partner directory ({site.search})",
             words="",
             site=site.search,
-            party_hosts=record,
-            listing_hosts=listing,
-            focus=(counterparty, *focus),
-        )
-        if site
-        else Lookup(
-            label=f"{counterparty} announcements",
-            words=words,
-            entity=counterparty,
-            focus=focus,
-        )
-    )
-    second = Lookup(
-        label=f"{counterparty} {words} press releases",
-        words=f"{words} press release",
-        entity=counterparty,
-        party_hosts=record,
-        listing_hosts=listing,
-        focus=focus,
-    )
-    return [first, second]
+            party_hosts=site.record_hosts,
+            listing_hosts=site.listing_hosts,
+            focus=(site.name, *focus),
+        ),
+        Lookup(
+            label=f"{site.name} {words} press releases",
+            words=f"{words} press release",
+            entity=site.name,
+            party_hosts=site.record_hosts,
+            listing_hosts=site.listing_hosts,
+            focus=(site.name, *focus),
+        ),
+    ]
 
 
 async def gather(env: CheckEnv, claim: Claim) -> Gathered:
