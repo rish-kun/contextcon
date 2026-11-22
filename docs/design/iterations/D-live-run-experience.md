@@ -618,7 +618,7 @@ Later stages reuse the item shape and send only the rows that changed:
 
 ```json
 {
-  "seq": 40, "run_id": "5b0c…", "step_id": "e3b2…", "step_key": "verify.check:0c9f…",
+  "seq": 40, "run_id": "5b0c…", "step_id": "e3b2…", "step_key": "checks.claim:0c9f…",
   "kind": "finding", "at": "2026-11-22T11:14:20.300Z",
   "label": "Claim settled: Partially corroborated", "detail": "dated event", "progress": null,
   "source": { "type": "web_page", "domain": "meridianwarehousing.example",
@@ -745,14 +745,14 @@ Something about the run itself that the user should know: a limit, a retry, a wi
 | | `verify.registry` | "Searching public registry records"; "Reading {domain}" per page | `web_search`, `web_fetch` | `web_page` per page | per page chunk (`facts`) | — | `source_limit` |
 | | `verify.events` | "Searching news about the company"; "Reading {domain}" per page | `web_search` ×1–2, `web_fetch` | `web_page` per page | per page (`facts`) | `event` per dated event | `source_limit` |
 | | `verify.comparables` | "Searching for comparable companies" | `company_search` | — | — | `peer` | — |
-| | claim intake (`verify.extract:{doc}`) | "Reading the uploaded document" with page progress | — | — | 1+ (`claims`, `pages`) | `claim` `queued`, one event for all claims (ids and categories only) | `nothing_to_check` |
-| | claim check (`verify.check:{claim}`) | "Checking: {category}"; "Searching professional records"; "Reading {domain}" | `person_search`, `web_search`, `web_fetch`, `company_enrich` as the category needs | `web_page` / `crustdata_record`, with `ref` = the claim | per text unit (`facts`, `rejected_no_span`) | `claim` `checking` at start, `settled` or `not_checked` at end | `budget_reached`, `served_from_cache` |
+| | claim intake (`claims.extract:{document_id}`) | "Reading the uploaded document" with page progress | — | — | 1+ (`claims`, `pages`) | `claim` `queued`, one event for all claims (ids and categories only) | `nothing_to_check` |
+| | claim check (`checks.claim:{claim_id}`) | "Checking: {category}"; "Searching professional records"; "Reading {domain}" | `person_search`, `web_search`, `web_fetch`, `company_enrich` as the category needs | `web_page` / `crustdata_record`, with `ref` = the claim | per text unit (`facts`, `rejected_no_span`) | `claim` `checking` at start, `settled` or `not_checked` at end | `budget_reached`, `served_from_cache` |
 | | `evaluate` | "Applying the screening rules" | — | — | — | `assessment` | — |
-| | `act.request_list` | "Drafting the document request" | — | — | 1 (`request_items`) | `request_list` | — |
+| | `request_list` | "Drafting the document request" | — | — | 1 (`request_items`) | `request_list` | — |
 | Recheck | intake, affected claim checks, `evaluate` | as Verify | usually none | `seller_document` (step list only) | as Verify | `claim` with `previous_status`; `assessment` with `previous_disposition` | — |
 | Evaluate | `evaluate` | "Applying the screening rules" | — | — | — | `assessment` | — |
 
-Step keys are written as they appear in the code today where I read them, and by pattern for the claim steps; the backend chunk should use the real constants.
+Step keys are the constants in the code today (`verify.*`, `claims.extract:`, `checks.claim:`, `evaluate`, `request_list`, `discover.*`, `investors.*`).
 
 ### 2.10 Confidentiality rules
 
