@@ -33,6 +33,10 @@ class StepOut(ApiModel):
     error: str | None = None
     from_cache: bool = Field(default=False, description="Replayed from the request cache.")
     cost: CostTotalsOut = Field(default_factory=CostTotalsOut)
+    reserved_credits: float = Field(
+        default=0,
+        description="Credits held by calls still in flight; settled spend is in `cost`.",
+    )
     started_at: datetime | None = None
     finished_at: datetime | None = None
 
@@ -46,7 +50,15 @@ class RunOut(ApiModel):
     thesis_id: str | None = None
     investor_search_id: str | None = None
     budget_credits: float
-    cost: CostTotalsOut = Field(default_factory=CostTotalsOut)
+    cost: CostTotalsOut = Field(
+        default_factory=CostTotalsOut,
+        description="Settled spend; always the sum of the steps' `cost` plus any spend "
+        "recorded outside a step.",
+    )
+    reserved_credits: float = Field(
+        default=0,
+        description="Credits held by calls still in flight; settled spend is in `cost`.",
+    )
     checks_not_run: int = Field(default=0, description="Checks skipped (become not_checked).")
     created_at: datetime
     finished_at: datetime | None = None

@@ -155,6 +155,15 @@ async def load_run_out(session: AsyncSession, workspace_id: uuid.UUID, run_id: u
                     func.count(case((CallAttempt.status == CallStatus.STARTED, 1))).label(
                         "unresolved"
                     ),
+                    func.sum(
+                        case(
+                            (
+                                CallAttempt.status == CallStatus.STARTED,
+                                func.coalesce(CallAttempt.reserved_credits, 0),
+                            ),
+                            else_=0,
+                        )
+                    ).label("reserved"),
                 )
                 .where(CallAttempt.run_id == run.id, CallAttempt.workspace_id == workspace_id)
                 .group_by(CallAttempt.step_id)
@@ -183,6 +192,7 @@ async def load_run_out(session: AsyncSession, workspace_id: uuid.UUID, run_id: u
                 error=step.error if step.state != "done" else None,
                 from_cache=bool(c and c.total and c.hits == c.total),
                 cost=_totals(step_costs.get(step.id), c.unresolved if c else 0),
+                reserved_credits=float(c.reserved or 0) if c else 0.0,
                 started_at=step.started_at,
                 finished_at=step.finished_at,
             )
@@ -206,6 +216,7 @@ async def load_run_out(session: AsyncSession, workspace_id: uuid.UUID, run_id: u
         investor_search_id=str(run.investor_run_id) if run.investor_run_id else None,
         budget_credits=float(run.budget_credits or Decimal(0)),
         cost=_totals(run_cost, sum(c.unresolved for c in calls.values())),
+        reserved_credits=float(sum((c.reserved or 0) for c in calls.values())),
         checks_not_run=sum(1 for s in steps if s.state in _NOT_RUN),
         created_at=run.created_at,
         finished_at=run.finished_at,
@@ -225,6 +236,17 @@ async def resume_run_out(
     await session.commit()
     session.expunge_all()
     return await load_run_out(session, workspace_id, run_id)
+
+
+def _run_signature(out: RunOut) -> tuple:
+    return (
+        out.state,
+        out.cost.model_dump_json(),
+        out.reserved_credits,
+        out.checks_not_run,
+        out.resumed_at,
+        out.error,
+    )
 
 
 def _sse(event: StepEvent | RunEvent) -> str:
@@ -390,7 +412,7 @@ async def run_event_stream(
     seen: dict[str, tuple] = {}
     last_seq = max(0, after or 0)
     last_state: str | None = None
-    last_cost: CostTotalsOut | None = None
+    last_run: tuple | None = None
     ticks = 0
     while True:
         out: RunOut | None = None
@@ -416,11 +438,13 @@ async def run_event_stream(
         if first:
             yield LIVE_MARKER
         if out is not None:
-            changed = out.state != last_state or out.cost != last_cost
-            # Every state or cost change is announced; the stream ends on a run event.
+            # Every run change (state, spend, reservations, skipped checks) is announced,
+            # so the header's credits keep up with the steps; the stream ends on a run event.
+            signature = _run_signature(out)
+            changed = out.state != last_state or signature != last_run
             if (not first and changed) or (first and terminal):
                 yield run_event
-            last_state, last_cost = out.state, out.cost
+            last_state, last_run = out.state, signature
         if terminal:
             return
         ticks += 1

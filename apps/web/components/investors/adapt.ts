@@ -3,6 +3,7 @@
  * Crustdata credits and model dollars stay two separate figures all the way through.
  */
 import type { RunOut, StepOut } from "@/lib/api/client";
+import { withStepSpend } from "@/lib/api/run-cost";
 import { RUN_KIND_LABEL } from "@/lib/labels";
 import type { CaseCost, Run, RunStep } from "@/lib/types";
 
@@ -82,11 +83,11 @@ export function mergeStep(run: RunOut, step: StepOut): RunOut {
   const steps = run.steps.some((s) => s.id === step.id)
     ? run.steps.map((s) => (s.id === step.id ? step : s))
     : [...run.steps, step];
-  return { ...run, steps };
+  return withStepSpend({ ...run, steps });
 }
 
 /** A `run` event from the stream may carry no steps; a polling snapshot carries all of them. */
 export function mergeRun(previous: RunOut | null, next: RunOut): RunOut {
-  if (next.steps.length > 0 || !previous) return next;
-  return { ...next, steps: previous.steps };
+  if (next.steps.length > 0 || !previous) return withStepSpend(next);
+  return withStepSpend({ ...next, steps: previous.steps });
 }

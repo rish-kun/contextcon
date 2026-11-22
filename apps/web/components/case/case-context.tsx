@@ -31,6 +31,7 @@ import {
   isFixtureMode,
   startVerify,
 } from "@/lib/api/client";
+import { withStepSpend } from "@/lib/api/run-cost";
 import { deriveView, type RunActivityView, visibleEvents } from "@/lib/run/activity-store";
 import type { Activity } from "@/lib/run/types";
 import { EMPTY_FEED, RunFeed, type RunFeedSnapshot } from "@/lib/run/use-run-activity";
@@ -120,13 +121,13 @@ function mergeEvent(current: RunOut | null, event: RunStreamEvent): RunOut | nul
   if (event.event === "run") {
     // The stream's closing `run` event may carry no steps; keep the ones already seen.
     const steps = event.data.steps.length > 0 ? event.data.steps : (current?.steps ?? []);
-    return { ...event.data, steps };
+    return withStepSpend({ ...event.data, steps });
   }
   if (!current) return current;
   const steps = current.steps.some((s) => s.id === event.data.id)
     ? current.steps.map((s) => (s.id === event.data.id ? event.data : s))
     : [...current.steps, event.data];
-  return { ...current, steps };
+  return withStepSpend({ ...current, steps });
 }
 
 export function CaseProvider({

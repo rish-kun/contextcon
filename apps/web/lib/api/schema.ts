@@ -2699,7 +2699,14 @@ export interface components {
             investor_search_id: string | null;
             /** Budget Credits */
             budget_credits: number;
+            /** @description Settled spend; always the sum of the steps' `cost` plus any spend recorded outside a step. */
             cost: components["schemas"]["CostTotalsOut"];
+            /**
+             * Reserved Credits
+             * @description Credits held by calls still in flight; settled spend is in `cost`.
+             * @default 0
+             */
+            reserved_credits: number;
             /**
              * Checks Not Run
              * @description Checks skipped (become not_checked).
@@ -3105,6 +3112,12 @@ export interface components {
              */
             from_cache: boolean;
             cost: components["schemas"]["CostTotalsOut"];
+            /**
+             * Reserved Credits
+             * @description Credits held by calls still in flight; settled spend is in `cost`.
+             * @default 0
+             */
+            reserved_credits: number;
             /** Started At */
             started_at: string | null;
             /** Finished At */

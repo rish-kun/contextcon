@@ -12,6 +12,7 @@ import type {
   SourceRef,
   StepOut,
 } from "@/lib/api/client";
+import { withStepSpend } from "@/lib/api/run-cost";
 import type {
   EstimateMeta,
   Evidence,
@@ -177,15 +178,15 @@ export function asLiveSeed(run: RunOut): RunOut {
 export function mergeRunEvent(run: RunOut, event: RunStreamEvent): RunOut {
   if (event.event === "activity" || event.event === "live") return run;
   if (event.event === "run") {
-    return {
+    return withStepSpend({
       ...event.data,
       steps: event.data.steps.length > 0 ? event.data.steps : run.steps,
-    };
+    });
   }
   const steps = run.steps.filter((step) => step.id !== event.data.id);
   steps.push(event.data);
   steps.sort((a, b) => a.position - b.position);
-  return { ...run, steps };
+  return withStepSpend({ ...run, steps });
 }
 
 function toStep(step: StepOut): RunStep {

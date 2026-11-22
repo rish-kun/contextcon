@@ -191,3 +191,84 @@ async def test_step_errors_are_sanitised(session, sm) -> None:
     async with _client(sm, t.workspace.id) as client:
         error = (await client.get(f"/runs/{run.id}")).json()["steps"][0]["error"]
     assert error == "RuntimeError"  # the message (URL, key) stays in the server log
+
+
+async def test_sse_run_header_spend_keeps_up_with_the_steps(session, sm, monkeypatch) -> None:
+    """Regression: the run event used to be re-sent only on a state change, so a live
+    header read "0 of 60 credits" while finished steps already showed 7 cr."""
+    from decimal import Decimal
+
+    from app.db.models import CostEntry
+
+    monkeypatch.setattr(events, "POLL_SECONDS", 0.05)
+    t = await tenant(session)
+    reg = StepRegistry()
+    gate = asyncio.Event()
+
+    @reg.handler("paid")
+    async def paid(ctx: StepContext) -> dict:
+        async with ctx.sessionmaker() as s:  # settled spend, visible before the step ends
+            s.add(
+                CostEntry(
+                    workspace_id=ctx.run.workspace_id,
+                    case_id=ctx.run.case_id,
+                    run_id=ctx.run.id,
+                    step_id=ctx.step_id,
+                    provider="crustdata",
+                    endpoint="/screener/companysearch",
+                    credits=Decimal(ctx.input["credits"]),
+                )
+            )
+            await s.commit()
+        return {}
+
+    opened = asyncio.Event()
+
+    @reg.handler("open")
+    async def open_(ctx: StepContext) -> dict:
+        await opened.wait()
+        return {}
+
+    @reg.handler("wait")
+    async def wait(ctx: StepContext) -> dict:
+        await gate.wait()
+        return {}
+
+    run = await create_run(
+        session,
+        workspace_id=t.workspace.id,
+        kind="verify",
+        case_id=t.case.id,
+        steps=[
+            StepSpec("plan", "open", uses_budget=False),
+            StepSpec("search", "paid", input={"credits": "4"}, depends_on=["plan"]),
+            StepSpec("enrich", "paid", input={"credits": "3"}, depends_on=["search"]),
+            StepSpec("rank", "wait", depends_on=["enrich"], uses_budget=False),
+        ],
+    )
+    await session.commit()
+    worker = make_worker(sm, reg)
+
+    async def drive() -> None:
+        work = asyncio.create_task(worker.drain())
+        await asyncio.sleep(0.4)  # the stream has seen the run running at 0 credits
+        opened.set()
+        await asyncio.sleep(0.6)
+        gate.set()
+        await work
+
+    async with _client(sm, t.workspace.id) as client:
+        driver = asyncio.create_task(drive())
+        resp = await asyncio.wait_for(client.get(f"/runs/{run.id}/events"), 10)
+        await driver
+        final = (await client.get(f"/runs/{run.id}")).json()
+    evts = _parse(resp.text)
+    running = [d for e, d in evts if e == "run" and d["state"] == "running"]
+    assert any(d["cost"]["crustdata_credits"] == 7 for d in running), running
+    steps = {d["key"]: d for e, d in evts if e == "step"}
+    assert sum(s["cost"]["crustdata_credits"] for s in steps.values()) == 7
+    assert evts[-1][1]["cost"]["crustdata_credits"] == 7
+    assert final["cost"]["crustdata_credits"] == sum(
+        s["cost"]["crustdata_credits"] for s in final["steps"]
+    )
+    assert final["reserved_credits"] == 0

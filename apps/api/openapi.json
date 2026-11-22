@@ -8297,7 +8297,14 @@
             "title": "Budget Credits"
           },
           "cost": {
-            "$ref": "#/components/schemas/CostTotalsOut"
+            "$ref": "#/components/schemas/CostTotalsOut",
+            "description": "Settled spend; always the sum of the steps' `cost` plus any spend recorded outside a step."
+          },
+          "reserved_credits": {
+            "type": "number",
+            "title": "Reserved Credits",
+            "description": "Credits held by calls still in flight; settled spend is in `cost`.",
+            "default": 0
           },
           "checks_not_run": {
             "type": "integer",
@@ -8366,6 +8373,7 @@
           "investor_search_id",
           "budget_credits",
           "cost",
+          "reserved_credits",
           "checks_not_run",
           "created_at",
           "finished_at",
@@ -9425,6 +9433,12 @@
           "cost": {
             "$ref": "#/components/schemas/CostTotalsOut"
           },
+          "reserved_credits": {
+            "type": "number",
+            "title": "Reserved Credits",
+            "description": "Credits held by calls still in flight; settled spend is in `cost`.",
+            "default": 0
+          },
           "started_at": {
             "anyOf": [
               {
@@ -9465,6 +9479,7 @@
           "error",
           "from_cache",
           "cost",
+          "reserved_credits",
           "started_at",
           "finished_at"
         ],
