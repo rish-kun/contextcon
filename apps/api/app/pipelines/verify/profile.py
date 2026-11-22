@@ -241,8 +241,38 @@ async def build_profile(ctx: StepContext) -> dict[str, Any]:
         ),
     )
     await ctx.session.flush()
+    news = news_leads(record)
     ctx.result = f"{len(rows)} profile facts; {decision.company_type.value}"
-    return {"fields": len(rows), "company_type": decision.company_type.value}
+    if news:
+        ctx.result += f"; {len(news)} dated news links"
+    return {"fields": len(rows), "company_type": decision.company_type.value, "news": news}
+
+
+MAX_NEWS_LEADS = 10
+
+
+def news_leads(record: CompanyRecord) -> list[dict[str, Any]]:
+    """Dated article links the company record lists (enrich `news`), newest first.
+
+    They are leads, not evidence: `verify.events` reads each article and attaches it
+    only when it corroborates the confirmed entity, exactly as for a news-search hit."""
+    leads: list[dict[str, Any]] = []
+    for item in getattr(record, "news", None) or []:
+        if not isinstance(item, dict) or not common.readable_url(item.get("article_url") or ""):
+            continue
+        leads.append(
+            {
+                "url": item["article_url"],
+                "title": item.get("article_title"),
+                "date": item.get("article_publish_date"),
+                "publisher": item.get("article_publisher_name"),
+            }
+        )
+    leads.sort(key=lambda n: str(n.get("date") or ""), reverse=True)
+    unique = {n["url"]: n for n in reversed(leads)}  # keep the first (newest) per URL
+    return sorted(unique.values(), key=lambda n: str(n.get("date") or ""), reverse=True)[
+        :MAX_NEWS_LEADS
+    ]
 
 
 def _key_people(record: CompanyRecord) -> list[str]:

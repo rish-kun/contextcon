@@ -94,6 +94,7 @@ DEFAULT_ENRICH_FIELDS: tuple[str, ...] = (
     "hiring",
     "taxonomy",
     "people",
+    "news",
     "metadata",
     "updated_at",
 )

@@ -540,3 +540,40 @@ async def test_redirect_hits_are_never_fetched_and_key_person_corroborates(
     assert event.kind == "funding"
     ev = await session.get(Evidence, event.evidence_id)
     assert ev.entity_ref == f"crustdata:name+key_person:{ACME_ID}"
+
+
+async def test_record_news_links_are_read_as_dated_events(session, sm, api) -> None:
+    """Enrich `news` (requested in DEFAULT_ENRICH_FIELDS) lists dated article links. The
+    profile step passes them on; the events step reads them like search hits and
+    attaches only articles that corroborate the entity."""
+    from app.clients.crustdata import DEFAULT_ENRICH_FIELDS
+
+    actor = await _actor(session)
+    _happy_api(api)
+    terms = PublicTerms(name=ACME, domain=ACME_DOMAIN)
+    api.web[news_query(terms)] = []  # the news search finds nothing
+    url = "https://trade.example/acme-chennai"
+    api.enrich[ACME_ID][0]["matches"][0]["company_data"]["news"] = [
+        {
+            "article_url": url,
+            "article_title": "Acme Freight enters Chennai",
+            "article_publish_date": "2026-08-14T00:00:00Z",
+            "article_publisher_name": "Trade Example",
+        },
+        {"article_url": "https://news.google.com/rss/x", "article_title": "unreadable"},
+    ]
+    api.pages[url] = page(
+        url,
+        "Acme Freight enters Chennai",
+        f"<p>Acme Freight (fixture) opens a warehouse in Chennai.</p>"
+        f'<p><a href="https://{ACME_DOMAIN}">{ACME_DOMAIN}</a></p>',
+        published=None,
+    )
+    case = await _shortlist_case(session, actor)
+    await _drain(sm)
+    assert "news" in DEFAULT_ENRICH_FIELDS
+    assert "news" in api.calls("/company/enrich")[0]["fields"]
+    fetched = [u for body in api.calls("/web/enrich/live") for u in body["urls"]]
+    assert url in fetched and "https://news.google.com/rss/x" not in fetched
+    [event] = list((await session.execute(select(Event).where(Event.case_id == case.id))).scalars())
+    assert str(event.event_date) == "2026-08-14"  # the record's date when the page has none

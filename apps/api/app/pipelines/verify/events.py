@@ -1,7 +1,9 @@
 """`verify.events`: recent dated events about the confirmed company (design §6.3 step 7).
 
 One `web_search_live` news search built from public terms only (the confirmed name and
-domain together), then `web_enrich_live` reads the top articles. For each article:
+domain together), plus the dated article links the company record lists (enrich `news`,
+passed on by `verify.profile`); then `web_enrich_live` reads the top articles. For each
+article:
 
 - the publish date comes from the page's own metadata (or the search hit's date);
 - the article is attached only when it corroborates the entity: the company's domain
@@ -23,6 +25,7 @@ import hashlib
 import re
 from dataclasses import dataclass
 from datetime import date
+from types import SimpleNamespace
 from typing import Any
 
 from sqlalchemy import delete, select
@@ -35,6 +38,7 @@ from app.jobs import StepContext, step_handler
 from app.pipelines.verify import common
 from app.pipelines.verify.common import (
     EVENTS,
+    PROFILE,
     ConfirmedEntity,
     PublicTerms,
     host_matches,
@@ -42,7 +46,7 @@ from app.pipelines.verify.common import (
     normalize_name,
 )
 
-MAX_ARTICLES = 4
+MAX_ARTICLES = 8
 MIN_DIRECT_ARTICLES = 2
 PRESS_WIRES = (
     "prnewswire.com",
@@ -154,6 +158,31 @@ def _readable_hits(results: list[Any]) -> dict[str, Any]:
     return hits
 
 
+def record_news(ctx: StepContext) -> dict[str, Any]:
+    """The company record's own dated article links, shaped like search hits."""
+    dep = ctx.dependencies.get(PROFILE) or {}
+    output = dep.get("output") if dep.get("state") == "done" else None
+    hits: dict[str, Any] = {}
+    for lead in (output or {}).get("news") or []:
+        url = lead.get("url")
+        if url and common.readable_url(url) and url not in hits:
+            hits[url] = SimpleNamespace(
+                url=url, title=lead.get("title"), metadata={"published_date": lead.get("date")}
+            )
+    return hits
+
+
+def _interleave(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
+    """Alternate two ordered hit lists, so neither crowds out the other under the cap."""
+    out: dict[str, Any] = {}
+    left, right = list(a.items()), list(b.items())
+    for i in range(max(len(left), len(right))):
+        for side in (left, right):
+            if i < len(side) and side[i][0] not in out:
+                out[side[i][0]] = side[i][1]
+    return out
+
+
 def _hit_date(hit: Any) -> date | None:
     meta = hit.metadata if isinstance(hit.metadata, dict) else {}
     for key in ("date", "published_date", "publish_date", "published_at"):
@@ -230,7 +259,7 @@ async def dated_events(ctx: StepContext) -> dict[str, Any]:
         found, _ = await client.web_search(
             common.news_query(terms), sources=["news"], location=location
         )
-        hits = _readable_hits(found.results)
+        hits = _interleave(record_news(ctx), _readable_hits(found.results))
         if len(hits) < MIN_DIRECT_ARTICLES:
             # Many news hits are redirect links that cannot be read; one more page.
             await ctx.require_budget(1)
