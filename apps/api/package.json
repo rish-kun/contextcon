@@ -1,0 +1,11 @@
+{
+  "name": "api",
+  "private": true,
+  "description": "pnpm wrapper so workspace scripts reach the uv-managed Python API.",
+  "scripts": {
+    "dev": "uv run uvicorn app.main:app --reload --port 8000",
+    "build": "uv sync --frozen",
+    "lint": "uv run ruff check . && uv run ruff format --check .",
+    "test": "uv run pytest"
+  }
+}
