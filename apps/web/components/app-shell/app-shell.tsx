@@ -12,7 +12,8 @@ import {
   DialogTitle,
   Skeleton,
 } from "@/components/ui";
-import { ApiError, listCases, logout, me, type CaseSummary, type UserOut } from "@/lib/api/client";
+import { ApiError, logout, me, type CaseSummary, type UserOut } from "@/lib/api/client";
+import { loadWorkspace, requestState } from "@/lib/workspace";
 import { CommandMenu } from "./command-menu";
 import { ShellContext, type ShellContextValue } from "./shell-context";
 import { SidebarNav } from "./sidebar-nav";
@@ -80,6 +81,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
   const [recentCases, setRecentCases] = useState<CaseSummary[] | null>(null);
+  const [approvalsWaiting, setApprovalsWaiting] = useState<number | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [verifyOpen, setVerifyOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -116,9 +118,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!ready) return;
     let cancelled = false;
-    listCases().then(
-      (cases) => {
-        if (!cancelled) setRecentCases(cases);
+    loadWorkspace().then(
+      (workspace) => {
+        if (cancelled) return;
+        setRecentCases(workspace.cases);
+        setApprovalsWaiting(
+          workspace.cases.filter((item) => requestState(workspace.details[item.id]) === "draft").length,
+        );
       },
       () => {},
     );
@@ -153,8 +159,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const user = session.status === "ready" ? session.user : null;
   const context = useMemo<ShellContextValue | null>(
-    () => (user ? { user, signOut, openVerify, openCommandMenu, recentCases } : null),
-    [user, signOut, openVerify, openCommandMenu, recentCases],
+    () =>
+      user ? { user, signOut, openVerify, openCommandMenu, recentCases, approvalsWaiting } : null,
+    [user, signOut, openVerify, openCommandMenu, recentCases, approvalsWaiting],
   );
 
   if (session.status === "loading") {
@@ -220,7 +227,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <SheetPrimitive.Overlay className="fixed inset-0 z-(--z-dialog) animate-fade-in bg-scrim motion-reduce:animate-none md:hidden" />
           <SheetPrimitive.Content
             aria-describedby={undefined}
-            className="fixed inset-y-0 left-0 z-(--z-dialog) flex w-72 max-w-[85vw] animate-fade-in flex-col border-r border-line bg-paper shadow-lg motion-reduce:animate-none md:hidden"
+            className="fixed inset-y-0 left-0 z-(--z-dialog) flex w-72 max-w-(--layout-sheet-max) animate-fade-in flex-col border-r border-line bg-paper shadow-lg motion-reduce:animate-none md:hidden"
           >
             <SheetPrimitive.Title className="sr-only">Navigation</SheetPrimitive.Title>
             <SidebarNav onNavigate={() => setNavOpen(false)} />

@@ -14,6 +14,8 @@ export interface ShellContextValue {
   openCommandMenu: () => void;
   /** Cases for the sidebar and the command menu. Null until the first load finishes. */
   recentCases: CaseSummary[] | null;
+  /** Seller requests drafted and not yet approved, across the cases read. Null until known. */
+  approvalsWaiting: number | null;
 }
 
 export const ShellContext = createContext<ShellContextValue | null>(null);

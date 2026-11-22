@@ -1,18 +1,43 @@
+"use client";
+
+import { createContext, useContext } from "react";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "./skeleton";
+
+export type TableDensity = "compact" | "default" | "two-line";
+const DensityContext = createContext<TableDensity | null>(null);
+/** Row heights: 32 for records, 40 for directories, 52 for a name over its meta line. */
+const CELL: Record<TableDensity, string> = { compact: "h-8 py-1", default: "h-10 py-2", "two-line": "h-13 py-2" };
 
 /**
  * A plain semantic table at 13px. Numbers go in `numeric` cells: right-aligned, mono,
  * tabular. Row states read apart: hover is a surface step, selected is accent tint with a
  * left bar (set data-state="selected" and aria-selected), the header is a sunken band.
  */
-export function Table({ className, ...props }: React.ComponentProps<"table">) {
+export function Table({
+  className,
+  density,
+  flush = false,
+  ...props
+}: React.ComponentProps<"table"> & {
+  /** Set a density to get its row height and 16px edge cells. Unset keeps the 36px legacy row. */
+  density?: TableDensity;
+  /** No border of its own, for a table inside a flush panel body. */
+  flush?: boolean;
+}) {
   return (
-    <div className="w-full overflow-x-auto rounded-lg border border-line bg-surface">
-      <table
-        className={cn("w-full border-collapse text-left text-dense text-ink", className)}
-        {...props}
-      />
-    </div>
+    <DensityContext.Provider value={density ?? null}>
+      <div className={cn("w-full overflow-x-auto", !flush && "rounded-lg border border-line bg-surface")}>
+        <table
+          className={cn(
+            "w-full border-collapse text-left text-dense text-ink",
+            density && "[&_td:first-child]:pl-4 [&_td:last-child]:pr-4 [&_th:first-child]:pl-4 [&_th:last-child]:pr-4",
+            className,
+          )}
+          {...props}
+        />
+      </div>
+    </DensityContext.Provider>
   );
 }
 
@@ -66,17 +91,48 @@ export function TableHead({
 export function TableCell({
   className,
   numeric = false,
+  muted = false,
   ...props
-}: React.ComponentProps<"td"> & { numeric?: boolean }) {
+}: React.ComponentProps<"td"> & { numeric?: boolean; muted?: boolean }) {
+  const density = useContext(DensityContext);
   return (
     <td
       className={cn(
-        "h-9 px-3 py-2 align-middle",
-        numeric && "text-right font-mono whitespace-nowrap",
+        "px-3 align-middle",
+        density ? CELL[density] : "h-9 py-2",
+        numeric && "text-right font-mono text-xs whitespace-nowrap",
+        muted && "text-ink-muted",
         className,
       )}
       {...props}
     />
+  );
+}
+
+/** Rows standing in for a table that is loading, at the table's own density. */
+export function TableSkeleton({
+  columns,
+  rows = 4,
+  density = "default",
+}: {
+  columns: number;
+  rows?: number;
+  density?: TableDensity;
+}) {
+  return (
+    <Table density={density} flush aria-hidden>
+      <TableBody>
+        {Array.from({ length: rows }, (_, row) => (
+          <TableRow key={row}>
+            {Array.from({ length: columns }, (_, column) => (
+              <TableCell key={column}>
+                <Skeleton className={column === 0 ? "w-32" : "w-16"} />
+              </TableCell>
+            ))}
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 

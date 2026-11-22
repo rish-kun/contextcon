@@ -38,8 +38,8 @@ export function DispositionStamp({
   className,
 }: {
   disposition: Disposition;
-  /** default is 32px. header is 40px, for the case header. */
-  size?: "default" | "header";
+  /** default is 32px. header is 40px, for the case header. sm is 24px, for table cells and cards. */
+  size?: "default" | "header" | "sm";
   /** Strike the label through: the previous value in a diff. */
   struck?: boolean;
   className?: string;
@@ -47,13 +47,14 @@ export function DispositionStamp({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center gap-2 rounded-sm border-stamp text-sm font-semibold whitespace-nowrap",
-        size === "header" ? "h-10 px-4" : "h-8 px-3",
+        "inline-flex shrink-0 items-center rounded-sm font-semibold whitespace-nowrap",
+        size === "sm" ? "h-6 gap-1 border px-2 text-xs" : "gap-2 border-stamp text-sm",
+        size === "header" ? "h-10 px-4" : size === "default" ? "h-8 px-3" : null,
         STAMP_STYLE[disposition],
         className,
       )}
     >
-      <Icon icon={STAMP_ICON[disposition]} />
+      <Icon icon={STAMP_ICON[disposition]} size={size === "sm" ? 14 : 16} />
       <span className={cn(struck && "line-through")}>{DISPOSITION_LABEL[disposition]}</span>
     </span>
   );

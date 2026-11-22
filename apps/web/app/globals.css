@@ -239,6 +239,7 @@
   --layout-sidebar-collapsed: 3.5rem;
   --layout-topbar: 3.5rem;
   --layout-rail: 20rem;
+  --layout-sheet-max: 85vw;
   --layout-content-max: 90rem;
   --layout-marketing-max: 75rem;
   --layout-prose-max: 42.5rem;

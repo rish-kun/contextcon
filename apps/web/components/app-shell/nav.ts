@@ -1,15 +1,19 @@
 import {
-  BadgeCheck,
+  Activity,
+  Building2,
+  Columns3,
+  GitCompareArrows,
+  Inbox,
   Landmark,
-  LayoutList,
+  LayoutDashboard,
+  ListFilter,
   Scale,
-  Search,
   Settings,
   type LucideIcon,
 } from "lucide-react";
 
+/** A place in the app. The nav holds places only; actions live in the "New" menu. */
 export interface NavLink {
-  kind: "link";
   label: string;
   href: string;
   icon: LucideIcon;
@@ -17,30 +21,48 @@ export interface NavLink {
   also?: string[];
   /** Active only on the exact path. */
   exact?: boolean;
+  /** Which live count sits at the right edge of the row. */
+  count?: "approvals";
 }
 
-export interface NavAction {
-  kind: "action";
+export interface NavGroup {
   label: string;
-  icon: LucideIcon;
-  action: "verify";
+  items: NavLink[];
 }
-
-export type NavItem = NavLink | NavAction;
 
 export const APP_HOME = "/app";
 
-export const PRIMARY_NAV: NavItem[] = [
-  { kind: "link", label: "Dashboard", href: APP_HOME, icon: LayoutList, exact: true, also: ["/app/cases"] },
-  { kind: "link", label: "New screening", href: "/app/discover", icon: Search },
-  { kind: "action", label: "Verify a company", icon: BadgeCheck, action: "verify" },
-  { kind: "link", label: "Investors", href: "/app/investors", icon: Landmark },
+/**
+ * One name per destination. The same word is the nav label, the breadcrumb, the page
+ * title and the document title.
+ */
+export const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Workspace",
+    items: [
+      { label: "Overview", href: APP_HOME, icon: LayoutDashboard, exact: true },
+      { label: "Pipeline", href: "/app/pipeline", icon: Columns3 },
+      { label: "Approvals", href: "/app/approvals", icon: Inbox, count: "approvals" },
+    ],
+  },
+  {
+    label: "Research",
+    items: [
+      { label: "Companies", href: "/app/companies", icon: Building2, also: ["/app/cases"] },
+      { label: "Screenings", href: "/app/discover", icon: ListFilter },
+      { label: "Compare", href: "/app/compare", icon: GitCompareArrows },
+      { label: "Signals", href: "/app/signals", icon: Activity },
+      { label: "Investors", href: "/app/investors", icon: Landmark },
+    ],
+  },
 ];
 
 export const FOOTER_NAV: NavLink[] = [
-  { kind: "link", label: "Scoring policy", href: "/app/policy", icon: Scale },
-  { kind: "link", label: "Settings", href: "/app/settings", icon: Settings },
+  { label: "Scoring policy", href: "/app/policy", icon: Scale },
+  { label: "Settings", href: "/app/settings", icon: Settings },
 ];
+
+const ALL = [...NAV_GROUPS.flatMap((group) => group.items), ...FOOTER_NAV];
 
 export function isActive(item: NavLink, pathname: string): boolean {
   if (pathname === item.href) return true;
@@ -56,23 +78,19 @@ export function breadcrumb(
   caseName: (id: string) => string | null,
 ): { label: string; href?: string }[] {
   const [, , section, id] = pathname.split("/");
-  switch (section) {
-    case undefined:
-    case "":
-      return [{ label: "Dashboard" }];
-    case "cases": {
-      const name = id ? caseName(decodeURIComponent(id)) : null;
-      return name ? [{ label: "Cases", href: APP_HOME }, { label: name }] : [{ label: "Cases", href: APP_HOME }];
-    }
-    case "discover":
-      return [{ label: "New screening" }];
-    case "investors":
-      return [{ label: "Investors" }];
-    case "policy":
-      return [{ label: "Scoring policy" }];
-    case "settings":
-      return [{ label: "Settings" }];
-    default:
-      return [{ label: "DealProof" }];
+  if (section === "cases") {
+    const companies = { label: "Companies", href: "/app/companies" };
+    const name = id && id !== "new" ? caseName(decodeURIComponent(id)) : null;
+    return name ? [companies, { label: name }] : id === "new" ? [companies, { label: "Verify a company" }] : [companies];
   }
+  const place = ALL.find((item) => item.href === (section ? `/app/${section}` : APP_HOME));
+  if (!place) return [{ label: "DealProof", href: APP_HOME }, { label: "Page not found" }];
+  if (!id) return [{ label: place.label }];
+  if (section === "discover") {
+    return [{ label: place.label, href: place.href }, { label: id === "new" ? "New screening" : "Screening" }];
+  }
+  if (section === "investors") {
+    return [{ label: place.label, href: place.href }, { label: id === "new" ? "Find investors" : "Investor search" }];
+  }
+  return [{ label: place.label, href: place.href }];
 }

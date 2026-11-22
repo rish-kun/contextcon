@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useId, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle, Kbd } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { APP_HOME, caseHref } from "./nav";
+import { FOOTER_NAV, NAV_GROUPS, caseHref } from "./nav";
 import { useShell } from "./shell-context";
 
 interface Command {
@@ -49,9 +49,9 @@ function CommandList({ close }: { close: () => void }) {
   const commands = useMemo<Command[]>(() => {
     const go = (href: string) => () => router.push(href);
     return [
-      { id: "new-thesis", group: "Actions", label: "New thesis", run: go("/app/discover") },
-      { id: "new-case", group: "Actions", label: "New case", run: openVerify },
-      { id: "find-investors", group: "Actions", label: "Find investors", run: go("/app/investors") },
+      { id: "new-thesis", group: "Actions", label: "New screening", run: go("/app/discover/new") },
+      { id: "new-case", group: "Actions", label: "Verify a company", run: openVerify },
+      { id: "find-investors", group: "Actions", label: "Find investors", run: go("/app/investors/new") },
       { id: "policy", group: "Actions", label: "View scoring policy", run: go("/app/policy") },
       ...(recentCases ?? []).slice(0, RECENT_LIMIT).map(
         (item): Command => ({
@@ -61,8 +61,14 @@ function CommandList({ close }: { close: () => void }) {
           run: go(caseHref(item.id)),
         }),
       ),
-      { id: "nav-dashboard", group: "Navigation", label: "Dashboard", run: go(APP_HOME) },
-      { id: "nav-settings", group: "Navigation", label: "Settings", run: go("/app/settings") },
+      ...[...NAV_GROUPS.flatMap((group) => group.items), ...FOOTER_NAV].map(
+        (item): Command => ({
+          id: `nav-${item.href}`,
+          group: "Navigation",
+          label: item.label,
+          run: go(item.href),
+        }),
+      ),
     ];
   }, [router, openVerify, recentCases]);
 
@@ -98,8 +104,8 @@ function CommandList({ close }: { close: () => void }) {
           aria-expanded
           aria-controls={listId}
           aria-activedescendant={matches[selected] ? `${listId}-${matches[selected].id}` : undefined}
-          aria-label="Jump to a case, thesis, or action"
-          placeholder="Jump to a case, thesis, or action"
+          aria-label="Jump to a case, a place or an action"
+          placeholder="Jump to a case, a place or an action"
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
