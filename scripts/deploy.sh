@@ -41,6 +41,10 @@ UPLOAD_RETENTION_DAYS="${UPLOAD_RETENTION_DAYS:-30}"
 # Client IP for rate limiting: the X-Forwarded-For entry this many places from the
 # right (web proxy + the API's front end). See app/auth/config.py.
 AUTH_TRUSTED_PROXY_HOPS="${AUTH_TRUSTED_PROXY_HOPS:-2}"
+# Crustdata credit budgets per case evaluation, discovery run and investor run.
+CASE_CREDIT_BUDGET="${CASE_CREDIT_BUDGET:-600}"
+DISCOVER_CREDIT_BUDGET="${DISCOVER_CREDIT_BUDGET:-300}"
+INVESTOR_CREDIT_BUDGET="${INVESTOR_CREDIT_BUDGET:-300}"
 
 case "$ONLY" in all | api | web) ;; *) echo "ONLY must be all, api or web" >&2; exit 2 ;; esac
 want() { [[ "$ONLY" == "all" || "$ONLY" == "$1" ]]; }
@@ -145,10 +149,6 @@ ensure_proxy_secret() {
       | gcloud secrets create PROXY_SHARED_SECRET --project "$PROJECT" \
         --replication-policy user-managed --locations "$REGION" --data-file=- --quiet
   fi
-  # DATABASE_MIGRATION_URL holds the schema owner's direct URL; it is created once by
-  # hand (docs/deploy.md), never by this script.
-  gcloud secrets describe DATABASE_MIGRATION_URL --project "$PROJECT" >/dev/null \
-    || die "secret DATABASE_MIGRATION_URL is missing; see docs/deploy.md (Database roles)"
 }
 
 ensure_sign_role() {
@@ -176,31 +176,40 @@ grant_secret() { # secret member-email
 }
 
 # Least-privilege identities. add-iam-policy-binding is a no-op when the binding
-# already exists, so this is safe to run every time.
+# already exists, so this is safe to run every time. Only the selected services'
+# identities are touched: ONLY=web changes nothing that belongs to the API.
 ensure_identities() {
   log "Ensuring service accounts, secrets and grants"
-  ensure_sa "$API_SA" "DealProof API runtime"
-  ensure_sa "$WEB_SA" "DealProof web runtime"
-  ensure_sa "$MIGRATE_SA" "DealProof schema migrations"
   ensure_sa "$BUILD_SA" "DealProof Cloud Build"
-  ensure_proxy_secret
-  ensure_sign_role
-
+  ensure_proxy_secret # both services read it
   local secret
-  for secret in "${API_SECRETS[@]}"; do grant_secret "$secret" "$API_SA"; done
-  for secret in "${WEB_SECRETS[@]}"; do grant_secret "$secret" "$WEB_SA"; done
-  for secret in "${MIGRATE_SECRETS[@]}"; do grant_secret "$secret" "$MIGRATE_SA"; done
 
-  iam_retry gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
-    --member "serviceAccount:${API_SA}" --role roles/storage.objectAdmin --quiet
-  # Signed download URLs: Cloud Run credentials have no private key, so the API signs
-  # through IAM signBlob on its own account. Only that permission, not tokenCreator.
-  iam_retry gcloud iam service-accounts add-iam-policy-binding "$API_SA" --project "$PROJECT" \
-    --member "serviceAccount:${API_SA}" --role "$SIGN_ROLE" --condition=None --quiet
-  if has_binding sa "$API_SA" roles/iam.serviceAccountTokenCreator "serviceAccount:${API_SA}"; then
-    log "Replacing ${API_SA}'s self tokenCreator with ${SIGN_ROLE_ID}"
-    iam_retry gcloud iam service-accounts remove-iam-policy-binding "$API_SA" --project "$PROJECT" \
-      --member "serviceAccount:${API_SA}" --role roles/iam.serviceAccountTokenCreator --quiet
+  if want web; then
+    ensure_sa "$WEB_SA" "DealProof web runtime"
+    for secret in "${WEB_SECRETS[@]}"; do grant_secret "$secret" "$WEB_SA"; done
+  fi
+
+  if want api; then
+    # DATABASE_MIGRATION_URL holds the schema owner's direct URL; it is created once
+    # by hand (docs/deploy.md), never by this script.
+    gcloud secrets describe DATABASE_MIGRATION_URL --project "$PROJECT" >/dev/null \
+      || die "secret DATABASE_MIGRATION_URL is missing; see docs/deploy.md (Database roles)"
+    ensure_sa "$API_SA" "DealProof API runtime"
+    ensure_sa "$MIGRATE_SA" "DealProof schema migrations"
+    ensure_sign_role
+    for secret in "${API_SECRETS[@]}"; do grant_secret "$secret" "$API_SA"; done
+    for secret in "${MIGRATE_SECRETS[@]}"; do grant_secret "$secret" "$MIGRATE_SA"; done
+    iam_retry gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
+      --member "serviceAccount:${API_SA}" --role roles/storage.objectAdmin --quiet
+    # Signed download URLs: Cloud Run credentials have no private key, so the API signs
+    # through IAM signBlob on its own account. Only that permission, not tokenCreator.
+    iam_retry gcloud iam service-accounts add-iam-policy-binding "$API_SA" --project "$PROJECT" \
+      --member "serviceAccount:${API_SA}" --role "$SIGN_ROLE" --condition=None --quiet
+    if has_binding sa "$API_SA" roles/iam.serviceAccountTokenCreator "serviceAccount:${API_SA}"; then
+      log "Replacing ${API_SA}'s self tokenCreator with ${SIGN_ROLE_ID}"
+      iam_retry gcloud iam service-accounts remove-iam-policy-binding "$API_SA" --project "$PROJECT" \
+        --member "serviceAccount:${API_SA}" --role roles/iam.serviceAccountTokenCreator --quiet
+    fi
   fi
 
   # Cloud Build: push to our repo, write build logs, read the uploaded source.
@@ -405,7 +414,7 @@ deploy_api() {
     --no-cpu-throttling \
     --concurrency 80 --timeout 3600 \
     --allow-unauthenticated \
-    --set-env-vars "^@^RUN_MIGRATIONS=verify@AUTH_TRUSTED_PROXY_HOPS=${AUTH_TRUSTED_PROXY_HOPS}@EMAIL_SEND_ENABLED=false@GCS_BUCKET=${BUCKET}@UPLOAD_RETENTION_DAYS=${UPLOAD_RETENTION_DAYS}@WEB_ORIGIN=${origins}" \
+    --set-env-vars "^@^RUN_MIGRATIONS=verify@AUTH_TRUSTED_PROXY_HOPS=${AUTH_TRUSTED_PROXY_HOPS}@EMAIL_SEND_ENABLED=false@GCS_BUCKET=${BUCKET}@UPLOAD_RETENTION_DAYS=${UPLOAD_RETENTION_DAYS}@CASE_CREDIT_BUDGET=${CASE_CREDIT_BUDGET}@DISCOVER_CREDIT_BUDGET=${DISCOVER_CREDIT_BUDGET}@INVESTOR_CREDIT_BUDGET=${INVESTOR_CREDIT_BUDGET}@WEB_ORIGIN=${origins}" \
     --set-secrets "DATABASE_URL=DATABASE_URL:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,CRUSTDATA_API_KEY=CRUSTDATA_API_KEY:latest,RESEND_API_KEY=RESEND_API_KEY:latest,PROXY_SHARED_SECRET=PROXY_SHARED_SECRET:latest" \
     --quiet
 }
@@ -437,13 +446,19 @@ deploy_web() {
 # If the web URLs changed (first deploy), point the API's CORS at them. Only touches
 # an API whose template already runs RUN_MIGRATIONS=verify, so a new revision built
 # from an old template can never migrate at start.
+api_env() { # name: a plain env var from the API's template ("-" if unset)
+  gcloud run services describe "$API_SERVICE" --project "$PROJECT" --region "$REGION" \
+    --format=json | NAME="$1" python3 -c 'import json, os, sys
+env = {e["name"]: e.get("value", "") for e in json.load(sys.stdin)["spec"]["template"]["spec"]["containers"][0].get("env", [])}
+print(env.get(os.environ["NAME"], "") or "-")'
+}
+api_web_origin() { api_env WEB_ORIGIN; }
+
 fix_api_origin() {
   local want have run_mode
   want="$(web_origins)"
-  read -r have run_mode < <(gcloud run services describe "$API_SERVICE" --project "$PROJECT" --region "$REGION" \
-    --format=json | python3 -c 'import json, sys
-env = {e["name"]: e.get("value", "") for e in json.load(sys.stdin)["spec"]["template"]["spec"]["containers"][0].get("env", [])}
-print(env.get("WEB_ORIGIN", "") or "-", env.get("RUN_MIGRATIONS", "") or "-")')
+  have="$(api_web_origin)"
+  run_mode="$(api_env RUN_MIGRATIONS)"
   [[ "$have" == "$want" ]] && return 0
   if [[ "$run_mode" != verify ]]; then
     log "Not updating ${API_SERVICE} WEB_ORIGIN: its template still migrates at start; redeploy the api"
@@ -457,7 +472,12 @@ print(env.get("WEB_ORIGIN", "") or "-", env.get("RUN_MIGRATIONS", "") or "-")')
 web_pipeline() {
   [[ "$(result build-web)" == ok ]] || { log "Skipping web: its build failed"; return 1; }
   deploy_web
-  step api-origin fix_api_origin
+  # Updating WEB_ORIGIN creates an API revision, so only when the API is selected too.
+  if want api; then
+    step api-origin fix_api_origin
+  elif [[ "$(api_web_origin)" != "$(web_origins)" ]]; then
+    log "Note: ${API_SERVICE} WEB_ORIGIN differs from the web URLs; run ONLY=api scripts/deploy.sh"
+  fi
 }
 
 # ---------------------------------------------------------------------------------
