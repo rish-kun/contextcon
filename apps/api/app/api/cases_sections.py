@@ -74,7 +74,7 @@ from app.api.schemas.company import (
     PersonOut,
 )
 from app.api.schemas.runs import RunSummaryOut
-from app.db import ledger
+from app.db import ledger, repo
 from app.db.enums import IdentityStatus, StepState
 from app.db.models import (
     AssessmentVersion,
@@ -115,6 +115,7 @@ class CaseContext:
     prefetched: dict[str, Any] = field(default_factory=dict, repr=False)
     # Section results already built in this request (see `section_value`).
     _sections: dict[str, Any] = field(default_factory=dict, repr=False)
+    _latest_assessment: list[AssessmentVersion | None] | None = field(default=None, repr=False)
 
     async def sources(self) -> dict[uuid.UUID, Source]:
         if self._sources is None:
@@ -143,6 +144,15 @@ class CaseContext:
             )
             self._runs = list(rows.scalars())
         return self._runs
+
+    async def latest_assessment(self) -> AssessmentVersion | None:
+        """The case's newest assessment version (one query per request, shared by the
+        case header, the memo sections and DecisionFlip)."""
+        if self._latest_assessment is None:
+            self._latest_assessment = [
+                await repo.latest_assessment(self.session, self.workspace_id, self.case.id)
+            ]
+        return self._latest_assessment[0]
 
     @property
     def entity_ref(self) -> str | None:
@@ -354,12 +364,8 @@ def _entity_name(case: Case) -> str:
 
 async def case_status(ctx: CaseContext) -> CaseStatus:
     runs = await ctx.runs()
-    assessed = await ctx.session.execute(
-        select(AssessmentVersion.id).where(AssessmentVersion.case_id == ctx.case.id).limit(1)
-    )
-    return evaluate_cases.case_status(
-        ctx.case, evaluate_cases.current_run(runs), assessed.first() is not None
-    )
+    assessed = await ctx.latest_assessment() is not None
+    return evaluate_cases.case_status(ctx.case, evaluate_cases.current_run(runs), assessed)
 
 
 def _credit_budget(case: Case) -> float:
@@ -368,7 +374,12 @@ def _credit_budget(case: Case) -> float:
 
 
 async def build_case_out(ctx: CaseContext) -> CaseOut:
-    return await evaluate_cases.case_out(ctx.session, ctx.case)
+    return await evaluate_cases.case_out(
+        ctx.session,
+        ctx.case,
+        runs=await ctx.runs(),
+        assessed=await ctx.latest_assessment() is not None,
+    )
 
 
 @section("case")

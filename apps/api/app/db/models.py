@@ -300,6 +300,8 @@ class Case(IdMixin, Base):
     __table_args__ = (
         CheckConstraint(check_in("identity_status", IdentityStatus), name="identity_status"),
         UniqueConstraint("id", "workspace_id"),
+        # GET /cases: a workspace's cases, newest first.
+        Index("ix_cases_workspace_created", "workspace_id", "created_at"),
     )
 
 
@@ -737,6 +739,9 @@ class Run(IdMixin, Base):
             "num_nonnulls(case_id, discovery_run_id, investor_run_id) <= 1", name="one_owner"
         ),
         *_owner_fks(),
+        # GET /runs: the latest runs, and the active ones oldest first.
+        Index("ix_runs_workspace_updated", "workspace_id", "updated_at"),
+        Index("ix_runs_workspace_state_created", "workspace_id", "state", "created_at"),
     )
 
 
@@ -900,6 +905,8 @@ class CostEntry(IdMixin, Base):
             "shared_from_run_id IS NULL OR (credits = 0 AND usd = 0)", name="shared_is_free"
         ),
         *_owner_fks(),
+        # Run and queue views group a page of runs' costs by run and step.
+        Index("ix_cost_entries_run_step", "run_id", "step_id"),
     )
 
 

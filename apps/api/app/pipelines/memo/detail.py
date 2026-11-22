@@ -74,7 +74,7 @@ async def _state(ctx: CaseContext) -> _State:
         return cached
     s = _State()
     case = ctx.case
-    s.latest = await repo.latest_assessment(ctx.session, ctx.workspace_id, case.id)
+    s.latest = await ctx.latest_assessment()
     if s.latest is not None:
         s.snapshot = await load_snapshot(ctx.session, s.latest)
         s.assessment = s.snapshot.assessment

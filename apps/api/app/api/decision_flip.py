@@ -52,7 +52,6 @@ from app.domain.types import AssessmentDiff, AssessmentVersion, DecisionFlipAnal
 from app.pipelines.evaluate.flip import (
     flip_for_version,
     flip_of_version,
-    latest_flip,
     stored_analysis,
 )
 from app.pipelines.evaluate.service import stored_assessment
@@ -225,10 +224,13 @@ async def present(
 
 
 async def decision_flip_section(ctx: CaseContext) -> DecisionFlipOut | None:
-    found = await latest_flip(ctx.session, ctx.workspace_id, ctx.case.id)
-    if found is None or found[1] is None:
+    # `latest_flip`, with the latest version the other sections already loaded.
+    version = await ctx.latest_assessment()
+    if version is None:
         return None
-    version, row = found
+    row = await flip_of_version(ctx.session, ctx.workspace_id, version.id)
+    if row is None:
+        return None
     return await present(ctx.session, ctx.workspace_id, ctx.case, version, row)
 
 
