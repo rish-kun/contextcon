@@ -8,13 +8,14 @@ the scoring policy. The model never sets a weight.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
 from app.extraction.llm import StructuredLlm, run_structured
 from app.extraction.prompts import CRITERIA, PROMPT_VERSION
-from app.extraction.spans import neutralize_tags, span_in
+from app.extraction.spans import neutralize_tags, normalize, span_in
 
 Dimension = Literal[
     "geography",
@@ -115,6 +116,8 @@ class CriteriaExtraction(BaseModel):
     criteria: list[Criterion]
     activity_query: str
     dropped: list[DroppedItem] = Field(default_factory=list)
+    # Criteria code added back after the model left them out (labels).
+    restored: list[str] = Field(default_factory=list)
     prompt_version: str = PROMPT_VERSION
     calls: list[Any] = Field(default_factory=list, exclude=True)
 
@@ -159,6 +162,116 @@ def finalize_criteria(
     return kept, dropped
 
 
+# --- Activity criterion post-check -------------------------------------------------
+#
+# The thesis's activity ("warehousing and supply-chain software") is the core of a
+# screen, and the model does not always return it as a criterion. When it is missing,
+# code restores it from the model's activity query: the longest run of thesis words
+# that the activity query also uses, outside the spans other criteria already quote.
+# The quote is a verbatim thesis span, so grounding is unchanged.
+
+_TOKEN = re.compile(r"[a-z0-9][a-z0-9&'\-]*")
+_CONNECTORS = frozenset({"and", "or", "&", "of", "for", "in", "to"})
+_GENERIC = frozenset(
+    "companies company firms businesses players startups start-ups that which who "
+    "the a an with serve serving offer offering provide providing build building".split()
+)
+
+
+def _stem(word: str) -> str:
+    return word[:5]
+
+
+def _content_stems(word: str) -> set[str]:
+    parts = [p for p in word.split("-") if len(p) >= 3 and p not in _GENERIC]
+    return {_stem(p) for p in parts}
+
+
+def _covered(text: str, quotes: list[str]) -> list[tuple[int, int]]:
+    spans: list[tuple[int, int]] = []
+    for q in quotes:
+        n = normalize(q).strip(" \"'.")
+        start = text.find(n) if n else -1
+        while start >= 0:
+            spans.append((start, start + len(n)))
+            start = text.find(n, start + 1)
+    return spans
+
+
+def activity_span(thesis: str, activity_query: str, quoted: list[str]) -> str | None:
+    """The verbatim thesis span that states the activity, or None."""
+    text = normalize(thesis)
+    wanted: set[str] = set()
+    for w in _TOKEN.findall(normalize(activity_query)):
+        wanted |= _content_stems(w)
+    if not wanted:
+        return None
+    covered = _covered(text, quoted)
+    tokens = [
+        (m.group(), m.start(), m.end())
+        for m in _TOKEN.finditer(text)
+        if not any(a < m.end() and m.start() < b for a, b in covered) or m.group() in _CONNECTORS
+    ]
+    best: tuple[int, int, int] | None = None  # (matches, start, end)
+    run: list[tuple[str, int, int]] = []
+
+    def close() -> None:
+        nonlocal best
+        while run and (run[-1][0] in _CONNECTORS or not (_content_stems(run[-1][0]) & wanted)):
+            run.pop()
+        while run and (run[0][0] in _CONNECTORS or not (_content_stems(run[0][0]) & wanted)):
+            run.pop(0)
+        if run:
+            hits = sum(1 for t, _, _ in run if _content_stems(t) & wanted)
+            if best is None or hits > best[0]:
+                best = (hits, run[0][1], run[-1][2])
+        run.clear()
+
+    prev_end = None
+    for tok, start, end in tokens:
+        gap = text[prev_end:start] if prev_end is not None else " "
+        adjacent = prev_end is None or gap.strip(" ,") == ""
+        if not adjacent or not (tok in _CONNECTORS or _content_stems(tok) & wanted):
+            close()
+        if tok in _CONNECTORS or _content_stems(tok) & wanted:
+            run.append((tok, start, end))
+        prev_end = end
+    close()
+    if best is None:
+        return None
+    span = text[best[1] : best[2]]
+    # Prefer the thesis's own casing for display; grounding is the same either way.
+    pattern = r"\s+".join(re.escape(part) for part in span.split())
+    m = re.search(pattern, thesis, flags=re.IGNORECASE)
+    return m.group() if m else span
+
+
+def ensure_activity_criterion(
+    criteria: list[Criterion], thesis: str, activity_query: str
+) -> Criterion | None:
+    """Restore the activity criterion when the model left it out. Returns the added
+    criterion (already appended), or None when nothing was needed or found."""
+    if any(c.dimension == "industry_activity" for c in criteria):
+        return None
+    if not activity_query.strip():
+        return None
+    quote = activity_span(thesis, activity_query, [c.thesis_quote for c in criteria])
+    if quote is None or not span_in(quote, thesis):
+        return None
+    restored = Criterion(
+        label=quote[:1].upper() + quote[1:],
+        kind="must",
+        dimension="industry_activity",
+        operator="contains",
+        value=quote,
+        weight=MUST_WEIGHT,
+        assessment="assessed_from_evidence",
+        thesis_quote=quote,
+    )
+    criteria.append(restored)
+    return restored
+
+
 async def extract_criteria(llm: StructuredLlm, thesis: str) -> CriteriaExtraction:
     thesis = thesis.strip()
     if not thesis:
@@ -170,10 +283,12 @@ async def extract_criteria(llm: StructuredLlm, thesis: str) -> CriteriaExtractio
         CriteriaDraft,
     )
     criteria, dropped = finalize_criteria(draft.criteria, thesis)
+    restored = ensure_activity_criterion(criteria, thesis, draft.activity_query)
     query = draft.activity_query.strip() or thesis
     return CriteriaExtraction(
         criteria=criteria,
         activity_query=query,
         dropped=dropped,
+        restored=[restored.label] if restored else [],
         calls=[record] if record is not None else [],
     )

@@ -1,6 +1,6 @@
 # DealProof scoring and verification policy
 
-Policy version: **2026-11-22.4** (`POLICY_VERSION` in `app/rules/policy.py`).
+Policy version: **2026-11-22.5** (`POLICY_VERSION` in `app/rules/policy.py`).
 
 DealProof's rules decide every status, score and recommendation. The AI only reads
 documents and pulls out values; it never decides. The same records under the same
@@ -39,7 +39,21 @@ No record = unknown.
   identifier (section 2) and comes from a source that can answer a criterion: a
   company announcement or the seller's own statement cannot. A profile-based
   figure counts as an estimate. Anything else is unknown.
-- **Ranking:** fit (unavailable last), then assessable share, then name.
+- **Activity is read from the company's own text.** A criterion on the activity or
+  sector with no provider field passes when the Crustdata description, industries or
+  categories state it (the passage is quoted). It fails only when a description of at
+  least 12 words never mentions it; otherwise it is unknown. A text match is an
+  estimate, so it never excludes a company.
+- **Recent expansion is a signal.** It passes when the headcount series grew at least
+  10% over about 12 months (the earlier point within 60 days of 12 months back) or
+  there are at least 5 open roles (openings count, or postings dated in the last
+  180 days). It fails only when both were measured and fell short; otherwise unknown.
+  It is labelled a signal from profile headcount and job postings, never confirmed
+  expansion, and never excludes a company.
+- **Ranking:** fit (unavailable last), then assessable share, then the number of
+  sourced signals (headcount, headcount series, growth, openings, recent titles,
+  last fundraise date, dated rounds, dated postings, derived signals with evidence),
+  then name.
 
 ## 2. Verify: claim statuses
 

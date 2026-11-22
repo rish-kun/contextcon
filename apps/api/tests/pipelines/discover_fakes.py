@@ -126,6 +126,8 @@ def _search_row(
     country: str | None,
     ctype: str,
     hq: str | None = "Pune, Maharashtra",
+    description: str | None = "{name} builds warehouse management software (fixture).",
+    industries: list[str] | None = None,
 ) -> dict[str, Any]:
     # Live search filters on "India" but returns ISO alpha-3 codes ("IND").
     locations: dict[str, Any] = {}
@@ -133,23 +135,29 @@ def _search_row(
         locations["country"] = country
     if hq:
         locations["headquarters"] = hq
+    industries = ["Software Development"] if industries is None else industries
+    basic_info: dict[str, Any] = {
+        "crustdata_company_id": cid,
+        "name": f"{name} (fixture)",
+        "primary_domain": domain,
+        "website": f"https://{domain}",
+        "company_type": ctype,
+        "year_founded": 2016,
+        "employee_count_range": "51-200",
+    }
+    if description:
+        basic_info["description"] = description.format(name=name)
+    taxonomy: dict[str, Any] = {}
+    if industries:
+        taxonomy = {
+            "professional_network_industry": industries[0],
+            "professional_network_industries": industries,
+        }
     return {
         "crustdata_company_id": cid,
-        "basic_info": {
-            "crustdata_company_id": cid,
-            "name": f"{name} (fixture)",
-            "primary_domain": domain,
-            "website": f"https://{domain}",
-            "description": f"{name} builds warehouse management software (fixture).",
-            "company_type": ctype,
-            "year_founded": 2016,
-            "employee_count_range": "51-200",
-        },
+        "basic_info": basic_info,
         "locations": locations,
-        "taxonomy": {
-            "professional_network_industry": "Software Development",
-            "professional_network_industries": ["Software Development"],
-        },
+        "taxonomy": taxonomy,
     }
 
 
@@ -231,7 +239,16 @@ def make_world(fillers: int = 10) -> World:
         country="IND",
         ctype="Privately Held",
     )  # same domain as A
-    g = _search_row(107, "Omega Stores", "omega.example", country=None, ctype="", hq=None)
+    g = _search_row(
+        107,
+        "Omega Stores",
+        "omega.example",
+        country=None,
+        ctype="",
+        hq=None,
+        description=None,
+        industries=[],
+    )
     rows = [a, b, c, d, e, f, g]
     enriched = {
         101: _enrich(a, ctype="Privately Held", growth=25.0),

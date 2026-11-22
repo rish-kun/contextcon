@@ -20,11 +20,12 @@ from app.domain.enums import (
     ValueKind,
 )
 
-POLICY_VERSION = "2026-11-22.4"
+POLICY_VERSION = "2026-11-22.5"
 
 # Why each policy version changed, used as the reason on refreshed assessments.
 POLICY_CHANGES: dict[str, str] = {
     "2026-11-22.4": "policy fix: country code normalisation",
+    "2026-11-22.5": "Discover reads activity and expansion signals; ties break on signals",
 }
 
 # --- Discover: fit -----------------------------------------------------------
@@ -33,6 +34,27 @@ CRITERION_WEIGHTS: dict[CriterionKind, int] = {
     CriterionKind.MUST: 2,
     CriterionKind.PREFERENCE: 1,
 }
+
+# --- Discover: derived signals and tie-breaks (since 2026-11-22.5) -------------
+# "Recent expansion" is a SIGNAL from profile headcount and job postings, never
+# confirmed expansion. Derived results are estimates, so a fail never excludes.
+EXPANSION_MIN_HEADCOUNT_GROWTH_PCT = 10.0  # growth of the headcount series over ~12 months
+EXPANSION_GROWTH_WINDOW_DAYS = 365
+EXPANSION_WINDOW_TOLERANCE_DAYS = 60  # the earlier point must be this close to 12 months back
+EXPANSION_MIN_OPEN_ROLES = 5  # openings count or postings dated in the window below
+EXPANSION_POSTING_WINDOW_DAYS = 180
+# A description shorter than this never counts as contradicting the activity.
+ACTIVITY_CONTRADICTION_MIN_WORDS = 12
+# Ranking tie-break after fit and assessable share: number of sourced signals
+# (these fields with evidence, dated rounds, dated postings, derived signals), then name.
+DISCOVER_SIGNAL_KEYS: tuple[str, ...] = (
+    "headcount.total",
+    "headcount.timeseries",
+    "headcount.growth_percent.12m",
+    "hiring.openings_count",
+    "hiring.recent_titles",
+    "funding.last_fundraise_date",
+)
 
 # --- Evaluate: disposition thresholds ----------------------------------------
 

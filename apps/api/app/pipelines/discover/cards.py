@@ -76,12 +76,22 @@ def _series(f: dict[str, Any] | None) -> dict[str, Any] | None:
     return {"points": f["value"], "source": f["source"], "estimate_basis": ESTIMATE_BASIS}
 
 
-def met_reasons(criteria: list[Criterion], assessment: CandidateAssessment) -> list[dict[str, Any]]:
-    """Deterministic reasons: the criteria met, each with its evidence."""
+def met_reasons(
+    criteria: list[Criterion],
+    assessment: CandidateAssessment,
+    notes: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    """Deterministic reasons: the criteria met, each with its evidence. A criterion
+    met on a derived signal says what the signal is (`notes`)."""
     labels = {c.id: c.label for c in criteria}
+    notes = notes or {}
     return [
         {
-            "text": f"Meets: {labels[e.criterion_id]}",
+            "text": (
+                f"{labels[e.criterion_id]}: {notes[e.criterion_id]}"
+                if e.criterion_id in notes
+                else f"Meets: {labels[e.criterion_id]}"
+            ),
             "criterion_id": e.criterion_id,
             "evidence_ids": list(e.evidence_ids),
         }
@@ -99,14 +109,18 @@ def unknowns(
     not_enriched_reason: str | None,
     rounds: list[dict[str, Any]],
     hiring_note: str | None,
+    notes: dict[str, str] | None = None,
 ) -> list[str]:
     by_id = {c.id: c for c in criteria}
+    notes = notes or {}
     out: list[str] = []
     for e in assessment.fit.evaluations:
         if e.result is not CriterionResult.UNKNOWN:
             continue
         c = by_id[e.criterion_id]
-        if c.field.startswith("evidence:"):
+        if e.criterion_id in notes:
+            out.append(f"{c.label}: {notes[e.criterion_id]}")
+        elif c.field.startswith("evidence:"):
             out.append(f"{c.label}: not checked in discovery; assessed from evidence in a case")
         else:
             out.append(f"{c.label}: not known ({e.reason})")

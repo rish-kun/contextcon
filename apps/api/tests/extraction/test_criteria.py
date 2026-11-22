@@ -211,3 +211,86 @@ def test_amount_supported():
     assert amount_supported(2_500_000, "raising $2.5M")
     assert not amount_supported(2_000_000, "raising INR 2,000,000")
     assert not amount_supported(3_000_000, "raising $2M")
+
+
+# --- The activity criterion is always produced -------------------------------------
+
+_LIVE_LIKE = [
+    crit("Based in India", "must", "geography", "Indian", "locations.country", value="India"),
+    crit(
+        "Privately held",
+        "must",
+        "ownership",
+        "privately held",
+        "basic_info.company_type",
+        value="Privately Held",
+    ),
+    crit("Enterprise customers", "preference", "customer_type", "serve enterprise customers"),
+    crit("Recent expansion", "preference", "growth_signal", "show recent expansion"),
+]
+
+
+@pytest.mark.parametrize(
+    "activity_query",
+    [
+        "warehousing and supply-chain software",
+        "Indian warehousing and supply chain software companies serving enterprise customers",
+    ],
+)
+def test_activity_criterion_restored_when_the_model_omits_it(activity_query):
+    llm = FakeLlm(structured=[{"criteria": _LIVE_LIKE, "activity_query": activity_query}])
+    out = run(extract_criteria(llm, THESIS))
+    activity = [c for c in out.criteria if c.dimension == "industry_activity"]
+    assert len(activity) == 1
+    a = activity[0]
+    assert a.thesis_quote == "warehousing and supply-chain software"
+    assert a.thesis_quote in THESIS  # verbatim grounding is unchanged
+    assert a.kind == "must" and a.weight == MUST_WEIGHT
+    assert a.assessment == "assessed_from_evidence" and a.crustdata_field is None
+    assert out.restored == [a.label]
+
+
+def test_activity_criterion_restored_when_its_quote_was_invented():
+    invented = crit("Supply-chain SaaS", "must", "industry_activity", "supply chain SaaS vendors")
+    llm = FakeLlm(
+        structured=[
+            {
+                "criteria": [*_LIVE_LIKE, invented],
+                "activity_query": "warehousing and supply-chain software",
+            }
+        ]
+    )
+    out = run(extract_criteria(llm, THESIS))
+    assert [d.label for d in out.dropped] == ["Supply-chain SaaS"]
+    assert [c.thesis_quote for c in out.criteria if c.dimension == "industry_activity"] == [
+        "warehousing and supply-chain software"
+    ]
+
+
+def test_activity_criterion_kept_as_is_when_the_model_returns_it():
+    own = crit(
+        "Warehousing software",
+        "must",
+        "industry_activity",
+        "warehousing and supply-chain software",
+        operator="contains",
+        value="warehousing software",
+    )
+    llm = FakeLlm(
+        structured=[
+            {
+                "criteria": [*_LIVE_LIKE, own],
+                "activity_query": "warehousing and supply-chain software",
+            }
+        ]
+    )
+    out = run(extract_criteria(llm, THESIS))
+    activity = [c for c in out.criteria if c.dimension == "industry_activity"]
+    assert [c.label for c in activity] == ["Warehousing software"] and out.restored == []
+
+
+def test_activity_criterion_not_invented_when_the_thesis_states_none():
+    llm = FakeLlm(structured=[{"criteria": _LIVE_LIKE[:2], "activity_query": "payments software"}])
+    out = run(extract_criteria(llm, "privately held Indian companies"))
+    assert all(c.dimension != "industry_activity" for c in out.criteria)
+    assert out.restored == []

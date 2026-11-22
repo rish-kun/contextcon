@@ -39,7 +39,7 @@ from app.drafting.shortlist import draft_shortlist_why, fallback_why
 from app.extraction.llm import LlmOutputError
 from app.jobs import BudgetExceeded, StepContext, StepSpec, step_handler
 from app.jobs.activity import NoticeCode, Subject, render
-from app.pipelines.discover import activity, cards, records
+from app.pipelines.discover import activity, cards, records, signals
 from app.pipelines.discover.clients import autocomplete, factories
 from app.pipelines.discover.criteria import (
     PREFIX_ONLY_FIELDS,
@@ -64,11 +64,14 @@ LLM_CONCURRENCY = 4
 JOB_CONCURRENCY = 5
 
 SEARCH_FIELDS = ["crustdata_company_id", "basic_info", "locations", "taxonomy"]
+# Enrich returns only basic_info unless sections are named, so each is explicit.
 ENRICH_FIELDS = [
     "basic_info",
     "headcount",
     "funding",
     "hiring",
+    "people",
+    "news",
     "locations",
     "taxonomy",
     "updated_at",
@@ -149,7 +152,11 @@ def _dep_output(ctx: StepContext, key: str) -> dict[str, Any] | None:
 
 
 def _rule_criteria(criteria: list[dict[str, Any]], resolutions: dict[str, Any]) -> list[Any]:
-    return [rule_criterion(c, Resolution.from_json(resolutions.get(c["id"]))) for c in criteria]
+    """Rules criteria; unmapped activity and growth criteria read their derived signal."""
+    return [
+        signals.signal_criterion(rule_criterion(c, Resolution.from_json(resolutions.get(c["id"]))))
+        for c in criteria
+    ]
 
 
 async def _fmt_credits(ctx: StepContext) -> str:
@@ -451,7 +458,10 @@ async def gate_step(ctx: StepContext) -> dict[str, Any]:
             )
             for fv in records.search_values(company)
         }
-        assessment = assess_candidate(rule_criteria, records.company_record(cid, name, facts))
+        derived = signals.derive(criteria, rule_criteria, facts)
+        assessment = assess_candidate(
+            rule_criteria, records.company_record(cid, name, {**facts, **derived.facts})
+        )
         candidates.append(
             {
                 "crustdata_company_id": cid,
@@ -503,6 +513,8 @@ def _trim_enriched(data: dict[str, Any]) -> dict[str, Any]:
     hiring.pop("recent_openings", None)
     hiring.pop("open_jobs_timeseries", None)
     out["hiring"] = hiring
+    if isinstance(out.get("news"), list):
+        out["news"] = out["news"][:10]
     return out
 
 
@@ -673,6 +685,9 @@ async def score_step(ctx: StepContext) -> dict[str, Any]:
                 ]
         elif reason is None:
             reason = "no enrichment match for this id"
+        derived = signals.derive(
+            criteria, rule_criteria, facts, postings=postings, enriched=data is not None
+        )
         hiring_note = None
         if data is not None:
             hiring_note = enrich.get("jobs_not_checked", {}).get(str(cid))
@@ -686,11 +701,18 @@ async def score_step(ctx: StepContext) -> dict[str, Any]:
             "enriched": data is not None,
             "not_enriched_reason": reason,
             "hiring_note": hiring_note,
+            "derived": derived,
+            "signals": signals.sourced_signals(facts, rounds, postings, derived),
         }
 
+    # Ties after fit and assessable share go to more sourced signals, then name.
     result = shortlist(
         rule_criteria,
-        [records.company_record(cid, b["cand"]["name"], b["facts"]) for cid, b in built.items()],
+        [
+            records.company_record(cid, b["cand"]["name"], {**b["facts"], **b["derived"].facts})
+            for cid, b in built.items()
+        ],
+        signals={str(cid): b["signals"] for cid, b in built.items()},
     )
 
     existing = set(
@@ -702,9 +724,16 @@ async def score_step(ctx: StepContext) -> dict[str, Any]:
     )
     await ctx.session.execute(delete(Candidate).where(Candidate.discovery_run_id == dr.id))
 
-    def persist(cid: int, assessment: Any, rank: int | None, b: dict[str, Any] | None) -> None:
+    def persist(
+        cid: int,
+        assessment: Any,
+        rank: int | None,
+        b: dict[str, Any] | None,
+        derived: signals.Derived | None = None,
+    ) -> None:
         cand = by_id[cid]
         facts = b["facts"] if b else cand["facts"]
+        derived = derived or (b["derived"] if b else signals.Derived())
         unknown_items = cards.unknowns(
             rule_criteria,
             assessment,
@@ -713,12 +742,13 @@ async def score_step(ctx: StepContext) -> dict[str, Any]:
             not_enriched_reason=(b["not_enriched_reason"] if b else "excluded before enrichment"),
             rounds=b["rounds"] if b else [],
             hiring_note=b["hiring_note"] if b else None,
+            notes=derived.reasons,
         )
         card = cards.build_card(
             facts,
             rounds=b["rounds"] if b else [],
             postings=b["postings"] if b else [],
-            reasons=cards.met_reasons(rule_criteria, assessment),
+            reasons=cards.met_reasons(rule_criteria, assessment, derived.reasons),
             unknown_items=unknown_items,
         )
         row = Candidate(
@@ -739,8 +769,10 @@ async def score_step(ctx: StepContext) -> dict[str, Any]:
             CandidateCriterionResult(
                 criterion_id=uuid.UUID(e.criterion_id),
                 result=e.result.value,
-                reason=e.reason,
-                evidence_ids=list(e.evidence_ids),
+                reason=derived.reasons.get(e.criterion_id, e.reason),
+                evidence_ids=list(
+                    dict.fromkeys([*e.evidence_ids, *derived.evidence.get(e.criterion_id, [])])
+                ),
             )
             for e in assessment.fit.evaluations
             if uuid.UUID(e.criterion_id) in existing
@@ -755,10 +787,12 @@ async def score_step(ctx: StepContext) -> dict[str, Any]:
     gate_excluded = [c for c in gate["candidates"] if c["excluded"]]
     for cand in gate_excluded:
         cid = cand["crustdata_company_id"]
+        derived = signals.derive(criteria, rule_criteria, cand["facts"])
         a = assess_candidate(
-            rule_criteria, records.company_record(cid, cand["name"], cand["facts"])
+            rule_criteria,
+            records.company_record(cid, cand["name"], {**cand["facts"], **derived.facts}),
         )
-        persist(cid, a, None, None)
+        persist(cid, a, None, None, derived)
 
     dr.status = "scored"
     later_fails = len(result.excluded)

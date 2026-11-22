@@ -4,7 +4,8 @@
 - Only a *verified* fail of a must-have excludes (a sourced value, not an estimate).
 - fit = Σ weight(pass) / Σ weight(pass ∪ fail) × 100, None when nothing is assessable.
 - assessable% = |pass ∪ fail| / |all| × 100. Unknowns lower this, never fit.
-- Ranking: fit (None last), then assessable%, then name and id for stability.
+- Ranking: fit (None last), then assessable%, then sourced signals (when given),
+  then name and id for stability.
 - A disputed field (another source disagrees) is unknown, never fail.
 - A fail on a stale field (older than FIELD_STALE_AFTER_DAYS) is not verified.
 - Case evaluation (``assess_case_candidate``) recomputes every criterion from
@@ -359,14 +360,32 @@ def _candidate(
     )
 
 
-def _rank_key(a: CandidateAssessment) -> tuple:
+def rank_key(a: CandidateAssessment, signals: int = 0) -> tuple:
     fit = a.fit.fit
-    return (fit is None, -(fit or 0), -a.fit.assessable_pct, a.name.casefold(), a.entity_id)
+    return (
+        fit is None,
+        -(fit or 0),
+        -a.fit.assessable_pct,
+        -signals,
+        a.name.casefold(),
+        a.entity_id,
+    )
 
 
-def shortlist(criteria: list[Criterion], companies: list[CompanyRecord]) -> Shortlist:
+def shortlist(
+    criteria: list[Criterion],
+    companies: list[CompanyRecord],
+    signals: dict[str, int] | None = None,
+) -> Shortlist:
+    """Ranked and excluded companies. `signals` (entity id → sourced signal count)
+    breaks ties after fit and assessable share."""
     assessed = [assess_candidate(criteria, c) for c in companies]
+    signals = signals or {}
+
+    def key(a: CandidateAssessment) -> tuple:
+        return rank_key(a, signals.get(a.entity_id, 0))
+
     return Shortlist(
-        ranked=sorted((a for a in assessed if not a.excluded), key=_rank_key),
-        excluded=sorted((a for a in assessed if a.excluded), key=_rank_key),
+        ranked=sorted((a for a in assessed if not a.excluded), key=key),
+        excluded=sorted((a for a in assessed if a.excluded), key=key),
     )
