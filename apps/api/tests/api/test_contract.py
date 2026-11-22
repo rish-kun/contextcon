@@ -87,6 +87,18 @@ ROUTES: list[tuple[str, str, str, object]] = [
     ("GET", "/runs/{run_id}/activity", f"/runs/{RUN}/activity", None),
     ("POST", "/runs/{run_id}/resume", f"/runs/{RUN}/resume", None),
     ("GET", "/policy", "/policy", None),
+    ("GET", "/public/showcase", "/public/showcase", None),
+    ("GET", "/public/showcase/case", "/public/showcase/case", None),
+    ("GET", "/public/showcase/case/assessments", "/public/showcase/case/assessments", None),
+    ("GET", "/public/showcase/discovery", "/public/showcase/discovery", None),
+    ("GET", "/public/showcase/investors", "/public/showcase/investors", None),
+    ("GET", "/public/showcase/runs/{run_id}", f"/public/showcase/runs/{RUN}", None),
+    (
+        "GET",
+        "/public/showcase/runs/{run_id}/activity",
+        f"/public/showcase/runs/{RUN}/activity",
+        None,
+    ),
 ]
 
 # Implemented with auth (CP-16): outside fixture mode they answer 401 without a session.
@@ -113,8 +125,18 @@ SESSION_ROUTES = {
     "/investor-searches/{search_id}",  # CP-18
     "/cases/{case_id}/requests",  # CP-23
 }
-# Implemented and public (CP-25): served without a session.
-PUBLIC_ROUTES = {"/policy"}
+# Implemented and public: served without a session. The showcase routes are read-only
+# and serve only rows flagged `is_showcase` (app.api.showcase).
+PUBLIC_ROUTES = {
+    "/policy",
+    "/public/showcase",
+    "/public/showcase/case",
+    "/public/showcase/case/assessments",
+    "/public/showcase/discovery",
+    "/public/showcase/investors",
+    "/public/showcase/runs/{run_id}",
+    "/public/showcase/runs/{run_id}/activity",
+}
 AUTH_ROUTES = SESSION_ROUTES | {"/auth/login", "/auth/logout"}
 STUB_ROUTES = [r for r in ROUTES if r[1] not in AUTH_ROUTES | PUBLIC_ROUTES]
 

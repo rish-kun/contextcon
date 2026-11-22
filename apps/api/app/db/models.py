@@ -127,6 +127,8 @@ class Thesis(IdMixin, Base):
     created_by: Mapped[uuid.UUID | None] = mapped_column(_fk("users.id", ondelete="SET NULL"))
     text: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(32), default="draft")
+    # Served read-only by `/public/showcase/*` when set (operator-set, migration 0007).
+    is_showcase: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     criteria: Mapped[list["Criterion"]] = relationship(
         back_populates="thesis", order_by="Criterion.position", cascade="all, delete-orphan"
@@ -217,6 +219,8 @@ class InvestorRun(IdMixin, Base):
     created_by: Mapped[uuid.UUID | None] = mapped_column(_fk("users.id", ondelete="SET NULL"))
     profile: Mapped[dict] = mapped_column(JSONB, default=dict)
     status: Mapped[str] = mapped_column(String(32), default="pending")
+    # Served read-only by `/public/showcase/*` when set (operator-set, migration 0007).
+    is_showcase: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     __table_args__ = (UniqueConstraint("id", "workspace_id"),)
 
@@ -263,6 +267,8 @@ class Case(IdMixin, Base):
     company_type: Mapped[str | None] = mapped_column(String(32))
     credit_budget: Mapped[Decimal | None] = mapped_column(Credits)
     status: Mapped[str] = mapped_column(String(32), default="open")
+    # Served read-only by `/public/showcase/*` when set (operator-set, migration 0007).
+    is_showcase: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     __table_args__ = (
         CheckConstraint(check_in("identity_status", IdentityStatus), name="identity_status"),

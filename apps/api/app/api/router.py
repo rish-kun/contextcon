@@ -11,10 +11,21 @@ CP-16 adds the `current_user` dependency at include time here (every router exce
 from fastapi import APIRouter
 
 from app.act import router as act
-from app.api import auth, cases, claims, documents, investors, policy, requests, runs, theses
+from app.api import (
+    auth,
+    cases,
+    claims,
+    documents,
+    investors,
+    policy,
+    requests,
+    runs,
+    showcase,
+    theses,
+)
 from app.api._base import operation_id
 
 api_router = APIRouter()
-for module in (auth, theses, investors, cases, claims, documents, requests, runs, policy):
+for module in (auth, theses, investors, cases, claims, documents, requests, runs, policy, showcase):
     api_router.include_router(module.router)
 api_router.include_router(act.router, generate_unique_id_function=operation_id)
