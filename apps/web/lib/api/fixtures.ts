@@ -25,6 +25,7 @@ import type {
   PolicyOut,
   RequestListOut,
   RunOut,
+  RunQueueOut,
   RunStreamEvent,
   SendOut,
   SendSummaryOut,
@@ -46,6 +47,7 @@ interface FixtureData {
   caseDetails: Record<string, CaseDetail>;
   assessments: Record<string, AssessmentVersionOut[]>;
   runs: Record<string, RunOut>;
+  runQueue: Record<"active" | "recent", RunQueueOut>;
   requestList: RequestListOut;
   message: Record<"draft" | "edited" | "approved" | "suppressed", MessageOut>;
   documents: DocumentOut[];
@@ -269,6 +271,20 @@ export const sendSummary = async (): Promise<SendSummaryOut> => ({
 });
 
 export const getRun = async (id: string) => lookup(fixtures.runs, id, "Run");
+
+/** The jobs queue. The in-flight example is re-clocked to have started 75 s ago. */
+export async function listRuns(status: "active" | "recent", limit: number): Promise<RunQueueOut> {
+  const queue = clone(fixtures.runQueue[status]);
+  const started = Date.now() - 75_000;
+  for (const item of queue.items) {
+    if (item.state !== "running" && item.state !== "pending") continue;
+    item.created_at = new Date(started).toISOString();
+    item.started_at = item.created_at;
+    item.updated_at = new Date().toISOString();
+  }
+  queue.items = queue.items.slice(0, limit);
+  return queue;
+}
 
 export const getPolicy = async () => clone(fixtures.policy);
 

@@ -19,6 +19,7 @@ import {
   type RunStreamEvent,
   type StepOut,
 } from "@/lib/api/client";
+import { withStepSpend } from "@/lib/api/run-cost";
 import { appendActivities, regionOf, type Region } from "./activity-store";
 import { RevealQueue, type RevealSnapshot } from "./reveal-queue";
 import type { Activity } from "./types";
@@ -161,12 +162,17 @@ export class RunFeed {
     }
     const current = this.snapshot.run;
     if (event.event === "step") {
-      if (current) this.set({ run: { ...current, steps: mergeStep(current.steps, event.data) } });
+      // The header's spend never lags the step rows (see `withStepSpend`).
+      if (current)
+        this.set({ run: withStepSpend({ ...current, steps: mergeStep(current.steps, event.data) }) });
       return;
     }
     // The stream's `run` events carry no steps; a polling snapshot carries all of them.
     const steps = event.data.steps.length > 0 ? event.data.steps : (current?.steps ?? []);
-    const run = { ...event.data, steps: [...steps].sort((a, b) => a.position - b.position) };
+    const run = withStepSpend({
+      ...event.data,
+      steps: [...steps].sort((a, b) => a.position - b.position),
+    });
     if (isTerminal(run) && !this.snapshot.terminal) {
       // A finished run must not keep "arriving": everything held appears at once.
       this.queues.sources.setPaused(false);

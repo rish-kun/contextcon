@@ -64,6 +64,9 @@ export type SendOut = Schemas["SendOut"];
 export type SendSummaryOut = Schemas["SendSummaryOut"];
 
 export type RunOut = Schemas["RunOut"];
+export type RunQueueOut = Schemas["RunQueueOut"];
+export type RunQueueItemOut = Schemas["RunQueueItemOut"];
+export type RunQueueStatus = Schemas["RunQueueStatus"];
 export type StepOut = Schemas["StepOut"];
 export type PolicyOut = Schemas["PolicyOut"];
 
@@ -405,6 +408,16 @@ export async function getSendSummary(caseId: string): Promise<SendSummaryOut> {
 export async function getRun(id: string, init?: RequestInit): Promise<RunOut> {
   if (isFixtureMode) return (await fx()).getRun(id);
   return call("GET", `/runs/${enc(id)}`, { init });
+}
+
+/** The workspace's jobs: `active` (queued or working) or `recent` (latest of any state). */
+export async function listRuns(
+  status: RunQueueStatus = "active",
+  limit = 20,
+  init?: RequestInit,
+): Promise<RunQueueOut> {
+  if (isFixtureMode) return (await fx()).listRuns(status, limit);
+  return call("GET", `/runs?status=${status}&limit=${limit}`, { init });
 }
 
 export async function resumeRun(id: string): Promise<RunOut> {

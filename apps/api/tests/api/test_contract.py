@@ -88,6 +88,7 @@ ROUTES: list[tuple[str, str, str, object]] = [
     ),
     ("POST", "/cases/{case_id}/requests", f"/cases/{CASE}/requests", None),
     ("GET", "/cases/{case_id}/requests", f"/cases/{CASE}/requests", None),
+    ("GET", "/runs", "/runs?status=recent&limit=5", None),
     ("GET", "/runs/{run_id}", f"/runs/{RUN}", None),
     ("GET", "/runs/{run_id}/events", f"/runs/{RUN}/events", None),
     ("GET", "/runs/{run_id}/activity", f"/runs/{RUN}/activity", None),
@@ -110,6 +111,7 @@ ROUTES: list[tuple[str, str, str, object]] = [
 # Implemented with auth (CP-16): outside fixture mode they answer 401 without a session.
 SESSION_ROUTES = {
     "/auth/me",
+    "/runs",  # the jobs queue
     "/runs/{run_id}",
     "/runs/{run_id}/events",
     "/runs/{run_id}/activity",

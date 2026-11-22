@@ -117,7 +117,7 @@ from app.api.schemas.requests import (
     RequestItemOut,
     RequestListOut,
 )
-from app.api.schemas.runs import RunOut, RunSummaryOut, StepOut
+from app.api.schemas.runs import RunOut, RunQueueOut, RunSummaryOut, StepOut
 from app.api.schemas.theses import (
     CriterionOut,
     CriterionResultOut,
@@ -445,6 +445,59 @@ THESIS_TEXT = (
     "Privately held Indian warehousing and supply-chain software companies that serve "
     "enterprise customers and show recent expansion."
 )
+
+
+LIVE_RUN_ID = "fx-run-discover-live"
+
+
+@cache
+def live_run() -> RunOut:
+    """The Discover run part-way through, for the jobs indicator: two steps done, the
+    third running, the rest waiting. Not replayed (`runs()` holds the finished runs)."""
+    done = runs()[DISCOVER_RUN_ID]
+    steps = []
+    for i, step in enumerate(done.steps):
+        update: dict[str, Any] = {"id": f"{LIVE_RUN_ID}-s{i}", "run_id": LIVE_RUN_ID}
+        if i == 2:
+            update |= {
+                "state": StepState.running,
+                "result": None,
+                "detail": "Reading profile 7 of 15",
+                "finished_at": None,
+                "cost": _cost(0, 0, 0),
+            }
+        elif i > 2:
+            update |= {
+                "state": StepState.pending,
+                "result": None,
+                "started_at": None,
+                "finished_at": None,
+                "cost": _cost(0, 0, 0),
+            }
+        steps.append(step.model_copy(update=update))
+    credits = sum(s.cost.crustdata_credits for s in steps)
+    return done.model_copy(
+        update={
+            "id": LIVE_RUN_ID,
+            "state": RunState.running,
+            "finished_at": None,
+            "steps": steps,
+            "cost": _cost(credits, 0, 0),
+            "reserved_credits": 2.0,
+        }
+    )
+
+
+def run_queue(status: str, limit: int = 20) -> RunQueueOut:
+    from app.jobs.queue import queue_item  # the same row builder as the live queue
+
+    live = queue_item(live_run())
+    if status == "active":
+        items = [live]
+    else:
+        done = sorted(runs().values(), key=lambda r: r.finished_at or r.created_at, reverse=True)
+        items = [live, *(queue_item(r) for r in done)]
+    return RunQueueOut(items=items[:limit], active_count=1)
 
 
 @cache
@@ -1955,6 +2008,10 @@ def export() -> dict[str, Any]:
             "caseDetails": {cid: case_detail(cid) for cid in (CASE_ID, CASE_AMBIGUOUS_ID)},
             "assessments": {CASE_ID: assessments(CASE_ID), CASE_AMBIGUOUS_ID: []},
             "runs": runs(),
+            "runQueue": {
+                "active": run_queue("active"),
+                "recent": run_queue("recent"),
+            },
             "requestList": request_list(),
             "message": {
                 "draft": message("draft"),

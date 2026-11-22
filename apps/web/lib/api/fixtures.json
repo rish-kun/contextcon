@@ -5456,6 +5456,186 @@
       ]
     }
   },
+  "runQueue": {
+    "active": {
+      "items": [
+        {
+          "id": "fx-run-discover-live",
+          "kind": "discover",
+          "state": "running",
+          "owner": {
+            "kind": "thesis",
+            "id": "fx-thesis-logistics",
+            "label": "Privately held Indian warehousing and supply-chain software companies that serve enterprise customers and show recent expansion."
+          },
+          "created_at": "2026-11-22T09:30:00Z",
+          "started_at": "2026-11-22T09:30:00Z",
+          "updated_at": "2026-11-22T09:32:00Z",
+          "finished_at": null,
+          "steps_done": 2,
+          "steps_total": 5,
+          "current_step": "Enrich the top 15",
+          "credits": {
+            "settled": 6.2,
+            "reserved": 2.0,
+            "unknown_cost_calls": 0
+          },
+          "llm_usd": 0.0,
+          "budget_credits": 60.0
+        }
+      ],
+      "active_count": 1
+    },
+    "recent": {
+      "items": [
+        {
+          "id": "fx-run-discover-live",
+          "kind": "discover",
+          "state": "running",
+          "owner": {
+            "kind": "thesis",
+            "id": "fx-thesis-logistics",
+            "label": "Privately held Indian warehousing and supply-chain software companies that serve enterprise customers and show recent expansion."
+          },
+          "created_at": "2026-11-22T09:30:00Z",
+          "started_at": "2026-11-22T09:30:00Z",
+          "updated_at": "2026-11-22T09:32:00Z",
+          "finished_at": null,
+          "steps_done": 2,
+          "steps_total": 5,
+          "current_step": "Enrich the top 15",
+          "credits": {
+            "settled": 6.2,
+            "reserved": 2.0,
+            "unknown_cost_calls": 0
+          },
+          "llm_usd": 0.0,
+          "budget_credits": 60.0
+        },
+        {
+          "id": "fx-run-verify",
+          "kind": "verify",
+          "state": "done",
+          "owner": {
+            "kind": "case",
+            "id": "fx-case-harbourline",
+            "label": "Harbourline Warehousing (fixture)"
+          },
+          "created_at": "2026-11-22T09:30:00Z",
+          "started_at": "2026-11-22T09:30:00Z",
+          "updated_at": "2026-11-22T09:47:00Z",
+          "finished_at": "2026-11-22T09:47:00Z",
+          "steps_done": 17,
+          "steps_total": 17,
+          "current_step": null,
+          "credits": {
+            "settled": 19.5,
+            "reserved": 0.0,
+            "unknown_cost_calls": 1
+          },
+          "llm_usd": 0.0135,
+          "budget_credits": 150.0
+        },
+        {
+          "id": "fx-run-discover",
+          "kind": "discover",
+          "state": "done",
+          "owner": {
+            "kind": "thesis",
+            "id": "fx-thesis-logistics",
+            "label": "Privately held Indian warehousing and supply-chain software companies that serve enterprise customers and show recent expansion."
+          },
+          "created_at": "2026-11-22T09:30:00Z",
+          "started_at": "2026-11-22T09:30:00Z",
+          "updated_at": "2026-11-22T09:35:00Z",
+          "finished_at": "2026-11-22T09:35:00Z",
+          "steps_done": 5,
+          "steps_total": 5,
+          "current_step": null,
+          "credits": {
+            "settled": 36.2,
+            "reserved": 0.0,
+            "unknown_cost_calls": 0
+          },
+          "llm_usd": 0.0021,
+          "budget_credits": 60.0
+        },
+        {
+          "id": "fx-run-investors",
+          "kind": "investor_discover",
+          "state": "done",
+          "owner": {
+            "kind": "investor_search",
+            "id": "fx-investor-search-1",
+            "label": "Warehousing and supply-chain software, India, Series A"
+          },
+          "created_at": "2026-11-22T09:30:00Z",
+          "started_at": "2026-11-22T09:30:00Z",
+          "updated_at": "2026-11-22T09:33:00Z",
+          "finished_at": "2026-11-22T09:33:00Z",
+          "steps_done": 3,
+          "steps_total": 3,
+          "current_step": null,
+          "credits": {
+            "settled": 56.5,
+            "reserved": 0.0,
+            "unknown_cost_calls": 0
+          },
+          "llm_usd": 0.0,
+          "budget_credits": 60.0
+        },
+        {
+          "id": "fx-run-recheck",
+          "kind": "recheck",
+          "state": "done",
+          "owner": {
+            "kind": "case",
+            "id": "fx-case-harbourline",
+            "label": "Harbourline Warehousing (fixture)"
+          },
+          "created_at": "2026-11-22T09:30:00Z",
+          "started_at": "2026-11-22T09:30:00Z",
+          "updated_at": "2026-11-22T09:33:00Z",
+          "finished_at": "2026-11-22T09:33:00Z",
+          "steps_done": 3,
+          "steps_total": 3,
+          "current_step": null,
+          "credits": {
+            "settled": 0.0,
+            "reserved": 0.0,
+            "unknown_cost_calls": 0
+          },
+          "llm_usd": 0.0005,
+          "budget_credits": 150.0
+        },
+        {
+          "id": "fx-run-verify-shree",
+          "kind": "verify",
+          "state": "done",
+          "owner": {
+            "kind": "case",
+            "id": "fx-case-shree",
+            "label": "Shree Cargo Links (fixture)"
+          },
+          "created_at": "2026-11-22T09:30:00Z",
+          "started_at": "2026-11-22T09:30:00Z",
+          "updated_at": "2026-11-22T09:31:00Z",
+          "finished_at": "2026-11-22T09:31:00Z",
+          "steps_done": 1,
+          "steps_total": 1,
+          "current_step": null,
+          "credits": {
+            "settled": 0.4,
+            "reserved": 0.0,
+            "unknown_cost_calls": 0
+          },
+          "llm_usd": 0.0,
+          "budget_credits": 150.0
+        }
+      ],
+      "active_count": 1
+    }
+  },
   "requestList": {
     "id": "fx-request-1",
     "case_id": "fx-case-harbourline",

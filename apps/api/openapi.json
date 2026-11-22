@@ -1783,6 +1783,93 @@
         }
       }
     },
+    "/runs": {
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "List Runs",
+        "description": "The workspace's jobs: what is queued or working now, or the latest runs. Each row\nsays which thesis, case or investor search it belongs to, how far it has got and what\nit has spent so far (the same totals the run's own page shows).",
+        "operationId": "list_runs",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/RunQueueStatus",
+              "description": "`active`: pending or running, oldest first. `recent`: latest runs.",
+              "default": "active"
+            },
+            "description": "`active`: pending or running, oldest first. `recent`: latest runs."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunQueueOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to this user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not implemented yet (stub).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/runs/{run_id}": {
       "get": {
         "tags": [
@@ -8744,6 +8831,35 @@
         ],
         "title": "RoundItemOut"
       },
+      "RunCreditsOut": {
+        "properties": {
+          "settled": {
+            "type": "number",
+            "title": "Settled",
+            "default": 0
+          },
+          "reserved": {
+            "type": "number",
+            "title": "Reserved",
+            "default": 0
+          },
+          "unknown_cost_calls": {
+            "type": "integer",
+            "title": "Unknown Cost Calls",
+            "description": "Calls whose cost is not known yet or was lost; never zero.",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "settled",
+          "reserved",
+          "unknown_cost_calls"
+        ],
+        "title": "RunCreditsOut",
+        "description": "Crustdata credits so far. `settled` always equals the sum of the steps' settled\ncredits (plus spend recorded outside a step); `reserved` is held by calls in flight."
+      },
       "RunKind": {
         "type": "string",
         "enum": [
@@ -8895,6 +9011,183 @@
           "steps"
         ],
         "title": "RunOut"
+      },
+      "RunOwnerKind": {
+        "type": "string",
+        "enum": [
+          "thesis",
+          "case",
+          "investor_search"
+        ],
+        "title": "RunOwnerKind"
+      },
+      "RunOwnerOut": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/RunOwnerKind"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "What the owner is called: the company, the thesis text or the investor search's profile."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "id",
+          "label"
+        ],
+        "title": "RunOwnerOut",
+        "description": "The page a run belongs to: `/app/discover/{id}`, `/app/cases/{id}` or\n`/app/investors/{id}`."
+      },
+      "RunQueueItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/RunKind"
+          },
+          "state": {
+            "$ref": "#/components/schemas/RunState"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunOwnerOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At",
+            "description": "When the first step ran."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "steps_done": {
+            "type": "integer",
+            "title": "Steps Done",
+            "description": "Steps settled: done, failed or skipped for budget."
+          },
+          "steps_total": {
+            "type": "integer",
+            "title": "Steps Total"
+          },
+          "current_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Step",
+            "description": "Label of the step running now (or next), while active."
+          },
+          "credits": {
+            "$ref": "#/components/schemas/RunCreditsOut"
+          },
+          "llm_usd": {
+            "type": "number",
+            "title": "Llm Usd",
+            "default": 0
+          },
+          "budget_credits": {
+            "type": "number",
+            "title": "Budget Credits"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "state",
+          "owner",
+          "created_at",
+          "started_at",
+          "updated_at",
+          "finished_at",
+          "steps_done",
+          "steps_total",
+          "current_step",
+          "credits",
+          "llm_usd",
+          "budget_credits"
+        ],
+        "title": "RunQueueItemOut"
+      },
+      "RunQueueOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RunQueueItemOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "active_count": {
+            "type": "integer",
+            "title": "Active Count",
+            "description": "Runs in the workspace still pending or running."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "active_count"
+        ],
+        "title": "RunQueueOut"
+      },
+      "RunQueueStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "recent"
+        ],
+        "title": "RunQueueStatus",
+        "description": "`GET /runs?status=`: runs still queued or working, or the latest of any state."
       },
       "RunState": {
         "type": "string",

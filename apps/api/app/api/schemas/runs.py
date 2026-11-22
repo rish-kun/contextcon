@@ -384,3 +384,63 @@ class ActivityEvent(ApiModel):
 
 
 RunStreamEvent = StepEvent | RunEvent | ActivityEvent
+
+
+class RunQueueStatus(StrEnum):
+    """`GET /runs?status=`: runs still queued or working, or the latest of any state."""
+
+    active = "active"
+    recent = "recent"
+
+
+class RunOwnerKind(StrEnum):
+    thesis = "thesis"
+    case = "case"
+    investor_search = "investor_search"
+
+
+class RunOwnerOut(ApiModel):
+    """The page a run belongs to: `/app/discover/{id}`, `/app/cases/{id}` or
+    `/app/investors/{id}`."""
+
+    kind: RunOwnerKind
+    id: str
+    label: str = Field(
+        description="What the owner is called: the company, the thesis text or the "
+        "investor search's profile."
+    )
+
+
+class RunCreditsOut(ApiModel):
+    """Crustdata credits so far. `settled` always equals the sum of the steps' settled
+    credits (plus spend recorded outside a step); `reserved` is held by calls in flight."""
+
+    settled: float = 0
+    reserved: float = 0
+    unknown_cost_calls: int = Field(
+        default=0, description="Calls whose cost is not known yet or was lost; never zero."
+    )
+
+
+class RunQueueItemOut(ApiModel):
+    id: str
+    kind: RunKind
+    state: RunState
+    owner: RunOwnerOut | None = None
+    created_at: datetime
+    started_at: datetime | None = Field(default=None, description="When the first step ran.")
+    updated_at: datetime
+    finished_at: datetime | None = None
+    steps_done: int = Field(description="Steps settled: done, failed or skipped for budget.")
+    steps_total: int
+    current_step: str | None = Field(
+        default=None, description="Label of the step running now (or next), while active."
+    )
+    credits: RunCreditsOut = Field(default_factory=RunCreditsOut)
+    llm_usd: float = 0
+    budget_credits: float
+
+
+class RunQueueOut(ApiModel):
+    items: list[RunQueueItemOut] = Field(default_factory=list)
+    active_count: int = Field(description="Runs in the workspace still pending or running.")

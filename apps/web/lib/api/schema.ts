@@ -432,6 +432,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Runs
+         * @description The workspace's jobs: what is queued or working now, or the latest runs. Each row
+         *     says which thesis, case or investor search it belongs to, how far it has got and what
+         *     it has spent so far (the same totals the run's own page shows).
+         */
+        get: operations["list_runs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/runs/{run_id}": {
         parameters: {
             query?: never;
@@ -2837,6 +2859,29 @@ export interface components {
             investors: components["schemas"]["RoundInvestorOut"][];
         };
         /**
+         * RunCreditsOut
+         * @description Crustdata credits so far. `settled` always equals the sum of the steps' settled
+         *     credits (plus spend recorded outside a step); `reserved` is held by calls in flight.
+         */
+        RunCreditsOut: {
+            /**
+             * Settled
+             * @default 0
+             */
+            settled: number;
+            /**
+             * Reserved
+             * @default 0
+             */
+            reserved: number;
+            /**
+             * Unknown Cost Calls
+             * @description Calls whose cost is not known yet or was lost; never zero.
+             * @default 0
+             */
+            unknown_cost_calls: number;
+        };
+        /**
          * RunKind
          * @enum {string}
          */
@@ -2891,6 +2936,87 @@ export interface components {
             /** Steps */
             steps: components["schemas"]["StepOut"][];
         };
+        /**
+         * RunOwnerKind
+         * @enum {string}
+         */
+        RunOwnerKind: "thesis" | "case" | "investor_search";
+        /**
+         * RunOwnerOut
+         * @description The page a run belongs to: `/app/discover/{id}`, `/app/cases/{id}` or
+         *     `/app/investors/{id}`.
+         */
+        RunOwnerOut: {
+            kind: components["schemas"]["RunOwnerKind"];
+            /** Id */
+            id: string;
+            /**
+             * Label
+             * @description What the owner is called: the company, the thesis text or the investor search's profile.
+             */
+            label: string;
+        };
+        /** RunQueueItemOut */
+        RunQueueItemOut: {
+            /** Id */
+            id: string;
+            kind: components["schemas"]["RunKind"];
+            state: components["schemas"]["RunState"];
+            owner: components["schemas"]["RunOwnerOut"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Started At
+             * @description When the first step ran.
+             */
+            started_at: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Steps Done
+             * @description Steps settled: done, failed or skipped for budget.
+             */
+            steps_done: number;
+            /** Steps Total */
+            steps_total: number;
+            /**
+             * Current Step
+             * @description Label of the step running now (or next), while active.
+             */
+            current_step: string | null;
+            credits: components["schemas"]["RunCreditsOut"];
+            /**
+             * Llm Usd
+             * @default 0
+             */
+            llm_usd: number;
+            /** Budget Credits */
+            budget_credits: number;
+        };
+        /** RunQueueOut */
+        RunQueueOut: {
+            /** Items */
+            items: components["schemas"]["RunQueueItemOut"][];
+            /**
+             * Active Count
+             * @description Runs in the workspace still pending or running.
+             */
+            active_count: number;
+        };
+        /**
+         * RunQueueStatus
+         * @description `GET /runs?status=`: runs still queued or working, or the latest of any state.
+         * @enum {string}
+         */
+        RunQueueStatus: "active" | "recent";
         /**
          * RunState
          * @enum {string}
@@ -4814,6 +4940,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RequestListOut"];
+                };
+            };
+            /** @description No valid session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not found, or not visible to this user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not implemented yet (stub). */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    list_runs: {
+        parameters: {
+            query?: {
+                /** @description `active`: pending or running, oldest first. `recent`: latest runs. */
+                status?: components["schemas"]["RunQueueStatus"];
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunQueueOut"];
                 };
             };
             /** @description No valid session. */

@@ -25,6 +25,7 @@ state is `done` or `failed`. Clients fall back to polling `GET /runs/{id}` and
 import asyncio
 import uuid
 from collections.abc import AsyncIterator
+from typing import Annotated
 
 from fastapi import Header, Query, Request, status
 from fastapi.responses import StreamingResponse
@@ -38,11 +39,19 @@ from app.api._base import (
     not_found,
 )
 from app.api.schemas.common import RunState, StepState
-from app.api.schemas.runs import ActivityOut, ActivityPage, RunEvent, RunOut, StepEvent
+from app.api.schemas.runs import (
+    ActivityOut,
+    ActivityPage,
+    RunEvent,
+    RunOut,
+    RunQueueOut,
+    RunQueueStatus,
+    StepEvent,
+)
 from app.auth.deps import WorkspaceId
 from app.db import repo
 from app.db.session import get_sessionmaker
-from app.jobs import events
+from app.jobs import events, queue
 
 router = make_router(prefix="/runs", tags=["runs"])
 
@@ -107,6 +116,24 @@ async def _load(workspace_id: uuid.UUID, run_id: str) -> RunOut:
             return await events.load_run_out(db, workspace_id, _run_id(run_id))
         except repo.NotFound:
             not_found("Run")
+
+
+@router.get("", response_model=RunQueueOut)
+async def list_runs(
+    workspace_id: WorkspaceId,
+    status: Annotated[
+        RunQueueStatus,
+        Query(description="`active`: pending or running, oldest first. `recent`: latest runs."),
+    ] = RunQueueStatus.active,
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+) -> RunQueueOut:
+    """The workspace's jobs: what is queued or working now, or the latest runs. Each row
+    says which thesis, case or investor search it belongs to, how far it has got and what
+    it has spent so far (the same totals the run's own page shows)."""
+    if fixtures_enabled():
+        return fixtures.run_queue(status, limit)
+    async with get_sessionmaker()() as db:
+        return await queue.list_run_queue(db, workspace_id, status=status, limit=limit)
 
 
 @router.get("/{run_id}", response_model=RunOut)

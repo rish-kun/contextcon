@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { DropdownMenu } from "radix-ui";
 import { Icon, Kbd } from "@/components/ui";
+import { JobsIndicator } from "./jobs-indicator";
 import { breadcrumb } from "./nav";
 import { useShell } from "./shell-context";
 
@@ -52,6 +53,8 @@ export function TopBar({ onOpenNav }: { onOpenNav: () => void }) {
           })}
         </ol>
       </nav>
+
+      <JobsIndicator />
 
       <button
         type="button"
