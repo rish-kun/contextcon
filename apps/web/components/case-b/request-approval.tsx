@@ -14,12 +14,12 @@ import {
   type RequestListOut,
   type SendOut,
   type SendSummaryOut,
-  type UserOut,
 } from "@/lib/api/client";
 import { formatDateTime, plural } from "@/lib/format";
 import { useSound } from "@/lib/sound";
 import type { RequestedDocument, SellerRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useSessionUser } from "@/components/app-shell";
 import { ApprovalReceipt, ApprovalSteps, TestModeBanner } from "@/components/dealproof/approval-block";
 import { HatchedBlock } from "@/components/dealproof/blocks";
 import { Badge } from "@/components/ui/badge";
@@ -94,7 +94,6 @@ export function RequestApproval({
   list,
   documents,
   initialMessage,
-  user,
   testMode,
 }: {
   caseId: string;
@@ -102,12 +101,12 @@ export function RequestApproval({
   /** The requested documents, each with the claim it would settle. */
   documents: RequestedDocument[];
   initialMessage: MessageOut | null;
-  /** The signed-in person. Null when nobody is signed in. */
-  user: UserOut | null;
   /** True while email sending is switched off. */
   testMode: boolean;
 }) {
   const { playCue } = useSound();
+  /** The named person an approval is recorded against. The shell renders only when signed in. */
+  const user = useSessionUser();
   const [message, setMessage] = useState(initialMessage);
   const [draft, setDraft] = useState<Draft>(() => revisionOf(initialMessage, list));
   const [busy, setBusy] = useState<Busy>(null);
@@ -246,9 +245,8 @@ export function RequestApproval({
       }
     : null;
 
-  const blocked = !user
-    ? "Sign in to approve. A named person must approve every request."
-    : !message || dirty
+  const blocked =
+    !message || dirty
       ? "Save the revision first. An approval covers one exact revision."
       : recipientError;
 
@@ -354,7 +352,7 @@ export function RequestApproval({
             <div className="flex flex-col gap-1 text-dense">
               <p className="text-ink">
                 <span className="text-ink-muted">Approver </span>
-                {user ? `${user.display_name} (signed in)` : "nobody is signed in"}
+                {user.display_name} (signed in)
               </p>
               {approved && message?.approval ? (
                 <p className={cn("text-ink", dirty && "text-ink-secondary line-through")}>
@@ -376,7 +374,7 @@ export function RequestApproval({
               {approved ? (
                 <Dialog open={confirming} onOpenChange={setConfirming}>
                   <DialogTrigger asChild>
-                    <Button variant="primary" disabled={dirty || busy !== null || !user}>
+                    <Button variant="primary" disabled={dirty || busy !== null}>
                       {testMode ? "Send (test mode, nothing is sent)" : "Send once"}
                     </Button>
                   </DialogTrigger>
