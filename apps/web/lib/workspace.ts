@@ -6,6 +6,7 @@ import {
   type CaseDetail,
   type CaseSummary,
 } from "@/lib/api/client";
+import { onSessionChange } from "@/lib/api/session-scope";
 import { type Load, useLoad } from "@/lib/use-load";
 import { CLAIM_STATUSES, type ClaimStatusCounts } from "@/lib/types";
 
@@ -31,7 +32,35 @@ export interface Workspace {
   loadedAt: string;
 }
 
-let cache: { at: number; promise: Promise<Workspace> } | null = null;
+/**
+ * One cached read, owned by the account it was made for. The API gives the browser no
+ * workspace id, and a user belongs to one workspace, so the user id names both.
+ */
+let cache: { owner: string; at: number; promise: Promise<Workspace> } | null = null;
+/** The signed-in user, set by the shell once `GET /auth/me` has answered. */
+let owner: string | null = null;
+
+/** Drop the cached cases. Nothing read before this call is served after it. */
+export function clearWorkspaceCache(): void {
+  cache = null;
+}
+
+/**
+ * Name the account the cache may serve, or null when nobody is signed in. A change of
+ * account drops the cache: sign-out and sign-in are client navigations, so this module
+ * outlives them, and one account's cases must never reach the next account in the tab.
+ */
+export function setWorkspaceOwner(userId: string | null): void {
+  if (owner === userId) return;
+  owner = userId;
+  cache = null;
+}
+
+// Every sign-in, sign-out and sign-up, whether or not the shell is mounted to see it.
+onSessionChange(() => {
+  owner = null;
+  cache = null;
+});
 
 async function read(): Promise<Workspace> {
   const cases = [...(await listCases())].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
@@ -52,11 +81,17 @@ async function read(): Promise<Workspace> {
   };
 }
 
-/** One read shared by every screen for a few seconds, so moving between them does not refetch. */
+/**
+ * One read shared by every screen for a few seconds, so moving between them does not
+ * refetch. Shared only within one account: with no known owner the read is not cached,
+ * and a cached read is served only to the account it was made for.
+ */
 export function loadWorkspace(force = false): Promise<Workspace> {
-  if (!force && cache && Date.now() - cache.at < TTL_MS) return cache.promise;
+  const reader = owner;
+  if (reader === null) return read();
+  if (!force && cache && cache.owner === reader && Date.now() - cache.at < TTL_MS) return cache.promise;
   const promise = read();
-  cache = { at: Date.now(), promise };
+  cache = { owner: reader, at: Date.now(), promise };
   promise.catch(() => {
     if (cache?.promise === promise) cache = null;
   });
@@ -68,7 +103,7 @@ export function useWorkspace(): [Load<Workspace>, () => void] {
   return [
     state,
     () => {
-      cache = null;
+      clearWorkspaceCache();
       retry();
     },
   ];
@@ -145,29 +180,6 @@ export function attention(item: CaseSummary, detail: CaseDetail | undefined): At
     });
   }
   return out;
-}
-
-export const PIPELINE_COLUMNS = ["identity", "verifying", "failed", "assessed", "drafted", "sent"] as const;
-export type PipelineColumn = (typeof PIPELINE_COLUMNS)[number];
-
-export const PIPELINE_LABEL: Record<PipelineColumn, string> = {
-  identity: "Identity",
-  verifying: "Verifying",
-  failed: "Failed",
-  assessed: "Assessed",
-  drafted: "Request drafted",
-  sent: "Request sent",
-};
-
-/** The column a case sits in. DealProof decides it from the record; nobody drags a card. */
-export function pipelineColumn(item: CaseSummary, detail: CaseDetail | undefined): PipelineColumn {
-  if (item.identity_state !== "confirmed") return "identity";
-  if (item.status === "verifying") return "verifying";
-  if (item.status === "failed") return "failed";
-  const request = requestState(detail);
-  if (request === "sent" || request === "suppressed") return "sent";
-  if (request !== "none") return "drafted";
-  return "assessed";
 }
 
 /**

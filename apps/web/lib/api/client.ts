@@ -15,6 +15,7 @@
  */
 import type { Activity, ActivityPage } from "@/lib/run/types";
 import type { components } from "./schema";
+import { sessionChanged } from "./session-scope";
 import { showcaseReadPath } from "./showcase-paths";
 
 /* ───────────────────────── Types ───────────────────────── */
@@ -181,14 +182,31 @@ function fx(): Promise<Fixtures> {
 
 /* ───────────────────────── Auth ───────────────────────── */
 
+/**
+ * Sign-in and sign-out drop every browser-side cache of account data, before the call and
+ * after it: nothing read for one account may be shown to the next one in the same tab.
+ */
+async function changingSession<T>(request: () => Promise<T>): Promise<T> {
+  sessionChanged();
+  try {
+    return await request();
+  } finally {
+    sessionChanged();
+  }
+}
+
 export async function login(body: LoginIn): Promise<UserOut> {
-  if (isFixtureMode) return (await fx()).login(body);
-  return call("POST", "/auth/login", { json: body });
+  return changingSession(async () => {
+    if (isFixtureMode) return (await fx()).login(body);
+    return call<UserOut>("POST", "/auth/login", { json: body });
+  });
 }
 
 export async function logout(): Promise<void> {
-  if (isFixtureMode) return;
-  return call("POST", "/auth/logout");
+  return changingSession(async () => {
+    if (isFixtureMode) return;
+    return call<void>("POST", "/auth/logout");
+  });
 }
 
 export async function me(init?: RequestInit): Promise<UserOut> {

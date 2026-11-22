@@ -13,7 +13,7 @@ import {
   Skeleton,
 } from "@/components/ui";
 import { ApiError, logout, me, type CaseSummary, type UserOut } from "@/lib/api/client";
-import { loadWorkspace, requestState } from "@/lib/workspace";
+import { loadWorkspace, requestState, setWorkspaceOwner } from "@/lib/workspace";
 import { CommandMenu } from "./command-menu";
 import { ShellContext, type ShellContextValue } from "./shell-context";
 import { SidebarNav } from "./sidebar-nav";
@@ -91,11 +91,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     me().then(
       (user) => {
-        if (!cancelled) setSession({ status: "ready", user });
+        if (cancelled) return;
+        // Before any page under the shell renders: the case cache serves this account only.
+        setWorkspaceOwner(user.id);
+        setSession({ status: "ready", user });
       },
       (error: unknown) => {
         if (cancelled) return;
         if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+          setWorkspaceOwner(null);
           const next = window.location.pathname + window.location.search;
           router.replace(`/login?next=${encodeURIComponent(next)}`);
           return;
