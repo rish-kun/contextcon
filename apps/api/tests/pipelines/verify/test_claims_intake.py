@@ -351,3 +351,42 @@ async def test_check_one_claim_queues_only_that_claim_then_assesses(api, client,
     await _signed_in(client, session, "ravi")  # this client is now ravi, in another workspace
     foreign = await client.post(f"/cases/{case_id}/claims/{ids[0]}/check")
     assert foreign.status_code == 404
+
+
+async def test_document_step_text_never_names_the_file(api, client, session, sm):
+    """Label, live detail and result of the extraction step: fixed words and counts.
+    Rows written before that rule are rewritten when the run is served."""
+    from app.db.models import Run
+    from app.jobs import events
+
+    acct = await _signed_in(client, session)
+    set_client_factory(FakeFactory(llm_client=_deck_llm()))
+    pages = ["We have no debt. FY25 revenue was INR 80 crore.", "We employ 250 people."]
+    secret = "Project Falcon term sheet.pdf"
+    response = await _upload(client, acct.case.id, make_pdf(pages), filename=secret)
+    assert response.status_code == 201, response.text
+    assert "Falcon" not in str(response.json()["run"])
+    await _drain(sm)
+
+    step = (await session.execute(select(Step).where(Step.handler == EXTRACT_HANDLER))).scalar_one()
+    assert step.label == "Read claims from the uploaded PDF"
+    assert step.result == "3 claims read from the uploaded PDF"
+
+    # A row from before the rule, as it was stored then.
+    step.label = f"Read claims from {secret}"
+    step.detail = f"Reading {secret}"
+    step.result = f"3 claims read from {secret}; unreadable text marked not checked"
+    step.state = "running"
+    await session.commit()
+    run = await session.get(Run, step.run_id)
+    out = await events.load_run_out(session, acct.workspace.id, run.id)
+    [served] = [s for s in out.steps if s.key == step.key]
+    assert "Falcon" not in served.model_dump_json()
+    assert served.label == "Read claims from the uploaded document"
+    assert served.detail == "Reading the uploaded document"
+    assert (
+        served.result
+        == "3 claims read from the uploaded document; unreadable text marked not checked"
+    )
+    res = await client.get(f"/runs/{run.id}")
+    assert res.status_code == 200 and "Falcon" not in res.text

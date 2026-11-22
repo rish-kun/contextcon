@@ -25,7 +25,6 @@ from app.pipelines.act.request_list import build_request_list_for_case
 from app.pipelines.evaluate import step as evaluate_step_module
 from app.pipelines.verify.checks.clients import set_client_factory
 from app.pipelines.verify.claims.intake import CHECK_HANDLER
-from app.pipelines.verify.claims.recheck import EXTRACT_LABEL
 from tests.auth.helpers import PASSWORD, login
 from tests.documents.conftest import make_pdf
 from tests.evaluate.builders import TODAY, confirmed_world
@@ -125,7 +124,9 @@ async def test_seller_response_links_items_and_runs_a_recheck(api, client, sessi
         s.key: s
         for s in (await session.execute(select(Step).where(Step.run_id == run.id))).scalars()
     }
-    assert steps[f"claims.extract:{doc_id}"].label == EXTRACT_LABEL
+    extract = steps[f"claims.extract:{doc_id}"]
+    assert extract.label == "Read claims from the uploaded PDF"
+    assert extract.result == "1 claim read from the uploaded PDF"
     new_claim = (
         await session.execute(select(Claim).where(Claim.document_id == doc_id))
     ).scalar_one()

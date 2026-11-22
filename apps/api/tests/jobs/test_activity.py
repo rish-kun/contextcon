@@ -247,8 +247,9 @@ async def test_client_hooks_emit_calls_sources_and_model_reads(session, sm) -> N
     # One source per page, tracking parameters stripped, the claim it was read for.
     assert page["label"] == "Read news.test"
     assert page["source"] == {
-        "type": "web_page", "domain": "news.test", "url": "https://www.news.test/a?id=7",
-        "title": "Alpha Freight opens a Pune hub", "source_class": "news", "as_of": None,
+        # A case run: no query string, no page title (they can echo search terms).
+        "type": "web_page", "domain": "news.test", "url": "https://www.news.test/a",
+        "title": None, "source_class": "news", "as_of": None,
         "state": "read", "reason": None,
     }  # fmt: skip
     assert page["ref"] == {"type": "claim", "id": "c-1"}
@@ -499,3 +500,46 @@ async def test_activity_page_summary_and_workspace_scope(session, sm) -> None:
     assert summary.investors_found == 2
     assert summary.credits == 3.5 and summary.llm_usd == pytest.approx(0.002)
     assert summary.last_seq == 9 and summary.elapsed_seconds >= 0
+
+
+async def test_case_run_sources_drop_query_strings_and_page_titles(session, sm) -> None:
+    """On a case run a search URL or a results-page title could echo terms derived from
+    a claim: activity keeps the path only and no title for web pages, in source events
+    and in finding source refs. Discovery runs keep both."""
+    t = await tenant(session, "acme")
+    case_run = await create_run(
+        session, workspace_id=t.workspace.id, kind="verify", case_id=t.case.id, steps=[]
+    )
+    dr = await discovery_run(session, t)
+    disc_run = await create_run(
+        session, workspace_id=t.workspace.id, kind="discover", discovery_run_id=dr.id, steps=[]
+    )
+    await session.commit()
+    page = act.source_ref(
+        "web_page", url="https://news.test/search?q=falcon+warehouse", title="falcon warehouse"
+    )
+    record = act.source_ref("crustdata_record", title="Acme · company record")
+    E, L = act.envelope, act.Label
+
+    def events():
+        return [
+            E(act.Kind.SOURCE, L("s"), source=page),
+            E(act.Kind.SOURCE, L("s"), source=record),
+            E(act.Kind.FINDING, L("f"), subject=act.Subject.CLAIM, source=page,
+              items=[{"id": "c1", "stage": "checking", "category": "dated_event"}]),
+        ]  # fmt: skip
+
+    for run, case in ((case_run, True), (disc_run, False)):
+        em = act.ActivityEmitter(sm, workspace_id=t.workspace.id, run_id=run.id, case_run=case)
+        assert len(await em.write(events())) == 3
+    async with sm() as s:
+        case_items = (await load_activity_page(s, t.workspace.id, case_run.id)).items
+        disc_items = (await load_activity_page(s, t.workspace.id, disc_run.id)).items
+    web = [a for a in case_items if a.source and a.source.type == "web_page"]
+    assert len(web) == 2
+    assert all(a.source.url == "https://news.test/search" and a.source.title is None for a in web)
+    assert "falcon" not in json.dumps([a.model_dump(mode="json") for a in case_items])
+    assert [a.source.title for a in case_items if a.source.type == "crustdata_record"] == [
+        "Acme · company record"
+    ]
+    assert any(a.source and a.source.title == "falcon warehouse" for a in disc_items)

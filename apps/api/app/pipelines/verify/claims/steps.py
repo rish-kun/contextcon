@@ -10,7 +10,7 @@ from app.clients.activity import activity_topic
 from app.db.enums import RunKind
 from app.db.models import Document
 from app.jobs import StepContext, step_handler
-from app.jobs.activity import NoticeCode, Subject, doc_kind, render
+from app.jobs.activity import NoticeCode, Subject, doc_kind, document_step_result, render
 from app.pipelines.verify.checks.clients import client_factory, close_quietly
 from app.pipelines.verify.claims.intake import (
     EXTRACT_HANDLER,
@@ -73,9 +73,10 @@ async def extract_claims_step(ctx: StepContext) -> dict[str, Any]:
     elif not intake.claims:
         await ctx.activity.notice(NoticeCode.NOTHING_TO_CHECK)
     readable = len(intake.claims) - len(intake.checked)
-    ctx.result = f"{readable} claim{'s' if readable != 1 else ''} read from {document.filename}"
-    if intake.checked:
-        ctx.result += "; unreadable text marked not checked"
+    # Counts and the document kind only, never the filename.
+    ctx.result = document_step_result(
+        readable, doc_kind(document.file_kind), unreadable=bool(intake.checked)
+    )
     ctx.log(f"dropped {intake.dropped} unquoted items; redactions {intake.redaction_counts}")
     return {
         "document_id": str(document.id),

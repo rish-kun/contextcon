@@ -46,7 +46,7 @@ from app.extraction import PageText, extract_claims, redact_document
 from app.extraction.llm import LlmOutputError, StructuredLlm
 from app.extraction.pii import regex_redact, regex_redact_fn
 from app.jobs import StepSpec, append_steps, create_run
-from app.jobs.activity import doc_kind
+from app.jobs.activity import doc_kind, document_step_label
 from app.pipelines.verify.claims.components import (
     ClaimToNormalise,
     NormalisedComponents,
@@ -144,6 +144,7 @@ async def store_upload(
             size_bytes=capture.record.size_bytes if capture.record else len(file.data),
             sha256=capture.record.sha256 if capture.record else None,
             pages=capture.record.page_count if capture.record else None,
+            file_kind=capture.record.kind if capture.record else None,
             uploaded_by=uploaded_by,
             delete_after=result.delete_after,
         )
@@ -412,7 +413,7 @@ async def schedule_document_extraction(
             StepSpec(
                 key=f"{EXTRACT_PREFIX}{stored.document.id}",
                 handler=EXTRACT_HANDLER,
-                label=f"Read claims from the uploaded {doc_kind(stored.document.file_kind)}",
+                label=document_step_label(doc_kind(stored.document.file_kind)),
                 input={
                     "document_id": str(stored.document.id),
                     "text_status": result.text_status,

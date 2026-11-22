@@ -90,6 +90,7 @@ from app.db.models import (
     Source,
     Step,
 )
+from app.jobs.activity import public_step_text
 from app.pipelines.evaluate import cases as evaluate_cases
 from app.pipelines.verify.common import COMPARABLES, parse_date, parse_ref
 from app.settings import get_settings
@@ -750,7 +751,7 @@ async def cost_section(ctx: CaseContext) -> CaseCostOut:
             run_id=str(r.id),
             run_kind=RunKind(r.kind),
             step_key=r.key or "",
-            step_label=r.label or r.key or "",
+            step_label=public_step_text(r.key or "", r.label or r.key or "", None, None)[0],
             cost=_row_totals(r),
             cached=bool(r.cached),
             at=r.at or r.created_at,

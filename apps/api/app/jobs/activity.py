@@ -277,6 +277,57 @@ def doc_kind(file_kind: str | None) -> str:
     return DOC_KINDS.get((file_kind or "").lower(), "document")
 
 
+# Steps that read an upload (`verify.claims.extract`). Older rows of these steps kept
+# the filename in their label, live detail and result; `public_step_text` rewrites
+# them to fixed words and counts whenever they are served.
+DOCUMENT_STEP_PREFIX = "claims.extract:"
+_DOC_KIND_WORDS = frozenset([*DOC_KINDS.values(), "document"])
+_READ_COUNT = re.compile(r"^(\d+) claims? read\b")
+
+
+def document_step_label(kind: str = "document") -> str:
+    return f"Read claims from the uploaded {kind}"
+
+
+def document_step_result(readable: int, kind: str = "document", *, unreadable: bool = False) -> str:
+    text = f"{readable} claim{'s' if readable != 1 else ''} read from the uploaded {kind}"
+    return text + ("; unreadable text marked not checked" if unreadable else "")
+
+
+def _kind_of(text: str | None, prefix: str) -> str | None:
+    if text and text.startswith(prefix):
+        rest = text[len(prefix) :]
+        kind = rest.split(";", 1)[0].strip()
+        return kind if kind in _DOC_KIND_WORDS else None
+    return None
+
+
+def public_step_text(
+    key: str, label: str, detail: str | None, result: str | None
+) -> tuple[str, str | None, str | None]:
+    """A step's label, detail and result as the API may show them. Document steps get
+    fixed words and counts only (never a filename); other steps are unchanged."""
+    if not key.startswith(DOCUMENT_STEP_PREFIX):
+        return label, detail, result
+    label_kind = _kind_of(label, "Read claims from the uploaded ")
+    safe_label = document_step_label(label_kind or "document")
+    detail_kind = _kind_of(detail, "Reading the uploaded ")
+    safe_detail = None if detail is None else f"Reading the uploaded {detail_kind or 'document'}"
+    safe_result = None
+    if result is not None:
+        count = _READ_COUNT.match(result)
+        safe_result = (
+            document_step_result(
+                int(count.group(1)),
+                _kind_of(result.split(" read from ", 1)[-1], "the uploaded ") or "document",
+                unreadable="unreadable text" in result,
+            )
+            if count
+            else "Claims read from the uploaded document"
+        )
+    return safe_label, safe_detail, safe_result
+
+
 TEMPLATES: dict[str, str] = {
     # status
     "status.resolving_filters": "Resolving filter values",
@@ -688,6 +739,36 @@ def source_ref(
     }
 
 
+def case_safe_source(source: dict[str, Any]) -> dict[str, Any]:
+    """A source ref on a case run: no query string on the URL (a search URL can echo
+    the terms), and no title on a web page (a results page can echo them too)."""
+    out = dict(source)
+    if out.get("url"):
+        try:
+            parts = urlsplit(str(out["url"]))
+            out["url"] = urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
+        except ValueError:
+            out["url"] = None
+    if out.get("type") == "web_page":
+        out["title"] = None
+    return out
+
+
+def case_safe_event(event: dict[str, Any]) -> dict[str, Any]:
+    """`case_safe_source` on an event's source and on any source inside its items."""
+    out = dict(event)
+    if isinstance(out.get("source"), dict):
+        out["source"] = case_safe_source(out["source"])
+    if isinstance(out.get("items"), list):
+        out["items"] = [
+            {**item, "source": case_safe_source(item["source"])}
+            if isinstance(item, dict) and isinstance(item.get("source"), dict)
+            else item
+            for item in out["items"]
+        ]
+    return out
+
+
 def claim_ref(claim_id: Any) -> dict[str, str]:
     return {"type": "claim", "id": str(claim_id)}
 
@@ -1075,6 +1156,8 @@ class ActivityEmitter:
         if not events or not self.enabled:
             return []
         assert self._sessionmaker is not None and self.run_id is not None
+        if self.case_run:
+            events = [case_safe_event(e) for e in events]
         try:
             async with self._sessionmaker() as session:
                 return await self._insert(session, list(events))

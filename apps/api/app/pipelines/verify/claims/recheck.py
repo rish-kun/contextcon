@@ -35,6 +35,7 @@ from app.db.models import (
     Step,
 )
 from app.jobs import StepSpec, create_run
+from app.jobs.activity import doc_kind, document_step_label
 from app.pipelines.act.step import request_list_step
 from app.pipelines.evaluate.flip_step import STEP_KEY as FLIP_KEY
 from app.pipelines.evaluate.flip_step import decision_flip_step
@@ -47,8 +48,6 @@ from app.pipelines.verify.claims.intake import (
     StoredUpload,
     schedule_claim_checks,
 )
-
-EXTRACT_LABEL = "Read claims from the uploaded document"
 
 
 class UnknownRequestItems(ValueError):
@@ -116,7 +115,7 @@ async def schedule_recheck(
             StepSpec(
                 key=extract_key,
                 handler=EXTRACT_HANDLER,
-                label=EXTRACT_LABEL,
+                label=document_step_label(doc_kind(document.file_kind)),
                 input={
                     "document_id": str(document.id),
                     "text_status": result.text_status,

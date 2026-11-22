@@ -55,6 +55,7 @@ from app.db.models import (
     RunActivity,
     Thesis,
 )
+from app.jobs.activity import public_step_text
 from app.jobs.engine import resume_run
 
 log = logging.getLogger(__name__)
@@ -173,17 +174,19 @@ async def load_run_out(session: AsyncSession, workspace_id: uuid.UUID, run_id: u
     steps = []
     for step in run.steps:
         c = calls.get(step.id)
+        # Document steps: fixed words and counts, also for rows written before that rule.
+        label, detail, result = public_step_text(step.key, step.label, step.detail, step.result)
         steps.append(
             StepOut(
                 id=str(step.id),
                 run_id=str(run.id),
                 key=step.key,
-                label=step.label,
+                label=label,
                 position=step.position,
                 state=StepState(step.state),
                 attempts=step.attempts,
-                detail=step.detail if step.state == "running" else None,
-                result=step.result
+                detail=detail if step.state == "running" else None,
+                result=result
                 or (
                     f"Not checked: {step.skip_reason}"
                     if step.state == "skipped_budget" and step.skip_reason
