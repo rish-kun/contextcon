@@ -37,6 +37,11 @@ class IdentityStatus(StrEnum):
     AMBIGUOUS = "ambiguous"
 
 
+# Names used by the implementation plan and the API contract tests.
+TriState = CriterionResult
+IdentityState = IdentityStatus
+
+
 class SourceReliability(StrEnum):
     """What kind of record a source is. Adequacy is decided per question by the
     rule table in ``app.rules.policy``, never by the class alone."""
@@ -53,8 +58,9 @@ class SourceReliability(StrEnum):
     SELLER_STATEMENT = "seller_statement"
 
 
-# The implementation plan calls this enum ``SourceClass``.
-SourceClass = SourceReliability
+# Note: the API contract's ``SourceClass`` (app/api/schemas/common.py) uses an
+# older vocabulary from the plan (registry_official, funding_database, ...). It is
+# deliberately not aliased here; the contract owner maps or adopts these values.
 
 
 class ClaimCategory(StrEnum):
