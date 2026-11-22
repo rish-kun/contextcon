@@ -890,6 +890,7 @@ class Lookup:
     # (marketplace listings): bound like any page, classed company_announcement.
     listing_hosts: tuple[str, ...] = ()
     focus: tuple[str, ...] = ()  # words that pick the relevant passages of a fetched page
+    quote_entity: bool = True  # False for a standard's name ("ISO 27001")
 
 
 def classify_hit(
@@ -969,7 +970,12 @@ async def run_lookups(env: CheckEnv, claim: Claim, lookups: list[Lookup], out: G
         out.searched.append(entry)
         try:
             query = build_lookup(
-                terms, lookup.words, entity=lookup.entity, site=lookup.site, deny=deny
+                terms,
+                lookup.words,
+                entity=lookup.entity,
+                site=lookup.site,
+                deny=deny,
+                quote_entity=lookup.quote_entity,
             )
         except UnsafeQuery as exc:
             entry["skipped"] = "unsafe_query"
@@ -1060,6 +1066,7 @@ async def run_lookups(env: CheckEnv, claim: Claim, lookups: list[Lookup], out: G
 # because the modules import this one.
 SOURCE_MODULES: dict[str, str] = {
     "partnership": "partnership",
+    "compliance": "compliance",
 }
 
 

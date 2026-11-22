@@ -120,6 +120,7 @@ class ValueKind(StrEnum):
     ENUM = "enum"
     STAGE = "stage"
     ROUND_TYPE = "round_type"
+    STANDARD = "standard"  # a certification standard (`app.rules.standards`)
 
 
 class DocumentType(StrEnum):
@@ -144,6 +145,8 @@ class DocumentType(StrEnum):
     INCORPORATION_CERTIFICATE = "incorporation_certificate"
     LITIGATION_DISCLOSURE = "litigation_disclosure"
     EVENT_RECORD = "event_record"
+    COMPLIANCE_CERTIFICATE = "compliance_certificate"
+    AUDIT_REPORT = "audit_report"
     PITCH_DECK = "pitch_deck"
     OTHER = "other"
 

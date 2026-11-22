@@ -15,6 +15,7 @@ Precedence (first that applies wins, design §6.3):
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import date
 
 from app.domain.enums import (
     ClaimCategory,
@@ -34,6 +35,7 @@ from app.domain.types import (
 )
 from app.rules import policy
 from app.rules.compare import Relation, compare, contains_phrase, normalize_text
+from app.rules.standards import standards_in
 from app.rules.validation import screen_fact
 
 _STATUS_LABEL = {
@@ -153,14 +155,43 @@ def _starts_cue(tokens: list[str], cue: str) -> bool:
     return False
 
 
+def today() -> date:
+    """The date a present-tense claim ("is certified") is checked against."""
+    return date.today()
+
+
 def effective_components(claim: Claim) -> list[ClaimComponent]:
     """The components a claim is checked on. A dated-event claim always
     asserts whether the event happened, so a missing stage is added from its
-    wording: an announcement alone can then never make it supported."""
+    wording: an announcement alone can then never make it supported.
+
+    A compliance claim asserts each standard it names and that the certificate
+    is current: a `certification` naming several standards is checked once per
+    standard, and `certificate_valid_until` (on or after today) is added, so an
+    expired certificate contradicts the claim."""
     comps = list(claim.components)
     if claim.category is ClaimCategory.DATED_EVENT and not any(c.name == "stage" for c in comps):
         comps.append(ClaimComponent(name="stage", value=claimed_stage(claim.text)))
+    if claim.category is ClaimCategory.COMPLIANCE:
+        comps = _compliance_components(comps)
     return comps
+
+
+def _compliance_components(comps: list[ClaimComponent]) -> list[ClaimComponent]:
+    out: list[ClaimComponent] = []
+    for c in comps:
+        found = standards_in(c.value) if c.name == "certification" else []
+        if len(found) > 1:
+            out.extend(ClaimComponent(name=c.name, value=s.display) for s in found)
+        else:
+            out.append(c)
+    if any(c.name == "certification" for c in out) and not any(
+        c.name == "certificate_valid_until" for c in out
+    ):
+        out.append(
+            ClaimComponent(name="certificate_valid_until", value=today().isoformat(), op="gte")
+        )
+    return out
 
 
 def _origin_adequacy(

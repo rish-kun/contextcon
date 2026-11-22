@@ -1,6 +1,6 @@
 # DealProof scoring and verification policy
 
-Policy version: **2026-11-22.6** (`POLICY_VERSION` in `app/rules/policy.py`).
+Policy version: **2026-11-22.7** (`POLICY_VERSION` in `app/rules/policy.py`).
 
 DealProof's rules decide every status, score and recommendation. The AI only reads
 documents and pulls out values; it never decides. The same records under the same
@@ -138,6 +138,13 @@ Every status except Supported names what would settle it, as a document or recor
   from the claim's structured components (the partner, certifier or mark) and fixed
   words, never the seller's wording. Every lookup is listed on the result
   ("Searched: ..."), and a seller document is asked for only for what they did not find.
+- Certifications (since 2026-11-22.7) match on the standard itself: "ISO/IEC
+  27001:2022" on a register states "ISO 27001", "SOC 2 Type I" does not state "SOC 2
+  Type II". A claim naming several standards is checked once per standard, and every
+  certification claim also asserts that the certificate is current
+  (`certificate_valid_until` on or after today). The register, the certification
+  body's record, or the certificate or auditor's report settle that; the company's own
+  page never does. An expired certificate on a register contradicts the claim.
   A lookup the case budget refuses is skipped; if all are refused the claim reads
   Not checked (budget). A count of customers is the company's own figure and stays
   Cannot verify unless a dated customer list or audited note settles it.
@@ -186,7 +193,8 @@ A seller document counts only when it is one of the document types listed; "date
 | `contract_value` | customer partnership | audited_statement, company_announcement, counterparty_confirmation, seller_document | customer_confirmation, customer_contract | Customer confirmation or signed contract |
 | `customer_count` | customer partnership | audited_statement, seller_document | any | Dated customer list, or audited revenue by customer |
 | `country_count` | customer partnership | audited_statement, seller_document | any | Dated customer list, or audited revenue by customer |
-| `certification` | compliance | company_announcement, counterparty_confirmation, registry, registry_mirror, seller_document | any | Certificate from the certification body, with its number, scope and validity |
+| `certification` | compliance | company_announcement, counterparty_confirmation, registry, registry_mirror, seller_document | any | Certificate from the certification body, with its number, scope and validity, or the auditor's report under NDA |
+| `certificate_valid_until` | compliance | counterparty_confirmation, registry, registry_mirror, seller_document | audit_report, compliance_certificate | Certificate from the certification body, with its number, scope and validity, or the auditor's report under NDA |
 | `trademark` | intellectual property | company_announcement, registry, registry_mirror, seller_document | any | Trademark registration certificate or IP assignment records |
 | `mark_owner` | intellectual property | company_announcement, registry, registry_mirror, seller_document | any | Trademark registration certificate or IP assignment records |
 | `revenue` | financials | audited_statement, registry, registry_mirror | none | Audited financial statements |
@@ -309,6 +317,8 @@ every judgment change, and any change in disposition.
 
 **Policy changes**
 
+- 2026-11-22.7: certifications match on the standard itself and must be current:
+  an expired certificate on a register contradicts the claim.
 - 2026-11-22.6: public lookups for partnership, customer, certification and
   trademark claims; new categories `compliance` and `intellectual_property`; a
   company's own statement alone gives Partially corroborated in those categories;

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-PROMPT_VERSION = "2026-11-22.3"
+PROMPT_VERSION = "2026-11-22.4"
 
 
 @dataclass(frozen=True)
@@ -191,7 +191,11 @@ Return:
   component names where they fit (for example year, city, count, round_type,
   stage). For events, report the stage the evidence describes (for example
   announced, planned, under_construction, operating), not the stage the
-  claim asserts. span is the exact evidence text that states the fact.
+  claim asserts. For certifications, report each standard the evidence
+  names as certification (for example "ISO/IEC 27001:2022") and the date the
+  certificate expires or is valid until as certificate_valid_until, both only
+  when the evidence ties them to the company. span is the exact evidence text
+  that states the fact.
 
 Report only facts the evidence states. If a fact needs a span you cannot
 copy exactly, leave the fact out.

@@ -308,6 +308,13 @@ def value_in_span(
             return _bad("the span does not state the negative")
         return _ok("polarity matches the span")
 
+    if kind is ValueKind.STANDARD:
+        from app.rules.standards import stated_in
+
+        if stated_in(value, span):
+            return _ok()
+        return _bad(f"{value!r} is not a standard named in the span")
+
     # TEXT, TEXT_CONTAINS, ENUM, ROUND_TYPE: names, cities, roles.
     if contains_phrase(span, value):
         return _ok()

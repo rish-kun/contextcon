@@ -20,7 +20,7 @@ from app.domain.enums import (
     ValueKind,
 )
 
-POLICY_VERSION = "2026-11-22.6"
+POLICY_VERSION = "2026-11-22.7"
 
 # Why each policy version changed, used as the reason on refreshed assessments.
 POLICY_CHANGES: dict[str, str] = {
@@ -29,6 +29,10 @@ POLICY_CHANGES: dict[str, str] = {
     "2026-11-22.6": (
         "public lookups for partnerships, certifications, trademarks and customer claims; "
         "a company's own statement alone gives partially corroborated"
+    ),
+    "2026-11-22.7": (
+        "certifications match on the standard itself and must be current: an expired "
+        "certificate on a register contradicts the claim"
     ),
 }
 
@@ -254,6 +258,11 @@ _CERTIFICATION_SOURCES = frozenset(
         R.COMPANY_ANNOUNCEMENT,
     }
 )
+# That a certificate is current: the register or the certification body's record, or
+# the certificate (or auditor's report) itself. Never the company's own page.
+_CERTIFICATE_VALIDITY_SOURCES = frozenset(
+    {R.REGISTRY, R.REGISTRY_MIRROR, R.COUNTERPARTY_CONFIRMATION, R.SELLER_DOCUMENT}
+)
 # A trademark: the trademark registry or a public mirror of its records, or the
 # registration certificate; the company's own "registered trademark" line is capped.
 _TRADEMARK_SOURCES = frozenset(
@@ -289,12 +298,20 @@ DOC_LENDER = "Lender statements"
 DOC_LITIGATION = "Litigation disclosure signed by counsel"
 DOC_FINANCIAL_INPUTS = DOC_FINANCIALS  # one document, so requests dedupe
 DOC_IDENTITY = "Certificate of incorporation showing the CIN and registered office"
-DOC_CERTIFICATION = "Certificate from the certification body, with its number, scope and validity"
+DOC_CERTIFICATION = (
+    "Certificate from the certification body, with its number, scope and validity, "
+    "or the auditor's report under NDA"
+)
 DOC_TRADEMARK = "Trademark registration certificate or IP assignment records"
+CERTIFICATE_VALIDITY_CAVEAT = (
+    "The company's own page names the standard; only the certification body's "
+    "record or the certificate shows that it is current"
+)
 DOC_CUSTOMER_LIST = "Dated customer list, or audited revenue by customer"
 
 D = DocumentType
 _PAYROLL_DOCS = {R.SELLER_DOCUMENT: frozenset({D.PAYROLL_RECORD})}
+_CERTIFICATE_DOCS = {R.SELLER_DOCUMENT: frozenset({D.COMPLIANCE_CERTIFICATE, D.AUDIT_REPORT})}
 _PREMISES_DOCS = {
     R.SELLER_DOCUMENT: frozenset({D.LEASE, D.OCCUPANCY_EVIDENCE, D.INCORPORATION_CERTIFICATE})
 }
@@ -549,11 +566,24 @@ COMPONENT_RULES: dict[str, ComponentRule] = {
         document_types=_CUSTOMER_DOCS,
     ),
     # Compliance: a named certification or standard (since 2026-11-22.6).
+    # Matched on the standard itself (`app.rules.standards`): "ISO/IEC 27001:2022" on
+    # a register states "ISO 27001"; "SOC 2 Type I" does not state "SOC 2 Type II".
     "certification": ComponentRule(
         ClaimCategory.COMPLIANCE,
-        ValueKind.TEXT_CONTAINS,
+        ValueKind.STANDARD,
         _CERTIFICATION_SOURCES,
         DOC_CERTIFICATION,
+    ),
+    # That the certificate is current (since 2026-11-22.7). The rules add it to every
+    # compliance claim as "valid until on or after today", so an expired certificate
+    # on a register contradicts the claim. The company's own page never settles it.
+    "certificate_valid_until": ComponentRule(
+        ClaimCategory.COMPLIANCE,
+        ValueKind.DATE,
+        _CERTIFICATE_VALIDITY_SOURCES,
+        DOC_CERTIFICATION,
+        caveats={R.COMPANY_ANNOUNCEMENT: CERTIFICATE_VALIDITY_CAVEAT},
+        document_types=_CERTIFICATE_DOCS,
     ),
     # Intellectual property: a mark and its owner (since 2026-11-22.6).
     "trademark": ComponentRule(

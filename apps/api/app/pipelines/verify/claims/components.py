@@ -27,7 +27,7 @@ from app.rules import policy
 from app.rules.compare import to_bool, to_month, to_number, to_stage, to_year
 from app.rules.validation import validate_extraction
 
-NORMALISE_PROMPT_VERSION = "2026-11-22.claims-components.2"
+NORMALISE_PROMPT_VERSION = "2026-11-22.claims-components.3"
 
 Op = Literal["eq", "gte", "lte"]
 
@@ -76,7 +76,10 @@ _DESCRIPTIONS: dict[str, str] = {
     "has_litigation": "true or false: whether the company says it is in litigation",
     "case_reference": "a court case reference",
     "certification": "a named certification or standard, e.g. ISO 9001:2015, ISO/IEC 27001, "
-    "SOC 2 Type II, CMMI Level 3",
+    "SOC 2 Type II, CMMI Level 3. Several standards may share one value as the claim "
+    "writes them",
+    "certificate_valid_until": "date a certificate is valid until (YYYY-MM-DD), only "
+    "when the claim states one",
     "trademark": "the trademark or brand name the claim says is registered",
     "mark_owner": "the legal owner the claim names for the trademark",
     "customer_count": "number of customers or clients",
