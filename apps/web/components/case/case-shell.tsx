@@ -185,7 +185,8 @@ export function CaseShell({ children }: { children: React.ReactNode }) {
             >
               {children}
             </div>
-            {active === "assessment" ? null : <AssessmentRail detail={detail} />}
+            {/* The memo and the Assessment tab already carry the five judgments in full. */}
+            {active === "" || active === "assessment" ? null : <AssessmentRail detail={detail} />}
           </div>
         </>
       ) : null}

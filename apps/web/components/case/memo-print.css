@@ -1,0 +1,90 @@
+/*
+ * The printed screening memo (docs/design/design-direction.md, 11.7).
+ * A4, black on white, statuses as glyph and label, hatch kept for Not checked.
+ *
+ * The memo prints alone. Every ancestor of [data-memo] is flattened and every sibling
+ * along the way is dropped, so the app shell, the case header, the tabs and any open
+ * popover never reach the page, whatever wraps the memo.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 20mm 18mm 20mm 18mm;
+
+    @top-left {
+      content: "DealProof · Screening memo";
+      font: 9pt var(--font-sans);
+      color: #454a54;
+    }
+    @bottom-left {
+      content: "Screening only. Not financial, legal or tax due diligence.";
+      font: 9pt var(--font-sans);
+      color: #454a54;
+    }
+    @bottom-right {
+      content: "Page " counter(page) " of " counter(pages);
+      font: 9pt var(--font-mono);
+      color: #454a54;
+    }
+  }
+
+  html:has([data-memo]) {
+    font-size: 14px;
+  }
+
+  :has([data-memo]) {
+    display: block !important;
+    position: static !important;
+    overflow: visible !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: #fff !important;
+    transform: none !important;
+    animation: none !important;
+  }
+
+  :has([data-memo]) > :not(:has([data-memo])):not([data-memo]) {
+    display: none !important;
+  }
+
+  [data-memo] {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    color: #000;
+  }
+
+  [data-memo] * {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* A heading never ends a page, and a claim row or judgment block never splits. */
+  [data-memo] :is(h1, h2, h3, h4) {
+    break-after: avoid;
+  }
+  [data-memo] :is([data-keep], tr, li, blockquote) {
+    break-inside: avoid;
+  }
+
+  /* Tints are dropped by the printer; the hatch is the signal, so it is forced through. */
+  [data-memo] .hatch {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    background-color: #fff;
+  }
+
+  [data-memo] a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
