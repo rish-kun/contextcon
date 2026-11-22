@@ -1,0 +1,58 @@
+"""Run step `verify.checks.claim`: check one claim and append its ledger row.
+
+The step does its own budget accounting (`uses_budget=False`): when the case's
+credits run out, the claim is recorded as `not_checked` ("budget") instead of the
+step being skipped, so the ledger never silently lacks a row.
+"""
+
+from __future__ import annotations
+
+import uuid
+from typing import Any
+
+from app.db.models import Case, Claim
+from app.jobs import StepContext, step_handler
+from app.pipelines.verify.checks.clients import client_factory, close_quietly
+from app.pipelines.verify.checks.run import check_claim
+from app.pipelines.verify.claims.intake import CHECK_HANDLER
+from app.rules.claim_status import status_label
+
+
+def _optional(build: Any, *args: Any, **kwargs: Any) -> Any:
+    try:
+        return build(*args, **kwargs)
+    except ValueError:  # an API key is not configured
+        return None
+
+
+@step_handler(CHECK_HANDLER)
+async def check_claim_step(ctx: StepContext) -> dict[str, Any]:
+    claim = await ctx.session.get(Claim, uuid.UUID(ctx.input["claim_id"]))
+    if claim is None or claim.case_id != ctx.run.case_id:
+        raise LookupError("claim not found for this case")
+    case = await ctx.session.get(Case, claim.case_id)
+    assert case is not None
+    await ctx.set_detail(f"Checking: {claim.category.replace('_', ' ')}")
+    factory = client_factory()
+    crustdata = _optional(factory.crustdata, ctx)
+    llm = _optional(factory.llm, ctx, delete_after=claim.delete_after)
+    try:
+        meta = await check_claim(
+            ctx.session,
+            claim_row=claim,
+            case=case,
+            crustdata=crustdata,
+            llm=llm,
+            budget=ctx.require_budget,
+            run_id=ctx.run.id,
+            step_id=ctx.step_id,
+            log=ctx.log,
+        )
+    finally:
+        for client in (crustdata, llm):
+            if client is not None:
+                await close_quietly(client)
+    from app.domain.enums import ClaimStatus
+
+    ctx.result = status_label(ClaimStatus(meta["status"]))
+    return {"claim_id": str(claim.id), "checks": {str(claim.id): meta}}

@@ -6,6 +6,10 @@ from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, status
 
+# Register the intake and check step handlers with the in-process worker. (The
+# shared pipeline registry imports `app.pipelines.verify`, owned by CP-19.)
+import app.pipelines.verify.checks.steps  # noqa: E402, F401
+import app.pipelines.verify.claims.steps  # noqa: E402, F401
 from app.api import fixtures
 from app.api._base import fixtures_enabled, make_router
 from app.api.schemas.claims import ClaimCreate, ClaimOut

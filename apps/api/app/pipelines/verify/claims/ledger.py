@@ -87,9 +87,9 @@ def _normalised_text(claim: Claim) -> str:
 def evidence_out(row: Evidence, source: Source, case: Case) -> EvidenceOut:
     request = source.request or {}
     deleted = row.scrubbed_at is not None
-    entity = request.get("entity_name") or (
-        case.company_name if row.entity_ref.startswith("company:") else row.entity_ref
-    )
+    company_id = str(case.crustdata_company_id or "")
+    on_company = bool(company_id) and row.entity_ref.rsplit(":", 1)[-1] == company_id
+    entity = request.get("entity_name") or (case.company_name if on_company else row.entity_ref)
     return EvidenceOut(
         evidence_id=str(row.id),
         source=SourceRef(

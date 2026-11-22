@@ -93,6 +93,34 @@ class SourceSpec:
     unattached_reason: str | None = None
 
 
+# How a stored `evidence.entity_ref` says it was attached (design §5.4), shared with
+# the evaluate reader: `crustdata:company:<id>` / `crustdata:person:<id>` (Crustdata
+# id), `domain:<company id>`, `hq_city:<company id>`, `cin:` / `registry:` (registry
+# identifiers). The suffix after the last colon is the entity's id.
+_REF_BASIS = (
+    ("crustdata:", "crustdata_id"),
+    ("domain:", "domain"),
+    ("hq_city:", "hq_city"),
+    ("cin:", "cin"),
+    ("registry:", "registry_id"),
+    ("profile:", "profile_url"),
+)
+
+
+def identity_basis(entity_ref: str, company_id: int | None) -> list[str]:
+    basis = {name for prefix, name in _REF_BASIS if entity_ref.startswith(prefix)}
+    if company_id is not None and entity_ref == str(company_id):
+        basis.add("crustdata_id")
+    return sorted(basis)
+
+
+def rule_entity(entity_ref: str, company_id: int | None) -> str:
+    """The rules' entity id: the confirmed company's id, else the stored reference."""
+    if company_id is not None and entity_ref.rsplit(":", 1)[-1] == str(company_id):
+        return str(company_id)
+    return entity_ref
+
+
 @dataclass
 class EvidenceStore:
     """Finds or writes rows for one case (flushes, never commits)."""
@@ -101,6 +129,7 @@ class EvidenceStore:
     workspace_id: uuid.UUID
     case_id: uuid.UUID
     run_id: uuid.UUID | None = None
+    company_id: int | None = None
     now: datetime = field(default_factory=lambda: datetime.now(UTC))
     _sources: dict[tuple[str, str, str, str], SourceRow] = field(default_factory=dict)
 
@@ -214,11 +243,12 @@ def domain_source(row: SourceRow) -> Source:
     )
 
 
-def domain_evidence(row: EvidenceRow, source: SourceRow) -> Evidence:
+def domain_evidence(row: EvidenceRow, source: SourceRow, company_id: int | None) -> Evidence:
     return Evidence(
         id=str(row.id),
         source=domain_source(source),
-        entity_id=row.entity_ref,
+        entity_id=rule_entity(row.entity_ref, company_id),
+        identity_basis=identity_basis(row.entity_ref, company_id),
         quote=row.span,
         field_path=row.field_path,
         field_value=row.value,
