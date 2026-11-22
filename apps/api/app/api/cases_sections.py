@@ -304,7 +304,7 @@ async def case_status(ctx: CaseContext) -> CaseStatus:
         select(AssessmentVersion.id).where(AssessmentVersion.case_id == ctx.case.id).limit(1)
     )
     return evaluate_cases.case_status(
-        ctx.case, runs[-1] if runs else None, assessed.first() is not None
+        ctx.case, evaluate_cases.current_run(runs), assessed.first() is not None
     )
 
 

@@ -36,10 +36,21 @@ async def jobs_lifespan(
         app.state.worker = worker
     elif cfg.worker_in_process:
         log.warning("DATABASE_URL is not set; in-process worker not started")
+    backfill: asyncio.Task | None = None
+    if database_configured():
+        # Verify runs that finished before they ended in an assessment get their tail
+        # (idempotent, one instance at a time). In the background: start-up never waits.
+        from app.pipelines.verify.backfill import run_backfill
+
+        backfill = asyncio.create_task(run_backfill(get_sessionmaker()), name="dealproof-backfill")
     try:
         yield
     finally:
         stop.set()
+        if backfill is not None and not backfill.done():
+            backfill.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await backfill
         if task is not None:
             try:
                 await asyncio.wait_for(task, timeout=SHUTDOWN_GRACE_SECONDS)

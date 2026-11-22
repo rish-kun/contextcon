@@ -7,7 +7,7 @@ pick. Fake clients only (see `tests.pipelines.verify.fakes`)."""
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 import app.pipelines.verify  # noqa: F401 - registers the step handlers
 from app.api.cases_deps import CaseActor
@@ -199,3 +199,70 @@ async def test_manual_pick_rechecks_claims_then_assesses(sm, session, monkeypatc
     assert await _count(session, RequestList, case_id) >= 1
     out = await case_out(session, await session.get(Case, case_id))
     assert out.status.value == "assessed"
+
+
+async def test_backfill_queues_the_tail_once_for_finished_unassessed_runs(sm, session) -> None:
+    """Cases that finished verifying before the tail existed (live: verify done, no
+    assessment, no request draft) get it from the backfill, exactly once."""
+    from app.jobs import StepSpec, create_run
+    from app.pipelines.verify.backfill import backfill_assessment_tails
+
+    case = await _case(session)
+    case_id, ws_id = case.id, case.workspace_id
+    old = await create_run(
+        session,
+        workspace_id=ws_id,
+        kind="verify",
+        case_id=case_id,
+        steps=[StepSpec("verify.identity", "verify.identity")],
+    )
+    old_id = old.id
+    await session.execute(update(Step).where(Step.run_id == old_id).values(state="done"))
+    await session.execute(update(Run).where(Run.id == old_id).values(state="done"))
+    # A second case whose verify run is still working is left alone.
+    from app.db import repo
+
+    busy = await repo.create_case(session, ws_id, company_name="Busy (fixture)")
+    busy_run = await create_run(
+        session, workspace_id=ws_id, kind="verify", case_id=busy.id, steps=[]
+    )
+    busy_run_id = busy_run.id
+    await session.commit()
+
+    async with sm() as s:
+        assert await backfill_assessment_tails(s) == [old_id]
+    async with sm() as s:
+        assert await backfill_assessment_tails(s) == []  # the tail is pending: idempotent
+    steps = await _steps(session, old_id)
+    assert {"evaluate", "request_list"} <= set(steps)
+    assert (await session.get(Run, old_id)).state == "running"
+    assert await _steps(session, busy_run_id) == {}
+
+    set_client_factory(
+        FakeFactory(llm_client=intake_llm(SENTENCES), crustdata_client=pune_crustdata())
+    )
+    await _drain(sm)
+    assert await _count(session, AssessmentVersion, case_id) == 1
+    assert await _count(session, RequestList, case_id) == 1
+    async with sm() as s:
+        assert await backfill_assessment_tails(s) == []  # assessed now
+
+
+async def test_case_status_reads_the_persisted_run_state() -> None:
+    """The overview's status and the case page read the same run: "verifying" only while
+    a run is pending or running, never for a run that finished without an assessment."""
+    from app.api.schemas.cases import CaseStatus
+    from app.pipelines.evaluate.cases import case_status, current_run
+
+    confirmed = Case(identity_status="confirmed", identity_candidates=[])
+    unresolved = Case(identity_status="unresolved", identity_candidates=[])
+    done, running, failed = Run(state="done"), Run(state="running"), Run(state="failed")
+    assert case_status(confirmed, running, assessed=True) == CaseStatus.verifying
+    assert case_status(confirmed, done, assessed=True) == CaseStatus.assessed
+    assert case_status(confirmed, done, assessed=False) == CaseStatus.failed
+    assert case_status(confirmed, failed, assessed=False) == CaseStatus.failed
+    assert case_status(unresolved, done, assessed=False) == CaseStatus.awaiting_identity
+    # A reopened older run wins over a newer finished one.
+    assert current_run([running, done]) is running
+    assert current_run([done, failed]) is failed
+    assert current_run([]) is None

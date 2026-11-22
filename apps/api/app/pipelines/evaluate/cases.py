@@ -85,25 +85,45 @@ async def queue_evaluation(
     )
 
 
+ACTIVE_RUN_STATES = (RunState.PENDING, RunState.RUNNING)
+
+
 async def _latest_run(session: AsyncSession, case: Case) -> Run | None:
+    """The case's current run: the newest one still pending or running, else the newest.
+
+    A verify run reopened by a later claim can be older than a finished evaluate run; the
+    case page and the status must both follow the one that is working."""
     return (
         await session.execute(
             select(Run)
             .where(Run.case_id == case.id, Run.workspace_id == case.workspace_id)
-            .order_by(Run.created_at.desc(), Run.id.desc())
+            .order_by(Run.state.in_(ACTIVE_RUN_STATES).desc(), Run.created_at.desc(), Run.id.desc())
             .limit(1)
         )
     ).scalar_one_or_none()
 
 
+def current_run(runs: list[Run]) -> Run | None:
+    """`_latest_run` over runs already loaded oldest first."""
+    active = [r for r in runs if r.state in ACTIVE_RUN_STATES]
+    return (active or runs or [None])[-1]
+
+
 def case_status(case: Case, latest: Run | None, assessed: bool) -> CaseStatus:
-    if latest is not None and latest.state in (RunState.PENDING, RunState.RUNNING):
+    """From the persisted run state only: `verifying` means a run is pending or running,
+    so the overview never says "running" while the case page shows a finished run."""
+    if latest is not None and latest.state in ACTIVE_RUN_STATES:
         return CaseStatus.verifying
     if case.identity_status != "confirmed" and case.identity_candidates:
         return CaseStatus.awaiting_identity
-    if latest is not None and latest.state == RunState.FAILED and not assessed:
-        return CaseStatus.failed
-    return CaseStatus.assessed if assessed else CaseStatus.verifying
+    if assessed:
+        return CaseStatus.assessed
+    if latest is None:
+        return CaseStatus.verifying  # opened, its first run not yet created
+    if case.identity_status != "confirmed":
+        return CaseStatus.awaiting_identity
+    # The run finished without an assessment: it did not get to the end.
+    return CaseStatus.failed
 
 
 def _int_or_none(value: str | None) -> int | None:
