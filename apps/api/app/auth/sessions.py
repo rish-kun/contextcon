@@ -5,6 +5,7 @@ leaked database row cannot be replayed as a cookie. Sessions have an absolute ex
 logout deletes the row.
 """
 
+import asyncio
 import hashlib
 import secrets
 import uuid
@@ -55,7 +56,9 @@ async def find_user_by_email(db: AsyncSession, email: str) -> User | None:
 async def authenticate(db: AsyncSession, email: str, password: str) -> User | None:
     """The user if the password matches, else None (same work either way)."""
     user = await find_user_by_email(db, email)
-    if not verify_password(user.password_hash if user else None, password):
+    # Argon2 is deliberately slow; keep it off the event loop.
+    stored = user.password_hash if user else None
+    if not await asyncio.to_thread(verify_password, stored, password):
         return None
     assert user is not None and user.password_hash is not None
     if needs_rehash(user.password_hash):

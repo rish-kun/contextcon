@@ -24,6 +24,12 @@ class AuthSettings(BaseSettings):
     login_max_failures_per_email: int = Field(default=20, ge=1)
     login_window_seconds: int = Field(default=900, ge=1)
     min_password_length: int = Field(default=10, ge=8)
+    # How many trusted proxies append to `X-Forwarded-For` in front of the API. The client
+    # IP is the entry that many places from the right; 0 ignores the header and uses the
+    # socket peer. Deployed behind the web proxy on Cloud Run: 2 (the web proxy forwards
+    # only the address Google's front end appended, then the API's front end appends the
+    # web service's address).
+    trusted_proxy_hops: int = Field(default=0, ge=0)
 
     @property
     def on_cloud_run(self) -> bool:

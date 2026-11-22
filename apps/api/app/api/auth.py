@@ -49,10 +49,10 @@ async def login(body: LoginIn, request: Request, response: Response) -> UserOut:
         response.set_cookie(SESSION_COOKIE, "fixture", httponly=True, samesite="lax")
         return fixtures.USER
     settings = get_auth_settings()
-    email, ip = normalize_email(body.email), client_ip(request)
+    email, ip = normalize_email(body.email), client_ip(request, settings)
     limiter = login_limiter()
-    wait = limiter.retry_after(email, ip)
-    if wait is not None:
+    wait, reservation = limiter.acquire(email, ip)  # counts as a failure until refunded
+    if reservation is None:
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
             "Too many failed sign-in attempts. Try again later.",
@@ -62,13 +62,12 @@ async def login(body: LoginIn, request: Request, response: Response) -> UserOut:
     async with get_sessionmaker()() as db:
         user = await authenticate(db, email, body.password)
         if user is None:
-            limiter.record_failure(email, ip)
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, BAD_CREDENTIALS)
         await purge_expired_sessions(db)
         token, _ = await create_session(db, user, ttl=ttl)
         signed_in = AuthUser.of(user)
         await db.commit()
-    limiter.record_success(email, ip)
+    limiter.succeeded(email, ip, reservation)
     set_session_cookie(response, request, token, ttl, settings)
     return _user_out(signed_in)
 

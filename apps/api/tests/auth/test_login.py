@@ -1,5 +1,6 @@
 """Sign-in, sessions, logout, expiry and the login rate limit, through the real app."""
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -105,18 +106,44 @@ async def test_expired_sessions_are_purged_on_login(app, session) -> None:
     assert len(rows) == 1 and rows[0].expires_at > datetime.now(UTC)
 
 
-async def test_login_rate_limited_per_email_and_ip(client, session) -> None:
+async def test_login_rate_limited_per_email_and_ip(client, session, monkeypatch) -> None:
+    monkeypatch.setenv("AUTH_TRUSTED_PROXY_HOPS", "1")
+    get_auth_settings.cache_clear()
     await account(session, "asha")
     limit = get_auth_settings().login_max_failures_per_client
     ip_a = {"x-forwarded-for": "203.0.113.7"}
-    for _ in range(limit):
-        assert (await login(client, "asha@fund.example", "wrong", headers=ip_a)).status_code == 401
+    for i in range(limit):
+        # Entries left of the trusted hop are client-written and ignored.
+        spoof = {"x-forwarded-for": f"10.0.0.{i}, 203.0.113.7"}
+        assert (await login(client, "asha@fund.example", "wrong", headers=spoof)).status_code == 401
     blocked = await login(client, "asha@fund.example", PASSWORD, headers=ip_a)
     assert blocked.status_code == 429
     assert int(blocked.headers["retry-after"]) > 0
     # Another client IP is counted separately (up to the looser per-email cap).
     ip_b = {"x-forwarded-for": "198.51.100.2"}
     assert (await login(client, "asha@fund.example", PASSWORD, headers=ip_b)).status_code == 200
+
+
+async def test_parallel_guesses_cannot_outrun_the_limit(client, session) -> None:
+    await account(session, "asha")
+    limit = get_auth_settings().login_max_failures_per_client
+    responses = await asyncio.gather(
+        *(login(client, "asha@fund.example", f"guess {i}") for i in range(limit * 3))
+    )
+    codes = sorted(r.status_code for r in responses)
+    assert codes.count(401) == limit
+    assert codes.count(429) == limit * 2
+
+
+async def test_forwarded_for_ignored_without_trusted_hops(client, session) -> None:
+    await account(session, "asha")
+    limit = get_auth_settings().login_max_failures_per_client
+    for i in range(limit):
+        await login(
+            client, "asha@fund.example", "wrong", headers={"x-forwarded-for": f"10.0.0.{i}"}
+        )
+    fresh = {"x-forwarded-for": "10.9.9.9"}
+    assert (await login(client, "asha@fund.example", PASSWORD, headers=fresh)).status_code == 429
 
 
 async def test_success_clears_client_failures(client, session) -> None:

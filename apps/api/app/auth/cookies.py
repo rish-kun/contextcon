@@ -46,12 +46,14 @@ def clear_session_cookie(response: Response, request: Request, settings: AuthSet
     )
 
 
-def client_ip(request: Request) -> str:
-    """The caller's IP for rate limiting: the first `X-Forwarded-For` hop (set by the web
-    proxy / Cloud Run front end), else the socket peer. Spoofable, which is why the
-    limiter also caps failures per email."""
-    forwarded = request.headers.get("x-forwarded-for", "")
-    first = forwarded.split(",")[0].strip()
-    if first:
-        return first
+def client_ip(request: Request, settings: AuthSettings) -> str:
+    """The caller's IP for rate limiting. Only `X-Forwarded-For` entries added by trusted
+    proxies count (`AUTH_TRUSTED_PROXY_HOPS`); entries a client wrote itself sit further
+    left and are ignored. Without trusted hops, the socket peer."""
+    hops = settings.trusted_proxy_hops
+    if hops:
+        entries = [e.strip() for e in request.headers.get("x-forwarded-for", "").split(",")]
+        entries = [e for e in entries if e]
+        if len(entries) >= hops:
+            return entries[-hops]
     return request.client.host if request.client else "unknown"
