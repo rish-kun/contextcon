@@ -1,0 +1,138 @@
+/**
+ * Rules for the same-origin `/api/*` proxy and the sign-in redirect in `proxy.ts`.
+ * Kept free of imports so `node --test` can run `proxy-rules.test.mjs` directly.
+ */
+
+/** The API's session cookie (httpOnly, set by `POST /auth/login`). */
+export const SESSION_COOKIE = "dp_session";
+
+/** Cookies the API may set on the web origin. Anything else is dropped. */
+export const ALLOWED_SET_COOKIES: ReadonlySet<string> = new Set([SESSION_COOKIE]);
+
+/** Request headers worth forwarding upstream. Everything else (host, …) is dropped. */
+export const FORWARD_REQUEST_HEADERS = [
+  "accept",
+  "accept-language",
+  "content-type",
+  "content-length",
+  "cookie",
+  "last-event-id",
+  "idempotency-key",
+] as const;
+
+/** Hop-by-hop headers (RFC 9110 §7.6.1), never forwarded in either direction. */
+const HOP_BY_HOP = new Set([
+  "connection",
+  "keep-alive",
+  "proxy-connection",
+  "te",
+  "trailer",
+  "transfer-encoding",
+  "upgrade",
+]);
+
+/** Response headers that are recomputed here rather than copied. */
+const RECOMPUTED_RESPONSE_HEADERS = new Set([
+  "content-encoding", // fetch already decoded the body
+  "content-length",
+  "set-cookie", // filtered and copied one by one
+]);
+
+/** Header names the `Connection` header nominates as hop-by-hop. */
+export function connectionTokens(headers: Headers): Set<string> {
+  const tokens = new Set<string>();
+  for (const name of ["connection", "proxy-connection"]) {
+    for (const token of (headers.get(name) ?? "").split(",")) {
+      const t = token.trim().toLowerCase();
+      if (t) tokens.add(t);
+    }
+  }
+  return tokens;
+}
+
+function isHopByHop(name: string, nominated: Set<string>): boolean {
+  const n = name.toLowerCase();
+  return HOP_BY_HOP.has(n) || n.startsWith("proxy-") || nominated.has(n);
+}
+
+/** Keep only the session cookie from a `Cookie` request header. */
+export function sessionCookieOnly(cookieHeader: string | null): string | null {
+  if (!cookieHeader) return null;
+  const kept = cookieHeader
+    .split(";")
+    .map((pair) => pair.trim())
+    .filter((pair) => pair.slice(0, pair.indexOf("=")).trim() === SESSION_COOKIE);
+  return kept.length ? kept.join("; ") : null;
+}
+
+/** Headers to send upstream: the allowlist, minus hop-by-hop, with only `dp_session`. */
+export function upstreamRequestHeaders(incoming: Headers): Headers {
+  const nominated = connectionTokens(incoming);
+  const out = new Headers();
+  for (const name of FORWARD_REQUEST_HEADERS) {
+    if (isHopByHop(name, nominated)) continue;
+    const value = name === "cookie" ? sessionCookieOnly(incoming.get(name)) : incoming.get(name);
+    if (value !== null) out.set(name, value);
+  }
+  return out;
+}
+
+/** The cookie name in a `Set-Cookie` value. */
+export function setCookieName(setCookie: string): string {
+  const pair = setCookie.split(";", 1)[0];
+  const eq = pair.indexOf("=");
+  return (eq === -1 ? "" : pair.slice(0, eq)).trim();
+}
+
+/**
+ * An allowlisted `Set-Cookie`, made host-only on the web origin (any `Domain` attribute
+ * is removed), or null to drop it.
+ */
+export function filterSetCookie(setCookie: string): string | null {
+  if (!ALLOWED_SET_COOKIES.has(setCookieName(setCookie))) return null;
+  return setCookie
+    .split(";")
+    .filter((part, i) => i === 0 || !/^\s*domain\s*=/i.test(part))
+    .join(";");
+}
+
+/** Headers to send back to the browser from the upstream response. */
+export function downstreamResponseHeaders(upstream: Headers): Headers {
+  const nominated = connectionTokens(upstream);
+  const out = new Headers();
+  upstream.forEach((value, name) => {
+    if (isHopByHop(name, nominated) || RECOMPUTED_RESPONSE_HEADERS.has(name)) return;
+    out.set(name, value);
+  });
+  for (const cookie of upstream.getSetCookie()) {
+    const kept = filterSetCookie(cookie);
+    if (kept !== null) out.append("set-cookie", kept);
+  }
+  if (upstream.get("content-type")?.startsWith("text/event-stream")) {
+    out.set("cache-control", "no-cache, no-transform");
+    out.set("x-accel-buffering", "no");
+  }
+  return out;
+}
+
+/* ───────────────────────── Sign-in redirect (proxy.ts) ───────────────────────── */
+
+/** App areas behind sign-in. The API is the real check; this only saves a round trip. */
+export const PROTECTED_PREFIXES = ["/app", "/cases", "/discover", "/investors"] as const;
+
+export function isProtectedPath(pathname: string): boolean {
+  return PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
+/**
+ * Where to send a request, or null to let it through: `/login?next=<path>` for a
+ * protected path without a session cookie. `next` is always a same-origin path.
+ */
+export function signInRedirect(
+  pathname: string,
+  search: string,
+  hasSessionCookie: boolean,
+): string | null {
+  if (hasSessionCookie || !isProtectedPath(pathname)) return null;
+  return `/login?${new URLSearchParams({ next: `${pathname}${search}` })}`;
+}

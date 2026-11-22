@@ -1,10 +1,14 @@
 /**
  * Same-origin proxy: the browser calls `/api/<path>` and this forwards to
- * `${API_BASE_URL}/<path>` (builder call 14). Cookies and `Set-Cookie` pass through, so the
- * `dp_session` cookie stays first-party. Request and response bodies are streamed, never
- * buffered, so uploads and server-sent events (`/api/runs/{id}/events`) work through it.
+ * `${API_BASE_URL}/<path>` (builder call 14). Only the `dp_session` cookie goes upstream,
+ * and only allowlisted `Set-Cookie`s come back (host-only on this origin), so the session
+ * stays first-party. Hop-by-hop headers are stripped both ways (`lib/api/proxy-rules.ts`).
+ * Request and response bodies are streamed, never buffered, so uploads and server-sent
+ * events (`/api/runs/{id}/events`) work through it.
  */
 import type { NextRequest } from "next/server";
+
+import { downstreamResponseHeaders, upstreamRequestHeaders } from "@/lib/api/proxy-rules";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -14,40 +18,17 @@ const API_BASE_URL = (process.env.API_BASE_URL?.trim() || "http://localhost:8000
   "",
 );
 
-/** Request headers worth forwarding. Everything else (host, connection, …) is dropped. */
-const FORWARD_REQUEST_HEADERS = [
-  "accept",
-  "accept-language",
-  "content-type",
-  "content-length",
-  "cookie",
-  "last-event-id",
-  "idempotency-key",
-];
-
-/** Hop-by-hop or recomputed headers that must not be copied from the upstream response. */
-const DROP_RESPONSE_HEADERS = new Set([
-  "connection",
-  "keep-alive",
-  "transfer-encoding",
-  "content-encoding", // fetch already decoded the body
-  "content-length",
-  "set-cookie", // copied one by one below
-]);
-
 type Context = { params: Promise<{ path: string[] }> };
 
 async function proxy(request: NextRequest, context: Context): Promise<Response> {
   const { path } = await context.params;
   const target = `${API_BASE_URL}/${path.map(encodeURIComponent).join("/")}${request.nextUrl.search}`;
 
-  const headers = new Headers();
-  for (const name of FORWARD_REQUEST_HEADERS) {
-    const value = request.headers.get(name);
-    if (value !== null) headers.set(name, value);
-  }
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) headers.set("x-forwarded-for", forwardedFor);
+  const headers = upstreamRequestHeaders(request.headers);
+  // The right-most X-Forwarded-For entry is the one our own front end appended (Cloud Run);
+  // anything left of it was written by the client. Forward only that address.
+  const clientIp = request.headers.get("x-forwarded-for")?.split(",").pop()?.trim();
+  if (clientIp) headers.set("x-forwarded-for", clientIp);
   headers.set("x-forwarded-host", request.nextUrl.host);
   headers.set("x-forwarded-proto", request.nextUrl.protocol.replace(":", ""));
 
@@ -69,17 +50,7 @@ async function proxy(request: NextRequest, context: Context): Promise<Response> 
     return Response.json({ detail: "The DealProof API is unreachable." }, { status: 502 });
   }
 
-  const responseHeaders = new Headers();
-  upstream.headers.forEach((value, name) => {
-    if (!DROP_RESPONSE_HEADERS.has(name)) responseHeaders.set(name, value);
-  });
-  for (const cookie of upstream.headers.getSetCookie()) {
-    responseHeaders.append("set-cookie", cookie);
-  }
-  if (upstream.headers.get("content-type")?.startsWith("text/event-stream")) {
-    responseHeaders.set("cache-control", "no-cache, no-transform");
-    responseHeaders.set("x-accel-buffering", "no");
-  }
+  const responseHeaders = downstreamResponseHeaders(upstream.headers);
 
   return new Response(upstream.body, {
     status: upstream.status,
