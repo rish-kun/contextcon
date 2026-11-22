@@ -1,0 +1,215 @@
+/*
+ * DealProof design tokens. Light theme only in v1.
+ * Generated together with tokens.json from one table; the two files hold the same values.
+ * Rationale and usage: docs/design/design-direction.md
+ *
+ * Use in apps/web (Tailwind v4): copy this file's declarations into `@theme { ... }` in the
+ * global stylesheet, in place of `:root { ... }`. The names already follow Tailwind v4's theme
+ * namespaces (--color-*, --font-*, --text-*, --radius-*, --shadow-*, --ease-*, --breakpoint-*,
+ * --spacing), so utilities such as bg-paper, text-ink-muted, border-line, text-supported,
+ * rounded-lg, shadow-md and ease-standard come out of it directly. Variables outside those
+ * namespaces (--pattern-*, --duration-*, --motion-*, --layout-*, --z-*, --space-*) are emitted
+ * as plain custom properties: use them as bg-(image:--pattern-hatch), duration-(--duration-base),
+ * w-(--layout-sidebar) and so on.
+ *
+ * Until then this file works as plain CSS.
+ */
+
+:root {
+
+  /* Neutrals: paper and ink. App surfaces stay grey; only the marketing page uses the warmer paper */
+  --color-paper: #F7F7F5; /* app page background */
+  --color-paper-warm: #F5F2EA; /* marketing page and printed memo cover only */
+  --color-surface: #FFFFFF; /* cards, tables, sheets */
+  --color-surface-raised: #F0F0ED; /* active row, input fill, hover */
+  --color-surface-sunken: #EBEBE7; /* wells, code, table header */
+  --color-ink: #16181D; /* primary text, primary button fill */
+  --color-ink-secondary: #454A54; /* secondary text */
+  --color-ink-muted: #626771; /* meta, captions, icons */
+  --color-ink-inverse: #FFFFFF; /* text on ink or accent */
+  --color-line: rgb(22 24 29 / 0.09); /* hairline borders */
+  --color-line-strong: rgb(22 24 29 / 0.18); /* input borders, table rules, dividers that must print */
+
+  /* Accent: registrar ink blue. Links, selection, focus, the one key figure. Never a surface */
+  --color-accent: #24408E;
+  --color-accent-hover: #1B3273;
+  --color-accent-tint: #E9EDF8; /* selected row, active nav item */
+  --color-accent-line: #B8C4E6;
+  --color-focus: #24408E; /* 2px ring, 2px offset */
+
+  /* Claim statuses. Each has ink (text and glyph), tint (fill) and line (border). Always paired with a glyph and the status name */
+  --color-supported: #17663A;
+  --color-supported-tint: #EAF5EE;
+  --color-supported-line: #B5D9C2;
+  --color-contradicted: #A3241C;
+  --color-contradicted-tint: #FBECEA;
+  --color-contradicted-line: #EDBDB8;
+  --color-partial: #7D4B00; /* Partially corroborated */
+  --color-partial-tint: #FBF1DC;
+  --color-partial-line: #E8CE94;
+  --color-conflicting: #7A2E86; /* Conflicting evidence */
+  --color-conflicting-tint: #F6EBF7;
+  --color-conflicting-line: #DDBDE2;
+  --color-cannot-verify: #3B4656; /* a settled answer: solid border, solid fill */
+  --color-cannot-verify-tint: #EDF0F4;
+  --color-cannot-verify-line: #B9C2CF;
+  --color-not-checked: #5C6068; /* no hue on purpose */
+  --color-not-checked-tint: #F4F4F1; /* always under --pattern-hatch */
+  --color-not-checked-line: #8E929A; /* always dashed */
+
+  /* Dispositions reuse status hues; the stamp shape is what marks them as dispositions */
+  --color-prioritise: #17663A;
+  --color-prioritise-tint: #EAF5EE;
+  --color-investigate: #7D4B00; /* Investigate further */
+  --color-investigate-tint: #FBF1DC;
+  --color-deprioritise: #3A3D44; /* graphite, not red: red means Contradicted */
+  --color-deprioritise-tint: #EBEBE7;
+  --color-cannot-assess: #3B4656; /* same family as Cannot verify */
+  --color-cannot-assess-tint: #EDF0F4;
+
+  /* Other semantic roles */
+  --color-estimate: #454A54; /* estimate and signal values: dotted underline in this colour */
+  --color-test-mode: #7D4B00; /* test-mode banner text */
+  --color-test-mode-tint: #FBF1DC;
+  --color-diff-added: #EAF5EE; /* assessment diff: new value background */
+  --color-diff-removed: #F0F0ED; /* assessment diff: previous value background, text struck through */
+  --color-scrim: rgb(22 24 29 / 0.40); /* dialog backdrop */
+
+  /* Patterns. Not checked, unassessable criteria and suppressed sends are hatched, never flat */
+  --pattern-hatch: repeating-linear-gradient(135deg, transparent 0 4px, rgb(22 24 29 / 0.16) 4px 5px); /* lay over --color-not-checked-tint */
+  --pattern-hatch-dense: repeating-linear-gradient(135deg, transparent 0 2px, rgb(22 24 29 / 0.22) 2px 3px); /* bars under 8px tall */
+
+  /* Type families. Load with next/font/google, which sets the --font-*-face variables */
+  --font-sans: var(--font-plex-sans-face), "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif; /* interface */
+  --font-mono: var(--font-plex-mono-face), "IBM Plex Mono", ui-monospace, "SF Mono", monospace; /* dates, figures, source ids, counts */
+  --font-serif: var(--font-newsreader-face), "Newsreader", Georgia, serif; /* marketing headlines, memo title and section heads, 24px and up only */
+
+  /* Type scale. Tailwind's own names keep their usual sizes where they exist; 2xs and dense are added, 3xl to 5xl are redefined */
+  --text-2xs: 0.6875rem; /* 11px, the floor. Mono meta inside chips */
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem; /* 12px meta, counts, table headers */
+  --text-xs--line-height: 1rem;
+  --text-dense: 0.8125rem; /* 13px ledger and table cells */
+  --text-dense--line-height: 1.25rem;
+  --text-sm: 0.875rem; /* 14px interface body, nav, buttons */
+  --text-sm--line-height: 1.25rem;
+  --text-base: 1rem; /* 16px reading body: memo prose, marketing body */
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.125rem; /* 18px lead, hero subhead */
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.25rem; /* 20px card title, section head in app */
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.5rem; /* 24px page title in app */
+  --text-2xl--line-height: 2rem;
+  --text-3xl: 2rem; /* 32px key figure, memo title */
+  --text-3xl--line-height: 2.5rem;
+  --text-4xl: 2.75rem; /* 44px marketing section head, mobile hero */
+  --text-4xl--line-height: 3rem;
+  --text-5xl: 4rem; /* 64px desktop hero */
+  --text-5xl--line-height: 4.25rem;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600; /* rare: disposition stamp, key figure */
+  --tracking-display: -0.02em; /* 44px and up only */
+  --tracking-normal: 0em; /* everything under 44px */
+
+  /* Spacing. Tailwind v4 multiplies --spacing, so p-4 is 16px and every utility lands on the 4px grid */
+  --spacing: 0.25rem; /* 4px base */
+  --space-1: 0.25rem; /* 4 */
+  --space-2: 0.5rem; /* 8 */
+  --space-3: 0.75rem; /* 12 */
+  --space-4: 1rem; /* 16 */
+  --space-5: 1.25rem; /* 20 */
+  --space-6: 1.5rem; /* 24 */
+  --space-8: 2rem; /* 32 */
+  --space-10: 2.5rem; /* 40 */
+  --space-12: 3rem; /* 48 */
+  --space-16: 4rem; /* 64 */
+  --space-20: 5rem; /* 80 */
+  --space-24: 6rem; /* 96 */
+  --space-32: 8rem; /* 128 */
+
+  /* Radii. Inner radius = outer radius minus the padding between them, never under 4 */
+  --radius-xs: 0.25rem; /* 4 source chip, tag, keycap */
+  --radius-sm: 0.375rem; /* 6 status mark, disposition stamp */
+  --radius-md: 0.5rem; /* 8 button, input, row */
+  --radius-lg: 0.75rem; /* 12 card */
+  --radius-xl: 1rem; /* 16 panel, dialog, product window on the home page */
+  --radius-full: 624.9375rem; /* avatars and the run pulse dot only */
+
+  /* Elevation. Depth is mostly hairlines; shadows are neutral, small and rare */
+  --shadow-xs: 0 1px 2px rgb(22 24 29 / 0.05); /* cards, buttons */
+  --shadow-md: 0 8px 24px rgb(22 24 29 / 0.08); /* popovers, evidence drawer, sticky rail */
+  --shadow-lg: 0 24px 48px -12px rgb(22 24 29 / 0.18); /* dialogs, product window on the home page */
+
+  /* Motion. One curve, three durations */
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 140ms; /* hover, press, toggle */
+  --duration-base: 200ms; /* popover, status mark settling, tab change */
+  --duration-slow: 360ms; /* row entrance, drawer, layout change */
+  --duration-highlight: 1200ms; /* one-time changed-value highlight fading out */
+  --motion-stagger: 40ms; /* between rows, six rows at most */
+  --motion-rise: 8px; /* entrance distance */
+  --motion-press-scale: 0.98;
+
+  /* Breakpoints (Tailwind defaults, restated so the design and the build agree) */
+  --breakpoint-sm: 40rem; /* 640 */
+  --breakpoint-md: 48rem; /* 768 */
+  --breakpoint-lg: 64rem; /* 1024 */
+  --breakpoint-xl: 80rem; /* 1280 */
+  --breakpoint-2xl: 96rem; /* 1536 */
+
+  /* Layout */
+  --layout-sidebar: 15.5rem; /* 248 */
+  --layout-sidebar-collapsed: 3.5rem; /* 56 */
+  --layout-topbar: 3.5rem; /* 56 */
+  --layout-rail: 20rem; /* 320 sticky assessment rail in the case view */
+  --layout-content-max: 90rem; /* 1440 app content cap */
+  --layout-marketing-max: 75rem; /* 1200 marketing content cap */
+  --layout-prose-max: 42.5rem; /* 680 memo prose measure */
+  --layout-gutter: 1.5rem; /* 24 grid gutter */
+  --layout-page-x: 2rem; /* 32 page padding at lg and up; 24 at md; 16 below */
+  --layout-row: 2.25rem; /* 36 default row and control height */
+  --layout-row-compact: 2rem; /* 32 nav rows, dense tables */
+  --layout-row-touch: 2.75rem; /* 44 touch and hero buttons */
+
+  /* Layers */
+  --z-sticky: 10;
+  --z-drawer: 30;
+  --z-dialog: 40;
+  --z-toast: 50;
+
+  /* shadcn/ui semantic names, mapped onto the tokens above. --color-accent is already defined */
+  --color-background: var(--color-paper);
+  --color-foreground: var(--color-ink);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-ink);
+  --color-popover: var(--color-surface);
+  --color-popover-foreground: var(--color-ink);
+  --color-primary: var(--color-ink);
+  --color-primary-foreground: var(--color-ink-inverse);
+  --color-secondary: var(--color-surface-raised);
+  --color-secondary-foreground: var(--color-ink);
+  --color-muted: var(--color-surface-raised);
+  --color-muted-foreground: var(--color-ink-muted);
+  --color-accent-foreground: var(--color-ink-inverse);
+  --color-destructive: var(--color-contradicted);
+  --color-border: var(--color-line);
+  --color-input: var(--color-line-strong);
+  --color-ring: var(--color-focus);
+  --radius: var(--radius-md);
+}
+
+/* Reduced motion: durations collapse, distances go to zero. Components must also drop
+   transforms and tween numbers straight to their final value. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+    --duration-slow: 0ms;
+    --duration-highlight: 0ms;
+    --motion-stagger: 0ms;
+    --motion-rise: 0px;
+    --motion-press-scale: 1;
+  }
+}
