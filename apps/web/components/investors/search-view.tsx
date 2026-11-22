@@ -7,6 +7,7 @@ import {
   ApiError,
   getInvestorSearch,
   type InvestorSearchOut,
+  isFixtureMode,
   resumeRun,
   type RunOut,
 } from "@/lib/api/client";
