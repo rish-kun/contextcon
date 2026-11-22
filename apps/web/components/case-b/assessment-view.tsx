@@ -95,7 +95,10 @@ function ProfileChecks({
                 <TableCell className="text-ink">{CATEGORY_LABEL[category]}</TableCell>
                 <TableCell>
                   {item?.status ? (
-                    <StatusMark status={item.status} />
+                    <StatusMark
+                      status={item.status}
+                      reason={claims.find((c) => item.claim_ids.includes(c.id))?.not_checked_reason}
+                    />
                   ) : (
                     <span className="text-ink-secondary">No claim was made on this</span>
                   )}
@@ -224,7 +227,10 @@ export function AssessmentView({
                         >
                           <span className="font-mono text-xs text-ink-muted">Claim {claim.number}</span>
                           <span className="truncate text-ink">“{claim.original_text}”</span>
-                          <StatusMark status={statusAt(claim, version.version)} />
+                          <StatusMark
+                            status={statusAt(claim, version.version)}
+                            reason={claim.not_checked_reason}
+                          />
                         </li>
                       ))}
                     </ul>

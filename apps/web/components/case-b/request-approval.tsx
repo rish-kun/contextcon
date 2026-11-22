@@ -117,7 +117,13 @@ export function RequestApproval({
   const [summary, setSummary] = useState<SendSummaryOut | null>(null);
 
   const sendStatus = message?.send?.status ?? null;
-  const status = busy === "sending" ? "sending" : (sendStatus ?? message?.status ?? "draft");
+  // A saved or approved revision is the live state, even when an earlier send failed.
+  const status =
+    busy === "sending"
+      ? "sending"
+      : message?.status === "draft" || message?.status === "approved"
+        ? message.status
+        : (sendStatus ?? message?.status ?? "draft");
   const composing = status === "draft" || status === "approved" || (status === "failed" && retrying);
   const approved = status === "approved" && Boolean(message?.approval);
 

@@ -339,5 +339,17 @@ export function usesBySource(detail: CaseDetail): Map<string, string[]> {
     walk(judgments.financial_assessment, "Financial assessment");
   }
 
+  // A seller file is where claims were stated, even when no fact was taken from it.
+  for (const source of detail.sources) {
+    const stated = detail.claims.filter(
+      (claim) =>
+        claim.stated_in.filename && source.url_or_endpoint === `upload:${claim.stated_in.filename}`,
+    ).length;
+    if (stated > 0) {
+      const set = uses.get(source.source_id) ?? new Set<string>();
+      uses.set(source.source_id, new Set([`Where ${stated} of the seller's claims were stated`, ...set]));
+    }
+  }
+
   return new Map([...uses].map(([id, set]) => [id, [...set]]));
 }

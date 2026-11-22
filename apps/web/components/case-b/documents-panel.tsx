@@ -32,10 +32,20 @@ function fileSize(bytes: number): string {
   return `${Math.max(1, Math.round(bytes / 1000))} KB`;
 }
 
+const REDACTED: Record<string, [one: string, many: string]> = {
+  email: ["email address", "email addresses"],
+  phone: ["phone number", "phone numbers"],
+  pan: ["PAN", "PANs"],
+  aadhaar: ["Aadhaar number", "Aadhaar numbers"],
+};
+
 function redactions(counts: Record<string, number>): string | null {
   const parts = Object.entries(counts)
     .filter(([, count]) => count > 0)
-    .map(([kind, count]) => `${count} ${kind}`);
+    .map(([kind, count]) => {
+      const [one, many] = REDACTED[kind] ?? [kind, kind];
+      return `${count} ${count === 1 ? one : many}`;
+    });
   return parts.length ? `Redacted before processing: ${parts.join(", ")}` : null;
 }
 

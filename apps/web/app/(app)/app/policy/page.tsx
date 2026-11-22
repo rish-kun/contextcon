@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
 import { getPolicy, type PolicyOut } from "@/lib/api/client";
-import { CLAIM_STATUS_MEANING, DISPOSITION_MEANING, RELIABILITY_LABEL } from "@/lib/labels";
+import {
+  CLAIM_STATUS_LABEL,
+  CLAIM_STATUS_MEANING,
+  DISPOSITION_MEANING,
+  RELIABILITY_LABEL,
+} from "@/lib/labels";
 import { CLAIM_STATUSES } from "@/lib/types";
 import { CATEGORY_LABEL, COMPANY_TYPE_LABEL } from "@/components/case-b/adapt";
 import { load } from "@/components/case-b/load";
 import { LoadError } from "@/components/case-b/parts";
 import { DispositionStamp } from "@/components/dealproof/disposition-stamp";
-import { SourceClassGlyph } from "@/components/dealproof/glyphs";
+import { SourceClassGlyph, StatusGlyph } from "@/components/dealproof/glyphs";
 import { StatusMark } from "@/components/dealproof/status-mark";
 import {
   Table,
@@ -159,7 +164,15 @@ function PolicyBody({ policy }: { policy: PolicyOut }) {
               key={status}
               className="grid gap-x-4 gap-y-1 px-4 py-3 sm:grid-cols-[14rem_minmax(0,1fr)] sm:items-center"
             >
-              <StatusMark status={status} className="justify-self-start" />
+              {status === "not_checked" ? (
+                // On a claim this tag always carries its reason. Here it names the status only.
+                <span className="hatch inline-flex h-6 items-center gap-1 justify-self-start rounded-sm border border-dashed border-not-checked-line px-2 text-xs font-medium text-not-checked">
+                  <StatusGlyph status={status} />
+                  {CLAIM_STATUS_LABEL[status]}
+                </span>
+              ) : (
+                <StatusMark status={status} className="justify-self-start" />
+              )}
               <span className="text-ink">{CLAIM_STATUS_MEANING[status]}</span>
             </li>
           ))}
