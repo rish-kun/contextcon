@@ -216,11 +216,14 @@ export function findingText(claim: Pick<ClaimOut, "reason" | "status">): string 
 }
 
 /**
- * The sources searched for a claim. `searched_sources` is not in the API schema yet; it is
- * read when a response carries it (names, or objects with a label). Until then the only
- * sources known to have been read are the ones the claim's evidence came from.
+ * The sources searched for a claim: the public lookups the current check ran
+ * (`searched`, labels of those that ran), then a legacy `searched_sources` if a
+ * response carries one, then the sources the claim's evidence came from.
  */
 function searchedSources(claim: ClaimOut, evidence: Evidence[]): string[] {
+  const lookups = (claim.searched ?? [])
+    .filter((item) => !item.skipped)
+    .map((item) => item.label);
   const sent = (claim as ClaimOut & { searched_sources?: unknown }).searched_sources;
   const named = Array.isArray(sent)
     ? sent.flatMap((item) => {
@@ -229,7 +232,9 @@ function searchedSources(claim: ClaimOut, evidence: Evidence[]): string[] {
         return typeof label === "string" ? [label] : [];
       })
     : [];
-  return [...new Set([...named, ...evidence.map((item) => item.source.label)].filter(Boolean))];
+  return [
+    ...new Set([...lookups, ...named, ...evidence.map((item) => item.source.label)].filter(Boolean)),
+  ];
 }
 
 export function toClaim(claim: ClaimOut): Claim {
