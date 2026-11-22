@@ -2278,6 +2278,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendIn"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -7097,6 +7107,26 @@
           "reasons"
         ],
         "title": "ScreeningDispositionOut"
+      },
+      "SendIn": {
+        "properties": {
+          "revision_id": {
+            "type": "string",
+            "title": "Revision Id",
+            "description": "The approved revision the user confirmed; 409 `stale_revision` otherwise."
+          },
+          "expect_live": {
+            "type": "boolean",
+            "title": "Expect Live",
+            "description": "What the user was told: true = a real email leaves, false = test mode. 409 `delivery_mode_changed` if the server's EMAIL_SEND_ENABLED differs."
+          }
+        },
+        "type": "object",
+        "required": [
+          "revision_id",
+          "expect_live"
+        ],
+        "title": "SendIn"
       },
       "SendOut": {
         "properties": {

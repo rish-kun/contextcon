@@ -32,6 +32,7 @@ from app.pipelines import act as act_pipeline
 from app.pipelines import evaluate
 from app.pipelines.act import llm as llm_module
 from app.pipelines.act.request_list import NoAssessment, build_request_list_for_case
+from tests.act.fakes import send_current
 from tests.evaluate.builders import TODAY, confirmed_world
 from tests.jobs.helpers import make_worker
 
@@ -151,7 +152,7 @@ async def test_draft_is_an_act_message_that_needs_a_recipient_then_sends_once(se
         case_id, message_id, actor, revision_id=edited.current_revision.id
     )
     assert approved.status is MessageStatus.APPROVED
-    send = await service.send(case_id, message_id, actor)
+    send = await send_current(service, case_id, message_id, actor)
     assert send.status is SendStatus.SUPPRESSED_TEST_MODE
 
 

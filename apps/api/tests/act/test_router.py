@@ -60,6 +60,10 @@ def _approve(client: TestClient, message: dict) -> dict:
     return response.json()
 
 
+def _send_body(message: dict, *, live: bool = True) -> dict:
+    return {"revision_id": message["current_revision"]["id"], "expect_live": live}
+
+
 def test_full_flow_and_second_send_conflicts(api) -> None:
     client, fake = api
     message = _create(client)
@@ -69,11 +73,15 @@ def test_full_flow_and_second_send_conflicts(api) -> None:
     assert approved["status"] == "approved"
     assert approved["approval"]["approver_display_name"] == "Bob Manager"
 
-    sent = client.post(f"{BASE}/{message['id']}/send", headers={"x-user": "bob"})
+    sent = client.post(
+        f"{BASE}/{message['id']}/send", json=_send_body(message), headers={"x-user": "bob"}
+    )
     assert sent.status_code == 200
     assert sent.json()["status"] == "sent"
 
-    again = client.post(f"{BASE}/{message['id']}/send", headers={"x-user": "bob"})
+    again = client.post(
+        f"{BASE}/{message['id']}/send", json=_send_body(message), headers={"x-user": "bob"}
+    )
     assert again.status_code == 409
     assert again.json()["detail"]["code"] == "send_exists"
     assert again.json()["detail"]["send"]["status"] == "sent"
@@ -86,7 +94,7 @@ def test_full_flow_and_second_send_conflicts(api) -> None:
 def test_send_without_approval_is_409(api) -> None:
     client, fake = api
     message = _create(client)
-    response = client.post(f"{BASE}/{message['id']}/send")
+    response = client.post(f"{BASE}/{message['id']}/send", json=_send_body(message))
     assert response.status_code == 409
     assert response.json()["detail"]["code"] == "not_approved"
     assert fake.send_requests == []
@@ -126,7 +134,9 @@ def test_concurrent_http_sends_dispatch_once(api) -> None:
     _approve(client, message)
 
     def send(_: int) -> int:
-        return client.post(f"{BASE}/{message['id']}/send", headers={"x-user": "bob"}).status_code
+        return client.post(
+            f"{BASE}/{message['id']}/send", json=_send_body(message), headers={"x-user": "bob"}
+        ).status_code
 
     with ThreadPoolExecutor(max_workers=4) as pool:
         codes = sorted(pool.map(send, range(4)))
@@ -139,7 +149,11 @@ def test_test_mode_summary_counts_suppressed_separately() -> None:
     client, fake = _build(enabled=False)
     message = _create(client)
     _approve(client, message)
-    sent = client.post(f"{BASE}/{message['id']}/send", headers={"x-user": "bob"})
+    sent = client.post(
+        f"{BASE}/{message['id']}/send",
+        json=_send_body(message, live=False),
+        headers={"x-user": "bob"},
+    )
     assert sent.json()["status"] == "suppressed_test_mode"
     assert sent.json()["test_mode"] is True
 
@@ -166,3 +180,70 @@ def test_router_without_session_fails_closed(monkeypatch: pytest.MonkeyPatch) ->
         BASE, json={"subject": "s", "body": "b", "recipient": RECIPIENT}
     )
     assert response.status_code == 401
+
+
+def test_send_needs_the_revision_and_delivery_mode_in_the_body(api) -> None:
+    client, fake = api
+    message = _create(client)
+    _approve(client, message)
+    url = f"{BASE}/{message['id']}/send"
+    assert client.post(url, headers={"x-user": "bob"}).status_code == 422
+    missing_mode = {"revision_id": message["current_revision"]["id"]}
+    assert client.post(url, json=missing_mode, headers={"x-user": "bob"}).status_code == 422
+    assert fake.send_requests == []
+
+
+def test_send_of_a_superseded_revision_is_409_with_the_current_state(api) -> None:
+    """Tab A confirmed revision 1; tab B saved and approved revision 2 meanwhile."""
+    client, fake = api
+    message = _create(client)
+    _approve(client, message)
+    edited = client.post(
+        f"{BASE}/{message['id']}/revisions",
+        json={"subject": "Documents request", "body": "v2", "recipient": "other@example.test"},
+    ).json()
+    _approve(client, edited)
+
+    stale = client.post(
+        f"{BASE}/{message['id']}/send", json=_send_body(message), headers={"x-user": "bob"}
+    )
+    assert stale.status_code == 409
+    detail = stale.json()["detail"]
+    assert detail["code"] == "stale_revision"
+    assert detail["state"]["current_revision"]["id"] == edited["current_revision"]["id"]
+    assert detail["state"]["status"] == "approved"
+    assert fake.send_requests == []
+
+    sent = client.post(
+        f"{BASE}/{message['id']}/send", json=_send_body(edited), headers={"x-user": "bob"}
+    )
+    assert (
+        sent.status_code == 200 and sent.json()["revision_id"] == edited["current_revision"]["id"]
+    )
+
+
+def test_a_test_mode_confirmation_cannot_authorise_a_live_send(api) -> None:
+    client, fake = api  # sending is live here
+    message = _create(client)
+    _approve(client, message)
+    response = client.post(
+        f"{BASE}/{message['id']}/send",
+        json=_send_body(message, live=False),
+        headers={"x-user": "bob"},
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "delivery_mode_changed"
+    assert fake.send_requests == []
+
+
+def test_a_live_confirmation_is_refused_in_test_mode() -> None:
+    client, fake = _build(enabled=False)
+    message = _create(client)
+    _approve(client, message)
+    response = client.post(
+        f"{BASE}/{message['id']}/send", json=_send_body(message), headers={"x-user": "bob"}
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "delivery_mode_changed"
+    state = client.get(f"{BASE}/{message['id']}").json()
+    assert state["status"] == "approved" and state["send"] is None

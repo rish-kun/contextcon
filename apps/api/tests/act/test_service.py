@@ -22,7 +22,7 @@ from app.act.models import (
 from app.act.resend import SEND_KEY_TAG
 from app.act.service import ActService, SendConfig
 from tests.act.conftest import ActEnv
-from tests.act.fakes import RECIPIENT, FakeClock
+from tests.act.fakes import RECIPIENT, FakeClock, send_current
 
 
 def run(coro):
@@ -68,7 +68,7 @@ def test_edit_after_approval_requires_reapproval(act: ActEnv) -> None:
         assert edited.revisions[0] == rev1  # earlier revision untouched
 
         with pytest.raises(NotApprovedError):
-            await service.send(act.case, message_id, act.bob)
+            await send_current(service, act.case, message_id, act.bob)
         # The old approval cannot be reused for the new revision.
         with pytest.raises(StaleRevisionError):
             await service.approve(act.case, message_id, act.bob, revision_id=rev1.id)
@@ -77,7 +77,7 @@ def test_edit_after_approval_requires_reapproval(act: ActEnv) -> None:
             act.case, message_id, act.bob, revision_id=edited.current_revision.id
         )
         assert reapproved.approval.revision_id == edited.current_revision.id
-        send = await service.send(act.case, message_id, act.bob)
+        send = await send_current(service, act.case, message_id, act.bob)
         assert send.status is SendStatus.SENT
         assert send.revision_id == edited.current_revision.id
 
@@ -152,7 +152,7 @@ def test_send_without_approval_is_rejected(act: ActEnv) -> None:
     service, fake, _, _ = act.make_service()
     state = run(_draft(act, service))
     with pytest.raises(NotApprovedError):
-        run(service.send(act.case, state.message.id, act.bob))
+        run(send_current(service, act.case, state.message.id, act.bob))
     assert fake.send_requests == []
     assert run(service.get_state(act.case, state.message.id)).status is MessageStatus.DRAFT
 
@@ -162,9 +162,9 @@ def test_send_twice_sends_once(act: ActEnv) -> None:
 
     async def scenario():
         state = await _approved(act, service)
-        first = await service.send(act.case, state.message.id, act.bob)
+        first = await send_current(service, act.case, state.message.id, act.bob)
         with pytest.raises(SendExistsError) as second:
-            await service.send(act.case, state.message.id, act.bob)
+            await send_current(service, act.case, state.message.id, act.bob)
         return first, second.value.send
 
     first, existing = run(scenario())
@@ -185,7 +185,7 @@ def test_concurrent_sends_dispatch_once(act: ActEnv) -> None:
     async def scenario():
         state = await _approved(act, service)
         return await asyncio.gather(
-            *(service.send(act.case, state.message.id, act.bob) for _ in range(5)),
+            *(send_current(service, act.case, state.message.id, act.bob) for _ in range(5)),
             return_exceptions=True,
         )
 
@@ -229,7 +229,7 @@ def test_concurrent_sends_racing_into_the_claim_dispatch_once(act: ActEnv) -> No
     async def scenario():
         state = await _approved(act, service)
         return await asyncio.gather(
-            *(service.send(act.case, state.message.id, act.bob) for _ in range(5)),
+            *(send_current(service, act.case, state.message.id, act.bob) for _ in range(5)),
             return_exceptions=True,
         )
 
@@ -247,7 +247,7 @@ def test_no_send_and_no_edit_once_sent(act: ActEnv) -> None:
     async def scenario():
         state = await _approved(act, service)
         message_id = state.message.id
-        await service.send(act.case, message_id, act.bob)
+        await send_current(service, act.case, message_id, act.bob)
         with pytest.raises(SendExistsError):
             await service.revise(
                 act.case, message_id, act.alice, subject="x", body="y", recipient=RECIPIENT
@@ -257,7 +257,7 @@ def test_no_send_and_no_edit_once_sent(act: ActEnv) -> None:
                 act.case, message_id, act.bob, revision_id=state.current_revision.id
             )
         with pytest.raises(SendExistsError):
-            await service.send(act.case, message_id, act.bob)
+            await send_current(service, act.case, message_id, act.bob)
         return await service.get_state(act.case, message_id)
 
     final = run(scenario())
@@ -274,11 +274,11 @@ def test_lost_response_is_unknown_then_reconcile_finds_sent_without_resend(act: 
     async def scenario():
         state = await _approved(act, service)
         message_id = state.message.id
-        first = await service.send(act.case, message_id, act.bob)
+        first = await send_current(service, act.case, message_id, act.bob)
         assert first.status is SendStatus.UNKNOWN
         assert (await service.get_state(act.case, message_id)).status is MessageStatus.UNKNOWN
         # The user clicks send again: DealProof looks the message up instead of resending.
-        resolved = await service.send(act.case, message_id, act.bob)
+        resolved = await send_current(service, act.case, message_id, act.bob)
         return first, resolved
 
     first, resolved = run(scenario())
@@ -296,7 +296,7 @@ def test_reconcile_endpoint_resolves_unknown_without_dispatch(act: ActEnv) -> No
 
     async def scenario():
         state = await _approved(act, service)
-        await service.send(act.case, state.message.id, act.bob)
+        await send_current(service, act.case, state.message.id, act.bob)
         return await service.reconcile(act.case, state.message.id)
 
     resolved = run(scenario())
@@ -310,12 +310,12 @@ def test_unknown_and_absent_at_provider_retries_with_same_key(act: ActEnv) -> No
 
     async def scenario():
         state = await _approved(act, service)
-        first = await service.send(act.case, state.message.id, act.bob)
+        first = await send_current(service, act.case, state.message.id, act.bob)
         assert first.status is SendStatus.UNKNOWN
         reconciled = await service.reconcile(act.case, state.message.id)
         assert reconciled.status is SendStatus.UNKNOWN  # reconcile alone never dispatches
         assert len(fake.send_requests) == 1
-        retried = await service.send(act.case, state.message.id, act.bob)
+        retried = await send_current(service, act.case, state.message.id, act.bob)
         return first, retried
 
     first, retried = run(scenario())
@@ -332,9 +332,9 @@ def test_unknown_stays_unknown_when_lookup_fails(act: ActEnv) -> None:
 
     async def scenario():
         state = await _approved(act, service)
-        await service.send(act.case, state.message.id, act.bob)
+        await send_current(service, act.case, state.message.id, act.bob)
         fake.fail_lookups = True
-        return await service.send(act.case, state.message.id, act.bob)
+        return await send_current(service, act.case, state.message.id, act.bob)
 
     result = run(scenario())
     assert result.status is SendStatus.UNKNOWN
@@ -349,12 +349,12 @@ def test_stale_sending_becomes_unknown_and_reconciles(act: ActEnv) -> None:
         state = await _approved(act, service)
         # Simulate a process that claimed the send, reached Resend, then died.
         fake.lose_response_after_accept = 1
-        send = await service.send(act.case, state.message.id, act.bob)
+        send = await send_current(service, act.case, state.message.id, act.bob)
         await repo.transition_send(send.id, [SendStatus.UNKNOWN], status=SendStatus.SENDING)
         with pytest.raises(SendExistsError):  # still fresh: treated as in progress
-            await service.send(act.case, state.message.id, act.bob)
+            await send_current(service, act.case, state.message.id, act.bob)
         clock.advance(minutes=5)
-        return await service.send(act.case, state.message.id, act.bob)
+        return await send_current(service, act.case, state.message.id, act.bob)
 
     result = run(scenario())
     assert result.status is SendStatus.SENT
@@ -367,12 +367,12 @@ def test_rejected_send_is_failed_and_can_be_retried_once(act: ActEnv) -> None:
 
     async def scenario():
         state = await _approved(act, service)
-        failed = await service.send(act.case, state.message.id, act.bob)
+        failed = await send_current(service, act.case, state.message.id, act.bob)
         assert failed.status is SendStatus.FAILED
         assert "422" in failed.error
-        retried = await service.send(act.case, state.message.id, act.bob)
+        retried = await send_current(service, act.case, state.message.id, act.bob)
         with pytest.raises(SendExistsError):
-            await service.send(act.case, state.message.id, act.bob)
+            await send_current(service, act.case, state.message.id, act.bob)
         return failed, retried
 
     failed, retried = run(scenario())
@@ -385,9 +385,9 @@ def test_test_mode_suppresses_and_counts_separately(act: ActEnv) -> None:
 
     async def scenario():
         state = await _approved(act, service)
-        send = await service.send(act.case, state.message.id, act.bob)
+        send = await send_current(service, act.case, state.message.id, act.bob)
         with pytest.raises(SendExistsError):
-            await service.send(act.case, state.message.id, act.bob)
+            await send_current(service, act.case, state.message.id, act.bob)
         return state, send, await service.send_summary(act.case)
 
     state, send, summary = run(scenario())
@@ -410,10 +410,10 @@ def test_suppressed_message_can_be_sent_for_real_once_enabled(act: ActEnv) -> No
 
     async def scenario():
         state = await _approved(act, test_mode)
-        await test_mode.send(act.case, state.message.id, act.bob)
-        sent = await live.send(act.case, state.message.id, act.bob)
+        await send_current(test_mode, act.case, state.message.id, act.bob)
+        sent = await send_current(live, act.case, state.message.id, act.bob)
         with pytest.raises(SendExistsError):
-            await live.send(act.case, state.message.id, act.bob)
+            await send_current(live, act.case, state.message.id, act.bob)
         return sent, await live.send_summary(act.case)
 
     sent, summary = run(scenario())
@@ -428,7 +428,7 @@ def test_enabled_without_sender_or_key_refuses_before_claiming(act: ActEnv) -> N
     async def scenario():
         state = await _approved(act, service)
         with pytest.raises(EmailNotConfiguredError):
-            await service.send(act.case, state.message.id, act.bob)
+            await send_current(service, act.case, state.message.id, act.bob)
         return await service.get_state(act.case, state.message.id)
 
     assert run(scenario()).status is MessageStatus.APPROVED
@@ -509,11 +509,11 @@ def test_retry_after_a_concurrent_edit_never_sends_the_superseded_body(act: ActE
     async def scenario():
         state = await _approved(act, service)
         holder["id"] = state.message.id
-        failed = await service.send(act.case, state.message.id, act.bob)
+        failed = await send_current(service, act.case, state.message.id, act.bob)
         assert failed.status is SendStatus.FAILED
         repo.armed = True
         with pytest.raises(StaleRevisionError):
-            await service.send(act.case, state.message.id, act.bob)
+            await send_current(service, act.case, state.message.id, act.bob)
         return await service.get_state(act.case, state.message.id)
 
     final = run(scenario())
@@ -529,8 +529,10 @@ def test_stale_snapshot_cannot_expire_or_finish_a_newer_attempt(act: ActEnv) -> 
 
     async def scenario():
         state = await _approved(act, service)
-        old = await service.send(act.case, state.message.id, act.bob)  # failed, attempt 1
-        retried = await service.send(act.case, state.message.id, act.bob)  # sent, attempt 2
+        old = await send_current(service, act.case, state.message.id, act.bob)  # failed, attempt 1
+        retried = await send_current(
+            service, act.case, state.message.id, act.bob
+        )  # sent, attempt 2
         assert retried.status is SendStatus.SENT and retried.generation > old.generation
         # A caller still holding the attempt-1 snapshot loses every compare-and-set.
         assert (
@@ -567,9 +569,9 @@ def test_retry_resends_the_persisted_payload_exactly(act: ActEnv) -> None:
 
     async def scenario():
         state = await _approved(act, first)
-        failed = await first.send(act.case, state.message.id, act.bob)
+        failed = await send_current(first, act.case, state.message.id, act.bob)
         assert failed.payload["from"] == "Old <old@example.test>"
-        return await second.send(act.case, state.message.id, act.bob)
+        return await send_current(second, act.case, state.message.id, act.bob)
 
     sent = run(scenario())
     assert sent.status is SendStatus.SENT
@@ -584,7 +586,7 @@ def test_idempotency_payload_mismatch_is_unknown_not_failed(act: ActEnv) -> None
 
     async def scenario():
         state = await _approved(act, service)
-        return await service.send(act.case, state.message.id, act.bob)
+        return await send_current(service, act.case, state.message.id, act.bob)
 
     result = run(scenario())
     assert result.status is SendStatus.UNKNOWN
@@ -597,10 +599,10 @@ def test_unknown_is_not_retried_after_the_idempotency_window(act: ActEnv) -> Non
 
     async def scenario():
         state = await _approved(act, service)
-        first = await service.send(act.case, state.message.id, act.bob)
+        first = await send_current(service, act.case, state.message.id, act.bob)
         assert first.status is SendStatus.UNKNOWN
         clock.advance(hours=24)
-        late = await service.send(act.case, state.message.id, act.bob)
+        late = await send_current(service, act.case, state.message.id, act.bob)
         assert late.status is SendStatus.UNKNOWN
         assert "confirm the outcome manually" in late.error
         assert len(fake.send_requests) == 1
@@ -609,7 +611,7 @@ def test_unknown_is_not_retried_after_the_idempotency_window(act: ActEnv) -> Non
         )
         assert settled.status is SendStatus.FAILED
         assert "Bob Manager" in settled.error
-        return await service.send(act.case, state.message.id, act.bob)
+        return await send_current(service, act.case, state.message.id, act.bob)
 
     retried = run(scenario())
     assert retried.status is SendStatus.SENT
@@ -624,9 +626,9 @@ def test_unknown_stays_unknown_when_sending_is_disabled(act: ActEnv) -> None:
 
     async def scenario():
         state = await _approved(act, live)
-        first = await live.send(act.case, state.message.id, act.bob)
+        first = await send_current(live, act.case, state.message.id, act.bob)
         assert first.status is SendStatus.UNKNOWN
-        again = await test_mode.send(act.case, state.message.id, act.bob)
+        again = await send_current(test_mode, act.case, state.message.id, act.bob)
         return again, await test_mode.get_state(act.case, state.message.id)
 
     again, state = run(scenario())
@@ -641,7 +643,7 @@ def test_confirm_outcome_needs_an_unknown_send_and_a_named_user(act: ActEnv) -> 
 
     async def scenario():
         state = await _approved(act, service)
-        sent = await service.send(act.case, state.message.id, act.bob)
+        sent = await send_current(service, act.case, state.message.id, act.bob)
         assert sent.status is SendStatus.SENT
         with pytest.raises(SendExistsError):
             await service.confirm_outcome(act.case, state.message.id, act.bob, delivered=False)

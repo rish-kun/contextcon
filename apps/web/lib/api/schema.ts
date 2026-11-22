@@ -2284,6 +2284,19 @@ export interface components {
             /** Reasons */
             reasons: components["schemas"]["DispositionReasonOut"][];
         };
+        /** SendIn */
+        SendIn: {
+            /**
+             * Revision Id
+             * @description The approved revision the user confirmed; 409 `stale_revision` otherwise.
+             */
+            revision_id: string;
+            /**
+             * Expect Live
+             * @description What the user was told: true = a real email leaves, false = test mode. 409 `delivery_mode_changed` if the server's EMAIL_SEND_ENABLED differs.
+             */
+            expect_live: boolean;
+        };
         /** SendOut */
         SendOut: {
             /** Id */
@@ -4470,7 +4483,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

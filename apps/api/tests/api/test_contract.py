@@ -129,7 +129,12 @@ ACT_ROUTES: list[tuple[str, str, str, object]] = [
         f"{MSG}/m/approve",
         {"revision_id": "r"},
     ),
-    ("POST", "/cases/{case_id}/messages/{message_id}/send", f"{MSG}/m/send", None),
+    (
+        "POST",
+        "/cases/{case_id}/messages/{message_id}/send",
+        f"{MSG}/m/send",
+        {"revision_id": "r", "expect_live": False},
+    ),
     ("POST", "/cases/{case_id}/messages/{message_id}/reconcile", f"{MSG}/m/reconcile", None),
 ]
 

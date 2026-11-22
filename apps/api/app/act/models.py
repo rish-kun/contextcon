@@ -150,6 +150,10 @@ class StaleRevisionError(ConflictError):
     """The caller acted on a revision that is no longer current."""
 
 
+class DeliveryModeChangedError(ConflictError):
+    """The caller confirmed a test-mode send but sending is now live, or the reverse."""
+
+
 class SendExistsError(ConflictError):
     """The message has left, may have left, or is leaving right now."""
 

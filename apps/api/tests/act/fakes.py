@@ -185,3 +185,15 @@ def make_service(
         repo, SendConfig(enabled=enabled, sender=SENDER), fake.client(), clock=clock
     )
     return service, fake, repo, clock
+
+
+async def send_current(service: ActService, case_id: str, message_id: str, actor: Actor):
+    """Send the way the UI does: naming the revision on screen and the delivery mode."""
+    state = await service.get_state(case_id, message_id)
+    return await service.send(
+        case_id,
+        message_id,
+        actor,
+        revision_id=state.current_revision.id,
+        expect_live=service.sending_enabled,
+    )

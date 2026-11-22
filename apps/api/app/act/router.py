@@ -5,11 +5,12 @@
     GET  /cases/{case_id}/messages/{message_id}             status, revisions, approval, send
     POST /cases/{case_id}/messages/{message_id}/revisions   edit (new revision, needs re-approval)
     POST /cases/{case_id}/messages/{message_id}/approve     approve one revision id
-    POST /cases/{case_id}/messages/{message_id}/send        send once
+    POST /cases/{case_id}/messages/{message_id}/send        send once ({revision_id, expect_live})
     POST /cases/{case_id}/messages/{message_id}/reconcile   resolve an `unknown` send (no dispatch)
 
-Errors: 404 not found, 409 conflict (`not_approved`, `stale_revision`, `send_exists`
-with the existing send), 422 invalid input, 503 email not configured.
+Errors: 404 not found, 409 conflict (`not_approved`, `stale_revision` with the current
+message state, `delivery_mode_changed`, `send_exists` with the existing send), 422 invalid
+input, 503 email not configured.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from app.act.models import (
     ActError,
     Actor,
     Approval,
+    DeliveryModeChangedError,
     EmailNotConfiguredError,
     MessageRevision,
     MessageStatus,
@@ -57,6 +59,16 @@ class EditIn(RevisionIn):
 
 class ApproveIn(BaseModel):
     revision_id: str
+
+
+class SendIn(BaseModel):
+    revision_id: str = Field(
+        description="The approved revision the user confirmed; 409 `stale_revision` otherwise."
+    )
+    expect_live: bool = Field(
+        description="What the user was told: true = a real email leaves, false = test mode. "
+        "409 `delivery_mode_changed` if the server's EMAIL_SEND_ENABLED differs."
+    )
 
 
 class RevisionOut(BaseModel):
@@ -168,6 +180,8 @@ def _raise_http(exc: ActError) -> NoReturn:
             code, detail["code"] = status.HTTP_409_CONFLICT, "not_approved"
         case StaleRevisionError():
             code, detail["code"] = status.HTTP_409_CONFLICT, "stale_revision"
+        case DeliveryModeChangedError():
+            code, detail["code"] = status.HTTP_409_CONFLICT, "delivery_mode_changed"
         case SendExistsError():
             code, detail["code"] = status.HTTP_409_CONFLICT, "send_exists"
             detail["send"] = _send_out(exc.send).model_dump(mode="json")
@@ -251,10 +265,28 @@ async def approve_message(
 
 @router.post("/{message_id}/send", response_model=SendOut)
 async def send_message(
-    case_id: CaseId, message_id: str, actor: CurrentActor, service: Service
+    case_id: CaseId, message_id: str, actor: CurrentActor, service: Service, payload: SendIn
 ) -> SendOut:
     try:
-        record = await service.send(case_id, message_id, actor)
+        record = await service.send(
+            case_id,
+            message_id,
+            actor,
+            revision_id=payload.revision_id,
+            expect_live=payload.expect_live,
+        )
+    except StaleRevisionError as exc:
+        # Hand back what the user should review now instead of what they confirmed.
+        try:
+            state = await service.get_state(case_id, message_id)
+        except ActError:
+            _raise_http(exc)
+        detail = {
+            "message": str(exc),
+            "code": "stale_revision",
+            "state": _message_out(state).model_dump(mode="json"),
+        }
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=detail) from exc
     except ActError as exc:
         _raise_http(exc)
     return _send_out(record)

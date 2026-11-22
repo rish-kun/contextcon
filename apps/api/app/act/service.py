@@ -45,6 +45,7 @@ from app.act.models import (
     ACTIVE_SEND_STATUSES,
     Actor,
     Approval,
+    DeliveryModeChangedError,
     EmailNotConfiguredError,
     Message,
     MessageRevision,
@@ -210,15 +211,39 @@ class ActService:
 
     # --- sending ----------------------------------------------------------------------
 
-    async def send(self, case_id: str, message_id: str, actor: Actor) -> SendRecord:
-        """Send the approved current revision at most once.
+    @property
+    def sending_enabled(self) -> bool:
+        """True when a send reaches the provider; False in test mode (suppressed)."""
+        return self._config.enabled
 
-        Raises `NotApprovedError` without an approval of the current revision and
-        `SendExistsError` when the message has been sent, is being sent, or (in test
-        mode) was already suppressed.
+    async def send(
+        self,
+        case_id: str,
+        message_id: str,
+        actor: Actor,
+        *,
+        revision_id: str,
+        expect_live: bool,
+    ) -> SendRecord:
+        """Send the approved revision `revision_id` at most once.
+
+        The caller names the revision it showed the user and whether it told them the
+        email goes out for real (`expect_live`), so a confirmation can never send a
+        different revision or switch delivery mode behind the user's back:
+
+        * `StaleRevisionError` if `revision_id` is not the current revision (also
+          re-checked under the message lock when the send is reserved);
+        * `DeliveryModeChangedError` if `expect_live` differs from `EMAIL_SEND_ENABLED`;
+        * `NotApprovedError` without an approval of that revision;
+        * `SendExistsError` when the message has been sent, is being sent, or (in test
+          mode) was already suppressed.
         """
+        if expect_live != self._config.enabled:
+            mode = "live" if self._config.enabled else "test mode (nothing leaves)"
+            raise DeliveryModeChangedError(f"Sending is now {mode}; reload and confirm again.")
         message = await self._require_message(case_id, message_id)
-        revision_id = message.current_revision_id
+        if revision_id != message.current_revision_id:
+            raise StaleRevisionError("The message changed since you confirmed it; review it again.")
         existing = await self._repo.get_send_for_revision(revision_id)
         if existing is not None:
             return await self._resume(existing)
