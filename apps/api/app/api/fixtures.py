@@ -1303,6 +1303,8 @@ def _assessment(version: int) -> AssessmentVersionOut:
         company_type=CompanyType.startup,
         judgments=judgments,
         diff_from_previous=diff,
+        trigger_document_ids=[] if version == 1 else [PAYROLL_DOC_ID],
+        document_ids=[] if version == 1 else [DECK_DOC_ID, PAYROLL_DOC_ID],
     )
 
 

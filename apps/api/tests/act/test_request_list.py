@@ -285,3 +285,54 @@ async def test_settings_llm_is_off_without_a_key_and_case_scoped_with_one(sm, mo
     async with llm_module.settings_llm(sm, cost) as llm:
         assert isinstance(llm, LLMClient)
         assert llm.cache.confidential and llm.cache.ctx.case_id == cost.case_id
+
+
+async def test_case_detail_shows_request_list_and_message_through_send(session, sm) -> None:
+    """Live case detail carries the request list and the Act message state, so the UI can
+    reach approve and send: approver name and time, send status and test mode."""
+    from tests.evaluate.builders import api_client
+
+    w, _ = await _world(session)
+    case_id = str(w.t.case.id)
+    async with api_client(sm, w.t.workspace.id) as client:
+        before = (await client.get(f"/cases/{case_id}")).json()
+    assert before["request_list"] is None and before["message"] is None
+
+    built = await build_request_list_for_case(session, w.t.workspace.id, w.t.case.id, llm=None)
+    await session.commit()
+    message_id = str(built.request_list.id)
+    async with api_client(sm, w.t.workspace.id) as client:
+        body = (await client.get(f"/cases/{case_id}")).json()
+    rl = body["request_list"]
+    assert rl["id"] == message_id and rl["message_id"] == message_id
+    assert rl["assessment_version"] == 1 and rl["email_send_enabled"] is False
+    assert rl["items"] and all(i["questions"] for i in rl["items"])
+    assert any(i["claim_ids"] for i in rl["items"])
+    msg = body["message"]
+    assert msg["id"] == message_id and msg["status"] == "draft"
+    assert msg["current_revision"]["number"] == 1 and msg["approval"] is None
+
+    actor = Actor(user_id=str(w.t.user.id), display_name=w.t.user.display_name)
+    service = ActService(PostgresActRepository(sm), SendConfig(enabled=False))
+    state = await service.get_state(case_id, message_id)
+    edited = await service.revise(
+        case_id,
+        message_id,
+        actor,
+        subject=state.current_revision.subject,
+        body=state.current_revision.body,
+        recipient="cfo@seller.example",
+    )
+    await service.approve(case_id, message_id, actor, revision_id=edited.current_revision.id)
+    async with api_client(sm, w.t.workspace.id) as client:
+        approved = (await client.get(f"/cases/{case_id}")).json()["message"]
+    assert approved["status"] == "approved"
+    assert approved["current_revision"]["number"] == 2
+    assert approved["approval"]["approver_display_name"] == w.t.user.display_name
+    assert approved["approval"]["approved_at"]
+
+    await send_current(service, case_id, message_id, actor)
+    async with api_client(sm, w.t.workspace.id) as client:
+        sent = (await client.get(f"/cases/{case_id}")).json()["message"]
+    assert sent["status"] == "suppressed_test_mode"
+    assert sent["send"]["test_mode"] is True and sent["send"]["status"] == "suppressed_test_mode"

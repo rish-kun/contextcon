@@ -8,6 +8,7 @@ from typing import Annotated
 from fastapi import Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api import cases_act as _act_sections  # noqa: F401  (request list, message)
 from app.api import cases_service, fixtures
 from app.api._base import fixture_or_501, fixtures_enabled, make_router, not_found
 from app.api.cases_deps import Actor, CaseSession
