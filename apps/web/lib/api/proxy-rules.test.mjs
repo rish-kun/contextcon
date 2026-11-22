@@ -7,6 +7,9 @@ import {
   downstreamResponseHeaders,
   filterSetCookie,
   isProtectedPath,
+  isSameOriginRequest,
+  parseOrigins,
+  requestSourceOrigin,
   sessionCookieOnly,
   signInRedirect,
   upstreamRequestHeaders,
@@ -94,4 +97,47 @@ test("sign-in redirect covers the app areas only", () => {
   );
   assert.equal(signInRedirect("/app/cases/1", "", true), null);
   assert.equal(signInRedirect("/", "", false), null);
+});
+
+test("CSRF: safe methods always pass", () => {
+  assert.equal(isSameOriginRequest("GET", new Headers({ origin: "https://evil.example" })), true);
+  assert.equal(isSameOriginRequest("HEAD", new Headers()), true);
+  assert.equal(isSameOriginRequest("OPTIONS", new Headers()), true);
+});
+
+test("CSRF: unsafe methods need this web app's origin", () => {
+  const host = "app.dealproof.example";
+  for (const method of ["POST", "PUT", "PATCH", "DELETE", "post"]) {
+    const same = new Headers({ host, origin: `https://${host}` });
+    assert.equal(isSameOriginRequest(method, same), true, method);
+    const cross = new Headers({ host, origin: "https://evil.example" });
+    assert.equal(isSameOriginRequest(method, cross), false, method);
+    // A sibling subdomain is same-site (SameSite=Lax lets it post) but not same-origin.
+    const sibling = new Headers({ host, origin: "https://blog.dealproof.example" });
+    assert.equal(isSameOriginRequest(method, sibling), false, method);
+    assert.equal(isSameOriginRequest(method, new Headers({ host })), false, method);
+    assert.equal(isSameOriginRequest(method, new Headers({ host, origin: "null" })), false);
+  }
+});
+
+test("CSRF: Referer is the fallback, Origin wins when present", () => {
+  const host = "localhost:3000";
+  const viaReferer = new Headers({ host, referer: "http://localhost:3000/login?next=/app" });
+  assert.equal(isSameOriginRequest("POST", viaReferer), true);
+  assert.equal(
+    isSameOriginRequest("POST", new Headers({ host, referer: "https://evil.example/x" })),
+    false,
+  );
+  assert.equal(isSameOriginRequest("POST", new Headers({ host, referer: "not a url" })), false);
+  const both = new Headers({ host, origin: "https://evil.example", referer: `http://${host}/` });
+  assert.equal(isSameOriginRequest("POST", both), false);
+  assert.equal(requestSourceOrigin(new Headers({ origin: "null", referer: `http://${host}/` })), null);
+});
+
+test("CSRF: configured origins are accepted", () => {
+  const origins = parseOrigins(" https://dealproof.example/ , http://localhost:3000,");
+  assert.deepEqual(origins, ["https://dealproof.example", "http://localhost:3000"]);
+  const headers = new Headers({ host: "web-abc.a.run.app", origin: "https://dealproof.example" });
+  assert.equal(isSameOriginRequest("POST", headers, origins), true);
+  assert.equal(isSameOriginRequest("POST", headers), false);
 });

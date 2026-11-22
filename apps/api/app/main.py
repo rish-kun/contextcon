@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
+from app.auth.origin import OriginCheckMiddleware
 from app.jobs.lifespan import jobs_lifespan
 from app.runtime import check_startup, is_production
 from app.settings import get_settings
@@ -28,6 +29,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # Added last, so it runs first: a cross-site POST is refused before anything else.
+    app.add_middleware(OriginCheckMiddleware, allowed_origins=settings.cors_origins)
 
     @app.get("/health")
     def health() -> dict[str, str]:

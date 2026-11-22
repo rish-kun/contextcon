@@ -9,11 +9,19 @@
  * The browser's IP goes upstream only as `X-DealProof-Client-IP`, signed with
  * `PROXY_SHARED_SECRET` (`lib/api/proxy-auth.ts`); `X-Forwarded-For` is not forwarded, so
  * the API never trusts an address a caller wrote.
+ *
+ * CSRF: POST/PUT/PATCH/DELETE (sign-in and sign-out included) need an `Origin`, or failing
+ * that a `Referer`, from this web app (`isSameOriginRequest`); anything else gets 403.
  */
 import type { NextRequest } from "next/server";
 
 import { addSignedClientIp } from "@/lib/api/proxy-auth";
-import { downstreamResponseHeaders, upstreamRequestHeaders } from "@/lib/api/proxy-rules";
+import {
+  downstreamResponseHeaders,
+  isSameOriginRequest,
+  parseOrigins,
+  upstreamRequestHeaders,
+} from "@/lib/api/proxy-rules";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -25,7 +33,13 @@ const API_BASE_URL = (process.env.API_BASE_URL?.trim() || "http://localhost:8000
 
 type Context = { params: Promise<{ path: string[] }> };
 
+/** Extra origins accepted for unsafe requests besides this host (server-only env). */
+const WEB_ORIGINS = parseOrigins(process.env.WEB_ORIGIN);
+
 async function proxy(request: NextRequest, context: Context): Promise<Response> {
+  if (!isSameOriginRequest(request.method, request.headers, WEB_ORIGINS)) {
+    return Response.json({ detail: "Cross-site request refused." }, { status: 403 });
+  }
   const { path } = await context.params;
   const target = `${API_BASE_URL}/${path.map(encodeURIComponent).join("/")}${request.nextUrl.search}`;
 

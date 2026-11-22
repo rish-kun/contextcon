@@ -115,6 +115,59 @@ export function downstreamResponseHeaders(upstream: Headers): Headers {
   return out;
 }
 
+/* ───────────────────────── CSRF: same-origin unsafe requests ───────────────────────── */
+
+/** Methods that change state. They need an `Origin` (or `Referer`) from this web app. */
+export const UNSAFE_METHODS: ReadonlySet<string> = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+/** The origin a request says it came from: `Origin`, else the `Referer`'s origin. */
+export function requestSourceOrigin(headers: Headers): string | null {
+  const origin = headers.get("origin");
+  if (origin && origin !== "null") return origin;
+  if (origin === "null") return null; // opaque origin (sandboxed frame, file:, …)
+  const referer = headers.get("referer");
+  if (!referer) return null;
+  try {
+    return new URL(referer).origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether a proxied request may go upstream. Safe methods always may. Unsafe ones must
+ * come from this web app: the source origin's host equals the request's `Host` (which a
+ * cross-site page cannot set), or the origin is listed in `allowedOrigins`. The cookie is
+ * SameSite=Lax, but that still lets same-site pages (other subdomains) post; this is the
+ * gate, since the API never sees the browser's `Origin` through the proxy.
+ */
+export function isSameOriginRequest(
+  method: string,
+  headers: Headers,
+  allowedOrigins: readonly string[] = [],
+): boolean {
+  if (!UNSAFE_METHODS.has(method.toUpperCase())) return true;
+  const source = requestSourceOrigin(headers);
+  if (!source) return false;
+  if (allowedOrigins.includes(source)) return true;
+  let host: string;
+  try {
+    host = new URL(source).host;
+  } catch {
+    return false;
+  }
+  const ownHost = headers.get("host");
+  return ownHost !== null && host.toLowerCase() === ownHost.toLowerCase();
+}
+
+/** Comma-separated origins (e.g. `WEB_ORIGIN`) as a list. */
+export function parseOrigins(value: string | undefined): string[] {
+  return (value ?? "")
+    .split(",")
+    .map((o) => o.trim().replace(/\/+$/, ""))
+    .filter(Boolean);
+}
+
 /* ───────────────────────── Sign-in redirect (proxy.ts) ───────────────────────── */
 
 /** App areas behind sign-in. The API is the real check; this only saves a round trip. */
