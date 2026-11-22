@@ -141,7 +141,7 @@ async def test_direct_verify_waits_for_strategy_criteria_then_scores(sm, session
     assert view.judgments.opportunity_fit.fit is None
     assert v1.assessment.disposition.value == "cannot_assess"
 
-    async with api_client(sm, w.t.workspace.id) as client:
+    async with api_client(sm, w.t.workspace.id, w.t.user.id) as client:
         body = {
             "criteria": [
                 {k: v for k, v in INDIA_MUST.items() if k != "crustdata_filter"}
@@ -240,7 +240,7 @@ async def test_assessments_route_lists_history_with_diffs(sm, session) -> None:
     assert other.status_code == 404
 
 
-async def test_case_routes_fail_closed_without_sign_in() -> None:
+async def test_case_routes_need_a_session() -> None:
     import httpx2 as httpx
 
     from app.main import create_app
@@ -248,4 +248,4 @@ async def test_case_routes_fail_closed_without_sign_in() -> None:
     transport = httpx.ASGITransport(app=create_app())
     async with httpx.AsyncClient(transport=transport, base_url="http://t") as client:
         res = await client.get("/cases/00000000-0000-0000-0000-000000000000/assessments")
-    assert res.status_code == 501
+    assert res.status_code == 401

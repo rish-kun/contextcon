@@ -9,6 +9,8 @@ import httpx2 as httpx
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.api import cases as case_routes
+from app.auth.deps import current_user
+from app.auth.sessions import AuthUser
 from app.db import repo
 from app.db.models import (
     Case,
@@ -204,16 +206,23 @@ async def add_payroll(session: AsyncSession, w: World) -> Evidence:
     return ev
 
 
-def api_client(sm: async_sessionmaker[AsyncSession], workspace_id: uuid.UUID) -> httpx.AsyncClient:
+def api_client(
+    sm: async_sessionmaker[AsyncSession], workspace_id: uuid.UUID, user_id: uuid.UUID | None = None
+) -> httpx.AsyncClient:
     app = create_app()
 
-    async def workspace() -> uuid.UUID:
-        return workspace_id
+    async def user() -> AuthUser:
+        return AuthUser(
+            id=user_id or uuid.uuid4(),
+            workspace_id=workspace_id,
+            email="analyst@example.test",
+            display_name="Test analyst",
+        )
 
     async def session():
         async with sm() as s:
             yield s
 
-    app.dependency_overrides[case_routes.case_workspace] = workspace
+    app.dependency_overrides[current_user] = user
     app.dependency_overrides[case_routes.case_session] = session
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t")

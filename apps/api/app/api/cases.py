@@ -4,7 +4,7 @@ import uuid
 from collections.abc import AsyncIterator
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import fixtures
@@ -19,6 +19,7 @@ from app.api.schemas.cases import (
     IdentityPickIn,
 )
 from app.api.schemas.runs import RunOut
+from app.auth.deps import CurrentUser, WorkspaceId
 from app.db.models import AssessmentVersion, Case
 from app.db.repo import NotFound, list_case_children
 from app.db.repo import get_case as repo_get_case
@@ -28,18 +29,13 @@ from app.pipelines import evaluate
 router = make_router(prefix="/cases", tags=["cases"])
 
 
-# --- Case access (CP-22) -----------------------------------------------------------
-# Sign-in (CP-16) overrides `case_workspace` through `app.dependency_overrides` with the
-# signed-in user's workspace. Until then real case routes fail closed with 501; fixture
-# mode needs neither a workspace nor a database.
+# --- Case access -------------------------------------------------------------------
+# The workspace comes from the signed-in user (`app.auth.deps`, 401 without a session).
+# Fixture mode needs neither a workspace nor a database, so both resolve to None there.
 
 
-async def case_workspace() -> uuid.UUID | None:
-    if fixtures_enabled():
-        return None
-    raise HTTPException(
-        status.HTTP_501_NOT_IMPLEMENTED, "Not implemented yet: case access needs sign-in (CP-16)."
-    )
+async def case_workspace(workspace_id: WorkspaceId) -> uuid.UUID | None:
+    return None if fixtures_enabled() else workspace_id
 
 
 async def case_session() -> AsyncIterator[AsyncSession | None]:
@@ -113,14 +109,16 @@ def start_verify(case_id: str) -> RunOut:
 
 @router.put("/{case_id}/criteria", response_model=CaseOut)
 async def set_case_criteria(
-    case_id: str, body: CaseCriteriaIn, workspace: Workspace, session: Session
+    case_id: str, body: CaseCriteriaIn, user: CurrentUser, workspace: Workspace, session: Session
 ) -> CaseOut:
     """Strategy criteria for a direct-verify case, needed before any fit score is issued."""
     # Replaces the case's criteria and queues a re-evaluation (the run is in CaseOut.run).
     if workspace is None or session is None:
         return _fixture_case(case_id)
     try:
-        await evaluate.set_case_criteria(session, workspace, _case_uuid(case_id), body.criteria)
+        await evaluate.set_case_criteria(
+            session, workspace, _case_uuid(case_id), body.criteria, user_id=user.id
+        )
         await session.commit()
         case = await _load_case(session, workspace, case_id)
         return await evaluate.case_out(session, case)

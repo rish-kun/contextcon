@@ -88,7 +88,14 @@ ROUTES: list[tuple[str, str, str, object]] = [
 ]
 
 # Implemented with auth (CP-16): outside fixture mode they answer 401 without a session.
-SESSION_ROUTES = {"/auth/me", "/runs/{run_id}", "/runs/{run_id}/events", "/runs/{run_id}/resume"}
+SESSION_ROUTES = {
+    "/auth/me",
+    "/runs/{run_id}",
+    "/runs/{run_id}/events",
+    "/runs/{run_id}/resume",
+    "/cases/{case_id}/criteria",
+    "/cases/{case_id}/assessments",
+}
 AUTH_ROUTES = SESSION_ROUTES | {"/auth/login", "/auth/logout"}
 STUB_ROUTES = [r for r in ROUTES if r[1] not in AUTH_ROUTES]
 
