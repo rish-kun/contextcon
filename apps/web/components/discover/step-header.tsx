@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 const STEPS = ["Thesis", "Criteria", "Shortlist"] as const;
 
 /**
- * The page title and the quiet three-step header shared by every Discover state:
+ * The page title and the quiet three-step header shared by every state of a screening:
  * 1 Thesis, 2 Criteria, 3 Shortlist. The current step is said in words to a screen
  * reader; earlier steps are ink, later ones muted.
  */
@@ -22,7 +22,7 @@ export function DiscoverHeader({
     <header className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="text-2xl font-medium text-ink">Discover</h1>
+          <h1 className="text-2xl font-medium text-ink">{step === 1 ? "New screening" : "Screening"}</h1>
           {children}
         </div>
         {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
@@ -59,7 +59,7 @@ export function DiscoverPage({ className, ...props }: React.ComponentProps<"div"
   return (
     <div
       className={cn(
-        "flex w-full max-w-360 animate-row-in flex-col gap-8 motion-reduce:animate-none",
+        "flex w-full flex-col gap-6",
         className,
       )}
       {...props}

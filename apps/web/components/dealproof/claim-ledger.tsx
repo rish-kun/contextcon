@@ -134,6 +134,12 @@ export interface ClaimLedgerRowProps {
   index?: number;
   /** The check is still running: the spine shows an open ring and "Checking". */
   pending?: boolean;
+  /**
+   * True when this row appeared because of an event the reader is watching, such as a
+   * claim streamed in by a live run. Only then does it fade and rise. A ledger opened on
+   * a finished case is simply there.
+   */
+  arrived?: boolean;
   /** Selected for the request list: accent tint and a left bar. */
   selected?: boolean;
   defaultExpanded?: boolean;
@@ -155,6 +161,7 @@ export function ClaimLedgerRow({
   claim,
   index = 0,
   pending = false,
+  arrived = false,
   selected = false,
   defaultExpanded = false,
   changedHref,
@@ -202,9 +209,10 @@ export function ClaimLedgerRow({
         if (isOwnEvent(event)) setExpanded((value) => !value);
       }}
       onKeyDown={onKeyDown}
-      style={{ animationDelay: `${staggerDelay(index)}s` }}
+      style={arrived ? { animationDelay: `${staggerDelay(index)}s` } : undefined}
       className={cn(
-        "focus-inset grid animate-row-in cursor-default gap-x-0 gap-y-3 border-b border-line px-4 py-3 text-dense transition-colors motion-reduce:animate-none lg:ledger-grid lg:gap-y-0 lg:px-0 lg:py-0",
+        arrived && "animate-row-in motion-reduce:animate-none",
+        "focus-inset grid cursor-default gap-x-0 gap-y-3 border-b border-line px-4 py-3 text-dense transition-colors lg:ledger-grid lg:gap-y-0 lg:px-0 lg:py-0",
         selected ? "selected-bar bg-accent-tint" : "hover:bg-surface-raised",
         className,
       )}

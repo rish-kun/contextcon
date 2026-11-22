@@ -31,7 +31,15 @@ export const transition = {
   fast: { duration: duration.fast, ease },
   base: { duration: duration.base, ease },
   slow: { duration: duration.slow, ease },
+  /** Exits are always quicker than entrances and never travel. */
+  exit: { duration: duration.fast, ease },
 } as const;
+
+/**
+ * For a connector or a meter growing in: animate `scaleX` from 0 to 1 with
+ * `transform-origin: left`, or `pathLength` on an SVG line. Never an animated width.
+ */
+export const draw = { duration: duration.slow, ease } as const;
 
 /** Delay for the nth item of a staggered list, capped at STAGGER_LIMIT. */
 export function staggerDelay(index: number): number {

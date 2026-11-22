@@ -54,6 +54,21 @@ interface FixtureData {
 const fixtures = data as unknown as FixtureData;
 const PRIMARY_CASE_ID = fixtures.cases[0].id;
 
+/**
+ * What the person did in this browser session. Fixture results are a fixed example, but
+ * the words they typed (a thesis, criteria, an investor profile, a message draft) are
+ * kept and shown back, so the flow reads the way it will against the real service. The
+ * screens say that the results themselves are an example.
+ */
+const session: {
+  thesisText: string | null;
+  criteria: ThesisOut["criteria"] | null;
+  investorProfile: InvestorSearchIn | null;
+  /** Where the seller request stands. It starts with no message, so it can be drafted, approved and sent once. */
+  message: keyof FixtureData["message"] | null;
+  typed: { recipient: string; subject: string; body: string } | null;
+} = { thesisText: null, criteria: null, investorProfile: null, message: null, typed: null };
+
 /** Deep copy, so callers can mutate results freely. */
 const clone = <T>(value: T): T => structuredClone(value);
 const delay = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -77,14 +92,24 @@ export const me = async () => clone(fixtures.me);
 
 export async function createThesis(text: string): Promise<ThesisOut> {
   await delay(600);
+  session.thesisText = text;
+  session.criteria = null;
   return { ...clone(fixtures.thesis), text, status: "draft", run: null, shortlist: [] };
 }
 
-export const listTheses = async () => clone(fixtures.theses);
+export const listTheses = async () =>
+  clone(fixtures.theses).map((thesis) =>
+    thesis.id === fixtures.thesis.id && session.thesisText
+      ? { ...thesis, text: session.thesisText, criteria_count: session.criteria?.length ?? thesis.criteria_count }
+      : thesis,
+  );
 
 export async function getThesis(id: string): Promise<ThesisOut> {
   if (id !== fixtures.thesis.id) notFound("Thesis");
-  return clone(fixtures.thesis);
+  const thesis = clone(fixtures.thesis);
+  if (session.thesisText) thesis.text = session.thesisText;
+  if (session.criteria) thesis.criteria = clone(session.criteria);
+  return thesis;
 }
 
 export async function updateCriteria(id: string, criteria: CriterionIn[]): Promise<ThesisOut> {
@@ -97,6 +122,7 @@ export async function updateCriteria(id: string, criteria: CriterionIn[]): Promi
     assessed_from_evidence: !c.crustdata_filter,
     edited: true,
   }));
+  session.criteria = clone(thesis.criteria);
   return thesis;
 }
 
@@ -107,14 +133,27 @@ export async function startSearch(id: string): Promise<RunOut> {
 
 export async function createInvestorSearch(profile: InvestorSearchIn): Promise<InvestorSearchOut> {
   await delay();
+  session.investorProfile = profile;
   return { ...clone(fixtures.investorSearch), profile };
 }
 
-export const listInvestorSearches = async () => clone(fixtures.investorSearches);
+export const listInvestorSearches = async () =>
+  clone(fixtures.investorSearches).map((search) =>
+    search.id === fixtures.investorSearch.id && session.investorProfile
+      ? {
+          ...search,
+          sector: session.investorProfile.sector,
+          location: session.investorProfile.location,
+          stage: session.investorProfile.stage,
+        }
+      : search,
+  );
 
 export async function getInvestorSearch(id: string): Promise<InvestorSearchOut> {
   if (id !== fixtures.investorSearch.id) notFound("Investor search");
-  return clone(fixtures.investorSearch);
+  const search = clone(fixtures.investorSearch);
+  if (session.investorProfile) search.profile = { ...session.investorProfile };
+  return search;
 }
 
 export async function caseOut(id: string): Promise<CaseOut> {
@@ -129,7 +168,29 @@ export async function createCase(body: CaseCreate): Promise<CaseOut> {
 
 export const listCases = async () => clone(fixtures.cases);
 
-export const getCase = async (id: string) => lookup(fixtures.caseDetails, id, "Case");
+/** The fixture message in its current state, carrying what the person typed. */
+function currentMessage(): MessageOut | null {
+  if (!session.message) return null;
+  const message = clone(fixtures.message[session.message]);
+  if (session.typed) {
+    const current = { ...message.current_revision, ...session.typed };
+    message.current_revision = current;
+    message.revisions = message.revisions.map((revision) =>
+      revision.id === current.id ? current : revision,
+    );
+  }
+  return message;
+}
+
+export async function getCase(id: string): Promise<CaseDetail> {
+  const detail = lookup(fixtures.caseDetails, id, "Case");
+  // The request on the primary case follows this session: it starts undrafted.
+  if (id === PRIMARY_CASE_ID && detail.request_list) {
+    detail.message = currentMessage();
+    detail.request_list.message_id = detail.message?.id ?? null;
+  }
+  return detail;
+}
 
 export async function startVerify(caseId: string): Promise<RunOut> {
   const run = (await caseOut(caseId)).run;
@@ -180,17 +241,25 @@ export async function getRequestList(caseId: string): Promise<RequestListOut> {
   return clone(fixtures.requestList);
 }
 
-export const message = async (state: keyof FixtureData["message"]) =>
-  clone(fixtures.message[state]);
+/** Moves the fixture message to a state, keeping what was typed. Reading passes no state. */
+export async function message(
+  state?: keyof FixtureData["message"],
+  typed?: { recipient: string; subject: string; body: string },
+): Promise<MessageOut> {
+  if (state) session.message = state;
+  if (typed) session.typed = { recipient: typed.recipient, subject: typed.subject, body: typed.body };
+  return currentMessage() ?? clone(fixtures.message.draft);
+}
 
 export async function sendMessage(): Promise<SendOut> {
   await delay(500);
+  session.message = "suppressed";
   return clone(fixtures.message.suppressed.send ?? notFound("Send"));
 }
 
 export const sendSummary = async (): Promise<SendSummaryOut> => ({
   sent: 0,
-  suppressed_test_mode: 1,
+  suppressed_test_mode: session.message === "suppressed" ? 1 : 0,
   failed: 0,
   unknown: 0,
   sending: 0,

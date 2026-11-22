@@ -171,7 +171,7 @@ export function ThesisView({ thesisId, live }: { thesisId: string; live: boolean
           title="This thesis was not found"
           actions={
             <Button asChild variant="primary">
-              <Link href="/app/discover/new">New thesis</Link>
+              <Link href="/app/discover/new">New screening</Link>
             </Button>
           }
         >
@@ -223,7 +223,7 @@ export function ThesisView({ thesisId, live }: { thesisId: string; live: boolean
       step={phase === "criteria" ? 2 : 3}
       actions={
         <Button asChild>
-          <Link href="/app/discover/new">New thesis</Link>
+          <Link href="/app/discover/new">New screening</Link>
         </Button>
       }
     >

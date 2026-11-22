@@ -349,9 +349,12 @@ export function ShortlistCard({
   item,
   thesisId,
   index,
+  arrived = false,
 }: {
   item: ShortlistItemOut;
   thesisId: string;
+  /** True when the card appeared during a search the reader is watching. Only then does it rise in. */
+  arrived?: boolean;
   /** Position in the list, for the entrance stagger. */
   index: number;
 }) {
@@ -365,7 +368,7 @@ export function ShortlistCard({
     <motion.article
       id={`company-${item.id}`}
       aria-labelledby={headingId}
-      initial={{ opacity: 0, y: rise }}
+      initial={arrived ? { opacity: 0, y: rise } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ ...transition.slow, delay: staggerDelay(index) }}
       className="scroll-mt-24 rounded-lg border border-line bg-surface"

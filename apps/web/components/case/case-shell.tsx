@@ -179,10 +179,7 @@ export function CaseShell({ children }: { children: React.ReactNode }) {
             <CaseTabs detail={detail} active={active} />
           </div>
           <div className="flex items-start gap-8">
-            <div
-              key={active}
-              className="min-w-0 flex-1 animate-fade-in motion-reduce:animate-none"
-            >
+            <div className="min-w-0 flex-1">
               {children}
             </div>
             {/* The memo and the Assessment tab already carry the five judgments in full. */}

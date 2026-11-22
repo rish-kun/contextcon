@@ -38,7 +38,7 @@ export function Settings() {
   const soundId = useId();
 
   return (
-    <div className="flex animate-row-in flex-col motion-reduce:animate-none">
+    <div className="flex flex-col">
       <h1 className="mb-6 text-2xl font-medium text-ink">Settings</h1>
 
       <Section title="Account">

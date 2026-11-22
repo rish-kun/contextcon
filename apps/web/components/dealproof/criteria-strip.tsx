@@ -88,6 +88,7 @@ export function CriteriaStrip({
   size = "default",
   caption = false,
   legend = true,
+  arrived = false,
   className,
 }: {
   fit: FitResult;
@@ -96,6 +97,8 @@ export function CriteriaStrip({
   caption?: boolean;
   /** Set to false when a list of strips shares one legend, shown once above the list. */
   legend?: boolean;
+  /** True when the fit was just computed in front of the reader. Only then do the cells fill in. */
+  arrived?: boolean;
   className?: string;
 }) {
   const unavailable = isUnavailable(fit);
@@ -112,7 +115,8 @@ export function CriteriaStrip({
   const cells = criteria.map((criterion, index) => {
     const verdict = unavailable ? "unknown" : criterion.verdict;
     const cellClass = cn(
-      "relative min-w-1 basis-0 animate-cell-in border motion-reduce:animate-none",
+      "relative min-w-1 basis-0 border",
+      arrived && "animate-cell-in motion-reduce:animate-none",
       compact ? "h-1.5 rounded-none" : "h-6 rounded-xs",
       CELL_STYLE[verdict],
       verdict === "unknown" && (compact ? "hatch-dense" : "hatch"),

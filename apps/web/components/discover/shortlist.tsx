@@ -2,7 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import { useId, useState } from "react";
-import type { ShortlistItemOut } from "@/lib/api/client";
+import { isFixtureMode, type ShortlistItemOut } from "@/lib/api/client";
 import { plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,16 @@ import { factEstimate, factEvidence, toEvidence } from "./adapt";
 import { EmptyState } from "./notice";
 import { Marker, NoExcerpt, ShortlistCard } from "./shortlist-card";
 import { ShortlistOverview } from "./shortlist-overview";
+
+/** Fixture mode keeps the thesis you typed, but the companies are a fixed example. Said once, here. */
+function FixedExample({ what }: { what: string }) {
+  if (!isFixtureMode) return null;
+  return (
+    <p className="self-start rounded-xs border border-dashed border-line-strong px-2 py-0.5 text-xs text-ink-secondary">
+      Fixed example · {what}
+    </p>
+  );
+}
 
 /** A company removed because a record verifiably failed a must-have. */
 function ExcludedRow({ item }: { item: ShortlistItemOut }) {
@@ -175,6 +185,7 @@ export function Shortlist({
             Sorted by fit score, with ties broken by share of criteria assessable
           </p>
         </div>
+        <FixedExample what="these companies are fictional and do not change with the thesis or criteria you enter" />
         <div className="flex flex-col gap-2 rounded-md border border-line bg-surface-raised px-4 py-3">
           <p className="text-sm text-ink">
             Fit measures match to your criteria. It says nothing about returns.

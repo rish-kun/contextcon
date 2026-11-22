@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { InvestorSearchOut } from "@/lib/api/client";
+import { isFixtureMode, type InvestorSearchOut } from "@/lib/api/client";
 import { formatDate, plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { sentence } from "./format";
@@ -70,6 +70,11 @@ export function Shortlist({ search }: { search: InvestorSearchOut }) {
           more. An investor is listed only where a dated funding record supports it, and any
           message to an investor waits for a person&apos;s approval.
         </p>
+        {isFixtureMode ? (
+          <p className="mt-1 self-start rounded-xs border border-dashed border-line-strong px-2 py-0.5 text-xs text-ink-secondary">
+            Fixed example · these investors are fictional and do not change with the profile you enter
+          </p>
+        ) : null}
       </div>
 
       <KpiRow label="Investor search summary">

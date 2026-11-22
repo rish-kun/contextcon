@@ -85,7 +85,7 @@ export function ComparablesTab() {
                 <li
                   key={peer.crustdata_company_id}
                   style={{ animationDelay: `${staggerDelay(index)}s` }}
-                  className="grid animate-row-in gap-x-6 gap-y-1 px-4 py-3 text-dense motion-reduce:animate-none md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
+                  className="grid gap-x-6 gap-y-1 px-4 py-3 text-dense md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
                 >
                   <div className="flex flex-col">
                     <span className="text-sm font-medium text-ink">{peer.name}</span>

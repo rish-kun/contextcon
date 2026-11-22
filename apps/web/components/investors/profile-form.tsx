@@ -189,7 +189,7 @@ export function ProfileForm({ initial }: { initial?: Partial<InvestorSearchIn> }
           </Field>
           <Choice
             label="Stage"
-            placeholder="Series A"
+            placeholder="Choose a stage"
             options={withCurrent(STAGE_OPTIONS, initial?.stage ?? "", stageLabel)}
             value={profile.stage}
             error={errors.stage}
@@ -197,7 +197,7 @@ export function ProfileForm({ initial }: { initial?: Partial<InvestorSearchIn> }
           />
           <Choice
             label="Size"
-            placeholder="51 to 200 people"
+            placeholder="Choose a size"
             options={withCurrent(SIZE_OPTIONS, initial?.size ?? "", sizeLabel)}
             value={profile.size}
             error={errors.size}
@@ -205,7 +205,7 @@ export function ProfileForm({ initial }: { initial?: Partial<InvestorSearchIn> }
           />
           <Choice
             label="Funding sought"
-            placeholder="Growth equity"
+            placeholder="Choose a funding kind"
             options={withCurrent(FUNDING_OPTIONS, initial?.funding_sought ?? "", fundingLabel)}
             value={profile.funding_sought}
             error={errors.funding_sought}

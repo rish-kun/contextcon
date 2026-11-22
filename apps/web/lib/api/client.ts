@@ -287,7 +287,7 @@ export async function getRequestList(caseId: string, init?: RequestInit): Promis
 
 /** Turn the (edited) draft into message revision 1. */
 export async function createMessage(caseId: string, body: RevisionIn): Promise<MessageOut> {
-  if (isFixtureMode) return (await fx()).message("draft");
+  if (isFixtureMode) return (await fx()).message("draft", body);
   return call("POST", `/cases/${enc(caseId)}/messages`, { json: body });
 }
 
@@ -296,7 +296,7 @@ export async function getMessage(
   messageId: string,
   init?: RequestInit,
 ): Promise<MessageOut> {
-  if (isFixtureMode) return (await fx()).message("suppressed");
+  if (isFixtureMode) return (await fx()).message();
   return call("GET", `/cases/${enc(caseId)}/messages/${enc(messageId)}`, { init });
 }
 
@@ -306,7 +306,7 @@ export async function editMessage(
   messageId: string,
   body: EditIn,
 ): Promise<MessageOut> {
-  if (isFixtureMode) return (await fx()).message("edited");
+  if (isFixtureMode) return (await fx()).message("edited", body);
   return call("POST", `/cases/${enc(caseId)}/messages/${enc(messageId)}/revisions`, {
     json: body,
   });
