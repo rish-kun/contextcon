@@ -17,6 +17,38 @@ from app.clients.crustdata_models import CompanyRecord
 from app.domain.types import FundingRecord
 from app.rules.compare import normalize_text
 
+# Keys dropped from anything cached: personal profile links, and the people group
+# (never requested here; dropped if a provider sends it anyway).
+_PERSONAL_KEY = re.compile(
+    r"profile_url|linkedin|twitter|facebook|instagram|permalink|^people$", re.IGNORECASE
+)
+
+
+def scrub_personal(value: Any) -> Any:
+    """Contact fields and personal profile links removed, recursively."""
+    value = strip_contact_fields(value)
+    if isinstance(value, dict):
+        return {k: scrub_personal(v) for k, v in value.items() if not _PERSONAL_KEY.search(k)}
+    if isinstance(value, list):
+        return [scrub_personal(v) for v in value]
+    return value
+
+
+class ScrubbingCache:
+    """Wraps the step's response cache so cached Crustdata bodies hold no personal
+    contact details or profile links either (`CrustdataClient` strips only emails and
+    phone numbers before caching)."""
+
+    def __init__(self, inner: Any) -> None:
+        self.inner = inner
+
+    async def get(self, key: str) -> Any | None:
+        return await self.inner.get(key)
+
+    async def set(self, key: str, value: Any) -> None:
+        await self.inner.set(key, scrub_personal(value))
+
+
 # Investor attributes kept. Profile links (`permalink`, `crunchbase_profile_url`) are
 # dropped: for an individual investor they are a personal profile link.
 INVESTOR_KEYS = ("name", "uuid", "type")

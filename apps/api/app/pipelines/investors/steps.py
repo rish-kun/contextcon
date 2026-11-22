@@ -28,7 +28,12 @@ from app.domain.types import RankedInvestor, SearchScope
 from app.extraction.investors import BusinessProfile, extract_investor_spec
 from app.extraction.llm import StructuredLlm
 from app.jobs import BudgetExceeded, StepContext, StepSpec, step_handler
-from app.pipelines.investors.ingest import compact_company, funding_records, has_dated_rounds
+from app.pipelines.investors.ingest import (
+    ScrubbingCache,
+    compact_company,
+    funding_records,
+    has_dated_rounds,
+)
 from app.pipelines.investors.profile import KIND_LABELS, SearchPlan, build_plan
 from app.rules import policy
 from app.rules.compare import normalize_text
@@ -66,14 +71,14 @@ def stable_id(*parts: object) -> uuid.UUID:
 
 
 class ClientFactory(Protocol):
-    def crustdata(self, ctx: StepContext) -> CrustdataClient: ...
+    def crustdata(self, *, recorder: Any, cache: Any) -> CrustdataClient: ...
 
     def llm(self, ctx: StepContext) -> StructuredLlm | None: ...
 
 
 class SettingsClients:
-    def crustdata(self, ctx: StepContext) -> CrustdataClient:
-        return CrustdataClient.from_settings(recorder=ctx.recorder, cache=ctx.cache)
+    def crustdata(self, *, recorder: Any, cache: Any) -> CrustdataClient:
+        return CrustdataClient.from_settings(recorder=recorder, cache=cache)
 
     def llm(self, ctx: StepContext) -> StructuredLlm | None:
         if not get_settings().anthropic_api_key.get_secret_value():
@@ -84,6 +89,11 @@ class SettingsClients:
 
 
 clients: ClientFactory = SettingsClients()
+
+
+def _crustdata(ctx: StepContext) -> CrustdataClient:
+    cache = ScrubbingCache(ctx.cache) if ctx.cache is not None else None
+    return clients.crustdata(recorder=ctx.recorder, cache=cache)
 
 
 def step_specs(*, search_limit: int | None = None, enrich_limit: int | None = None) -> list:
@@ -214,7 +224,7 @@ async def comparables_step(ctx: StepContext) -> dict[str, Any]:
     searches: list[dict[str, Any]] = []
     found: dict[int, dict[str, Any]] = {}
     searched_at = _utcnow()
-    client = clients.crustdata(ctx)
+    client = _crustdata(ctx)
     try:
         for with_size in (True, False):
             if not with_size and (not plan.employee_bands or len(found) >= MIN_COMPARABLES):
@@ -358,7 +368,7 @@ async def enrich_step(ctx: StepContext) -> dict[str, Any]:
     if take:
         ids = [int(c["company_id"]) for c in take]
         await ctx.set_detail(f"Reading funding rounds of {len(ids)} companies")
-        client = clients.crustdata(ctx)
+        client = _crustdata(ctx)
         try:
             results, record = await client.enrich_company(ids, fields=ENRICH_FIELDS)
         finally:
