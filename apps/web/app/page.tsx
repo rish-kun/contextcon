@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import {
   AudienceSection,
+  CaseSection,
   CtaSection,
   DiffersSection,
   FitSection,
@@ -12,7 +13,6 @@ import {
   ProblemSection,
   SiteFooter,
   SiteHeader,
-  StatusSection,
   StepsSection,
 } from "@/components/marketing/sections";
 
@@ -39,7 +39,7 @@ export default function Home() {
         <Hero />
         <StepsSection />
         <ProblemSection />
-        <StatusSection />
+        <CaseSection />
         <FitSection />
         <JudgmentSection />
         <InvestorSection />

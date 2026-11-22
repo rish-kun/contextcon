@@ -1,233 +1,313 @@
 /**
  * Home page copy and illustration data.
  *
- * COPY: placeholder wording drawn from `DealProof product description.md`.
- * The final copy is written in docs/content/home.md; when it lands, replace the
- * strings here and keep the shapes.
+ * Copy comes from docs/content/home.md; keep the two in step.
  *
- * Every company, investor and claim below is an illustration built on the PRD's
- * Pune example. The page labels it as such wherever it appears.
+ * Every company, investor, claim and source below is an illustration built on the
+ * PRD's Pune example, shaped like real API data so the page renders the product's own
+ * components. The page labels it as an illustration wherever it appears.
  */
-import type { ClaimStatus, Disposition } from "@/lib/types";
+import type {
+  Assessment,
+  Claim,
+  ClaimStatus,
+  ClaimStatusCounts,
+  Disposition,
+  Evidence,
+  FitResult,
+  ReliabilityClass,
+} from "@/lib/types";
 
 export const ILLUSTRATION_LABEL = "Illustration, not a real company";
 export const ILLUSTRATION_COMPANY = "Meridian Warehousing";
 
-export const NAV_LINKS = [
-  { href: "#how", label: "How it works" },
-  { href: "#ledger", label: "The claim ledger" },
-  { href: "#principles", label: "Principles" },
-  { href: "#limits", label: "What it is not" },
-] as const;
+export const NAV = {
+  links: [
+    { href: "#how", label: "How it works" },
+    { href: "#case", label: "The claim ledger" },
+    { href: "#principles", label: "Principles" },
+  ],
+  login: "Log in",
+  open: "Open app",
+} as const;
 
 export const HERO = {
   eyebrow: "First-pass screening for investors and acquirers",
   title: "Know what is proven before the second meeting",
-  lead: "DealProof finds companies that match your thesis, checks each claim against dated, independent evidence, and says plainly what it could not verify",
+  lead: "DealProof finds companies that match your thesis, checks each claim against dated, independent evidence, and says plainly what it could not verify.",
   primary: "Start a screening",
-  secondary: "See how it works",
+  secondary: "See a finished case",
 } as const;
 
-/* ───────────────────────── The claim ledger ───────────────────────── */
+/* ───────────────────────── Illustration: evidence ───────────────────────── */
 
-export type SourceKind =
-  | "registry"
-  | "profiles"
-  | "announcement"
-  | "funding"
-  | "document";
+const RETRIEVED_AT = "2026-11-22T11:12:00+05:30";
 
-export interface SourceRef {
-  kind: SourceKind;
-  label: string;
-  /** Written the one way dates are written: `12 Mar 2014`, or `Oct 2026`. */
-  asOf: string;
+function ev(
+  label: string,
+  asOf: string | null,
+  reliability: ReliabilityClass,
+): Evidence {
+  return {
+    source: {
+      provider: "Illustration",
+      label,
+      as_of: asOf,
+      retrieved_at: RETRIEVED_AT,
+      reliability,
+    },
+  };
 }
 
-export interface LedgerRow {
-  n: number;
-  claim: string;
-  category: string;
-  page: string;
-  status: ClaimStatus;
-  /** What the record shows, in DealProof's words. */
-  record: string;
-  estimate?: { value: string; kind: "Estimate" | "Signal" };
-  sources: SourceRef[];
-  notes?: { label: string; text: string }[];
-  settle?: string;
-}
+const deck = (page: number) =>
+  ev(`Seller deck p. ${page}`, "2026-11", "seller_document");
 
-export const LEDGER_ROWS: LedgerRow[] = [
+const SRC = {
+  registry: ev("Registry mirror", "2014-03-12", "registry"),
+  profiles: ev(
+    "Crustdata profiles",
+    "2026-10",
+    "professional_profile_signal",
+  ),
+  career: ev("Professional record", "2026-11", "professional_profile_signal"),
+  funding: ev("Funding record", "2025-06-03", "news"),
+  fundingNews: ev("Announcement", "2025-06-05", "company_announcement"),
+  facility: ev("Company announcement", "2026-09-09", "company_announcement"),
+  charge: ev("Registry mirror", "2025-08-18", "registry"),
+};
+
+const HEADCOUNT_BASIS = "from professional profiles, not a payroll count";
+
+/* ───────────────────────── Illustration: the claim ledger ───────────────────────── */
+
+export const CLAIMS: Claim[] = [
   {
-    n: 1,
-    claim: "Incorporated in 2014, based in Pune",
+    id: "c1",
+    number: 1,
+    text: "Incorporated in 2014, based in Pune",
     category: "Identity",
-    page: "Seller deck p. 2",
+    stated_in: deck(2),
     status: "supported",
-    record: "Incorporated 2014, registered office in Pune",
-    sources: [
-      { kind: "registry", label: "Registry mirror", asOf: "12 Mar 2014" },
+    record: [
+      {
+        text: "The company registry record states both",
+        evidence: [SRC.registry],
+      },
     ],
   },
   {
-    n: 2,
-    claim: "We employ 250 people",
+    id: "c2",
+    number: 2,
+    text: "We employ 250 people",
     category: "Team size",
-    page: "Seller deck p. 4",
+    stated_in: deck(4),
     status: "cannot_verify",
-    record: "A profile-based estimate is lower",
-    estimate: { value: "~180 people", kind: "Estimate" },
-    sources: [
-      { kind: "profiles", label: "Professional profiles", asOf: "Oct 2026" },
-    ],
-    notes: [
+    record: [
       {
-        label: "Why it is open",
-        text: "Warehouse staff rarely have professional profiles",
+        text: "180 people",
+        estimate: { kind: "estimate", basis: HEADCOUNT_BASIS },
+        evidence: [SRC.profiles],
       },
     ],
-    settle: "A dated payroll summary",
+    note: "A profile-based estimate is lower, but warehouse staff rarely have professional profiles.",
+    what_would_settle: "Dated payroll summary",
   },
   {
-    n: 3,
-    claim: "Our founder ran operations at a national logistics firm",
+    id: "c3",
+    number: 3,
+    text: "Our founder ran operations at a national logistics firm",
     category: "Leadership",
-    page: "Seller deck p. 5",
+    stated_in: deck(5),
     status: "supported",
-    record: "A professional record shows the role and the years",
-    sources: [
-      { kind: "profiles", label: "Professional record", asOf: "Nov 2026" },
+    record: [
+      {
+        text: "A professional record shows the role and the years",
+        evidence: [SRC.career],
+      },
     ],
   },
   {
-    n: 4,
-    claim: "We raised growth funding in 2025",
+    id: "c4",
+    number: 4,
+    text: "We raised growth funding in 2025",
     category: "Funding",
-    page: "Seller deck p. 7",
+    stated_in: deck(7),
     status: "supported",
-    record: "A funding record and a dated announcement agree",
-    sources: [
-      { kind: "funding", label: "Funding record", asOf: "3 Jun 2025" },
-      { kind: "announcement", label: "Announcement", asOf: "5 Jun 2025" },
+    record: [
+      {
+        text: "A funding record and a dated announcement agree",
+        evidence: [SRC.funding, SRC.fundingNews],
+      },
     ],
   },
   {
-    n: 5,
-    claim: "We opened a new facility in October 2026",
+    id: "c5",
+    number: 5,
+    text: "We opened a new facility in October 2026",
     category: "Dated events",
-    page: "Seller deck p. 9",
+    stated_in: deck(9),
     status: "partially_corroborated",
-    record: "A dated announcement describes a planned facility",
-    sources: [
+    record: [
       {
-        kind: "announcement",
-        label: "Company announcement",
-        asOf: "9 Sep 2026",
+        text: "A dated announcement describes a planned facility",
+        evidence: [SRC.facility],
+        part: "supported",
+      },
+      {
+        text: "Nothing found shows it is operating",
+        evidence: [SRC.facility],
+        part: "not_supported",
       },
     ],
-    notes: [
-      { label: "Supported", text: "A facility was announced" },
-      { label: "Not supported", text: "That it is operating" },
-    ],
-    settle: "A lease or occupancy record",
+    what_would_settle: "Lease or occupancy record",
   },
   {
-    n: 6,
-    claim: "We have no debt",
+    id: "c6",
+    number: 6,
+    text: "We have no debt",
     category: "Borrowing",
-    page: "Seller deck p. 12",
+    stated_in: deck(12),
     status: "cannot_verify",
-    record: "A lender's registered security is on record",
-    sources: [
-      { kind: "registry", label: "Charge register mirror", asOf: "Feb 2024" },
-    ],
-    notes: [
+    record: [
       {
-        label: "Why it is open",
-        text: "It shows security was given, not that money is owed",
+        text: "A lender's registered security is on record",
+        evidence: [SRC.charge],
       },
     ],
-    settle: "Lender statements",
+    note: "A registered security shows security was given, not that money is owed.",
+    what_would_settle: "Lender statements",
   },
 ];
 
-export const LEDGER_SUMMARY = {
-  counts: [
-    { status: "supported", count: 3 },
-    { status: "partially_corroborated", count: 1 },
-    { status: "cannot_verify", count: 2 },
-  ] satisfies { status: ClaimStatus; count: number }[],
-  line: "3 of 6 claims supported · 3 open",
-  disposition: "investigate_further" as Disposition,
-  next: "A request for three documents is waiting for a manager's approval",
+/** The hero shows the first four claims of the copy deck's preview: 1, 2, 5 and 6. */
+export const HERO_CLAIMS: Claim[] = [1, 2, 5, 6].map(
+  (n) => CLAIMS.find((c) => c.number === n)!,
+);
+
+export const CLAIM_COUNTS: ClaimStatusCounts = {
+  supported: 3,
+  partially_corroborated: 1,
+  conflicting_evidence: 0,
+  contradicted: 0,
+  cannot_verify: 2,
+  not_checked: 0,
 };
 
-/* ───────────────────────── Four steps ───────────────────────── */
-
-export const STEPS_HEAD = {
-  eyebrow: "How it works",
-  title: "Four steps, one case",
-  lead: "Start with a thesis, or go straight to a company you already have in mind. Everything lands in the same case file.",
+/** A claim that was never searched, for the "Not checked never looks clean" cell. */
+export const NOT_CHECKED_CLAIM: Claim = {
+  id: "c7",
+  number: 7,
+  text: "Our top customer is a national retailer",
+  category: "Customers",
+  stated_in: deck(11),
+  status: "not_checked",
+  not_checked_reason: "budget_reached",
+  record: [],
 };
 
-export const STEPS = [
-  {
-    id: "discover",
-    name: "Discover",
-    summary:
-      "You describe what you are looking for. DealProof returns a shortlist of real companies and explains why each one is on it.",
-    give: "An investment thesis in plain words",
-    get: "A ranked shortlist with reasons for inclusion and what is still unknown",
-  },
-  {
-    id: "verify",
-    name: "Verify",
-    summary:
-      "You pick a company. DealProof confirms which legal entity it is, then checks its claims one by one.",
-    give: "A company from the shortlist, or a name and website, and the seller's presentation",
-    get: "A claim ledger: each claim with a status, the exact evidence and its date",
-  },
-  {
-    id: "evaluate",
-    name: "Evaluate",
-    summary:
-      "DealProof turns what it found into a screening assessment you can explain to someone else.",
-    give: "Nothing more. The assessment is built from the records already in the case",
-    get: "Five separate judgments and one disposition, with the reasons underneath",
-  },
-  {
-    id: "act",
-    name: "Act",
-    summary:
-      "DealProof works out what would settle each open question and helps you ask for it.",
-    give: "A named person's approval",
-    get: "One consolidated request to the seller, sent once. New documents update the case in the open",
-  },
-] as const;
+/* ───────────────────────── Illustration: fit and assessment ───────────────────────── */
 
-export type StepId = (typeof STEPS)[number]["id"];
+export const FIT_THIN: FitResult = {
+  fit: 82,
+  assessable_share: 0.7,
+  criteria: [
+    { id: "hq", label: "Headquartered in India", kind: "must", weight: 12, verdict: "met" },
+    { id: "act", label: "Warehousing or supply-chain activity", kind: "must", weight: 10, verdict: "met" },
+    { id: "age", label: "Operating for five years or more", kind: "preference", weight: 10, verdict: "met" },
+    { id: "exp", label: "Recent expansion", kind: "preference", weight: 9, verdict: "met" },
+    { id: "sw", label: "Own software product", kind: "preference", weight: 12.5, verdict: "not_met" },
+    { id: "fund", label: "Institutional funding", kind: "preference", weight: 8, verdict: "met" },
+    { id: "team", label: "Team above 100", kind: "preference", weight: 8.5, verdict: "met" },
+    { id: "own", label: "Ownership", kind: "must", weight: 12, verdict: "unknown" },
+    { id: "cust", label: "Customer type", kind: "preference", weight: 10, verdict: "unknown" },
+    { id: "rev", label: "Revenue band", kind: "preference", weight: 8, verdict: "unknown" },
+  ],
+};
 
-export const THESIS_EXAMPLE =
-  "Privately held Indian warehousing and supply-chain software companies that serve enterprise customers and show recent expansion";
+export const FIT_FULL: FitResult = {
+  fit: 82,
+  assessable_share: 1,
+  criteria: [
+    { id: "hq", label: "Headquartered in India", kind: "must", weight: 14, verdict: "met" },
+    { id: "act", label: "Warehousing or supply-chain activity", kind: "must", weight: 12, verdict: "met" },
+    { id: "own", label: "Ownership", kind: "must", weight: 12, verdict: "met" },
+    { id: "age", label: "Operating for five years or more", kind: "preference", weight: 10, verdict: "met" },
+    { id: "exp", label: "Recent expansion", kind: "preference", weight: 10, verdict: "met" },
+    { id: "sw", label: "Own software product", kind: "preference", weight: 10, verdict: "not_met" },
+    { id: "fund", label: "Institutional funding", kind: "preference", weight: 8, verdict: "met" },
+    { id: "team", label: "Team above 100", kind: "preference", weight: 8, verdict: "met" },
+    { id: "cust", label: "Customer type", kind: "preference", weight: 8, verdict: "met" },
+    { id: "rev", label: "Revenue band", kind: "preference", weight: 8, verdict: "not_met" },
+  ],
+};
+
+export const ASSESSMENT: Assessment = {
+  version: 1,
+  policy_version: "1.0",
+  created_at: RETRIEVED_AT,
+  fit: FIT_THIN,
+  sufficiency: {
+    settled: 6,
+    required: 6,
+    counts: CLAIM_COUNTS,
+    gaps: ["payroll summary", "lender statements", "occupancy record"],
+  },
+  business: [
+    {
+      id: "s1",
+      text: "180 people",
+      estimate: { kind: "estimate", basis: HEADCOUNT_BASIS },
+      evidence: [SRC.profiles],
+    },
+    {
+      id: "s2",
+      text: "Growth funding recorded in 2025",
+      evidence: [SRC.funding],
+    },
+    {
+      id: "s3",
+      text: "Planned facility",
+      estimate: {
+        kind: "signal",
+        basis: "an announcement of a plan, not an opening",
+      },
+      evidence: [SRC.facility],
+    },
+  ],
+  financial: {
+    state: "not_assessed",
+    reason: "no reliable financial inputs",
+    would_need: ["audited statements"],
+  },
+  disposition: {
+    disposition: "investigate_further",
+    reasons: [
+      {
+        text: "Strong fit with the client's strategy, with three of six claims supported and three open",
+      },
+    ],
+    rests_on_claims: [2, 5, 6],
+    policy_version: "1.0",
+  },
+};
 
 /* ───────────────────────── The problem ───────────────────────── */
 
 export const PROBLEM_HEAD = {
   eyebrow: "The problem",
-  title: "Screening breaks in the same eight places",
-  lead: "Today this work is spread across databases, registry lookups, seller presentations and an analyst's spreadsheet.",
+  title: "Why first-pass screening breaks down",
+  lead: "Today, screening a private company is spread across databases, registry lookups, seller presentations, and an analyst's spreadsheet. Between the first call and the memo, eight things routinely go wrong.",
 };
 
 export const PROBLEMS = [
   {
     wrong: "Company information is scattered",
-    cost: "Slow, repeated research",
-    fix: "One search and research flow",
+    cost: "Slow, repeated research across disconnected tools",
+    fix: "One connected search and research flow",
   },
   {
     wrong: "Companies are compared inconsistently",
-    cost: "Subjective screening",
+    cost: "Subjective screening from one target to the next",
     fix: "The same criteria applied to every candidate",
   },
   {
@@ -252,7 +332,7 @@ export const PROBLEMS = [
   },
   {
     wrong: "Reports take days to assemble",
-    cost: "Analyst time spent compiling",
+    cost: "Analyst time spent compiling instead of judging",
     fix: "Produces the screening memo itself",
   },
   {
@@ -262,120 +342,176 @@ export const PROBLEMS = [
   },
 ] as const;
 
-/* ───────────────────────── Six answers ───────────────────────── */
+/* ───────────────────────── Four steps ───────────────────────── */
+
+export const STEPS_HEAD = {
+  eyebrow: "How it works",
+  title: "Four steps, one case",
+  lead: "Start with an investment thesis, or go straight to a company you already have in mind.",
+};
+
+export const STEPS = [
+  {
+    id: "discover",
+    name: "Discover",
+    title: "Turn a thesis into a shortlist of real companies",
+    lead: "Describe what you are looking for in plain words. DealProof returns companies that match your criteria and explains why each one is on the list.",
+    rows: [
+      {
+        label: "What you give",
+        text: "An investment thesis in plain words.",
+      },
+      {
+        label: "What it does",
+        text: "Turns the thesis into clear criteria, separating must-haves from preferences. Lets you edit them before anything runs, searches live company data, removes duplicates, drops companies that fail a must-have, and ranks the rest by fit.",
+      },
+      {
+        label: "What you get",
+        text: "A shortlist with each company's business, location, size and growth estimates, funding history, hiring activity, reasons for inclusion, and what is still unknown. Every item shows its source and date.",
+      },
+    ],
+    note: "The fit score measures how well a company matches your requirements. It says nothing about expected returns. Hiring and headcount growth are never treated as proof of revenue.",
+  },
+  {
+    id: "verify",
+    name: "Verify",
+    title: "Check every claim against independent records",
+    lead: "Pick a company from the shortlist, or enter a name and website directly. DealProof confirms the legal entity and checks each claim one by one.",
+    rows: [
+      {
+        label: "What you give",
+        text: "A shortlisted company, or a company name and website. You can upload the seller's presentation and documents, or type in individual claims.",
+      },
+      {
+        label: "What it does",
+        text: "Confirms which legal entity you are looking at, builds a public profile, tests each factual claim against independent evidence, compares seller documents with each other, gathers recent dated events, and places the company beside comparable firms.",
+      },
+      {
+        label: "What you get",
+        text: "A claim ledger. Every claim carries a status, the exact evidence, the date of that evidence, and the document needed if it could not be settled.",
+      },
+    ],
+    note: "What it checks first: identity, business and industry, funding events, team size and growth, leadership and founders' career history, and dated public events such as launches and expansions.",
+  },
+  {
+    id: "evaluate",
+    name: "Evaluate",
+    title: "Keep five judgments separate",
+    lead: "DealProof turns what it found into a screening assessment you can defend to a decision-maker. It never blends separate judgments into one score.",
+    rows: [
+      {
+        label: "What you give",
+        text: "Nothing more. The assessment is built from the records already in the case.",
+      },
+      {
+        label: "What you get",
+        text: "Opportunity fit, evidence sufficiency, a business assessment, a financial assessment when reliable inputs exist, and one screening disposition.",
+      },
+    ],
+    note: "The evaluation adapts to the company. A young startup is judged on thesis fit, founder relevance, team development, and funding history. An established business is judged on strategic fit, identity, operating scale, financial performance, commercial position, and leadership continuity.",
+  },
+  {
+    id: "act",
+    name: "Act",
+    title: "Ask for what is missing, once, after approval",
+    lead: "DealProof works out which documents would settle each open question and drafts one consolidated request to the seller.",
+    rows: [
+      {
+        label: "What you give",
+        text: "Your review, the recipient address, and a named person's approval.",
+      },
+      {
+        label: "What it does",
+        text: "Lists the exact documents tied to open claims, waits until a named approver signs off, and sends the request once. When the seller's documents arrive, they attach to the same case.",
+      },
+      {
+        label: "What you get",
+        text: "Re-checked claims, an updated assessment, and an open diff showing what changed, what was believed before, and why it changed.",
+      },
+    ],
+    note: null,
+  },
+] as const;
+
+export type StepId = (typeof STEPS)[number]["id"];
+
+export const THESIS_EXAMPLE =
+  "Privately held Indian warehousing and supply-chain software companies that serve enterprise customers and show recent expansion";
+
+/* ───────────────────────── The claim ledger and its six answers ───────────────────────── */
+
+export const CASE_HEAD = {
+  eyebrow: "The claim ledger",
+  title: "What a claim ledger looks like",
+  lead: "A mid-sized Indian logistics company's CFO office is reviewing a regional warehousing operator in Pune after a first meeting. DealProof checks six claims from the meeting and seller presentation against independent records.",
+  summary:
+    "Strong fit with the client's strategy, with three of six claims supported and three open. A consolidated request list of three documents waits for the manager's approval.",
+  disposition: "investigate_further" as Disposition,
+};
 
 export const STATUS_HEAD = {
-  eyebrow: "The claim ledger",
   title: "Six answers, including the honest ones",
-  lead: "Each claim ends in one of six statuses. Two of them exist so that a gap is never mistaken for a clean result.",
 };
 
 export const STATUS_MEANINGS: { status: ClaimStatus; meaning: string }[] = [
   {
     status: "supported",
-    meaning: "Adequate evidence directly supports the claim",
+    meaning: "Adequate evidence directly supports the claim.",
   },
   {
     status: "partially_corroborated",
-    meaning: "Evidence supports part of the claim, not all of it",
+    meaning: "Evidence supports part of the claim, not all of it.",
   },
   {
     status: "conflicting_evidence",
-    meaning: "Relevant sources disagree with each other",
+    meaning: "Relevant sources disagree with each other.",
   },
   {
     status: "contradicted",
-    meaning: "Reliable evidence directly conflicts with the precise claim",
+    meaning: "Reliable evidence directly conflicts with the precise claim.",
   },
   {
     status: "cannot_verify",
     meaning:
-      "Available evidence cannot settle the question. DealProof names what would",
+      "Available evidence cannot settle the question. DealProof names what would.",
   },
   {
     status: "not_checked",
     meaning:
-      "The check was not run, for example because a source was unavailable or the budget ran out",
+      "The check was not run, for example because a source was unavailable or the budget ran out.",
   },
 ];
 
 export const STATUS_NOTES = {
   cannotVerify: {
     title: "Cannot verify is a real answer",
-    body: "It is a legitimate answer, and often the correct one. It always comes with the document that would settle it, and that document goes on the request list.",
+    body: "Private company records in India rarely cover payroll, customer contracts, or current debt balances. When available evidence cannot settle a claim, DealProof says so plainly and names the document that would.",
   },
   notChecked: {
     title: "Not checked never looks clean",
-    body: "A check that was not run is hatched and dashed, says why, and is left out of every settled count.",
-    claim: "Our top customer is a national retailer",
-    reason: "Not checked · budget reached",
-    detail: "No search was run for this claim",
+    body: "A check that was not run is marked with a dashed border, a hatched fill, and the reason it stopped, such as budget reached or source unavailable. It is never counted as settled and never hidden from the summary.",
   },
 };
 
 /* ───────────────────────── Fit is not evidence ───────────────────────── */
 
-export type Verdict = "met" | "not_met" | "unknown";
-export interface CriteriaCell {
-  /** Weight, as a share of the full track. */
-  w: number;
-  verdict: Verdict;
-}
-
 export const FIT_HEAD = {
   eyebrow: "Fit and what could be assessed",
   title: "Fit is not evidence",
-  lead: "A company can be attractive while its claims remain unverified. Next to every fit score DealProof shows how much of the thesis it could assess, so thin evidence does not look as ready as full evidence.",
-  footnote:
-    "Fit measures match to your criteria. It says nothing about returns",
+  lead: "Next to every fit score, DealProof shows how much of your thesis it could actually assess. A company with thin public records never looks as ready as one with full records, and missing evidence never triggers Deprioritise on its own.",
+  label: "Illustration, not real companies",
 };
 
-export const FIT_ROWS: {
-  company: string;
-  line: string;
-  fit: number;
-  assessable: number;
-  detail: string;
-  cells: CriteriaCell[];
-}[] = [
+export const FIT_ROWS = [
   {
-    company: ILLUSTRATION_COMPANY,
-    line: "Contract warehousing, Pune",
-    fit: 82,
-    assessable: 70,
-    detail:
-      "7 of 10 criteria assessable · 3 unknown: ownership, customer type, revenue band",
-    cells: [
-      { w: 12, verdict: "met" },
-      { w: 10, verdict: "met" },
-      { w: 10, verdict: "met" },
-      { w: 9, verdict: "met" },
-      { w: 12.5, verdict: "not_met" },
-      { w: 8, verdict: "met" },
-      { w: 8.5, verdict: "met" },
-      { w: 12, verdict: "unknown" },
-      { w: 10, verdict: "unknown" },
-      { w: 8, verdict: "unknown" },
-    ],
+    id: "thin",
+    fit: FIT_THIN,
+    caption: "Attractive on what is known, with three criteria still open.",
   },
   {
-    company: "A second candidate",
-    line: "Same thesis, fuller record",
-    fit: 82,
-    assessable: 100,
-    detail: "10 of 10 criteria assessable · none unknown",
-    cells: [
-      { w: 14, verdict: "met" },
-      { w: 12, verdict: "met" },
-      { w: 12, verdict: "met" },
-      { w: 10, verdict: "met" },
-      { w: 10, verdict: "met" },
-      { w: 10, verdict: "not_met" },
-      { w: 8, verdict: "met" },
-      { w: 8, verdict: "met" },
-      { w: 8, verdict: "met" },
-      { w: 8, verdict: "not_met" },
-    ],
+    id: "full",
+    fit: FIT_FULL,
+    caption: "Same fit score, backed by complete criteria coverage.",
   },
 ];
 
@@ -383,36 +519,13 @@ export const FIT_ROWS: {
 
 export const JUDGMENT_HEAD = {
   eyebrow: "The assessment",
-  title: "Five judgments, never one score",
-  lead: "DealProof keeps five judgments separate and never blends them. Each one answers a different question, so each one is drawn differently.",
+  title: "Keep five judgments separate",
+  lead: "DealProof turns what it found into a screening assessment you can defend to a decision-maker. It never blends separate judgments into one score.",
+  note: "The evaluation adapts to the company. A young startup is judged on thesis fit, founder relevance, team development, and funding history. An established business is judged on strategic fit, identity, operating scale, financial performance, commercial position, and leadership continuity.",
 };
 
-export const JUDGMENTS = [
-  {
-    name: "Opportunity fit",
-    question: "How well does this company match our strategy?",
-  },
-  {
-    name: "Evidence sufficiency",
-    question: "Do the available records support what we need to know?",
-  },
-  {
-    name: "Business assessment",
-    question: "What do observable operating indicators suggest?",
-  },
-  {
-    name: "Financial assessment",
-    question:
-      "What do reliable financial inputs show, under stated assumptions?",
-  },
-  {
-    name: "Screening disposition",
-    question: "What should we do next?",
-  },
-] as const;
-
 export const DISPOSITIONS_HEAD = {
-  title: "Four dispositions",
+  title: "One of four outcomes",
   note: "Missing public evidence never leads to Deprioritise by itself.",
 };
 
@@ -426,16 +539,17 @@ export const DISPOSITION_ORDER: Disposition[] = [
 /* ───────────────────────── Investors ───────────────────────── */
 
 export const INVESTOR_HEAD = {
-  eyebrow: "For businesses raising money",
-  title: "It also works in the other direction",
-  lead: "A business describes itself and what it wants to raise. DealProof returns a shortlist of investors who have backed comparable companies, with the round and the date for each.",
-  points: [
-    "An investor appears only when a dated funding record supports it",
-    "DealProof does not collect investors' personal contact details",
-    "Any message to an investor waits for a person's approval",
+  eyebrow: "The other direction",
+  title: "For businesses raising money",
+  lead: "DealProof also works in the other direction. Small and mid-sized businesses looking for capital, and the advisers representing them, often spend months approaching investors who do not back their sector or stage.",
+  body: "Describe your sector, location, stage, size, and the funding you are seeking. DealProof finds comparable companies that have raised money, reads who invested in them and when, and ranks investors by how many comparable investments they have made and how recently.",
+  shows: [
+    "Comparable companies the investor backed, with the round and the date",
+    "When the investor last invested in the sector",
+    "Why they fit your profile, and what is still unknown",
   ],
-  caveat:
-    "This ranking describes past investments. It does not predict whether an investor will invest",
+  guardrails:
+    "An investor appears only when a dated funding record supports it. The ranking describes past investments and does not predict whether an investor will invest. DealProof does not collect investors' personal contact details, and any message to an investor waits for a person's approval.",
 };
 
 export const INVESTOR_ROW = {
@@ -446,9 +560,13 @@ export const INVESTOR_ROW = {
     {
       company: "Cold Chain Logix",
       round: "Series A",
-      date: "12 Aug 2026",
+      evidence: ev("Funding record", "2026-08-12", "news"),
     },
-    { company: "Fleetwise", round: "Seed", date: "3 Mar 2025" },
+    {
+      company: "Fleetwise",
+      round: "Seed",
+      evidence: ev("Funding record", "2025-03-03", "news"),
+    },
   ],
   more: "+ 2 more",
   why: "4 rounds in warehousing technology in India since 2024",
@@ -474,7 +592,7 @@ export const PRINCIPLES = [
   },
   {
     title: "Estimates are labelled as estimates",
-    body: "Team size drawn from professional profiles is a signal, not a payroll count.",
+    body: "Team size drawn from professional profiles is a signal, not a payroll count. Every inferred figure carries the Estimate or Signal label and its basis.",
   },
   {
     title: "Identity comes first",
@@ -490,7 +608,7 @@ export const PRINCIPLES = [
   },
   {
     title: "A person approves anything that leaves",
-    body: "No message goes to a seller without a named approver.",
+    body: "No message goes to a seller or investor without a named approver.",
   },
   {
     title: "Confidential documents stay confidential",
@@ -512,28 +630,28 @@ export const LIMITS_HEAD = {
 
 export const LIMITS = [
   {
-    title: "Not financial, legal or tax due diligence",
-    body: "Those rest on the seller's confidential books and on signed professional opinions.",
+    title: "Not financial, legal, or tax due diligence",
+    body: "Formal diligence rests on the seller's confidential books and on signed professional opinions. DealProof does the first-pass research that comes before accountants and lawyers step in.",
   },
   {
-    title: "Not a prediction",
-    body: "It does not predict returns or say whether an investment will succeed.",
+    title: "Not a return predictor",
+    body: "DealProof measures fit against your criteria and checks factual claims. It does not predict returns or say whether an investment will succeed.",
   },
   {
     title: "Not a valuation",
-    body: "Where financial figures are supplied, it can run stated scenarios, never a verified fair value.",
+    body: "Where reliable financial figures are supplied, DealProof can run stated scenarios under stated assumptions. It never produces a verified fair value.",
   },
   {
-    title: "Not legal advice",
-    body: "It does not give legal advice or recommend deal terms.",
+    title: "Not legal advice or deal terms",
+    body: "DealProof does not give legal advice, draft contracts, or recommend deal structure or terms.",
   },
   {
-    title: "Not a judgment of people",
-    body: "It reports what records show about roles and dates.",
+    title: "Not a judgment on people",
+    body: "DealProof reports what records show about roles, career history, and dates. It does not score or judge individuals.",
   },
   {
-    title: "Not a view of what is off the record",
-    body: "Private company financials, tax positions and many customer relationships are not public in India, and DealProof says so case by case.",
+    title: "Not a window into private records",
+    body: "DealProof cannot see what is not on record. Private company financials, tax positions, and many customer relationships are not public in India, and DealProof says so case by case.",
   },
 ] as const;
 
@@ -542,46 +660,46 @@ export const LIMITS = [
 export const DIFFERS_HEAD = {
   eyebrow: "Where it sits",
   title: "How it differs from what exists",
-  lead: "The difference is the connection: discovery, independent verification and transparent evaluation in one case.",
+  lead: "DealProof does not compete on how many companies it lists or how many metrics it shows. It competes on the quality of the finished screening job.",
   close:
-    "DealProof does not compete on how many companies it lists or how many metrics it shows. It competes on the quality of the finished screening job.",
+    "The difference is the connection: discovery, independent verification, and transparent evaluation in one reproducible case.",
 };
 
 export const DIFFERS = [
   {
     option: "Company discovery platforms",
-    good: "Finding companies, market maps, signals",
+    good: "Finding companies, building market maps, and surfacing growth signals",
     adds: "Checks the claims behind a company, not only its profile",
   },
   {
     option: "M&A workflow platforms",
-    good: "Pipelines, document rooms, coordinating a diligence team",
-    adds: "Does the first-pass research itself, against outside evidence",
+    good: "Managing pipelines, document rooms, and diligence teams",
+    adds: "Does the first-pass research itself against outside evidence",
   },
   {
     option: "Company registry reports",
-    good: "A profile of what is on file for a company",
-    adds: "Starts from what the seller claimed and reconciles each claim",
+    good: "Giving a static profile of what is on file for an entity",
+    adds: "Starts from what the seller claimed and reconciles each claim one by one",
   },
   {
     option: "Pitch-deck screening tools",
-    good: "Fast summaries of a presentation",
+    good: "Summarising a seller presentation quickly",
     adds: "Indian records, a dated source on every finding, and Cannot verify as a real answer",
   },
   {
     option: "An analyst working by hand",
-    good: "Judgment and context",
-    adds: "The same checks every time, with the evidence attached",
+    good: "Judgment, nuance, and context",
+    adds: "The same checks every time, in minutes, with every source attached",
   },
 ] as const;
 
 /* ───────────────────────── Who it is for ───────────────────────── */
 
 export const AUDIENCE_HEAD = {
-  eyebrow: "Who it is for",
-  title:
-    "Small teams that screen targets every month with only a few analysts",
-  lead: "The first customers are small M&A advisory firms and corporate development teams. The person using it is an investment associate or a corporate development analyst who wants to spend less time compiling and be more certain of what they pass upward.",
+  eyebrow: "Customers",
+  title: "Who it is for",
+  lead: "Built first for small M&A advisory firms and corporate development teams, including mid-market CFO offices screening regional targets in sectors such as logistics, warehousing, and supply-chain technology, that review acquisition opportunities every month with only a few analysts.",
+  body: "The primary user is an investment associate or corporate development analyst who wants to spend less time compiling and be more certain of what they pass upward: no wrong facts in the memo, no recommendation they cannot back up, and no confidential file ending up where it should not.",
 };
 
 export const AUDIENCE = [
@@ -609,23 +727,27 @@ export const AUDIENCE = [
     who: "Business brokers",
     need: "Credible, evidence-backed company profiles",
   },
+  {
+    who: "Businesses raising money and their advisers",
+    need: "A shortlist of relevant investors backed by dated funding records",
+  },
 ] as const;
-
-export const FIRST_CUSTOMER = {
-  label: "The first customer, at ContextCon",
-  body: "A mid-sized Indian logistics company that runs warehousing and transport for other businesses. Its CFO office is considering buying or investing in regional logistics, warehousing and supply-chain technology companies.",
-};
 
 /* ───────────────────────── Close ───────────────────────── */
 
 export const CTA = {
   title: "Screen your next target with the evidence attached",
-  lead: "Every opportunity that reaches a decision-maker should arrive with its claims already checked and its unknowns already named.",
+  lead: "Every investment or acquisition opportunity that reaches a decision-maker should arrive with its claims already checked and its unknowns already named.",
   primary: "Start a screening",
+  secondary: "See a finished case",
 };
 
 export const FOOTER = {
-  line: "Discover opportunities. Verify the evidence. Evaluate with confidence",
   built: "Built at ContextCon 2026",
-  disclaimer: "Screening only. Not financial, legal or tax due diligence",
+  links: [
+    { href: "#principles", label: "Scoring policy" },
+    { href: "#principles", label: "Confidentiality" },
+    { href: "https://github.com/rish-kun/contextcon", label: "GitHub" },
+  ],
+  scope: "Screening only. Not financial, legal or tax due diligence.",
 };
