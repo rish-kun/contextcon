@@ -21,6 +21,7 @@ import type {
 import type {
   Assessment,
   AssessmentChange,
+  ChangeCause,
   AssessmentDiff,
   AssessmentVersionMeta,
   CaseCost,
@@ -214,6 +215,23 @@ export function findingText(claim: Pick<ClaimOut, "reason" | "status">): string 
   return text || claim.reason;
 }
 
+/**
+ * The sources searched for a claim. `searched_sources` is not in the API schema yet; it is
+ * read when a response carries it (names, or objects with a label). Until then the only
+ * sources known to have been read are the ones the claim's evidence came from.
+ */
+function searchedSources(claim: ClaimOut, evidence: Evidence[]): string[] {
+  const sent = (claim as ClaimOut & { searched_sources?: unknown }).searched_sources;
+  const named = Array.isArray(sent)
+    ? sent.flatMap((item) => {
+        if (typeof item === "string") return [item];
+        const label = (item as { label?: unknown } | null)?.label;
+        return typeof label === "string" ? [label] : [];
+      })
+    : [];
+  return [...new Set([...named, ...evidence.map((item) => item.source.label)].filter(Boolean))];
+}
+
 export function toClaim(claim: ClaimOut): Claim {
   const evidence = claim.evidence.map(toEvidence);
   const reason = claim.not_checked_reason;
@@ -230,6 +248,7 @@ export function toClaim(claim: ClaimOut): Claim {
     record: evidence.length > 0 ? [{ text: finding, evidence }] : [],
     // With no evidence attached, the finding still says why: it is the row's note.
     note: evidence.length === 0 && claim.status !== "not_checked" ? finding : undefined,
+    searched: searchedSources(claim, evidence),
     what_would_settle: claim.settle_with,
     changed_in_version: claim.changed_in_version,
   };
@@ -378,6 +397,11 @@ const JUDGMENT_LABEL: Record<string, string> = {
   business_assessment: "Business assessment",
   financial_assessment: "Financial assessment",
   screening_disposition: "Screening disposition",
+  // The API names a judgment line "{judgment}: {field}", both with spaces for underscores.
+  "opportunity fit: fit": "Opportunity fit",
+  "opportunity fit: assessable pct": "Criteria that could be assessed",
+  "evidence sufficiency: pct": "Evidence sufficiency",
+  "financial: assessed": "Financial assessment",
 };
 
 const isClaimStatus = (value: string | null): value is ClaimStatus =>
@@ -385,43 +409,101 @@ const isClaimStatus = (value: string | null): value is ClaimStatus =>
 const isDisposition = (value: string | null): value is Disposition =>
   value !== null && (DISPOSITIONS as readonly string[]).includes(value);
 
+const upperFirst = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+/**
+ * The API writes a claim change's cause as one sentence: "absent → Cannot verify because
+ * of policy changed from 2026-11-22.2 to 2026-11-22.3". The before and after are already
+ * fields of the line, so only what follows "because of" is kept, as a typed cause.
+ */
+export function parseCause(because: string): ChangeCause {
+  const text = because.replace(/^.*?\s→\s.*?\sbecause of\s+/, "").trim();
+  const policy = /^policy changed from (\S+) to (\S+?)\.?$/.exec(text);
+  if (policy) return { kind: "policy", from: policy[1], to: policy[2] };
+  if (/^new evidence\b/.test(text)) return { kind: "evidence" };
+  const removed = /^evidence no longer used:\s*(.+)$/.exec(text);
+  if (removed) return { kind: "evidence_removed", sources: removed[1] };
+  return { kind: "stated", text };
+}
+
+/** A judgment line's subject and values, in the product's words and never the API's field names. */
+function judgmentWords(line: DiffLineOut): { label: string; before: string | null; after: string; reason: string } {
+  const subject = line.subject;
+  const business = /^business:\s*(.+)$/.exec(subject);
+  const label = business
+    ? `Business signal: ${business[1]}`
+    : (JUDGMENT_LABEL[subject] ?? upperFirst(subject.replace(/_/g, " ")));
+
+  const value = (raw: string | null, missing: string): string | null => {
+    if (raw === null) return null;
+    if (raw === "none" || raw === "None") return missing;
+    if (isClaimStatus(raw)) return CLAIM_STATUS_LABEL[raw];
+    if (isDisposition(raw)) return DISPOSITION_LABEL[raw];
+    if (subject === "financial: assessed") return /^true$/i.test(raw) ? "Assessed" : "Not assessed";
+    if (/^\d+(\.\d+)?$/.test(raw)) {
+      if (subject === "evidence_sufficiency" || subject === "evidence sufficiency: pct") {
+        return `${raw}% of required checks settled`;
+      }
+      if (subject === "opportunity fit: assessable pct") return `${raw}%`;
+    }
+    return raw;
+  };
+
+  const because = line.because.trim();
+  const checks = /^required checks affected:\s*(.*)$/.exec(because);
+  const criteria = /^criteria changed:\s*(.*)$/.exec(because);
+  let reason = upperFirst(because);
+  if (checks) {
+    const names = checks[1]
+      .split(",")
+      .map((name) => name.trim())
+      .filter(Boolean)
+      .map((name) => CATEGORY_LABEL[name as ClaimCategory] ?? name.replace(/_/g, " "));
+    reason = names.length > 0 ? `Required checks affected: ${names.join(", ").toLowerCase()}` : "Required checks changed";
+  } else if (criteria) {
+    // The API lists criterion ids here, which mean nothing to a reader; the count does.
+    const count = criteria[1].split(",").filter((part) => part.includes("→")).length;
+    reason = count > 0 ? `${count} ${count === 1 ? "criterion" : "criteria"} changed result` : "The weights or the list of criteria changed";
+  }
+  return { label, before: value(line.before, "No value"), after: value(line.after, "Removed") ?? "Removed", reason };
+}
+
 function toChange(line: DiffLineOut, claims: ClaimOut[]): AssessmentChange {
   const evidence = line.evidence.map(toEvidence);
 
-  if (line.kind === "claim" && isClaimStatus(line.before) && isClaimStatus(line.after)) {
+  if (line.kind === "claim" && isClaimStatus(line.after) && (line.before === null || isClaimStatus(line.before))) {
     const claim = claims.find((item) => item.id === line.subject_id);
+    const cause = parseCause(line.because);
     return {
       kind: "claim_status",
       claim_number: claim?.number ?? 0,
       claim_text: line.subject,
       before: line.before,
       after: line.after,
-      reason: line.because,
+      reason: cause.kind === "stated" ? cause.text : line.because,
+      cause,
       evidence,
     };
   }
   if (line.kind === "disposition" && isDisposition(line.before) && isDisposition(line.after)) {
-    return { kind: "disposition", before: line.before, after: line.after, reason: line.because, evidence };
+    // "rule_before → rule_after: reasons" names two internal rules; the reasons are the cause.
+    const reason = line.because.replace(/^[a-z_]+\s→\s[a-z_]+:\s*/, "");
+    return { kind: "disposition", before: line.before, after: line.after, reason: reason || line.because, evidence };
   }
 
-  // A judgment that moved, or a claim or disposition with no earlier value to compare.
-  const words = (value: string | null): string => {
-    if (value === null) return "not in the earlier version";
-    if (isClaimStatus(value)) return CLAIM_STATUS_LABEL[value];
-    if (isDisposition(value)) return DISPOSITION_LABEL[value];
-    return line.subject === "evidence_sufficiency" && /^\d+$/.test(value)
-      ? `${value}% of required checks settled`
-      : value;
-  };
-  return {
-    kind: "value",
-    label:
-      line.kind === "claim" ? `Claim: “${line.subject}”` : (JUDGMENT_LABEL[line.subject] ?? line.subject),
-    before: words(line.before),
-    after: words(line.after),
-    reason: line.because,
-    evidence,
-  };
+  if (line.kind === "claim") {
+    // A claim that left the ledger, or a status this build does not know.
+    const cause = parseCause(line.because);
+    return {
+      kind: "value",
+      label: `Claim: “${line.subject}”`,
+      before: isClaimStatus(line.before) ? CLAIM_STATUS_LABEL[line.before] : line.before,
+      after: line.after === "removed" ? "Removed from the ledger" : line.after.replace(/_/g, " "),
+      reason: cause.kind === "stated" ? upperFirst(cause.text) : line.because,
+      evidence,
+    };
+  }
+  return { kind: "value", ...judgmentWords(line), evidence };
 }
 
 /**

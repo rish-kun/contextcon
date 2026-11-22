@@ -10,7 +10,6 @@ import type { CaseCostOut } from "@/lib/api/client";
 import { CLAIM_STATUS_MEANING, CLAIM_STATUS_RULE } from "@/lib/labels";
 import {
   CLAIM_STATUSES,
-  type AssessmentChange,
   type AssessmentDiff,
   type AssessmentVersionMeta,
   type CaseCost,
@@ -654,24 +653,6 @@ export function timelineCause(
     by: last.uploaded_by_name,
     changed_claims: changed,
   };
-}
-
-/**
- * Claim changes are the roots. Everything else moved because a claim did, but the API
- * does not say which one, so derived changes are returned as one group, never attached
- * to a particular claim.
- */
-export function splitChanges(diff: AssessmentDiff): {
-  claimChanges: Extract<AssessmentChange, { kind: "claim_status" }>[];
-  derived: Exclude<AssessmentChange, { kind: "claim_status" }>[];
-} {
-  const claimChanges: Extract<AssessmentChange, { kind: "claim_status" }>[] = [];
-  const derived: Exclude<AssessmentChange, { kind: "claim_status" }>[] = [];
-  for (const change of diff.changes) {
-    if (change.kind === "claim_status") claimChanges.push(change);
-    else derived.push(change);
-  }
-  return { claimChanges, derived };
 }
 
 /* ───────────────────────── Cost meter ───────────────────────── */

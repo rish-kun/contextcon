@@ -35,7 +35,9 @@ import {
   statusCounts,
   toAssessment,
   toDiff,
+  findingText,
   toEvidence,
+  triggerLabel,
   toFit,
   claimTally,
 } from "./adapt";
@@ -646,7 +648,7 @@ function MemoClaim({ claim }: { claim: ClaimOut }) {
         {notChecked ? (
           <p className="text-not-checked">No search was run for this claim.</p>
         ) : (
-          <Cited evidence={claim.evidence.map(toEvidence)}>{claim.reason}</Cited>
+          <Cited evidence={claim.evidence.map(toEvidence)}>{findingText(claim)}</Cited>
         )}
         {claim.settle_with ? (
           <p className="text-ink">
@@ -859,7 +861,7 @@ function Risks({ detail }: { detail: CaseDetail }) {
             <li key={claim.id}>
               <Cited evidence={claim.evidence.map(toEvidence)}>
                 Claim {claim.number} is {CLAIM_STATUS_LABEL[claim.status].toLowerCase()}:{" "}
-                {claim.reason}
+                {findingText(claim)}
               </Cited>
             </li>
           ))}
@@ -1158,7 +1160,7 @@ export function Memo({ detail }: { detail: CaseDetail }) {
               What changed since version {diff.from_version}
             </h3>
             <p className="max-w-(--layout-prose-max) text-dense text-ink-secondary">
-              Updated on {formatDateTime(assessment.created_at)} after {assessment.trigger}.
+              Updated on {formatDateTime(assessment.created_at)} after {triggerLabel(assessment.trigger)}.
               Version {diff.from_version} remains archived and readable in full.{" "}
               <Link
                 href={`${basePath}/assessment`}
@@ -1167,7 +1169,7 @@ export function Memo({ detail }: { detail: CaseDetail }) {
                 Assessment history
               </Link>
             </p>
-            <VersionDiff diff={diff} />
+            <VersionDiff diff={diff} header={false} />
           </section>
         ) : null}
 

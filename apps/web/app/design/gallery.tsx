@@ -934,6 +934,12 @@ function DiffSection() {
           </div>
         </Specimen>
       </div>
+      <Specimen
+        label="One cause, many claims"
+        note="disposition, judgment, then the claim that moved on evidence; the claims a policy update touched are one row that opens to one line each. A first status reads New status"
+      >
+        <VersionDiff diff={sample.diffPolicy} />
+      </Specimen>
       <Specimen label="A downgrade, and a change with no stated cause" note="the second is a bug in the data and renders as one">
         <VersionDiff diff={sample.diffDowngrade} />
       </Specimen>

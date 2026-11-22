@@ -45,7 +45,7 @@ export interface StatusMarkProps {
    * tables, always next to a legend. count: glyph + mono number, for summaries.
    */
   form?: "tag" | "mark" | "count";
-  /** For form="count". */
+  /** For form="count". On a tag it leads the label: "8 Cannot verify". */
   count?: number;
   /** Shown with Not checked, always: "Not checked · budget reached". */
   reason?: NotCheckedReason | null;
@@ -120,7 +120,9 @@ export function StatusMark({
           className="inline-flex min-w-0 items-center gap-1"
         >
           <StatusGlyph status={status} className="shrink-0" />
-          <span className={cn("truncate", struck && "line-through")}>{label}</span>
+          <span className={cn("truncate", struck && "line-through")}>
+            {count != null ? `${count} ${label}` : label}
+          </span>
         </motion.span>
       </AnimatePresence>
     </span>

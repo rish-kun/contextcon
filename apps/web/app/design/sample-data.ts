@@ -567,6 +567,54 @@ export const diffUnsourced: AssessmentDiff = {
   ],
 };
 
+/**
+ * A scoring-policy update that gave many claims their first status, beside one claim
+ * that moved on evidence and one judgment. The policy claims fold into one row.
+ */
+const policyCause = { kind: "policy", from: "2026-11-22.2", to: "2026-11-22.3" } as const;
+export const diffPolicy: AssessmentDiff = {
+  from_version: 1,
+  to_version: 2,
+  unchanged_claims: 0,
+  changes: [
+    ...[
+      "Trusted by more than 100 clients in 20 countries",
+      "We are an OEM partner of a named analytics vendor",
+      "We have onboarded more than 80 customers",
+      "99% positive feedback",
+      "We hold ISO 9001 and ISO 27001 certificates",
+    ].map(
+      (text, index): AssessmentDiff["changes"][number] => ({
+        kind: "claim_status",
+        claim_number: index + 1,
+        claim_text: text,
+        before: null,
+        after: "cannot_verify",
+        reason: "",
+        cause: policyCause,
+        evidence: [],
+      }),
+    ),
+    {
+      kind: "claim_status",
+      claim_number: 6,
+      claim_text: "Headquartered in Pune, with branch offices in two other cities",
+      before: null,
+      after: "contradicted",
+      reason: "",
+      cause: { kind: "evidence" },
+      evidence: [ev.registryOffice],
+    },
+    { kind: "value", label: "Evidence sufficiency", before: "0% of required checks settled", after: "17% of required checks settled", reason: "Required checks affected: location" },
+    {
+      kind: "disposition",
+      before: "investigate_further",
+      after: "deprioritise",
+      reason: "a requirement you set has verifiably failed",
+    },
+  ],
+};
+
 const requestBase: SellerRequest = {
   id: "req-1",
   status: "draft",

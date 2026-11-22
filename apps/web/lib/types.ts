@@ -127,6 +127,11 @@ export interface Claim {
   record: RecordStatement[];
   /** A sentence of context: why the evidence falls short. */
   note?: string | null;
+  /**
+   * Names of the sources that were searched or read for this claim. Empty or absent when
+   * none is on record; a Cannot verify row then says that no public source was searched.
+   */
+  searched?: string[] | null;
   /** The document that would settle the claim. Feeds the request list. */
   what_would_settle?: string | null;
   /** Estimated credit cost of running the check, for Not checked claims that can be retried. */
@@ -257,15 +262,29 @@ export interface AssessmentVersionMeta {
   trigger: string;
 }
 
+/**
+ * Why a claim's status is what it is in this version, as a kind the page can group by.
+ * `stated` is a cause the API gave in its own words.
+ */
+export type ChangeCause =
+  | { kind: "policy"; from: string; to: string }
+  /** New evidence arrived. The sources are the change's own `evidence`. */
+  | { kind: "evidence" }
+  | { kind: "evidence_removed"; sources: string }
+  | { kind: "stated"; text: string };
+
 export type AssessmentChange =
   | {
       kind: "claim_status";
       claim_number: number;
       claim_text: string;
-      before: ClaimStatus;
+      /** Null when the claim had no status in the earlier version: this is its first. */
+      before: ClaimStatus | null;
       after: ClaimStatus;
       /** Why it changed. A change with no stated cause is a bug. */
       reason: string;
+      /** The same cause, typed. Absent on changes that only carry `reason`. */
+      cause?: ChangeCause;
       evidence: Evidence[];
     }
   | {
@@ -276,10 +295,11 @@ export type AssessmentChange =
       evidence?: Evidence[];
     }
   | {
-      /** A derived figure that moved because something above it did. */
+      /** A judgment or derived figure that moved because something above it did. */
       kind: "value";
       label: string;
-      before: string;
+      /** Null when there was no earlier value to compare. */
+      before: string | null;
       after: string;
       reason?: string | null;
       evidence?: Evidence[];

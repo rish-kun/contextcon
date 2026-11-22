@@ -40,6 +40,7 @@ import {
   CATEGORY_LABEL,
   SOURCE_CLASS_LABEL,
   claimTally,
+  findingText,
   isRunActive,
   statusCounts,
   toClaim,
@@ -106,7 +107,7 @@ function ClaimDetail({ claim }: { claim: ClaimOut }) {
   return (
     <div className="flex flex-col gap-4">
       {claim.status === "not_checked" ? (
-        <p className="text-ink-secondary">{claim.reason}</p>
+        <p className="text-ink-secondary">{findingText(claim)}</p>
       ) : null}
 
       {claim.evidence.length > 0 ? (
@@ -148,7 +149,7 @@ function ClaimDetail({ claim }: { claim: ClaimOut }) {
                   {check.assessment_version != null ? `v${check.assessment_version}` : "–"}
                 </span>
                 <StatusMark status={check.status} reason={check.not_checked_reason} />
-                <span className="min-w-0 text-ink-secondary">{check.reason}</span>
+                <span className="min-w-0 text-ink-secondary">{findingText(check)}</span>
                 <span className="font-mono text-2xs text-ink-muted">
                   {formatDateTime(check.created_at)}
                 </span>
