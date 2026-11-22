@@ -498,7 +498,7 @@ async def test_case_detail_sections_over_http(session, sm, api, monkeypatch) -> 
     assert detail["comparables"]["basis"]["country"] == "IND"
     # the verify run ends with evaluate → request list, so the case is assessed
     assert detail["case"]["status"] == "assessed"
-    assert detail["claims"] == [] and detail["request_list"] is None
+    assert detail["claims"] == [] and detail["request_list"] is not None
     assert listing[0]["identity_state"] == "confirmed"
     assert listing[0]["cost"]["crustdata_credits"] > 0
 
