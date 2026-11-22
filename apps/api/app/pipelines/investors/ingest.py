@@ -1,9 +1,16 @@
 """Crustdata company records → compact, contact-free funding data → `FundingRecord`s.
 
-Ingestion is a whitelist: only the fields below are kept, so personal contact details
+Ingestion is an allowlist: only the fields below are kept, so personal contact details
 (emails, phone numbers, personal profile links) never reach the database, whatever the
-provider returns. `CrustdataClient` already drops email/phone keys from responses; this
-is the second line of defence and also drops profile URLs.
+provider returns. `CrustdataClient` already allowlists each endpoint and redacts emails;
+this is the investor-specific second line, applied before anything is cached and to
+every cache hit (the cache is shared, so a hit may have been stored by another caller):
+
+- investors keep only `name`, `uuid` and `type`; rounds keep only the funding fields;
+  profile links (`permalink`, `crunchbase_profile_url`) and the `people` group go;
+- a retained identity value (an investor name, uuid or type, a round type, a name in
+  `investors` / `lead_investors`) that holds a contact value — a URL, an email, a phone
+  number — is dropped, not stored as a name.
 """
 
 from __future__ import annotations
@@ -14,14 +21,34 @@ from typing import Any
 
 from app.clients.crustdata import strip_contact_fields
 from app.clients.crustdata_models import CompanyRecord
+from app.documents.redact import regex_redactor
 from app.domain.types import FundingRecord
-from app.rules.compare import normalize_text
 
 # Keys dropped from anything cached: personal profile links, and the people group
 # (never requested here; dropped if a provider sends it anyway).
 _PERSONAL_KEY = re.compile(
     r"profile_url|linkedin|twitter|facebook|instagram|permalink|^people$", re.IGNORECASE
 )
+
+# A link in any form: with a scheme, `www.`, or a host followed by a path.
+_URL = re.compile(r"(?i)(?:\b[a-z][a-z0-9+.-]*://|\bwww\.|\b[a-z0-9-]+(?:\.[a-z0-9-]+)+/)\S*")
+# A run of phone characters holding at least 9 digits ("+919876543210", "98765-43210").
+_PHONE_RUN = re.compile(r"\+?\(?\d[\d\s().-]{7,}\d")
+_UUID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,63}$")
+
+
+# What the client's sanitizer leaves where it redacted a contact value.
+_REDACTED = "[redacted:"
+
+
+def is_contact_value(value: str) -> bool:
+    """True when a string holds a URL, an email address or a phone number (or the
+    placeholder left where one was redacted: it is not a name either)."""
+    if _REDACTED in value or _URL.search(value):
+        return True
+    if regex_redactor(value)[1]:
+        return True
+    return any(sum(ch.isdigit() for ch in m.group()) >= 9 for m in _PHONE_RUN.finditer(value))
 
 
 def scrub_personal(value: Any) -> Any:
@@ -34,24 +61,139 @@ def scrub_personal(value: Any) -> Any:
     return value
 
 
-class ScrubbingCache:
-    """Wraps the step's response cache so cached Crustdata bodies hold no personal
-    contact details or profile links either (`CrustdataClient` strips only emails and
-    phone numbers before caching)."""
+def _clean_str(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    value = " ".join(value.split())
+    return value or None
 
-    def __init__(self, inner: Any) -> None:
-        self.inner = inner
 
-    async def get(self, key: str) -> Any | None:
-        return await self.inner.get(key)
+def identity(value: Any) -> str | None:
+    """A name or label to retain, or None if empty or it holds a contact value."""
+    text = _clean_str(value)
+    return None if text is None or is_contact_value(text) else text
 
-    async def set(self, key: str, value: Any) -> None:
-        await self.inner.set(key, scrub_personal(value))
+
+def _investor_id(value: Any) -> str | None:
+    text = _clean_str(value)
+    if text is None or not _UUID.match(text) or not any(ch.isalpha() for ch in text):
+        return None  # a provider id has letters; an all-digit "id" may be a phone number
+    return text
+
+
+def names(value: Any) -> list[str]:
+    """Investor names from a list, or from a comma-separated string (Crustdata returns
+    `lead_investors` both ways). Contact values are dropped."""
+    items = value.split(",") if isinstance(value, str) else value or []
+    if not isinstance(items, list):
+        return []
+    return [n for n in (identity(x) for x in items) if n]
 
 
 # Investor attributes kept. Profile links (`permalink`, `crunchbase_profile_url`) are
 # dropped: for an individual investor they are a personal profile link.
 INVESTOR_KEYS = ("name", "uuid", "type")
+
+
+def allow_investor(item: Any) -> dict[str, Any] | None:
+    if not isinstance(item, dict):
+        return None
+    inv = {
+        "name": identity(item.get("name")),
+        "uuid": _investor_id(item.get("uuid")),
+        "type": identity(item.get("type")),
+    }
+    return inv if inv["name"] or inv["uuid"] else None
+
+
+def _allow_round(m: Any) -> dict[str, Any] | None:
+    if not isinstance(m, dict):
+        return None
+    out: dict[str, Any] = {
+        "round_type": identity(m.get("round_type")),
+        "date": _clean_str(m.get("date")),
+        "funding_date": _clean_str(m.get("funding_date")),
+        "amount_usd": m.get("amount_usd") if isinstance(m.get("amount_usd"), int | float) else None,
+        "investors": names(m.get("investors")),
+        "lead_investors": names(m.get("lead_investors")),
+        "investors_detailed": [
+            i for i in (allow_investor(x) for x in m.get("investors_detailed") or []) if i
+        ],
+    }
+    return out
+
+
+def allow_company(value: Any) -> Any:
+    """One company record under the investor allowlist. Company fields other callers
+    read stay (minus profile links and contact keys); the funding group is rebuilt
+    from the funding allowlist."""
+    if not isinstance(value, dict):
+        return value
+    out = scrub_personal({k: v for k, v in value.items() if k != "funding"})
+    funding = value.get("funding")
+    if isinstance(funding, dict):
+        kept = scrub_personal(
+            {
+                k: v
+                for k, v in funding.items()
+                if k not in ("investors", "investors_detailed", "milestones")
+            }
+        )
+        kept["investors"] = names(funding.get("investors"))
+        kept["investors_detailed"] = [
+            i for i in (allow_investor(x) for x in funding.get("investors_detailed") or []) if i
+        ]
+        # Positions are kept (None for a malformed entry): evidence keys use the index.
+        kept["milestones"] = [_allow_round(m) for m in funding.get("milestones") or []]
+        out["funding"] = kept
+    return out
+
+
+def sanitize_body(body: Any) -> Any:
+    """A `/company/search` or `/company/enrich` body under the investor allowlist."""
+    if isinstance(body, dict) and isinstance(body.get("companies"), list):
+        return {**scrub_personal(body), "companies": [allow_company(c) for c in body["companies"]]}
+    if isinstance(body, list):
+        out = []
+        for result in body:
+            if not isinstance(result, dict):
+                continue
+            matches = []
+            for match in result.get("matches") or []:
+                if isinstance(match, dict):
+                    clean = scrub_personal({k: v for k, v in match.items() if k != "company_data"})
+                    clean["company_data"] = allow_company(match.get("company_data"))
+                    matches.append(clean)
+            rest = scrub_personal({k: v for k, v in result.items() if k != "matches"})
+            out.append({**rest, "matches": matches})
+        return out
+    return scrub_personal(body)
+
+
+def sanitize_cached(value: Any) -> Any:
+    """A cached response (``{"body": ..., "http_status": ..., ...}``) made safe."""
+    if isinstance(value, dict) and "body" in value:
+        return {
+            **scrub_personal({k: v for k, v in value.items() if k != "body"}),
+            "body": sanitize_body(value["body"]),
+        }
+    return sanitize_body(value)
+
+
+class ScrubbingCache:
+    """Wraps the step's response cache: what is stored, and every hit read back (the
+    cache is shared, so a hit may come from another caller), passes the investor
+    allowlist (`CrustdataClient` stores its own endpoint allowlist only)."""
+
+    def __init__(self, inner: Any) -> None:
+        self.inner = inner
+
+    async def get(self, key: str) -> Any | None:
+        value = await self.inner.get(key)
+        return None if value is None else sanitize_cached(value)
+
+    async def set(self, key: str, value: Any) -> None:
+        await self.inner.set(key, sanitize_cached(value))
 
 
 def parse_date(value: Any) -> dt.date | None:
@@ -64,13 +206,6 @@ def parse_date(value: Any) -> dt.date | None:
         return dt.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
     except ValueError:
         return None
-
-
-def _clean_str(value: Any) -> str | None:
-    if not isinstance(value, str):
-        return None
-    value = " ".join(value.split())
-    return value or None
 
 
 def _sectors(record: CompanyRecord) -> list[str]:
@@ -93,37 +228,35 @@ def _sectors(record: CompanyRecord) -> list[str]:
     return list(seen.values())
 
 
-def names(value: Any) -> list[str]:
-    """Investor names from a list, or from a comma-separated string (Crustdata returns
-    `lead_investors` both ways)."""
-    items = value.split(",") if isinstance(value, str) else value or []
-    if not isinstance(items, list):
-        return []
-    return [n for n in (_clean_str(x) for x in items) if n]
-
-
 def _investors(round_: dict[str, Any]) -> list[dict[str, Any]]:
+    """The round's detailed investors, then its plain-name mentions.
+
+    A plain mention joins a detailed investor only through the provider's own link: the
+    identical name string listed in the same round's `investors_detailed` (Crustdata's
+    `investors` is that list's name column). A mention that matches only after
+    normalising (case, punctuation, legal suffixes) stays its own investor without an
+    id, so the ranking keeps it and flags it as a possible duplicate instead of
+    dropping it.
+    """
     out: list[dict[str, Any]] = []
-    seen: set[str] = set()
+    linked: set[str] = set()
     for item in round_.get("investors_detailed") or []:
-        if not isinstance(item, dict):
-            continue
-        inv = {k: _clean_str(item.get(k)) for k in INVESTOR_KEYS}
-        if not inv["name"] and not inv["uuid"]:
+        inv = allow_investor(item)
+        if inv is None:
             continue
         out.append(inv)
         if inv["name"]:
-            seen.add(normalize_text(inv["name"]))
+            linked.add(inv["name"])
     for name in names(round_.get("investors")) + names(round_.get("lead_investors")):
-        if normalize_text(name) not in seen:
+        if name not in linked:
             out.append({"name": name, "uuid": None, "type": None})
-            seen.add(normalize_text(name))
+            linked.add(name)
     return out
 
 
 def compact_company(raw: CompanyRecord | dict[str, Any]) -> dict[str, Any]:
     """The funding view of one company: identity, sectors and dated rounds."""
-    data = scrub_personal(raw.model_dump() if isinstance(raw, CompanyRecord) else dict(raw))
+    data = allow_company(raw.model_dump() if isinstance(raw, CompanyRecord) else dict(raw))
     # Funding is read from the raw dict below: provider shapes vary (string or list).
     record = CompanyRecord.model_validate({k: v for k, v in data.items() if k != "funding"})
     info = record.basic_info
@@ -138,7 +271,7 @@ def compact_company(raw: CompanyRecord | dict[str, Any]) -> dict[str, Any]:
         rounds.append(
             {
                 "index": i,
-                "round_type": _clean_str(m.get("round_type")),
+                "round_type": identity(m.get("round_type")),
                 "date": date.isoformat() if date else None,
                 "amount_usd": float(amount) if isinstance(amount, int | float) else None,
                 "investors": _investors(m),
