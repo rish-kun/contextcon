@@ -15,6 +15,7 @@ from app.api import (
     auth,
     cases,
     claims,
+    decision_flip,
     documents,
     investors,
     policy,
@@ -26,6 +27,18 @@ from app.api import (
 from app.api._base import operation_id
 
 api_router = APIRouter()
-for module in (auth, theses, investors, cases, claims, documents, requests, runs, policy, showcase):
+for module in (
+    auth,
+    theses,
+    investors,
+    cases,
+    decision_flip,
+    claims,
+    documents,
+    requests,
+    runs,
+    policy,
+    showcase,
+):
     api_router.include_router(module.router)
 api_router.include_router(act.router, generate_unique_id_function=operation_id)

@@ -1247,6 +1247,12 @@
         "unknown_cost_calls": 1
       },
       "latest_run_state": "done",
+      "decision_flip": {
+        "state": "has_blockers",
+        "next_disposition": "prioritise",
+        "blockers_to_next": 2,
+        "assessment_version": 2
+      },
       "created_at": "2026-11-22T09:30:00Z",
       "updated_at": "2026-11-22T19:42:00Z"
     },
@@ -1269,6 +1275,7 @@
         "unknown_cost_calls": 0
       },
       "latest_run_state": "done",
+      "decision_flip": null,
       "created_at": "2026-11-22T10:00:00Z",
       "updated_at": "2026-11-22T19:42:00Z"
     }
@@ -3007,6 +3014,263 @@
         "confidential_removed_on": null
       },
       "memo": null,
+      "decision_flip": {
+        "hypothetical": true,
+        "analysis_id": "fx-flip-fx-case-harbourline",
+        "case_id": "fx-case-harbourline",
+        "assessment_version": 2,
+        "policy_version": "2026-11-22.3",
+        "inputs_hash": "fixture-fx-case-harbourline-2",
+        "flip_version": "decision-flip-1",
+        "analysis_key": "bc487ad308a4a6633268689135c2e022ef7c1eaaf2f79df91867ccd70b6c4c56",
+        "selection_basis": "fewest_checks",
+        "selection_label": "Minimum set of checks required to change the screening outcome",
+        "state": "has_blockers",
+        "not_reproducible_reason": null,
+        "current": "investigate_further",
+        "current_rule": "evidence_incomplete",
+        "current_reasons": [
+          "Fit 100 out of 100, with 100% of the criteria assessable",
+          "Required check leadership history: Cannot verify",
+          "Required check funding: Partially corroborated"
+        ],
+        "target": "prioritise",
+        "ceiling": {
+          "hypothetical": true,
+          "disposition": "prioritise",
+          "rule": "strong_fit_checks_satisfied",
+          "reasons": [
+            "Fit 100 out of 100, with 100% of the criteria assessable",
+            "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+          ],
+          "changes_disposition": true
+        },
+        "items": [
+          {
+            "id": "claim:fx-claim-3",
+            "kind": "claim",
+            "claim_id": "fx-claim-3",
+            "criterion_id": null,
+            "check": "leadership_history",
+            "label": "Founder history",
+            "claim_text": "Our founder ran operations at a national courier firm",
+            "current_state": "cannot_verify",
+            "classification": "decision_blocker",
+            "decision_blocker": true,
+            "disqualifier_risk": false,
+            "required_in_every_path": true,
+            "flips_alone": false,
+            "locks_target": true,
+            "seller_resolvable": true,
+            "analyst_retry": false,
+            "est_effort": "low",
+            "conditional_action": null,
+            "depends_on": [],
+            "settle_with": [
+              "Founder CV with dates, or an employer's confirmation"
+            ],
+            "if_supported": {
+              "hypothetical": true,
+              "disposition": "investigate_further",
+              "rule": "evidence_incomplete",
+              "reasons": [
+                "Fit 100 out of 100, with 100% of the criteria assessable",
+                "Required check funding: Partially corroborated"
+              ],
+              "changes_disposition": false
+            },
+            "if_contradicted": {
+              "hypothetical": true,
+              "disposition": "investigate_further",
+              "rule": "evidence_incomplete",
+              "reasons": [
+                "Fit 100 out of 100, with 100% of the criteria assessable",
+                "Required check funding: Partially corroborated",
+                "Required check leadership history: Contradicted",
+                "Material claim fx-claim-3: Contradicted"
+              ],
+              "changes_disposition": false
+            }
+          },
+          {
+            "id": "claim:fx-claim-4",
+            "kind": "claim",
+            "claim_id": "fx-claim-4",
+            "criterion_id": null,
+            "check": "funding",
+            "label": "Series A funding",
+            "claim_text": "We raised our Series A in 2024",
+            "current_state": "partially_corroborated",
+            "classification": "decision_blocker",
+            "decision_blocker": true,
+            "disqualifier_risk": false,
+            "required_in_every_path": true,
+            "flips_alone": false,
+            "locks_target": true,
+            "seller_resolvable": true,
+            "analyst_retry": false,
+            "est_effort": "medium",
+            "conditional_action": null,
+            "depends_on": [],
+            "settle_with": [
+              "Share allotment filing, closing statement or bank receipt of the funds"
+            ],
+            "if_supported": {
+              "hypothetical": true,
+              "disposition": "investigate_further",
+              "rule": "evidence_incomplete",
+              "reasons": [
+                "Fit 100 out of 100, with 100% of the criteria assessable",
+                "Required check leadership history: Cannot verify"
+              ],
+              "changes_disposition": false
+            },
+            "if_contradicted": {
+              "hypothetical": true,
+              "disposition": "investigate_further",
+              "rule": "evidence_incomplete",
+              "reasons": [
+                "Fit 100 out of 100, with 100% of the criteria assessable",
+                "Required check leadership history: Cannot verify",
+                "Required check funding: Contradicted",
+                "Material claim fx-claim-4: Contradicted"
+              ],
+              "changes_disposition": false
+            }
+          }
+        ],
+        "minimal_sets": [
+          {
+            "hypothetical": true,
+            "item_ids": [
+              "claim:fx-claim-3",
+              "claim:fx-claim-4"
+            ],
+            "documents": [
+              {
+                "document": "Founder CV with dates, or an employer's confirmation",
+                "item_ids": [
+                  "claim:fx-claim-3"
+                ],
+                "seller_resolvable": true
+              },
+              {
+                "document": "Share allotment filing, closing statement or bank receipt of the funds",
+                "item_ids": [
+                  "claim:fx-claim-4"
+                ],
+                "seller_resolvable": true
+              }
+            ],
+            "outcome": {
+              "hypothetical": true,
+              "disposition": "prioritise",
+              "rule": "strong_fit_checks_satisfied",
+              "reasons": [
+                "Fit 100 out of 100, with 100% of the criteria assessable",
+                "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+              ],
+              "changes_disposition": true
+            }
+          }
+        ],
+        "minimum_evidence": {
+          "hypothetical": true,
+          "item_ids": [
+            "claim:fx-claim-3",
+            "claim:fx-claim-4"
+          ],
+          "documents": [
+            {
+              "document": "Founder CV with dates, or an employer's confirmation",
+              "item_ids": [
+                "claim:fx-claim-3"
+              ],
+              "seller_resolvable": true
+            },
+            {
+              "document": "Share allotment filing, closing statement or bank receipt of the funds",
+              "item_ids": [
+                "claim:fx-claim-4"
+              ],
+              "seller_resolvable": true
+            }
+          ],
+          "outcome": {
+            "hypothetical": true,
+            "disposition": "prioritise",
+            "rule": "strong_fit_checks_satisfied",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+            ],
+            "changes_disposition": true
+          }
+        },
+        "worst_if_contradicted": {
+          "hypothetical": true,
+          "disposition": "investigate_further",
+          "rule": "evidence_incomplete",
+          "reasons": [
+            "Fit 100 out of 100, with 100% of the criteria assessable",
+            "Required check funding: Partially corroborated",
+            "Required check leadership history: Contradicted",
+            "Material claim fx-claim-3: Contradicted"
+          ],
+          "changes_disposition": false
+        },
+        "next_best_action": {
+          "action": "request_documents",
+          "text": "Request 2 documents that settle the 2 decision blockers, rather than everything open.",
+          "item_ids": [
+            "claim:fx-claim-3",
+            "claim:fx-claim-4"
+          ],
+          "documents": [
+            "Founder CV with dates, or an employer's confirmation",
+            "Share allotment filing, closing statement or bank receipt of the funds"
+          ],
+          "conditions": []
+        },
+        "search": "exhaustive",
+        "greedy": false,
+        "evaluations": 8,
+        "blocker_count": 2,
+        "created_at": "2026-11-22T10:12:00Z",
+        "resolution": {
+          "previous_version": 1,
+          "previous_blockers": 3,
+          "resolved_blockers": 1,
+          "items": [
+            {
+              "item_id": "claim:fx-claim-2",
+              "label": "Team size",
+              "outcome": "resolved",
+              "was_blocker": true,
+              "current_state": "supported",
+              "evidence_ids": [
+                "fx-ev-payroll"
+              ]
+            },
+            {
+              "item_id": "claim:fx-claim-3",
+              "label": "Founder history",
+              "outcome": "still_open",
+              "was_blocker": true,
+              "current_state": "cannot_verify",
+              "evidence_ids": []
+            },
+            {
+              "item_id": "claim:fx-claim-4",
+              "label": "Series A funding",
+              "outcome": "still_open",
+              "was_blocker": true,
+              "current_state": "partially_corroborated",
+              "evidence_ids": []
+            }
+          ]
+        }
+      },
       "risks": [
         {
           "kind": "gap",
@@ -4049,6 +4313,7 @@
       },
       "assessment": null,
       "memo": null,
+      "decision_flip": null,
       "risks": [
         {
           "kind": "not_checked",
@@ -4661,6 +4926,1631 @@
       }
     ],
     "fx-case-shree": []
+  },
+  "decisionFlip": {
+    "fx-case-harbourline": {
+      "hypothetical": true,
+      "analysis_id": "fx-flip-fx-case-harbourline",
+      "case_id": "fx-case-harbourline",
+      "assessment_version": 2,
+      "policy_version": "2026-11-22.3",
+      "inputs_hash": "fixture-fx-case-harbourline-2",
+      "flip_version": "decision-flip-1",
+      "analysis_key": "bc487ad308a4a6633268689135c2e022ef7c1eaaf2f79df91867ccd70b6c4c56",
+      "selection_basis": "fewest_checks",
+      "selection_label": "Minimum set of checks required to change the screening outcome",
+      "state": "has_blockers",
+      "not_reproducible_reason": null,
+      "current": "investigate_further",
+      "current_rule": "evidence_incomplete",
+      "current_reasons": [
+        "Fit 100 out of 100, with 100% of the criteria assessable",
+        "Required check leadership history: Cannot verify",
+        "Required check funding: Partially corroborated"
+      ],
+      "target": "prioritise",
+      "ceiling": {
+        "hypothetical": true,
+        "disposition": "prioritise",
+        "rule": "strong_fit_checks_satisfied",
+        "reasons": [
+          "Fit 100 out of 100, with 100% of the criteria assessable",
+          "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+        ],
+        "changes_disposition": true
+      },
+      "items": [
+        {
+          "id": "claim:fx-claim-3",
+          "kind": "claim",
+          "claim_id": "fx-claim-3",
+          "criterion_id": null,
+          "check": "leadership_history",
+          "label": "Founder history",
+          "claim_text": "Our founder ran operations at a national courier firm",
+          "current_state": "cannot_verify",
+          "classification": "decision_blocker",
+          "decision_blocker": true,
+          "disqualifier_risk": false,
+          "required_in_every_path": true,
+          "flips_alone": false,
+          "locks_target": true,
+          "seller_resolvable": true,
+          "analyst_retry": false,
+          "est_effort": "low",
+          "conditional_action": null,
+          "depends_on": [],
+          "settle_with": [
+            "Founder CV with dates, or an employer's confirmation"
+          ],
+          "if_supported": {
+            "hypothetical": true,
+            "disposition": "investigate_further",
+            "rule": "evidence_incomplete",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Required check funding: Partially corroborated"
+            ],
+            "changes_disposition": false
+          },
+          "if_contradicted": {
+            "hypothetical": true,
+            "disposition": "investigate_further",
+            "rule": "evidence_incomplete",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Required check funding: Partially corroborated",
+              "Required check leadership history: Contradicted",
+              "Material claim fx-claim-3: Contradicted"
+            ],
+            "changes_disposition": false
+          }
+        },
+        {
+          "id": "claim:fx-claim-4",
+          "kind": "claim",
+          "claim_id": "fx-claim-4",
+          "criterion_id": null,
+          "check": "funding",
+          "label": "Series A funding",
+          "claim_text": "We raised our Series A in 2024",
+          "current_state": "partially_corroborated",
+          "classification": "decision_blocker",
+          "decision_blocker": true,
+          "disqualifier_risk": false,
+          "required_in_every_path": true,
+          "flips_alone": false,
+          "locks_target": true,
+          "seller_resolvable": true,
+          "analyst_retry": false,
+          "est_effort": "medium",
+          "conditional_action": null,
+          "depends_on": [],
+          "settle_with": [
+            "Share allotment filing, closing statement or bank receipt of the funds"
+          ],
+          "if_supported": {
+            "hypothetical": true,
+            "disposition": "investigate_further",
+            "rule": "evidence_incomplete",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Required check leadership history: Cannot verify"
+            ],
+            "changes_disposition": false
+          },
+          "if_contradicted": {
+            "hypothetical": true,
+            "disposition": "investigate_further",
+            "rule": "evidence_incomplete",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Required check leadership history: Cannot verify",
+              "Required check funding: Contradicted",
+              "Material claim fx-claim-4: Contradicted"
+            ],
+            "changes_disposition": false
+          }
+        }
+      ],
+      "minimal_sets": [
+        {
+          "hypothetical": true,
+          "item_ids": [
+            "claim:fx-claim-3",
+            "claim:fx-claim-4"
+          ],
+          "documents": [
+            {
+              "document": "Founder CV with dates, or an employer's confirmation",
+              "item_ids": [
+                "claim:fx-claim-3"
+              ],
+              "seller_resolvable": true
+            },
+            {
+              "document": "Share allotment filing, closing statement or bank receipt of the funds",
+              "item_ids": [
+                "claim:fx-claim-4"
+              ],
+              "seller_resolvable": true
+            }
+          ],
+          "outcome": {
+            "hypothetical": true,
+            "disposition": "prioritise",
+            "rule": "strong_fit_checks_satisfied",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+            ],
+            "changes_disposition": true
+          }
+        }
+      ],
+      "minimum_evidence": {
+        "hypothetical": true,
+        "item_ids": [
+          "claim:fx-claim-3",
+          "claim:fx-claim-4"
+        ],
+        "documents": [
+          {
+            "document": "Founder CV with dates, or an employer's confirmation",
+            "item_ids": [
+              "claim:fx-claim-3"
+            ],
+            "seller_resolvable": true
+          },
+          {
+            "document": "Share allotment filing, closing statement or bank receipt of the funds",
+            "item_ids": [
+              "claim:fx-claim-4"
+            ],
+            "seller_resolvable": true
+          }
+        ],
+        "outcome": {
+          "hypothetical": true,
+          "disposition": "prioritise",
+          "rule": "strong_fit_checks_satisfied",
+          "reasons": [
+            "Fit 100 out of 100, with 100% of the criteria assessable",
+            "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+          ],
+          "changes_disposition": true
+        }
+      },
+      "worst_if_contradicted": {
+        "hypothetical": true,
+        "disposition": "investigate_further",
+        "rule": "evidence_incomplete",
+        "reasons": [
+          "Fit 100 out of 100, with 100% of the criteria assessable",
+          "Required check funding: Partially corroborated",
+          "Required check leadership history: Contradicted",
+          "Material claim fx-claim-3: Contradicted"
+        ],
+        "changes_disposition": false
+      },
+      "next_best_action": {
+        "action": "request_documents",
+        "text": "Request 2 documents that settle the 2 decision blockers, rather than everything open.",
+        "item_ids": [
+          "claim:fx-claim-3",
+          "claim:fx-claim-4"
+        ],
+        "documents": [
+          "Founder CV with dates, or an employer's confirmation",
+          "Share allotment filing, closing statement or bank receipt of the funds"
+        ],
+        "conditions": []
+      },
+      "search": "exhaustive",
+      "greedy": false,
+      "evaluations": 8,
+      "blocker_count": 2,
+      "created_at": "2026-11-22T10:12:00Z",
+      "resolution": {
+        "previous_version": 1,
+        "previous_blockers": 3,
+        "resolved_blockers": 1,
+        "items": [
+          {
+            "item_id": "claim:fx-claim-2",
+            "label": "Team size",
+            "outcome": "resolved",
+            "was_blocker": true,
+            "current_state": "supported",
+            "evidence_ids": [
+              "fx-ev-payroll"
+            ]
+          },
+          {
+            "item_id": "claim:fx-claim-3",
+            "label": "Founder history",
+            "outcome": "still_open",
+            "was_blocker": true,
+            "current_state": "cannot_verify",
+            "evidence_ids": []
+          },
+          {
+            "item_id": "claim:fx-claim-4",
+            "label": "Series A funding",
+            "outcome": "still_open",
+            "was_blocker": true,
+            "current_state": "partially_corroborated",
+            "evidence_ids": []
+          }
+        ]
+      }
+    }
+  },
+  "decisionFlipScenarios": {
+    "two_blockers": {
+      "hypothetical": true,
+      "analysis_id": "fx-flip-fx-case-harbourline",
+      "case_id": "fx-case-harbourline",
+      "assessment_version": 2,
+      "policy_version": "2026-11-22.3",
+      "inputs_hash": "fixture-fx-case-harbourline-2",
+      "flip_version": "decision-flip-1",
+      "analysis_key": "bc487ad308a4a6633268689135c2e022ef7c1eaaf2f79df91867ccd70b6c4c56",
+      "selection_basis": "fewest_checks",
+      "selection_label": "Minimum set of checks required to change the screening outcome",
+      "state": "has_blockers",
+      "not_reproducible_reason": null,
+      "current": "investigate_further",
+      "current_rule": "evidence_incomplete",
+      "current_reasons": [
+        "Fit 100 out of 100, with 100% of the criteria assessable",
+        "Required check leadership history: Cannot verify",
+        "Required check funding: Partially corroborated"
+      ],
+      "target": "prioritise",
+      "ceiling": {
+        "hypothetical": true,
+        "disposition": "prioritise",
+        "rule": "strong_fit_checks_satisfied",
+        "reasons": [
+          "Fit 100 out of 100, with 100% of the criteria assessable",
+          "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+        ],
+        "changes_disposition": true
+      },
+      "items": [
+        {
+          "id": "claim:fx-claim-3",
+          "kind": "claim",
+          "claim_id": "fx-claim-3",
+          "criterion_id": null,
+          "check": "leadership_history",
+          "label": "Founder history",
+          "claim_text": "Our founder ran operations at a national courier firm",
+          "current_state": "cannot_verify",
+          "classification": "decision_blocker",
+          "decision_blocker": true,
+          "disqualifier_risk": false,
+          "required_in_every_path": true,
+          "flips_alone": false,
+          "locks_target": true,
+          "seller_resolvable": true,
+          "analyst_retry": false,
+          "est_effort": "low",
+          "conditional_action": null,
+          "depends_on": [],
+          "settle_with": [
+            "Founder CV with dates, or an employer's confirmation"
+          ],
+          "if_supported": {
+            "hypothetical": true,
+            "disposition": "investigate_further",
+            "rule": "evidence_incomplete",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Required check funding: Partially corroborated"
+            ],
+            "changes_disposition": false
+          },
+          "if_contradicted": {
+            "hypothetical": true,
+            "disposition": "investigate_further",
+            "rule": "evidence_incomplete",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Required check funding: Partially corroborated",
+              "Required check leadership history: Contradicted",
+              "Material claim fx-claim-3: Contradicted"
+            ],
+            "changes_disposition": false
+          }
+        },
+        {
+          "id": "claim:fx-claim-4",
+          "kind": "claim",
+          "claim_id": "fx-claim-4",
+          "criterion_id": null,
+          "check": "funding",
+          "label": "Series A funding",
+          "claim_text": "We raised our Series A in 2024",
+          "current_state": "partially_corroborated",
+          "classification": "decision_blocker",
+          "decision_blocker": true,
+          "disqualifier_risk": false,
+          "required_in_every_path": true,
+          "flips_alone": false,
+          "locks_target": true,
+          "seller_resolvable": true,
+          "analyst_retry": false,
+          "est_effort": "medium",
+          "conditional_action": null,
+          "depends_on": [],
+          "settle_with": [
+            "Share allotment filing, closing statement or bank receipt of the funds"
+          ],
+          "if_supported": {
+            "hypothetical": true,
+            "disposition": "investigate_further",
+            "rule": "evidence_incomplete",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Required check leadership history: Cannot verify"
+            ],
+            "changes_disposition": false
+          },
+          "if_contradicted": {
+            "hypothetical": true,
+            "disposition": "investigate_further",
+            "rule": "evidence_incomplete",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Required check leadership history: Cannot verify",
+              "Required check funding: Contradicted",
+              "Material claim fx-claim-4: Contradicted"
+            ],
+            "changes_disposition": false
+          }
+        }
+      ],
+      "minimal_sets": [
+        {
+          "hypothetical": true,
+          "item_ids": [
+            "claim:fx-claim-3",
+            "claim:fx-claim-4"
+          ],
+          "documents": [
+            {
+              "document": "Founder CV with dates, or an employer's confirmation",
+              "item_ids": [
+                "claim:fx-claim-3"
+              ],
+              "seller_resolvable": true
+            },
+            {
+              "document": "Share allotment filing, closing statement or bank receipt of the funds",
+              "item_ids": [
+                "claim:fx-claim-4"
+              ],
+              "seller_resolvable": true
+            }
+          ],
+          "outcome": {
+            "hypothetical": true,
+            "disposition": "prioritise",
+            "rule": "strong_fit_checks_satisfied",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+            ],
+            "changes_disposition": true
+          }
+        }
+      ],
+      "minimum_evidence": {
+        "hypothetical": true,
+        "item_ids": [
+          "claim:fx-claim-3",
+          "claim:fx-claim-4"
+        ],
+        "documents": [
+          {
+            "document": "Founder CV with dates, or an employer's confirmation",
+            "item_ids": [
+              "claim:fx-claim-3"
+            ],
+            "seller_resolvable": true
+          },
+          {
+            "document": "Share allotment filing, closing statement or bank receipt of the funds",
+            "item_ids": [
+              "claim:fx-claim-4"
+            ],
+            "seller_resolvable": true
+          }
+        ],
+        "outcome": {
+          "hypothetical": true,
+          "disposition": "prioritise",
+          "rule": "strong_fit_checks_satisfied",
+          "reasons": [
+            "Fit 100 out of 100, with 100% of the criteria assessable",
+            "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+          ],
+          "changes_disposition": true
+        }
+      },
+      "worst_if_contradicted": {
+        "hypothetical": true,
+        "disposition": "investigate_further",
+        "rule": "evidence_incomplete",
+        "reasons": [
+          "Fit 100 out of 100, with 100% of the criteria assessable",
+          "Required check funding: Partially corroborated",
+          "Required check leadership history: Contradicted",
+          "Material claim fx-claim-3: Contradicted"
+        ],
+        "changes_disposition": false
+      },
+      "next_best_action": {
+        "action": "request_documents",
+        "text": "Request 2 documents that settle the 2 decision blockers, rather than everything open.",
+        "item_ids": [
+          "claim:fx-claim-3",
+          "claim:fx-claim-4"
+        ],
+        "documents": [
+          "Founder CV with dates, or an employer's confirmation",
+          "Share allotment filing, closing statement or bank receipt of the funds"
+        ],
+        "conditions": []
+      },
+      "search": "exhaustive",
+      "greedy": false,
+      "evaluations": 8,
+      "blocker_count": 2,
+      "created_at": "2026-11-22T10:12:00Z",
+      "resolution": {
+        "previous_version": 1,
+        "previous_blockers": 3,
+        "resolved_blockers": 1,
+        "items": [
+          {
+            "item_id": "claim:fx-claim-2",
+            "label": "Team size",
+            "outcome": "resolved",
+            "was_blocker": true,
+            "current_state": "supported",
+            "evidence_ids": [
+              "fx-ev-payroll"
+            ]
+          },
+          {
+            "item_id": "claim:fx-claim-3",
+            "label": "Founder history",
+            "outcome": "still_open",
+            "was_blocker": true,
+            "current_state": "cannot_verify",
+            "evidence_ids": []
+          },
+          {
+            "item_id": "claim:fx-claim-4",
+            "label": "Series A funding",
+            "outcome": "still_open",
+            "was_blocker": true,
+            "current_state": "partially_corroborated",
+            "evidence_ids": []
+          }
+        ]
+      }
+    },
+    "no_blockers": {
+      "hypothetical": true,
+      "analysis_id": "fx-flip-fx-case-harbourline-no-blockers",
+      "case_id": "fx-case-harbourline",
+      "assessment_version": 3,
+      "policy_version": "2026-11-22.3",
+      "inputs_hash": "fixture-fx-case-harbourline-3",
+      "flip_version": "decision-flip-1",
+      "analysis_key": "08b89cc88420c44c74ac32dddeadddb99d9c1c0de42477a0b033840a8dc859fe",
+      "selection_basis": "fewest_checks",
+      "selection_label": "Minimum set of checks required to change the screening outcome",
+      "state": "no_blockers",
+      "not_reproducible_reason": null,
+      "current": "prioritise",
+      "current_rule": "strong_fit_checks_satisfied",
+      "current_reasons": [
+        "Fit 100 out of 100, with 100% of the criteria assessable",
+        "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+      ],
+      "target": null,
+      "ceiling": {
+        "hypothetical": true,
+        "disposition": "prioritise",
+        "rule": "strong_fit_checks_satisfied",
+        "reasons": [
+          "Fit 100 out of 100, with 100% of the criteria assessable",
+          "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+        ],
+        "changes_disposition": false
+      },
+      "items": [
+        {
+          "id": "claim:fx-claim-5",
+          "kind": "claim",
+          "claim_id": "fx-claim-5",
+          "criterion_id": null,
+          "check": "dated_event",
+          "label": "Nashik facility",
+          "claim_text": "We opened a cold-storage facility in Nashik in August 2026",
+          "current_state": "cannot_verify",
+          "classification": "non_blocking",
+          "decision_blocker": false,
+          "disqualifier_risk": false,
+          "required_in_every_path": false,
+          "flips_alone": false,
+          "locks_target": false,
+          "seller_resolvable": true,
+          "analyst_retry": false,
+          "est_effort": "low",
+          "conditional_action": null,
+          "depends_on": [],
+          "settle_with": [
+            "Dated document showing the event took place"
+          ],
+          "if_supported": {
+            "hypothetical": true,
+            "disposition": "prioritise",
+            "rule": "strong_fit_checks_satisfied",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+            ],
+            "changes_disposition": false
+          },
+          "if_contradicted": {
+            "hypothetical": true,
+            "disposition": "prioritise",
+            "rule": "strong_fit_checks_satisfied",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+            ],
+            "changes_disposition": false
+          }
+        }
+      ],
+      "minimal_sets": [],
+      "minimum_evidence": null,
+      "worst_if_contradicted": null,
+      "next_best_action": {
+        "action": "none",
+        "text": "No open item stands in the way of Prioritise.",
+        "item_ids": [],
+        "documents": [],
+        "conditions": []
+      },
+      "search": "exhaustive",
+      "greedy": false,
+      "evaluations": 3,
+      "blocker_count": 0,
+      "created_at": "2026-11-22T10:12:00Z",
+      "resolution": null
+    },
+    "disqualifier_risk": {
+      "hypothetical": true,
+      "analysis_id": "fx-flip-fx-case-harbourline-risk",
+      "case_id": "fx-case-harbourline",
+      "assessment_version": 2,
+      "policy_version": "2026-11-22.3",
+      "inputs_hash": "fixture-fx-case-harbourline-2",
+      "flip_version": "decision-flip-1",
+      "analysis_key": "bc487ad308a4a6633268689135c2e022ef7c1eaaf2f79df91867ccd70b6c4c56",
+      "selection_basis": "fewest_checks",
+      "selection_label": "Minimum set of checks required to change the screening outcome",
+      "state": "has_blockers",
+      "not_reproducible_reason": null,
+      "current": "investigate_further",
+      "current_rule": "evidence_incomplete",
+      "current_reasons": [
+        "Fit 100 out of 100, with 75% of the criteria assessable",
+        "Required check team size: Cannot verify",
+        "Must-have criterion fx-crit-2: not verified"
+      ],
+      "target": "prioritise",
+      "ceiling": {
+        "hypothetical": true,
+        "disposition": "prioritise",
+        "rule": "strong_fit_checks_satisfied",
+        "reasons": [
+          "Fit 100 out of 100, with 100% of the criteria assessable",
+          "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+        ],
+        "changes_disposition": true
+      },
+      "items": [
+        {
+          "id": "claim:fx-claim-2",
+          "kind": "claim",
+          "claim_id": "fx-claim-2",
+          "criterion_id": null,
+          "check": "team_size",
+          "label": "Team size",
+          "claim_text": "We employ 300 people",
+          "current_state": "cannot_verify",
+          "classification": "decision_blocker",
+          "decision_blocker": true,
+          "disqualifier_risk": false,
+          "required_in_every_path": true,
+          "flips_alone": false,
+          "locks_target": true,
+          "seller_resolvable": true,
+          "analyst_retry": false,
+          "est_effort": "medium",
+          "conditional_action": null,
+          "depends_on": [],
+          "settle_with": [
+            "Dated payroll summary"
+          ],
+          "if_supported": {
+            "hypothetical": true,
+            "disposition": "investigate_further",
+            "rule": "evidence_incomplete",
+            "reasons": [
+              "Fit 100 out of 100, with 75% of the criteria assessable",
+              "Must-have criterion fx-crit-2: not verified"
+            ],
+            "changes_disposition": false
+          },
+          "if_contradicted": {
+            "hypothetical": true,
+            "disposition": "investigate_further",
+            "rule": "evidence_incomplete",
+            "reasons": [
+              "Fit 100 out of 100, with 75% of the criteria assessable",
+              "Required check team size: Contradicted",
+              "Material claim fx-claim-2: Contradicted",
+              "Must-have criterion fx-crit-2: not verified"
+            ],
+            "changes_disposition": false
+          }
+        },
+        {
+          "id": "criterion:fx-crit-2",
+          "kind": "criterion",
+          "claim_id": null,
+          "criterion_id": "fx-crit-2",
+          "check": null,
+          "label": "Privately held",
+          "claim_text": null,
+          "current_state": "unknown",
+          "classification": "decision_blocker",
+          "decision_blocker": true,
+          "disqualifier_risk": true,
+          "required_in_every_path": true,
+          "flips_alone": false,
+          "locks_target": true,
+          "seller_resolvable": false,
+          "analyst_retry": false,
+          "est_effort": "medium",
+          "conditional_action": "Obtain a sourced record for Privately held. If it shows the criterion holds, Privately held passes; otherwise it fails. Hypothetically, a pass gives Investigate further and a fail gives Deprioritise.",
+          "depends_on": [],
+          "settle_with": [
+            "Sourced record for the criterion (registry filing or data provider)"
+          ],
+          "if_supported": {
+            "hypothetical": true,
+            "disposition": "investigate_further",
+            "rule": "evidence_incomplete",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Required check team size: Cannot verify"
+            ],
+            "changes_disposition": false
+          },
+          "if_contradicted": {
+            "hypothetical": true,
+            "disposition": "deprioritise",
+            "rule": "requirement_failed",
+            "reasons": [
+              "Must-have failed: Privately held (hypothetical fail)"
+            ],
+            "changes_disposition": true
+          }
+        }
+      ],
+      "minimal_sets": [
+        {
+          "hypothetical": true,
+          "item_ids": [
+            "claim:fx-claim-2",
+            "criterion:fx-crit-2"
+          ],
+          "documents": [
+            {
+              "document": "Dated payroll summary",
+              "item_ids": [
+                "claim:fx-claim-2"
+              ],
+              "seller_resolvable": true
+            },
+            {
+              "document": "Sourced record for the criterion (registry filing or data provider)",
+              "item_ids": [
+                "criterion:fx-crit-2"
+              ],
+              "seller_resolvable": false
+            }
+          ],
+          "outcome": {
+            "hypothetical": true,
+            "disposition": "prioritise",
+            "rule": "strong_fit_checks_satisfied",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+            ],
+            "changes_disposition": true
+          }
+        }
+      ],
+      "minimum_evidence": {
+        "hypothetical": true,
+        "item_ids": [
+          "claim:fx-claim-2",
+          "criterion:fx-crit-2"
+        ],
+        "documents": [
+          {
+            "document": "Dated payroll summary",
+            "item_ids": [
+              "claim:fx-claim-2"
+            ],
+            "seller_resolvable": true
+          },
+          {
+            "document": "Sourced record for the criterion (registry filing or data provider)",
+            "item_ids": [
+              "criterion:fx-crit-2"
+            ],
+            "seller_resolvable": false
+          }
+        ],
+        "outcome": {
+          "hypothetical": true,
+          "disposition": "prioritise",
+          "rule": "strong_fit_checks_satisfied",
+          "reasons": [
+            "Fit 100 out of 100, with 100% of the criteria assessable",
+            "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+          ],
+          "changes_disposition": true
+        }
+      },
+      "worst_if_contradicted": {
+        "hypothetical": true,
+        "disposition": "deprioritise",
+        "rule": "requirement_failed",
+        "reasons": [
+          "Must-have failed: Privately held (hypothetical fail)"
+        ],
+        "changes_disposition": true
+      },
+      "next_best_action": {
+        "action": "request_documents",
+        "text": "Request 2 documents that settle the 2 decision blockers, rather than everything open. Obtain a sourced record for Privately held. If it shows the criterion holds, Privately held passes; otherwise it fails. Hypothetically, a pass gives Investigate further and a fail gives Deprioritise.",
+        "item_ids": [
+          "claim:fx-claim-2",
+          "criterion:fx-crit-2"
+        ],
+        "documents": [
+          "Dated payroll summary",
+          "Sourced record for the criterion (registry filing or data provider)"
+        ],
+        "conditions": [
+          "Obtain a sourced record for Privately held. If it shows the criterion holds, Privately held passes; otherwise it fails. Hypothetically, a pass gives Investigate further and a fail gives Deprioritise."
+        ]
+      },
+      "search": "exhaustive",
+      "greedy": false,
+      "evaluations": 8,
+      "blocker_count": 2,
+      "created_at": "2026-11-22T10:12:00Z",
+      "resolution": null
+    },
+    "mapped_claim_risk": {
+      "hypothetical": true,
+      "analysis_id": "fx-flip-fx-case-harbourline-mapped",
+      "case_id": "fx-case-harbourline",
+      "assessment_version": 2,
+      "policy_version": "2026-11-22.3",
+      "inputs_hash": "fixture-fx-case-harbourline-2",
+      "flip_version": "decision-flip-1",
+      "analysis_key": "e88196b0bc94287f174c9d1d51d9171abc1f2ba1c1d56f31bbe8c3f74d2d43a8",
+      "selection_basis": "fewest_checks",
+      "selection_label": "Minimum set of checks required to change the screening outcome",
+      "state": "has_blockers",
+      "not_reproducible_reason": null,
+      "current": "investigate_further",
+      "current_rule": "evidence_incomplete",
+      "current_reasons": [
+        "Fit 100 out of 100, with 100% of the criteria assessable",
+        "Required check identity incorporation: Partially corroborated"
+      ],
+      "target": "prioritise",
+      "ceiling": {
+        "hypothetical": true,
+        "disposition": "prioritise",
+        "rule": "strong_fit_checks_satisfied",
+        "reasons": [
+          "Fit 100 out of 100, with 100% of the criteria assessable",
+          "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+        ],
+        "changes_disposition": true
+      },
+      "items": [
+        {
+          "id": "claim:fx-claim-6",
+          "kind": "claim",
+          "claim_id": "fx-claim-6",
+          "criterion_id": null,
+          "check": "identity_incorporation",
+          "label": "Ownership",
+          "claim_text": "We are a privately held company",
+          "current_state": "cannot_verify",
+          "classification": "decision_blocker",
+          "decision_blocker": true,
+          "disqualifier_risk": true,
+          "required_in_every_path": true,
+          "flips_alone": true,
+          "locks_target": true,
+          "seller_resolvable": true,
+          "analyst_retry": false,
+          "est_effort": "low",
+          "conditional_action": null,
+          "depends_on": [],
+          "settle_with": [
+            "Certificate of incorporation"
+          ],
+          "if_supported": {
+            "hypothetical": true,
+            "disposition": "prioritise",
+            "rule": "strong_fit_checks_satisfied",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+            ],
+            "changes_disposition": true
+          },
+          "if_contradicted": {
+            "hypothetical": true,
+            "disposition": "deprioritise",
+            "rule": "requirement_failed",
+            "reasons": [
+              "Must-have failed: Privately held (claim fx-claim-6 contradicted on ownership)"
+            ],
+            "changes_disposition": true
+          }
+        }
+      ],
+      "minimal_sets": [
+        {
+          "hypothetical": true,
+          "item_ids": [
+            "claim:fx-claim-6"
+          ],
+          "documents": [
+            {
+              "document": "Certificate of incorporation",
+              "item_ids": [
+                "claim:fx-claim-6"
+              ],
+              "seller_resolvable": true
+            }
+          ],
+          "outcome": {
+            "hypothetical": true,
+            "disposition": "prioritise",
+            "rule": "strong_fit_checks_satisfied",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+            ],
+            "changes_disposition": true
+          }
+        }
+      ],
+      "minimum_evidence": {
+        "hypothetical": true,
+        "item_ids": [
+          "claim:fx-claim-6"
+        ],
+        "documents": [
+          {
+            "document": "Certificate of incorporation",
+            "item_ids": [
+              "claim:fx-claim-6"
+            ],
+            "seller_resolvable": true
+          }
+        ],
+        "outcome": {
+          "hypothetical": true,
+          "disposition": "prioritise",
+          "rule": "strong_fit_checks_satisfied",
+          "reasons": [
+            "Fit 100 out of 100, with 100% of the criteria assessable",
+            "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+          ],
+          "changes_disposition": true
+        }
+      },
+      "worst_if_contradicted": {
+        "hypothetical": true,
+        "disposition": "deprioritise",
+        "rule": "requirement_failed",
+        "reasons": [
+          "Must-have failed: Privately held (claim fx-claim-6 contradicted on ownership)"
+        ],
+        "changes_disposition": true
+      },
+      "next_best_action": {
+        "action": "request_documents",
+        "text": "Request 1 document that settles the decision blocker, rather than everything open.",
+        "item_ids": [
+          "claim:fx-claim-6"
+        ],
+        "documents": [
+          "Certificate of incorporation"
+        ],
+        "conditions": []
+      },
+      "search": "exhaustive",
+      "greedy": false,
+      "evaluations": 3,
+      "blocker_count": 1,
+      "created_at": "2026-11-22T10:12:00Z",
+      "resolution": null
+    },
+    "threshold_unknown": {
+      "hypothetical": true,
+      "analysis_id": "fx-flip-fx-case-harbourline-threshold",
+      "case_id": "fx-case-harbourline",
+      "assessment_version": 2,
+      "policy_version": "2026-11-22.3",
+      "inputs_hash": "fixture-fx-case-harbourline-2",
+      "flip_version": "decision-flip-1",
+      "analysis_key": "bc487ad308a4a6633268689135c2e022ef7c1eaaf2f79df91867ccd70b6c4c56",
+      "selection_basis": "fewest_checks",
+      "selection_label": "Minimum set of checks required to change the screening outcome",
+      "state": "has_blockers",
+      "not_reproducible_reason": null,
+      "current": "investigate_further",
+      "current_rule": "evidence_incomplete",
+      "current_reasons": [
+        "Fit 100 out of 100, with 80% of the criteria assessable",
+        "Required check team size: Cannot verify",
+        "Must-have criterion fx-crit-5: not verified"
+      ],
+      "target": "prioritise",
+      "ceiling": {
+        "hypothetical": true,
+        "disposition": "prioritise",
+        "rule": "strong_fit_checks_satisfied",
+        "reasons": [
+          "Fit 100 out of 100, with 100% of the criteria assessable",
+          "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+        ],
+        "changes_disposition": true
+      },
+      "items": [
+        {
+          "id": "claim:fx-claim-2",
+          "kind": "claim",
+          "claim_id": "fx-claim-2",
+          "criterion_id": null,
+          "check": "team_size",
+          "label": "Team size",
+          "claim_text": "We employ 300 people",
+          "current_state": "cannot_verify",
+          "classification": "decision_blocker",
+          "decision_blocker": true,
+          "disqualifier_risk": false,
+          "required_in_every_path": true,
+          "flips_alone": false,
+          "locks_target": true,
+          "seller_resolvable": true,
+          "analyst_retry": false,
+          "est_effort": "medium",
+          "conditional_action": null,
+          "depends_on": [],
+          "settle_with": [
+            "Dated payroll summary"
+          ],
+          "if_supported": {
+            "hypothetical": true,
+            "disposition": "investigate_further",
+            "rule": "evidence_incomplete",
+            "reasons": [
+              "Fit 100 out of 100, with 80% of the criteria assessable",
+              "Must-have criterion fx-crit-5: not verified"
+            ],
+            "changes_disposition": false
+          },
+          "if_contradicted": {
+            "hypothetical": true,
+            "disposition": "investigate_further",
+            "rule": "evidence_incomplete",
+            "reasons": [
+              "Fit 100 out of 100, with 80% of the criteria assessable",
+              "Required check team size: Contradicted",
+              "Material claim fx-claim-2: Contradicted",
+              "Must-have criterion fx-crit-5: not verified"
+            ],
+            "changes_disposition": false
+          }
+        },
+        {
+          "id": "criterion:fx-crit-5",
+          "kind": "criterion",
+          "claim_id": null,
+          "criterion_id": "fx-crit-5",
+          "check": null,
+          "label": "Revenue at least INR 50 crore",
+          "claim_text": null,
+          "current_state": "unknown",
+          "classification": "decision_blocker",
+          "decision_blocker": true,
+          "disqualifier_risk": true,
+          "required_in_every_path": true,
+          "flips_alone": false,
+          "locks_target": true,
+          "seller_resolvable": false,
+          "analyst_retry": false,
+          "est_effort": "medium",
+          "conditional_action": "Obtain a sourced record for Revenue at least INR 50 crore. If the verified figure is at least 500000000, Revenue at least INR 50 crore passes; otherwise it fails. Hypothetically, a pass gives Investigate further and a fail gives Deprioritise.",
+          "depends_on": [],
+          "settle_with": [
+            "Sourced record for the criterion (registry filing or data provider)"
+          ],
+          "if_supported": {
+            "hypothetical": true,
+            "disposition": "investigate_further",
+            "rule": "evidence_incomplete",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Required check team size: Cannot verify"
+            ],
+            "changes_disposition": false
+          },
+          "if_contradicted": {
+            "hypothetical": true,
+            "disposition": "deprioritise",
+            "rule": "requirement_failed",
+            "reasons": [
+              "Must-have failed: Revenue at least INR 50 crore (hypothetical fail)"
+            ],
+            "changes_disposition": true
+          }
+        }
+      ],
+      "minimal_sets": [
+        {
+          "hypothetical": true,
+          "item_ids": [
+            "claim:fx-claim-2",
+            "criterion:fx-crit-5"
+          ],
+          "documents": [
+            {
+              "document": "Dated payroll summary",
+              "item_ids": [
+                "claim:fx-claim-2"
+              ],
+              "seller_resolvable": true
+            },
+            {
+              "document": "Sourced record for the criterion (registry filing or data provider)",
+              "item_ids": [
+                "criterion:fx-crit-5"
+              ],
+              "seller_resolvable": false
+            }
+          ],
+          "outcome": {
+            "hypothetical": true,
+            "disposition": "prioritise",
+            "rule": "strong_fit_checks_satisfied",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+            ],
+            "changes_disposition": true
+          }
+        }
+      ],
+      "minimum_evidence": {
+        "hypothetical": true,
+        "item_ids": [
+          "claim:fx-claim-2",
+          "criterion:fx-crit-5"
+        ],
+        "documents": [
+          {
+            "document": "Dated payroll summary",
+            "item_ids": [
+              "claim:fx-claim-2"
+            ],
+            "seller_resolvable": true
+          },
+          {
+            "document": "Sourced record for the criterion (registry filing or data provider)",
+            "item_ids": [
+              "criterion:fx-crit-5"
+            ],
+            "seller_resolvable": false
+          }
+        ],
+        "outcome": {
+          "hypothetical": true,
+          "disposition": "prioritise",
+          "rule": "strong_fit_checks_satisfied",
+          "reasons": [
+            "Fit 100 out of 100, with 100% of the criteria assessable",
+            "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+          ],
+          "changes_disposition": true
+        }
+      },
+      "worst_if_contradicted": {
+        "hypothetical": true,
+        "disposition": "deprioritise",
+        "rule": "requirement_failed",
+        "reasons": [
+          "Must-have failed: Revenue at least INR 50 crore (hypothetical fail)"
+        ],
+        "changes_disposition": true
+      },
+      "next_best_action": {
+        "action": "request_documents",
+        "text": "Request 2 documents that settle the 2 decision blockers, rather than everything open. Obtain a sourced record for Revenue at least INR 50 crore. If the verified figure is at least 500000000, Revenue at least INR 50 crore passes; otherwise it fails. Hypothetically, a pass gives Investigate further and a fail gives Deprioritise.",
+        "item_ids": [
+          "claim:fx-claim-2",
+          "criterion:fx-crit-5"
+        ],
+        "documents": [
+          "Dated payroll summary",
+          "Sourced record for the criterion (registry filing or data provider)"
+        ],
+        "conditions": [
+          "Obtain a sourced record for Revenue at least INR 50 crore. If the verified figure is at least 500000000, Revenue at least INR 50 crore passes; otherwise it fails. Hypothetically, a pass gives Investigate further and a fail gives Deprioritise."
+        ]
+      },
+      "search": "exhaustive",
+      "greedy": false,
+      "evaluations": 8,
+      "blocker_count": 2,
+      "created_at": "2026-11-22T10:12:00Z",
+      "resolution": null
+    },
+    "identity": {
+      "hypothetical": true,
+      "analysis_id": "fx-flip-fx-case-harbourline-identity",
+      "case_id": "fx-case-harbourline",
+      "assessment_version": 1,
+      "policy_version": "2026-11-22.3",
+      "inputs_hash": "fixture-fx-case-harbourline-1",
+      "flip_version": "decision-flip-1",
+      "analysis_key": "67a59285187bd109494bd303a7050a4c4cd00e595997c5151a95fcbbe1c3843d",
+      "selection_basis": "fewest_checks",
+      "selection_label": "Minimum set of checks required to change the screening outcome",
+      "state": "has_blockers",
+      "not_reproducible_reason": null,
+      "current": "cannot_assess",
+      "current_rule": "identity_uncertain",
+      "current_reasons": [
+        "Identity is ambiguous: records cannot be attached to the company safely"
+      ],
+      "target": "investigate_further",
+      "ceiling": {
+        "hypothetical": true,
+        "disposition": "prioritise",
+        "rule": "strong_fit_checks_satisfied",
+        "reasons": [
+          "Fit 100 out of 100, with 100% of the criteria assessable",
+          "Every required check within what v1 covers is settled by adequate evidence (100% of all required checks)"
+        ],
+        "changes_disposition": true
+      },
+      "items": [
+        {
+          "id": "identity",
+          "kind": "identity",
+          "claim_id": null,
+          "criterion_id": null,
+          "check": null,
+          "label": "Legal entity",
+          "claim_text": null,
+          "current_state": "ambiguous",
+          "classification": "decision_blocker",
+          "decision_blocker": true,
+          "disqualifier_risk": false,
+          "required_in_every_path": true,
+          "flips_alone": true,
+          "locks_target": false,
+          "seller_resolvable": true,
+          "analyst_retry": false,
+          "est_effort": "low",
+          "conditional_action": null,
+          "depends_on": [],
+          "settle_with": [
+            "Certificate of incorporation showing the CIN and registered office"
+          ],
+          "if_supported": {
+            "hypothetical": true,
+            "disposition": "investigate_further",
+            "rule": "evidence_incomplete",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Required check identity incorporation: Not checked",
+              "Required check leadership history: Not checked",
+              "Required check team size: Not checked",
+              "Required check funding: Not checked"
+            ],
+            "changes_disposition": true
+          },
+          "if_contradicted": null
+        },
+        {
+          "id": "claim:fx-claim-1",
+          "kind": "claim",
+          "claim_id": "fx-claim-1",
+          "criterion_id": null,
+          "check": "identity_incorporation",
+          "label": "Incorporation",
+          "claim_text": "Incorporated in 2016",
+          "current_state": "not_checked",
+          "classification": "non_blocking",
+          "decision_blocker": false,
+          "disqualifier_risk": false,
+          "required_in_every_path": false,
+          "flips_alone": false,
+          "locks_target": false,
+          "seller_resolvable": true,
+          "analyst_retry": false,
+          "est_effort": "low",
+          "conditional_action": null,
+          "depends_on": [
+            "identity"
+          ],
+          "settle_with": [
+            "Certificate of incorporation showing the CIN and registered office"
+          ],
+          "if_supported": {
+            "hypothetical": true,
+            "disposition": "cannot_assess",
+            "rule": "identity_uncertain",
+            "reasons": [
+              "Identity is ambiguous: records cannot be attached to the company safely"
+            ],
+            "changes_disposition": false
+          },
+          "if_contradicted": {
+            "hypothetical": true,
+            "disposition": "cannot_assess",
+            "rule": "identity_uncertain",
+            "reasons": [
+              "Identity is ambiguous: records cannot be attached to the company safely"
+            ],
+            "changes_disposition": false
+          }
+        },
+        {
+          "id": "claim:fx-claim-2",
+          "kind": "claim",
+          "claim_id": "fx-claim-2",
+          "criterion_id": null,
+          "check": "team_size",
+          "label": "Team size",
+          "claim_text": "We employ 300 people",
+          "current_state": "not_checked",
+          "classification": "non_blocking",
+          "decision_blocker": false,
+          "disqualifier_risk": false,
+          "required_in_every_path": false,
+          "flips_alone": false,
+          "locks_target": false,
+          "seller_resolvable": true,
+          "analyst_retry": false,
+          "est_effort": "low",
+          "conditional_action": null,
+          "depends_on": [
+            "identity"
+          ],
+          "settle_with": [
+            "Certificate of incorporation showing the CIN and registered office"
+          ],
+          "if_supported": {
+            "hypothetical": true,
+            "disposition": "cannot_assess",
+            "rule": "identity_uncertain",
+            "reasons": [
+              "Identity is ambiguous: records cannot be attached to the company safely"
+            ],
+            "changes_disposition": false
+          },
+          "if_contradicted": {
+            "hypothetical": true,
+            "disposition": "cannot_assess",
+            "rule": "identity_uncertain",
+            "reasons": [
+              "Identity is ambiguous: records cannot be attached to the company safely"
+            ],
+            "changes_disposition": false
+          }
+        },
+        {
+          "id": "claim:fx-claim-3",
+          "kind": "claim",
+          "claim_id": "fx-claim-3",
+          "criterion_id": null,
+          "check": "leadership_history",
+          "label": "Founder history",
+          "claim_text": "Our founder ran operations at a national courier firm",
+          "current_state": "not_checked",
+          "classification": "non_blocking",
+          "decision_blocker": false,
+          "disqualifier_risk": false,
+          "required_in_every_path": false,
+          "flips_alone": false,
+          "locks_target": false,
+          "seller_resolvable": true,
+          "analyst_retry": false,
+          "est_effort": "low",
+          "conditional_action": null,
+          "depends_on": [
+            "identity"
+          ],
+          "settle_with": [
+            "Certificate of incorporation showing the CIN and registered office"
+          ],
+          "if_supported": {
+            "hypothetical": true,
+            "disposition": "cannot_assess",
+            "rule": "identity_uncertain",
+            "reasons": [
+              "Identity is ambiguous: records cannot be attached to the company safely"
+            ],
+            "changes_disposition": false
+          },
+          "if_contradicted": {
+            "hypothetical": true,
+            "disposition": "cannot_assess",
+            "rule": "identity_uncertain",
+            "reasons": [
+              "Identity is ambiguous: records cannot be attached to the company safely"
+            ],
+            "changes_disposition": false
+          }
+        },
+        {
+          "id": "claim:fx-claim-4",
+          "kind": "claim",
+          "claim_id": "fx-claim-4",
+          "criterion_id": null,
+          "check": "funding",
+          "label": "Series A funding",
+          "claim_text": "We raised our Series A in 2024",
+          "current_state": "not_checked",
+          "classification": "non_blocking",
+          "decision_blocker": false,
+          "disqualifier_risk": false,
+          "required_in_every_path": false,
+          "flips_alone": false,
+          "locks_target": false,
+          "seller_resolvable": true,
+          "analyst_retry": false,
+          "est_effort": "low",
+          "conditional_action": null,
+          "depends_on": [
+            "identity"
+          ],
+          "settle_with": [
+            "Certificate of incorporation showing the CIN and registered office"
+          ],
+          "if_supported": {
+            "hypothetical": true,
+            "disposition": "cannot_assess",
+            "rule": "identity_uncertain",
+            "reasons": [
+              "Identity is ambiguous: records cannot be attached to the company safely"
+            ],
+            "changes_disposition": false
+          },
+          "if_contradicted": {
+            "hypothetical": true,
+            "disposition": "cannot_assess",
+            "rule": "identity_uncertain",
+            "reasons": [
+              "Identity is ambiguous: records cannot be attached to the company safely"
+            ],
+            "changes_disposition": false
+          }
+        }
+      ],
+      "minimal_sets": [
+        {
+          "hypothetical": true,
+          "item_ids": [
+            "identity"
+          ],
+          "documents": [
+            {
+              "document": "Certificate of incorporation showing the CIN and registered office",
+              "item_ids": [
+                "identity"
+              ],
+              "seller_resolvable": true
+            }
+          ],
+          "outcome": {
+            "hypothetical": true,
+            "disposition": "investigate_further",
+            "rule": "evidence_incomplete",
+            "reasons": [
+              "Fit 100 out of 100, with 100% of the criteria assessable",
+              "Required check identity incorporation: Not checked",
+              "Required check leadership history: Not checked",
+              "Required check team size: Not checked",
+              "Required check funding: Not checked"
+            ],
+            "changes_disposition": true
+          }
+        }
+      ],
+      "minimum_evidence": {
+        "hypothetical": true,
+        "item_ids": [
+          "identity"
+        ],
+        "documents": [
+          {
+            "document": "Certificate of incorporation showing the CIN and registered office",
+            "item_ids": [
+              "identity"
+            ],
+            "seller_resolvable": true
+          }
+        ],
+        "outcome": {
+          "hypothetical": true,
+          "disposition": "investigate_further",
+          "rule": "evidence_incomplete",
+          "reasons": [
+            "Fit 100 out of 100, with 100% of the criteria assessable",
+            "Required check identity incorporation: Not checked",
+            "Required check leadership history: Not checked",
+            "Required check team size: Not checked",
+            "Required check funding: Not checked"
+          ],
+          "changes_disposition": true
+        }
+      },
+      "worst_if_contradicted": null,
+      "next_best_action": {
+        "action": "resolve_identity",
+        "text": "Confirm the legal entity first; 4 checks cannot run until then.",
+        "item_ids": [
+          "identity"
+        ],
+        "documents": [
+          "Certificate of incorporation showing the CIN and registered office"
+        ],
+        "conditions": []
+      },
+      "search": "exhaustive",
+      "greedy": false,
+      "evaluations": 30,
+      "blocker_count": 1,
+      "created_at": "2026-11-22T10:12:00Z",
+      "resolution": null
+    },
+    "not_evidence_limited": {
+      "hypothetical": true,
+      "analysis_id": "fx-flip-fx-case-harbourline-limited",
+      "case_id": "fx-case-harbourline",
+      "assessment_version": 2,
+      "policy_version": "2026-11-22.3",
+      "inputs_hash": "fixture-fx-case-harbourline-2",
+      "flip_version": "decision-flip-1",
+      "analysis_key": "bc487ad308a4a6633268689135c2e022ef7c1eaaf2f79df91867ccd70b6c4c56",
+      "selection_basis": "fewest_checks",
+      "selection_label": "Minimum set of checks required to change the screening outcome",
+      "state": "not_evidence_limited",
+      "not_reproducible_reason": null,
+      "current": "investigate_further",
+      "current_rule": "evidence_incomplete",
+      "current_reasons": [
+        "Fit 67 out of 100, with 100% of the criteria assessable",
+        "Fit is below 70",
+        "Required check team size: Cannot verify"
+      ],
+      "target": null,
+      "ceiling": {
+        "hypothetical": true,
+        "disposition": "investigate_further",
+        "rule": "evidence_incomplete",
+        "reasons": [
+          "Fit 67 out of 100, with 100% of the criteria assessable",
+          "Fit is below 70"
+        ],
+        "changes_disposition": false
+      },
+      "items": [
+        {
+          "id": "claim:fx-claim-2",
+          "kind": "claim",
+          "claim_id": "fx-claim-2",
+          "criterion_id": null,
+          "check": "team_size",
+          "label": "Team size",
+          "claim_text": "We employ 300 people",
+          "current_state": "cannot_verify",
+          "classification": "non_blocking",
+          "decision_blocker": false,
+          "disqualifier_risk": false,
+          "required_in_every_path": false,
+          "flips_alone": false,
+          "locks_target": false,
+          "seller_resolvable": true,
+          "analyst_retry": false,
+          "est_effort": "medium",
+          "conditional_action": null,
+          "depends_on": [],
+          "settle_with": [
+            "Dated payroll summary"
+          ],
+          "if_supported": {
+            "hypothetical": true,
+            "disposition": "investigate_further",
+            "rule": "evidence_incomplete",
+            "reasons": [
+              "Fit 67 out of 100, with 100% of the criteria assessable",
+              "Fit is below 70"
+            ],
+            "changes_disposition": false
+          },
+          "if_contradicted": {
+            "hypothetical": true,
+            "disposition": "investigate_further",
+            "rule": "evidence_incomplete",
+            "reasons": [
+              "Fit 67 out of 100, with 100% of the criteria assessable",
+              "Fit is below 70",
+              "Required check team size: Contradicted",
+              "Material claim fx-claim-2: Contradicted"
+            ],
+            "changes_disposition": false
+          }
+        }
+      ],
+      "minimal_sets": [],
+      "minimum_evidence": null,
+      "worst_if_contradicted": null,
+      "next_best_action": {
+        "action": "none",
+        "text": "More evidence will not change the disposition: Fit 67 out of 100, with 100% of the criteria assessable; Fit is below 70.",
+        "item_ids": [],
+        "documents": [],
+        "conditions": []
+      },
+      "search": "exhaustive",
+      "greedy": false,
+      "evaluations": 3,
+      "blocker_count": 0,
+      "created_at": "2026-11-22T10:12:00Z",
+      "resolution": null
+    }
   },
   "runs": {
     "fx-run-discover": {

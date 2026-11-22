@@ -72,6 +72,8 @@ ROUTES: list[tuple[str, str, str, object]] = [
     ("POST", "/cases/{case_id}/verify", f"/cases/{CASE}/verify", None),
     ("PUT", "/cases/{case_id}/criteria", f"/cases/{CASE}/criteria", {"criteria": [CRITERION]}),
     ("GET", "/cases/{case_id}/assessments", f"/cases/{CASE}/assessments", None),
+    ("GET", "/cases/{case_id}/decision-flip", f"/cases/{CASE}/decision-flip", None),
+    ("POST", "/cases/{case_id}/decision-flip", f"/cases/{CASE}/decision-flip", None),
     ("POST", "/cases/{case_id}/claims", f"/cases/{CASE}/claims", {"text": "We have 3 sites"}),
     (
         "POST",
@@ -122,6 +124,7 @@ SESSION_ROUTES = {
     "/cases/{case_id}/verify",  # CP-19
     "/cases/{case_id}/criteria",
     "/cases/{case_id}/assessments",
+    "/cases/{case_id}/decision-flip",
     "/cases/{case_id}/claims",  # CP-20
     "/cases/{case_id}/claims/{claim_id}/check",  # one row's "Run check"
     "/cases/{case_id}/documents",  # CP-20

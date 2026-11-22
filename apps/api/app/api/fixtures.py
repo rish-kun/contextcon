@@ -93,6 +93,7 @@ from app.api.schemas.company import (
     JobPostingOut,
     PersonOut,
 )
+from app.api.schemas.decision_flip import DecisionFlipOut, DecisionFlipSummaryOut
 from app.api.schemas.documents import DocumentKind, DocumentOut, DocumentUrlOut
 from app.api.schemas.investors import (
     ComparableRoundOut,
@@ -1787,6 +1788,7 @@ def case_detail(case_id: str) -> CaseDetail | None:
             ],
         ),
         assessment=_assessment(2),
+        decision_flip=_flip(),
         risks=[
             RiskItemOut(kind="gap", text="Funding timing unsettled", claim_ids=["fx-claim-4"]),
             RiskItemOut(
@@ -1840,6 +1842,24 @@ def case_detail(case_id: str) -> CaseDetail | None:
     )
 
 
+def _flip() -> DecisionFlipOut:
+    from app.api import fixture_decision_flip
+
+    return fixture_decision_flip.SCENARIOS["two_blockers"](CASE_ID)
+
+
+def _flip_summary(detail: CaseDetail) -> DecisionFlipSummaryOut | None:
+    flip = detail.decision_flip
+    if flip is None:
+        return None
+    return DecisionFlipSummaryOut(
+        state=flip.state,
+        next_disposition=flip.target,
+        blockers_to_next=flip.blocker_count,
+        assessment_version=flip.assessment_version,
+    )
+
+
 def case_out(case_id: str) -> CaseOut | None:
     if case_id in (CASE_ID, CASE_AMBIGUOUS_ID):
         return _case_out(case_id)
@@ -1874,6 +1894,7 @@ def case_summaries() -> list[CaseSummary]:
                     unknown_cost_calls=detail.cost.unknown_cost_calls,
                 ),
                 latest_run_state=detail.case.run.state if detail.case.run else None,
+                decision_flip=_flip_summary(detail),
                 created_at=detail.case.created_at,
                 updated_at=_t(612),
             )
@@ -1988,7 +2009,7 @@ def policy() -> PolicyOut:
 
 def export() -> dict[str, Any]:
     """Everything the web fixture mode needs, as JSON-ready data keyed by client call."""
-    from app.api import fixture_activity
+    from app.api import fixture_activity, fixture_decision_flip
 
     def dump(obj: Any) -> Any:
         if isinstance(obj, list):
@@ -2007,6 +2028,8 @@ def export() -> dict[str, Any]:
             "cases": case_summaries(),
             "caseDetails": {cid: case_detail(cid) for cid in (CASE_ID, CASE_AMBIGUOUS_ID)},
             "assessments": {CASE_ID: assessments(CASE_ID), CASE_AMBIGUOUS_ID: []},
+            "decisionFlip": {CASE_ID: _flip()},
+            "decisionFlipScenarios": fixture_decision_flip.scenarios(CASE_ID),
             "runs": runs(),
             "runQueue": {
                 "active": run_queue("active"),

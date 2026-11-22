@@ -19,6 +19,7 @@ from app.api.schemas.common import (
     SourceRecordOut,
 )
 from app.api.schemas.company import CompanyProfileOut
+from app.api.schemas.decision_flip import DecisionFlipOut, DecisionFlipSummaryOut
 from app.api.schemas.documents import DeletionRecordOut, DocumentOut
 from app.api.schemas.requests import RequestListOut
 from app.api.schemas.runs import RunKind, RunOut, RunSummaryOut
@@ -85,6 +86,9 @@ class CaseSummary(ApiModel):
     claim_count: int = 0
     cost: CostTotalsOut = Field(default_factory=CostTotalsOut)
     latest_run_state: str | None = None
+    decision_flip: DecisionFlipSummaryOut | None = Field(
+        default=None, description="Blockers to the next disposition (latest version)."
+    )
     created_at: datetime
     updated_at: datetime
 
@@ -265,6 +269,11 @@ class CaseDetail(ApiModel):
     )
     memo: CaseMemoOut | None = Field(
         default=None, description="Screening memo of the latest assessment version."
+    )
+    decision_flip: DecisionFlipOut | None = Field(
+        default=None,
+        description="Hypothetical: what would change the latest version's disposition. "
+        "Null until analysed; GET /cases/{id}/decision-flip for other versions.",
     )
     risks: list[RiskItemOut] = Field(default_factory=list)
     request_list: RequestListOut | None = None

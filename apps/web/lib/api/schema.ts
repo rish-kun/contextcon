@@ -327,6 +327,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cases/{case_id}/decision-flip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Decision Flip
+         * @description What would change the decision for one assessment version. Hypothetical: every
+         *     simulated outcome is marked so. Null when the version has not been analysed yet.
+         */
+        get: operations["get_decision_flip"];
+        put?: never;
+        /**
+         * Recompute Decision Flip
+         * @description Compute the analysis for a version (default latest). Costs nothing: no run, no
+         *     credits, no model. 200 with the existing analysis when nothing changed.
+         */
+        post: operations["recompute_decision_flip"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cases/{case_id}/claims": {
         parameters: {
             query?: never;
@@ -1238,6 +1264,8 @@ export interface components {
             assessment: components["schemas"]["AssessmentVersionOut"] | null;
             /** @description Screening memo of the latest assessment version. */
             memo: components["schemas"]["CaseMemoOut"] | null;
+            /** @description Hypothetical: what would change the latest version's disposition. Null until analysed; GET /cases/{id}/decision-flip for other versions. */
+            decision_flip: components["schemas"]["DecisionFlipOut"] | null;
             /** Risks */
             risks: components["schemas"]["RiskItemOut"][];
             request_list: components["schemas"]["RequestListOut"] | null;
@@ -1337,6 +1365,8 @@ export interface components {
             cost: components["schemas"]["CostTotalsOut"];
             /** Latest Run State */
             latest_run_state: string | null;
+            /** @description Blockers to the next disposition (latest version). */
+            decision_flip: components["schemas"]["DecisionFlipSummaryOut"] | null;
             /**
              * Created At
              * Format: date-time
@@ -1744,6 +1774,105 @@ export interface components {
          * @enum {string}
          */
         CriterionResultState: "pass" | "fail" | "unknown";
+        /** DecisionFlipOut */
+        DecisionFlipOut: {
+            /**
+             * Hypothetical
+             * @default true
+             * @constant
+             */
+            hypothetical: true;
+            /**
+             * Analysis Id
+             * @default
+             */
+            analysis_id: string;
+            /** Case Id */
+            case_id: string;
+            /** Assessment Version */
+            assessment_version: number;
+            /** Policy Version */
+            policy_version: string;
+            /** Inputs Hash */
+            inputs_hash: string;
+            /** Flip Version */
+            flip_version: string;
+            /** Analysis Key */
+            analysis_key: string;
+            /**
+             * Selection Basis
+             * @description The fewest checks, never the cheapest.
+             * @default fewest_checks
+             * @constant
+             */
+            selection_basis: "fewest_checks";
+            /**
+             * Selection Label
+             * @description The UI label for minimum_evidence, verbatim.
+             * @default Minimum set of checks required to change the screening outcome
+             */
+            selection_label: string;
+            state: components["schemas"]["FlipState"];
+            /** Not Reproducible Reason */
+            not_reproducible_reason: string | null;
+            current: components["schemas"]["Disposition"];
+            /** Current Rule */
+            current_rule: string;
+            /** Current Reasons */
+            current_reasons: string[];
+            target: components["schemas"]["Disposition"] | null;
+            /** @description Every item forced supported (null when not reproducible). */
+            ceiling: components["schemas"]["FlipOutcomeOut"] | null;
+            /** Items */
+            items: components["schemas"]["FlipItemOut"][];
+            /**
+             * Minimal Sets
+             * @description Exhaustive: all; greedy: the one found.
+             */
+            minimal_sets: components["schemas"]["FlipSetOut"][];
+            minimum_evidence: components["schemas"]["FlipSetOut"] | null;
+            worst_if_contradicted: components["schemas"]["FlipOutcomeOut"] | null;
+            next_best_action: components["schemas"]["FlipNextBestActionOut"];
+            search: components["schemas"]["FlipSearch"];
+            /**
+             * Greedy
+             * @default false
+             */
+            greedy: boolean;
+            /**
+             * Evaluations
+             * @description Number of rule runs.
+             */
+            evaluations: number;
+            /**
+             * Blocker Count
+             * @default 0
+             */
+            blocker_count: number;
+            /** Created At */
+            created_at: string | null;
+            resolution: components["schemas"]["FlipResolutionOut"] | null;
+        };
+        /** DecisionFlipRecomputeIn */
+        DecisionFlipRecomputeIn: {
+            /**
+             * Version
+             * @description Default: the latest version.
+             */
+            version?: number | null;
+        };
+        /**
+         * DecisionFlipSummaryOut
+         * @description The Pipeline board's line, read from columns (no JSON).
+         */
+        DecisionFlipSummaryOut: {
+            state: components["schemas"]["FlipState"];
+            next_disposition: components["schemas"]["Disposition"] | null;
+            /** Blockers To Next */
+            blockers_to_next: number;
+            /** Assessment Version */
+            assessment_version: number;
+        };
         /** DeletionRecordOut */
         DeletionRecordOut: {
             /**
@@ -2152,6 +2281,198 @@ export interface components {
          * @enum {string}
          */
         FitState: "scored" | "unavailable" | "awaiting_strategy_criteria" | "identity_unresolved";
+        /** FlipDocumentOut */
+        FlipDocumentOut: {
+            /** Document */
+            document: string;
+            /** Item Ids */
+            item_ids: string[];
+            /** Seller Resolvable */
+            seller_resolvable: boolean;
+        };
+        /**
+         * FlipEffort
+         * @enum {string}
+         */
+        FlipEffort: "low" | "medium" | "high";
+        /**
+         * FlipItemClass
+         * @enum {string}
+         */
+        FlipItemClass: "decision_blocker" | "disqualifier_risk" | "non_blocking";
+        /**
+         * FlipItemKind
+         * @enum {string}
+         */
+        FlipItemKind: "claim" | "check_gap" | "criterion" | "identity" | "financial_inputs";
+        /** FlipItemOut */
+        FlipItemOut: {
+            /**
+             * Id
+             * @description "claim:<id>", "check:<category>", "criterion:<id>", "identity" or "financial_inputs".
+             */
+            id: string;
+            kind: components["schemas"]["FlipItemKind"];
+            /** Claim Id */
+            claim_id: string | null;
+            /** Criterion Id */
+            criterion_id: string | null;
+            check: components["schemas"]["ClaimCategory"] | null;
+            /**
+             * Label
+             * @description Rendered on read from the claim or criterion.
+             * @default
+             */
+            label: string;
+            /**
+             * Claim Text
+             * @description The claim's wording on read (scrubbed text once removed).
+             */
+            claim_text: string | null;
+            /** Current State */
+            current_state: string;
+            classification: components["schemas"]["FlipItemClass"];
+            /** Decision Blocker */
+            decision_blocker: boolean;
+            /** Disqualifier Risk */
+            disqualifier_risk: boolean;
+            /** Required In Every Path */
+            required_in_every_path: boolean;
+            /** Flips Alone */
+            flips_alone: boolean;
+            /** Locks Target */
+            locks_target: boolean;
+            /** Seller Resolvable */
+            seller_resolvable: boolean;
+            /** Analyst Retry */
+            analyst_retry: boolean;
+            /**
+             * @description Effort to obtain its documents; a tie-break only.
+             * @default medium
+             */
+            est_effort: components["schemas"]["FlipEffort"];
+            /**
+             * Conditional Action
+             * @description Criteria and financial items: what to obtain, with both branches stated.
+             */
+            conditional_action: string | null;
+            /** Depends On */
+            depends_on: string[];
+            /**
+             * Settle With
+             * @description Policy document names.
+             */
+            settle_with: string[];
+            if_supported: components["schemas"]["FlipOutcomeOut"] | null;
+            if_contradicted: components["schemas"]["FlipOutcomeOut"] | null;
+        };
+        /**
+         * FlipNextAction
+         * @enum {string}
+         */
+        FlipNextAction: "request_documents" | "resolve_identity" | "rerun_checks" | "analyst_follow_up" | "review_disqualifier" | "none";
+        /** FlipNextBestActionOut */
+        FlipNextBestActionOut: {
+            action: components["schemas"]["FlipNextAction"];
+            /**
+             * Text
+             * @description From fixed templates, never a model.
+             */
+            text: string;
+            /** Item Ids */
+            item_ids: string[];
+            /** Documents */
+            documents: string[];
+            /**
+             * Conditions
+             * @description Both-branch sentences for criteria and financials.
+             */
+            conditions: string[];
+        };
+        /**
+         * FlipOutcomeOut
+         * @description The disposition the rules give with items forced. Never verified.
+         */
+        FlipOutcomeOut: {
+            /**
+             * Hypothetical
+             * @default true
+             * @constant
+             */
+            hypothetical: true;
+            disposition: components["schemas"]["Disposition"];
+            /**
+             * Rule
+             * @description decide_disposition's rule id.
+             */
+            rule: string;
+            /**
+             * Reasons
+             * @description Rule reasons; claim ids only, no claim text.
+             */
+            reasons: string[];
+            /** Changes Disposition */
+            changes_disposition: boolean;
+        };
+        /** FlipResolutionItemOut */
+        FlipResolutionItemOut: {
+            /** Item Id */
+            item_id: string;
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "resolved" | "settled_against" | "still_open" | "new";
+            /** Was Blocker */
+            was_blocker: boolean;
+            /** Current State */
+            current_state: string | null;
+            /** Evidence Ids */
+            evidence_ids: string[];
+        };
+        /**
+         * FlipResolutionOut
+         * @description This version's open items against the previous version's analysis, by item id.
+         */
+        FlipResolutionOut: {
+            /** Previous Version */
+            previous_version: number;
+            /** Previous Blockers */
+            previous_blockers: number;
+            /** Resolved Blockers */
+            resolved_blockers: number;
+            /** Items */
+            items: components["schemas"]["FlipResolutionItemOut"][];
+        };
+        /**
+         * FlipSearch
+         * @enum {string}
+         */
+        FlipSearch: "exhaustive" | "greedy";
+        /** FlipSetOut */
+        FlipSetOut: {
+            /**
+             * Hypothetical
+             * @default true
+             * @constant
+             */
+            hypothetical: true;
+            /** Item Ids */
+            item_ids: string[];
+            /** Documents */
+            documents: components["schemas"]["FlipDocumentOut"][];
+            outcome: components["schemas"]["FlipOutcomeOut"];
+        };
+        /**
+         * FlipState
+         * @enum {string}
+         */
+        FlipState: "has_blockers" | "no_blockers" | "disqualified" | "not_evidence_limited" | "not_reproducible";
         /**
          * FundingCompatibility
          * @description Whether dated records show the investor making rounds of the kind sought.
@@ -4560,6 +4881,147 @@ export interface operations {
             };
             /** @description Not found, or not visible to this user. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not implemented yet (stub). */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_decision_flip: {
+        parameters: {
+            query?: {
+                /** @description Default: the latest version. */
+                version?: number | null;
+            };
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionFlipOut"] | null;
+                };
+            };
+            /** @description No valid session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not found, or not visible to this user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not implemented yet (stub). */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    recompute_decision_flip: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DecisionFlipRecomputeIn"] | null;
+            };
+        };
+        responses: {
+            /** @description Already computed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionFlipOut"];
+                };
+            };
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionFlipOut"];
+                };
+            };
+            /** @description No valid session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not found, or not visible to this user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description No assessment to analyse. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
