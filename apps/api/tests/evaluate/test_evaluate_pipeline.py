@@ -152,9 +152,10 @@ async def test_direct_verify_waits_for_strategy_criteria_then_scores(sm, session
     assert res.status_code == 200, res.text
     run = res.json()["run"]
     assert run["kind"] == "evaluate"
-    step, flip = run["steps"]
+    step, flip, request_list = run["steps"]
     assert step["key"] == "evaluate"
     assert flip["key"] == "decision_flip"
+    assert request_list["key"] == "request_list"
 
     worker = make_worker(sm, default_registry)
     assert await worker.run_once()

@@ -41,8 +41,8 @@ Requirements: an authenticated `gcloud` and `python3`. Nothing else is installed
 
 | Resource | Name | Notes |
 |---|---|---|
-| Cloud Run service | `dealproof-api` | 1 vCPU / 512Mi, min 1, max 2, CPU always allocated (`--no-cpu-throttling`), concurrency 80, request timeout 3600 s (for SSE), public |
-| Cloud Run service | `dealproof-web` | 1 vCPU / 512Mi, min 0, max 2, CPU only during requests, public |
+| Cloud Run service | `dealproof-api` | 2 vCPU / 4Gi, min 1, max 4, CPU always allocated (`--no-cpu-throttling`), concurrency 80, request timeout 3600 s (for SSE), public |
+| Cloud Run service | `dealproof-web` | 2 vCPU / 2Gi, min 1, max 2, CPU only during requests, public |
 | Cloud Run job | `dealproof-migrate` | The API image with `RUN_MIGRATIONS=only`: one task, no retries, 15 min timeout. Updated and run by every API deploy |
 | Artifact Registry | `asia-south1-docker.pkg.dev/cc-g527-showproduct/dealproof` (images `api`, `web`) | Cleanup policy keeps the 5 most recent versions and deletes others after 1 day |
 | GCS bucket | `gs://cc-g527-showproduct-dealproof-uploads` (asia-south1) | Private: uniform access, public access prevention enforced. Lifecycle deletes objects 30 days after upload (`UPLOAD_RETENTION_DAYS`) |
@@ -127,7 +127,9 @@ The API runs the job worker in-process (spec §5.1), so it has to keep processin
 
 Cheaper option: `API_MIN_INSTANCES=0 scripts/deploy.sh` keeps CPU always allocated but lets the service scale to zero. An instance then lives for the length of its requests plus up to about 15 idle minutes, and you pay only for that time, roughly $0–5/month at demo traffic. The catch is that a job still running when the instance is reclaimed stops until the next request boots an instance. The worker's lease re-queue (§5.1) resumes it from there, but nothing runs while the service has no traffic. Keep `1` for demos where jobs must finish unattended.
 
-If the API OOMs at 512Mi, use `API_MEMORY=1Gi scripts/deploy.sh`. Memory is about $2.6/month per 512Mi at min 1.
+Sizing is env-overridable: `API_CPU` (2), `API_MEMORY` (4Gi), `API_MIN_INSTANCES` (1), `API_MAX_INSTANCES` (4), `WEB_CPU` (2), `WEB_MEMORY` (2Gi), `WEB_MIN_INSTANCES` (1), `WEB_MAX_INSTANCES` (2). Web min 1 avoids cold starts on the first page load.
+
+Each API instance keeps a SQLAlchemy pool of `DB_POOL_SIZE` (20) plus `DB_MAX_OVERFLOW` (20) connections, waits `DB_POOL_TIMEOUT` (10 s) for one, recycles them after `DB_POOL_RECYCLE` (300 s) and pings before use. At max 4 instances that is up to 160 connections, so point `DATABASE_URL` at Neon's pooled (`-pooler`) endpoint or lower the pool. The old 5 + 10 default ran out under SSE streams plus the in-process worker (`QueuePool limit ... reached`).
 
 ## Monthly cost estimate (USD)
 

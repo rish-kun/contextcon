@@ -75,12 +75,15 @@ async def set_case_criteria(
 async def queue_evaluation(
     session: AsyncSession, case: Case, *, trigger: str, user_id: uuid.UUID | None = None
 ) -> Run:
+    # Imported here: app.pipelines.act imports app.pipelines.evaluate (circular at load).
+    from app.pipelines.act.step import request_list_step
+
     return await create_run(
         session,
         workspace_id=case.workspace_id,
         kind=RunKind.EVALUATE.value,
         case_id=case.id,
-        steps=[evaluate_step(trigger=trigger), decision_flip_step()],
+        steps=[evaluate_step(trigger=trigger), decision_flip_step(), request_list_step()],
         created_by=user_id,
     )
 

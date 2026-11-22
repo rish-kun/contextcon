@@ -171,9 +171,17 @@ async def test_manual_evaluate_and_criteria_runs_schedule_the_step(sm, session) 
     run = await queue_evaluation(session, w.t.case, trigger="manual re-run")
     await session.commit()
     keys = [(s.key, list(s.depends_on)) for s in (await _steps(sm, run.id)).values()]
-    assert sorted(keys) == [("decision_flip", ["evaluate"]), ("evaluate", [])]
-    await make_worker(sm, _registry()).drain()
+    assert sorted(keys) == [
+        ("decision_flip", ["evaluate"]),
+        ("evaluate", []),
+        ("request_list", ["evaluate", "decision_flip"]),
+    ]
+    calls: list[dict[str, Any]] = []
+    await make_worker(sm, _registry(calls)).drain()
     assert len(await _rows(sm, case_id)) == 1
+    # The criteria/manual re-evaluation also redrafts the request list, after both steps.
+    assert len(calls) == 1
+    assert set(calls[0]) == {"evaluate", "decision_flip"}
 
 
 async def test_step_runs_when_assessment_fails_and_reports_no_version(sm, session) -> None:

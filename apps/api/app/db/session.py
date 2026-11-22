@@ -2,6 +2,7 @@
 
 import ipaddress
 import logging
+import os
 import ssl
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -121,10 +122,23 @@ def tls_mode(connect_args: dict[str, Any]) -> str:
     return str(value) if value is not None else "default"
 
 
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, "") or default)
+    except ValueError:
+        return default
+
+
 def make_engine(url: str, **kwargs: Any) -> AsyncEngine:
     async_url, connect_args = normalise_url(url)
     connect_args.update(kwargs.pop("connect_args", {}))
     kwargs.setdefault("pool_pre_ping", True)
+    if "poolclass" not in kwargs:
+        # QueuePool sizing; the 5 + 10 default ran out under streams plus in-process workers.
+        kwargs.setdefault("pool_size", _env_int("DB_POOL_SIZE", 20))
+        kwargs.setdefault("max_overflow", _env_int("DB_MAX_OVERFLOW", 20))
+        kwargs.setdefault("pool_timeout", _env_int("DB_POOL_TIMEOUT", 10))
+        kwargs.setdefault("pool_recycle", _env_int("DB_POOL_RECYCLE", 300))
     return create_async_engine(async_url, connect_args=connect_args, **kwargs)
 
 

@@ -36,7 +36,13 @@ ONLY="${ONLY:-all}"
 DRY_RUN="${DRY_RUN:-0}"
 # 1 keeps the in-process job worker alive between requests (see docs/deploy.md).
 API_MIN_INSTANCES="${API_MIN_INSTANCES:-1}"
-API_MEMORY="${API_MEMORY:-512Mi}"
+API_MEMORY="${API_MEMORY:-4Gi}"
+API_CPU="${API_CPU:-2}"
+API_MAX_INSTANCES="${API_MAX_INSTANCES:-4}"
+WEB_CPU="${WEB_CPU:-2}"
+WEB_MEMORY="${WEB_MEMORY:-2Gi}"
+WEB_MIN_INSTANCES="${WEB_MIN_INSTANCES:-1}"
+WEB_MAX_INSTANCES="${WEB_MAX_INSTANCES:-2}"
 UPLOAD_RETENTION_DAYS="${UPLOAD_RETENTION_DAYS:-30}"
 # Client IP for rate limiting: the X-Forwarded-For entry this many places from the
 # right (web proxy + the API's front end). See app/auth/config.py.
@@ -409,8 +415,8 @@ deploy_api() {
     --project "$PROJECT" --region "$REGION" \
     --image "${REGISTRY}/api:${SHA}" \
     --service-account "$API_SA" \
-    --cpu 1 --memory "$API_MEMORY" \
-    --min-instances "$API_MIN_INSTANCES" --max-instances 2 \
+    --cpu "$API_CPU" --memory "$API_MEMORY" \
+    --min-instances "$API_MIN_INSTANCES" --max-instances "$API_MAX_INSTANCES" \
     --no-cpu-throttling \
     --concurrency 80 --timeout 3600 \
     --allow-unauthenticated \
@@ -434,8 +440,8 @@ deploy_web() {
     --project "$PROJECT" --region "$REGION" \
     --image "${REGISTRY}/web:${SHA}" \
     --service-account "$WEB_SA" \
-    --cpu 1 --memory 512Mi \
-    --min-instances 0 --max-instances 2 \
+    --cpu "$WEB_CPU" --memory "$WEB_MEMORY" \
+    --min-instances "$WEB_MIN_INSTANCES" --max-instances "$WEB_MAX_INSTANCES" \
     --cpu-throttling \
     --allow-unauthenticated \
     --update-env-vars "API_BASE_URL=${API_URL}" \
