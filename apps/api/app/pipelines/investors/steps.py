@@ -21,7 +21,7 @@ from typing import Any, Protocol
 
 from sqlalchemy import delete
 
-from app.clients.crustdata import MAX_ENRICH_IDS, CrustdataClient
+from app.clients.crustdata import COMPANY_ENRICH, MAX_ENRICH_IDS, CrustdataClient
 from app.db.models import Evidence, InvestorEntry, InvestorRun, Source
 from app.domain.enums import Compatibility, FundingKind
 from app.domain.types import RankedInvestor, SearchScope
@@ -335,6 +335,19 @@ async def _store_rounds(
         r["retrieved_at"] = retrieved_at.isoformat()
 
 
+async def _enrich_raw(client: CrustdataClient, ids: list[int]) -> tuple[Any, Any]:
+    """`/company/enrich` by id, read as plain JSON.
+
+    Same request (and cache key) as `CrustdataClient.enrich_company`, through the same
+    cache, recorder, field allowlist and contact stripping, but without its typed
+    model: live responses send `lead_investors` as a comma-separated string, which that
+    model rejects after the call has been paid for. `ingest.compact_company` reads
+    both shapes.
+    """
+    body = {"crustdata_company_ids": ids, "fields": list(ENRICH_FIELDS)}
+    return await client._post(COMPANY_ENRICH, body)  # noqa: SLF001
+
+
 @step_handler(ENRICH)
 async def enrich_step(ctx: StepContext) -> dict[str, Any]:
     comps = _output(ctx, COMPARABLES)
@@ -370,14 +383,14 @@ async def enrich_step(ctx: StepContext) -> dict[str, Any]:
         await ctx.set_detail(f"Reading funding rounds of {len(ids)} companies")
         client = _crustdata(ctx)
         try:
-            results, record = await client.enrich_company(ids, fields=ENRICH_FIELDS)
+            data, record = await _enrich_raw(client, ids)
         finally:
             await client.aclose()
         retrieved_at = record.finished_at or record.started_at
         wanted = set(ids)
-        for result in results:
-            for match in result.matches:
-                company = compact_company(match.company_data)
+        for result in data or []:
+            for match in (result or {}).get("matches") or []:
+                company = compact_company((match or {}).get("company_data") or {})
                 cid = company["company_id"]
                 # Identity guard: a record attaches only by the Crustdata id we asked for.
                 if cid not in wanted:

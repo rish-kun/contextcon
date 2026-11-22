@@ -312,3 +312,13 @@ async def test_search_filters_from_profile(session, sm, monkeypatch) -> None:
     ]
     assert body["search"]["query"] == "warehousing and logistics operators"
     assert body["fields"] == ["crustdata_company_id", "basic_info", "locations"]
+
+
+async def test_lead_investors_as_comma_string(session, sm, monkeypatch) -> None:
+    # Live Crustdata sends `lead_investors` (and sometimes `investors`) as one string.
+    r = round_("series_a", ago(30), [investor("Kite VC", "k1")])
+    r["lead_investors"] = "Kite VC, Maple Capital Advisors"
+    r["investors"] = "Kite VC, Maple Capital Advisors"
+    companies = [company(1, "Alpha Logistics", [r])]
+    out, _, _ = await _search(session, sm, monkeypatch, companies)
+    assert sorted(e.investor_name for e in out.entries) == ["Kite VC", "Maple Capital Advisors"]

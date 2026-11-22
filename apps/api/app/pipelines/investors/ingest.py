@@ -93,9 +93,18 @@ def _sectors(record: CompanyRecord) -> list[str]:
     return list(seen.values())
 
 
+def names(value: Any) -> list[str]:
+    """Investor names from a list, or from a comma-separated string (Crustdata returns
+    `lead_investors` both ways)."""
+    items = value.split(",") if isinstance(value, str) else value or []
+    if not isinstance(items, list):
+        return []
+    return [n for n in (_clean_str(x) for x in items) if n]
+
+
 def _investors(round_: dict[str, Any]) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
-    names: set[str] = set()
+    seen: set[str] = set()
     for item in round_.get("investors_detailed") or []:
         if not isinstance(item, dict):
             continue
@@ -104,19 +113,19 @@ def _investors(round_: dict[str, Any]) -> list[dict[str, Any]]:
             continue
         out.append(inv)
         if inv["name"]:
-            names.add(normalize_text(inv["name"]))
-    for name in (round_.get("investors") or []) + (round_.get("lead_investors") or []):
-        name = _clean_str(name)
-        if name and normalize_text(name) not in names:
+            seen.add(normalize_text(inv["name"]))
+    for name in names(round_.get("investors")) + names(round_.get("lead_investors")):
+        if normalize_text(name) not in seen:
             out.append({"name": name, "uuid": None, "type": None})
-            names.add(normalize_text(name))
+            seen.add(normalize_text(name))
     return out
 
 
 def compact_company(raw: CompanyRecord | dict[str, Any]) -> dict[str, Any]:
     """The funding view of one company: identity, sectors and dated rounds."""
-    data = strip_contact_fields(raw.model_dump() if isinstance(raw, CompanyRecord) else dict(raw))
-    record = CompanyRecord.model_validate(data)
+    data = scrub_personal(raw.model_dump() if isinstance(raw, CompanyRecord) else dict(raw))
+    # Funding is read from the raw dict below: provider shapes vary (string or list).
+    record = CompanyRecord.model_validate({k: v for k, v in data.items() if k != "funding"})
     info = record.basic_info
     funding = data.get("funding") if isinstance(data.get("funding"), dict) else {}
     rounds = []
@@ -125,7 +134,7 @@ def compact_company(raw: CompanyRecord | dict[str, Any]) -> dict[str, Any]:
             continue
         date = parse_date(m.get("funding_date")) or parse_date(m.get("date"))
         amount = m.get("amount_usd")
-        leads = [n for n in (_clean_str(x) for x in m.get("lead_investors") or []) if n]
+        leads = names(m.get("lead_investors"))
         rounds.append(
             {
                 "index": i,
