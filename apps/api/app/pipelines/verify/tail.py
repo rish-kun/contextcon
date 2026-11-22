@@ -60,7 +60,9 @@ async def ensure_assessment_tail(
         n += 1
     suffix = "" if n == 1 else f"@{n}"
     evaluate_key = f"{EVALUATE_KEY}{suffix}"
-    base = evaluate_step(depends_on=[key for key, _ in existing], trigger=trigger, document_ids=docs)
+    base = evaluate_step(
+        depends_on=[key for key, _ in existing], trigger=trigger, document_ids=docs
+    )
     evaluate = replace(base, key=evaluate_key, input={**base.input, AFTER_ALL: True})
     request_list = replace(
         request_list_step(depends_on=[evaluate_key]), key=f"{REQUEST_LIST_KEY}{suffix}"
