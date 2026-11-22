@@ -16,6 +16,8 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 COPY app ./app
+COPY alembic ./alembic
+COPY alembic.ini docker-entrypoint.sh ./
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PORT=8080
@@ -24,5 +26,6 @@ RUN useradd --create-home --uid 1000 appuser
 USER appuser
 
 EXPOSE 8080
-# Cloud Run sets $PORT; default to 8080 locally.
-CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips='*'"]
+# Runs `alembic upgrade head` (fails the start if it fails), then uvicorn on $PORT
+# (Cloud Run sets it; 8080 locally). RUN_MIGRATIONS=0 skips the migration step.
+CMD ["sh", "/app/docker-entrypoint.sh"]
