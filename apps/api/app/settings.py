@@ -9,7 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import AliasChoices, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -36,6 +36,9 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
+        # Lets code and tests pass fields by name (e.g. `anthropic_api_key=`) as well
+        # as by their env aliases.
+        populate_by_name=True,
     )
 
     # Crustdata (company / people / funding / web data)
@@ -48,7 +51,11 @@ class Settings(BaseSettings):
     crustdata_max_retries: int = Field(default=3, ge=0)
 
     # Anthropic (direct Messages API)
-    anthropic_api_key: SecretStr = SecretStr("")
+    # Accepts either env name; ANTHROPIC_API_KEY wins when both are set.
+    anthropic_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        validation_alias=AliasChoices("ANTHROPIC_API_KEY", "CLAUDE_API_KEY"),
+    )
     anthropic_model: str = "claude-haiku-5-5"
     anthropic_max_tokens: int = Field(default=4096, gt=0)
     # Unset by default: Haiku 5.5 rejects non-default sampling values, and the API
@@ -72,8 +79,10 @@ class Settings(BaseSettings):
     gcs_bucket: str = ""
     upload_retention_days: int = Field(default=30, gt=0)
 
-    # Per-case Crustdata credit budget
+    # Crustdata credit budgets: per case, per discover run, per investor search
     case_credit_budget: int = Field(default=150, ge=0)
+    discover_credit_budget: int = Field(default=60, ge=0)
+    investor_credit_budget: int = Field(default=60, ge=0)
 
     # Web origin(s) allowed by CORS; comma-separated for more than one.
     web_origin: str = "http://localhost:3000"

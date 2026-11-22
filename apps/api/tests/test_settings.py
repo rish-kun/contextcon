@@ -39,3 +39,35 @@ def test_database_url_defaults_to_empty_secret(monkeypatch) -> None:
     monkeypatch.delenv("DATABASE_URL", raising=False)
     settings = Settings(_env_file=None)
     assert settings.database_url.get_secret_value() == ""
+
+
+def test_anthropic_key_accepts_claude_api_key_name(monkeypatch) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("CLAUDE_API_KEY", "sk-test-claude")
+    settings = Settings(_env_file=None)
+    assert settings.anthropic_api_key.get_secret_value() == "sk-test-claude"
+
+
+def test_anthropic_key_prefers_anthropic_name(monkeypatch) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test-anthropic")
+    monkeypatch.setenv("CLAUDE_API_KEY", "sk-test-claude")
+    settings = Settings(_env_file=None)
+    assert settings.anthropic_api_key.get_secret_value() == "sk-test-anthropic"
+
+
+def test_anthropic_key_read_from_env_file_under_claude_name(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("CLAUDE_API_KEY", raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text("CLAUDE_API_KEY=sk-test-file\n")
+    settings = Settings(_env_file=env_file)
+    assert settings.anthropic_api_key.get_secret_value() == "sk-test-file"
+
+
+def test_credit_budget_defaults(monkeypatch) -> None:
+    for name in ("CASE_CREDIT_BUDGET", "DISCOVER_CREDIT_BUDGET", "INVESTOR_CREDIT_BUDGET"):
+        monkeypatch.delenv(name, raising=False)
+    settings = Settings(_env_file=None)
+    assert settings.case_credit_budget == 150
+    assert settings.discover_credit_budget == 60
+    assert settings.investor_credit_budget == 60
