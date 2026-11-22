@@ -1,6 +1,7 @@
 """The workspace's job queue for `GET /runs`: runs still working, and the latest ones.
 
-Every item is built from the same `RunOut` the run page streams (`events.load_run_out`),
+Every item is built from the same `RunOut` the run page streams (`events.run_outs`, which
+`events.load_run_out` also uses),
 so a queue row's credits, step count and current step always match what the run's own
 header and step list show.
 """
@@ -10,6 +11,7 @@ from datetime import datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.api.schemas.common import RunState, StepState
 from app.api.schemas.runs import (
@@ -23,7 +25,7 @@ from app.api.schemas.runs import (
 )
 from app.db.enums import RunState as DbRunState
 from app.db.models import Run
-from app.jobs.events import load_run_out
+from app.jobs.events import run_outs
 
 ACTIVE_STATES = (DbRunState.PENDING, DbRunState.RUNNING)
 _SETTLED = {StepState.done, StepState.failed, StepState.skipped_budget}
@@ -87,19 +89,29 @@ async def list_run_queue(
 ) -> RunQueueOut:
     """Active runs (oldest first, the order the worker takes them) or the most recently
     updated runs of any state. Scoped to `workspace_id` throughout."""
-    query = select(Run.id, Run.updated_at).where(Run.workspace_id == workspace_id)
+    active_count = (
+        select(func.count())
+        .select_from(Run)
+        .where(Run.workspace_id == workspace_id, Run.state.in_(ACTIVE_STATES))
+        .scalar_subquery()
+    )
+    # The runs, their steps and the active count in two round trips; costs, calls and
+    # owners are then aggregated for the whole page at once (`run_outs`).
+    query = (
+        select(Run, active_count.label("active_count"))
+        .where(Run.workspace_id == workspace_id)
+        .options(selectinload(Run.steps))
+    )
     if status == RunQueueStatus.active:
         query = query.where(Run.state.in_(ACTIVE_STATES)).order_by(Run.created_at.asc(), Run.id)
     else:
         query = query.order_by(Run.updated_at.desc(), Run.id)
     rows = (await session.execute(query.limit(limit))).all()
-    items = []
-    for run_id, updated_at in rows:
-        out = await load_run_out(session, workspace_id, run_id)
-        items.append(queue_item(out, updated_at=updated_at))
-    active_count = await session.scalar(
-        select(func.count())
-        .select_from(Run)
-        .where(Run.workspace_id == workspace_id, Run.state.in_(ACTIVE_STATES))
-    )
+    runs = [run for run, _ in rows]
+    outs = await run_outs(session, workspace_id, runs)
+    items = [
+        queue_item(out, updated_at=run.updated_at) for run, out in zip(runs, outs, strict=True)
+    ]
+    # No rows: nothing in the workspace is active either (a recent page lists every run).
+    active_count = rows[0].active_count if rows else 0
     return RunQueueOut(items=items, active_count=int(active_count or 0))

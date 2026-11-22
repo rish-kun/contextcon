@@ -165,8 +165,8 @@ async def assessment_section(ctx: CaseContext) -> AssessmentVersionOut | None:
 
 
 async def _memo_context(ctx: CaseContext, s: _State) -> MemoContext:
-    events = await CASE_DETAIL_SECTIONS["events"](ctx)
-    comparables = await CASE_DETAIL_SECTIONS["comparables"](ctx)
+    events = await ctx.section_value("events")
+    comparables = await ctx.section_value("comparables")
     return MemoContext(
         lookups=s.lookups,
         claim_numbers=s.claim_numbers,

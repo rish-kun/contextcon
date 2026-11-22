@@ -12,7 +12,7 @@ from app.api import cases_act as _act_sections  # noqa: F401  (request list, mes
 from app.api import cases_service, fixtures
 from app.api._base import fixture_or_501, fixtures_enabled, make_router, not_found
 from app.api.cases_deps import Actor, CaseSession
-from app.api.cases_sections import build_case_detail, build_case_summary
+from app.api.cases_sections import build_case_detail, build_case_summaries
 from app.api.schemas.assessments import AssessmentVersionOut
 from app.api.schemas.cases import (
     CaseCreate,
@@ -86,7 +86,7 @@ async def list_cases(actor: Actor, session: CaseSession) -> list[CaseSummary]:
     if actor is None or session is None:
         return fixture_or_501("CP-25", fixtures.case_summaries)
     cases = await repo_list_cases(session, actor.workspace_id)
-    return [await build_case_summary(session, actor.workspace_id, c) for c in cases]
+    return await build_case_summaries(session, actor.workspace_id, cases)
 
 
 @router.get("/{case_id}", response_model=CaseDetail)

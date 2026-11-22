@@ -2,7 +2,8 @@
 
 * `GET /cases/{id}` gains a `decision_flip` section: the analysis of the latest
   assessment version, or null (no assessment, or not computed). Reading never computes.
-* `GET /cases` gains a `decision_flip` summary for the Pipeline board, read from columns.
+* `GET /cases` gains a `decision_flip` summary for the Pipeline board, read from columns
+  for every case on the page in one query.
 * `GET /cases/{id}/decision-flip?version=N`: one version's analysis (default latest),
   with labels, claim text and the resolution against the previous version. 404 when
   the case or version does not exist; null when the version has no analysis yet.
@@ -20,13 +21,18 @@ import logging
 import uuid
 
 from fastapi import HTTPException, Query, Response, status
-from sqlalchemy import select
+from sqlalchemy import select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import fixture_decision_flip, fixtures
 from app.api._base import fixture_or_501, make_router, not_found
 from app.api.cases_deps import Actor, CaseSession
-from app.api.cases_sections import CaseContext, register_section, register_summary
+from app.api.cases_sections import (
+    CaseContext,
+    register_section,
+    register_summary,
+    register_summary_prefetch,
+)
 from app.api.schemas.common import ErrorOut
 from app.api.schemas.decision_flip import (
     DecisionFlipOut,
@@ -226,29 +232,47 @@ async def decision_flip_section(ctx: CaseContext) -> DecisionFlipOut | None:
     return await present(ctx.session, ctx.workspace_id, ctx.case, version, row)
 
 
-async def decision_flip_summary(ctx: CaseContext) -> DecisionFlipSummaryOut | None:
-    version = await repo.latest_assessment(ctx.session, ctx.workspace_id, ctx.case.id)
-    if version is None:
-        return None
-    found = (
-        await ctx.session.execute(
-            select(FlipRow.state, FlipRow.target, FlipRow.blocker_count)
-            .where(
-                FlipRow.workspace_id == ctx.workspace_id,
-                FlipRow.assessment_version_id == version.id,
-            )
-            .order_by(FlipRow.created_at.desc(), FlipRow.id.desc())
-            .limit(1)
-        )
-    ).first()
-    if found is None:
-        return None
-    return DecisionFlipSummaryOut(
-        state=found.state,
-        next_disposition=found.target,
-        blockers_to_next=found.blocker_count,
-        assessment_version=version.version,
+async def decision_flip_summaries(
+    session: AsyncSession, workspace_id: uuid.UUID, cases: list[Case]
+) -> dict[uuid.UUID, DecisionFlipSummaryOut]:
+    """The Pipeline board's DecisionFlip line for every case in one query: each case's
+    latest assessment version and that version's newest analysis. Cases without either
+    are absent (the row shows null)."""
+    latest = (
+        select(VersionRow.id, VersionRow.case_id, VersionRow.version)
+        .join(Case, Case.id == VersionRow.case_id)
+        .where(Case.workspace_id == workspace_id, VersionRow.case_id.in_([c.id for c in cases]))
+        .distinct(VersionRow.case_id)
+        .order_by(VersionRow.case_id, VersionRow.version.desc())
+        .subquery()
     )
+    flip = (
+        select(FlipRow.state, FlipRow.target, FlipRow.blocker_count)
+        .where(FlipRow.workspace_id == workspace_id, FlipRow.assessment_version_id == latest.c.id)
+        .order_by(FlipRow.created_at.desc(), FlipRow.id.desc())
+        .limit(1)
+        .lateral()
+    )
+    rows = await session.execute(
+        select(
+            latest.c.case_id, latest.c.version, flip.c.state, flip.c.target, flip.c.blocker_count
+        )
+        .select_from(latest)
+        .join(flip, true())
+    )
+    return {
+        r.case_id: DecisionFlipSummaryOut(
+            state=r.state,
+            next_disposition=r.target,
+            blockers_to_next=r.blocker_count,
+            assessment_version=r.version,
+        )
+        for r in rows.all()
+    }
+
+
+async def decision_flip_summary(ctx: CaseContext) -> DecisionFlipSummaryOut | None:
+    return ctx.prefetched.get("decision_flip")
 
 
 def _never_fails(builder):
@@ -265,8 +289,21 @@ def _never_fails(builder):
     return safe
 
 
+async def _summaries_never_fail(
+    session: AsyncSession, workspace_id: uuid.UUID, cases: list[Case]
+) -> dict[uuid.UUID, DecisionFlipSummaryOut]:
+    """One savepoint for the whole board, not one per case."""
+    try:
+        async with session.begin_nested():
+            return await decision_flip_summaries(session, workspace_id, cases)
+    except Exception:
+        log.exception("decision_flip summaries failed")
+        return {}
+
+
 register_section("decision_flip", _never_fails(decision_flip_section))
-register_summary("decision_flip", _never_fails(decision_flip_summary))
+register_summary("decision_flip", decision_flip_summary)
+register_summary_prefetch("decision_flip", _summaries_never_fail)
 
 
 # --- Routes ---------------------------------------------------------------------------

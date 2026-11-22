@@ -111,6 +111,10 @@ class CaseContext:
     _sources: dict[uuid.UUID, Source] | None = field(default=None, repr=False)
     _evidence: list[Evidence] | None = field(default=None, repr=False)
     _runs: list[Run] | None = field(default=None, repr=False)
+    # `GET /cases`: what the summary prefetchers loaded for this case, by key.
+    prefetched: dict[str, Any] = field(default_factory=dict, repr=False)
+    # Section results already built in this request (see `section_value`).
+    _sections: dict[str, Any] = field(default_factory=dict, repr=False)
 
     async def sources(self) -> dict[uuid.UUID, Source]:
         if self._sources is None:
@@ -160,10 +164,20 @@ class CaseContext:
     async def evidence_out(self, ev: Evidence) -> EvidenceOut:
         return await evidence_out(self, ev)
 
+    async def section_value(self, key: str) -> Any:
+        """The registered `CaseDetail` section `key`, built at most once per request
+        (the memo reads events and comparables, which are also sections)."""
+        if key not in self._sections:
+            self._sections[key] = await CASE_DETAIL_SECTIONS[key](self)
+        return self._sections[key]
+
 
 SectionBuilder = Callable[[CaseContext], Awaitable[Any]]
+# Loads one thing for every case on the `GET /cases` page at once: case id -> value.
+SummaryPrefetch = Callable[[AsyncSession, uuid.UUID, list[Case]], Awaitable[dict[uuid.UUID, Any]]]
 CASE_DETAIL_SECTIONS: dict[str, SectionBuilder] = {}
 CASE_SUMMARY_FIELDS: dict[str, SectionBuilder] = {}
+CASE_SUMMARY_PREFETCH: dict[str, SummaryPrefetch] = {}
 
 
 def register_section(key: str, builder: SectionBuilder) -> SectionBuilder:
@@ -180,6 +194,13 @@ def register_summary(key: str, builder: SectionBuilder) -> SectionBuilder:
     CASE_SUMMARY_FIELDS.pop(key, None)
     CASE_SUMMARY_FIELDS[key] = builder
     return builder
+
+
+def register_summary_prefetch(key: str, loader: SummaryPrefetch) -> SummaryPrefetch:
+    """Batch loader for `GET /cases`: called once per page with every case, its result
+    for a case lands in that case's `ctx.prefetched[key]` (missing ids: absent)."""
+    CASE_SUMMARY_PREFETCH[key] = loader
+    return loader
 
 
 def section(key: str) -> Callable[[SectionBuilder], SectionBuilder]:
@@ -200,16 +221,49 @@ async def build_case_detail(
     session: AsyncSession, workspace_id: uuid.UUID, case: Case
 ) -> CaseDetail:
     ctx = CaseContext(session, workspace_id, case)
-    values = {key: await builder(ctx) for key, builder in list(CASE_DETAIL_SECTIONS.items())}
+    values = {key: await ctx.section_value(key) for key in list(CASE_DETAIL_SECTIONS)}
     return CaseDetail(**values)
+
+
+async def build_case_summaries(
+    session: AsyncSession, workspace_id: uuid.UUID, cases: list[Case]
+) -> list[CaseSummary]:
+    """`GET /cases` rows. Everything a row needs is loaded for all cases at once (one
+    query per prefetcher, not per case), so the page costs the same few round trips
+    whether it shows 5 cases or 50."""
+    if not cases:
+        return []
+    runs = await runs_by_case(session, [c.id for c in cases])
+    loaded = {
+        key: await loader(session, workspace_id, cases)
+        for key, loader in list(CASE_SUMMARY_PREFETCH.items())
+    }
+    out = []
+    for case in cases:
+        ctx = CaseContext(session, workspace_id, case, _runs=runs.get(case.id, []))
+        ctx.prefetched = {k: v[case.id] for k, v in loaded.items() if case.id in v}
+        values = {key: await builder(ctx) for key, builder in list(CASE_SUMMARY_FIELDS.items())}
+        out.append(CaseSummary(**values))
+    return out
 
 
 async def build_case_summary(
     session: AsyncSession, workspace_id: uuid.UUID, case: Case
 ) -> CaseSummary:
-    ctx = CaseContext(session, workspace_id, case)
-    values = {key: await builder(ctx) for key, builder in list(CASE_SUMMARY_FIELDS.items())}
-    return CaseSummary(**values)
+    return (await build_case_summaries(session, workspace_id, [case]))[0]
+
+
+async def runs_by_case(
+    session: AsyncSession, case_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, list[Run]]:
+    """Each case's runs, oldest first (the order `CaseContext.runs` gives)."""
+    rows = await session.execute(
+        select(Run).where(Run.case_id.in_(case_ids)).order_by(Run.created_at)
+    )
+    out: dict[uuid.UUID, list[Run]] = {}
+    for run in rows.scalars():
+        out.setdefault(run.case_id, []).append(run)
+    return out
 
 
 # --- Provenance mapping -------------------------------------------------------------
@@ -828,7 +882,12 @@ async def _summary_website(ctx: CaseContext) -> str | None:
 
 @summary_field("status")
 async def _summary_status(ctx: CaseContext) -> CaseStatus:
-    return await case_status(ctx)
+    if "assessed" not in ctx.prefetched:
+        return await case_status(ctx)
+    runs = await ctx.runs()
+    return evaluate_cases.case_status(
+        ctx.case, evaluate_cases.current_run(runs), bool(ctx.prefetched["assessed"])
+    )
 
 
 @summary_field("identity_state")
@@ -838,15 +897,55 @@ async def _summary_identity(ctx: CaseContext) -> IdentityState:
 
 @summary_field("claim_count")
 async def _summary_claims(ctx: CaseContext) -> int:
-    found = await ctx.session.execute(
-        select(func.count(Claim.id)).where(Claim.case_id == ctx.case.id)
-    )
-    return int(found.scalar_one())
+    return int(ctx.prefetched.get("claim_count", 0))
 
 
 @summary_field("cost")
 async def _summary_cost(ctx: CaseContext) -> CostTotalsOut:
-    return _totals_out(await ledger.case_totals(ctx.session, ctx.workspace_id, ctx.case.id))
+    totals = ctx.prefetched.get("cost")
+    if totals is None:
+        totals = await ledger.case_totals(ctx.session, ctx.workspace_id, ctx.case.id)
+    return _totals_out(totals)
+
+
+async def _prefetch_assessed(
+    session: AsyncSession, workspace_id: uuid.UUID, cases: list[Case]
+) -> dict[uuid.UUID, bool]:
+    ids = [c.id for c in cases]
+    found = set(
+        (
+            await session.execute(
+                select(AssessmentVersion.case_id)
+                .where(AssessmentVersion.case_id.in_(ids))
+                .distinct()
+            )
+        ).scalars()
+    )
+    return {cid: cid in found for cid in ids}
+
+
+async def _prefetch_claim_counts(
+    session: AsyncSession, workspace_id: uuid.UUID, cases: list[Case]
+) -> dict[uuid.UUID, int]:
+    ids = [c.id for c in cases]
+    rows = await session.execute(
+        select(Claim.case_id, func.count(Claim.id))
+        .where(Claim.case_id.in_(ids))
+        .group_by(Claim.case_id)
+    )
+    counts = {cid: int(n) for cid, n in rows.all()}
+    return {cid: counts.get(cid, 0) for cid in ids}
+
+
+async def _prefetch_cost(
+    session: AsyncSession, workspace_id: uuid.UUID, cases: list[Case]
+) -> dict[uuid.UUID, ledger.CostTotals]:
+    return await ledger.case_totals_many(session, workspace_id, [c.id for c in cases])
+
+
+register_summary_prefetch("assessed", _prefetch_assessed)
+register_summary_prefetch("claim_count", _prefetch_claim_counts)
+register_summary_prefetch("cost", _prefetch_cost)
 
 
 @summary_field("latest_run_state")
@@ -873,10 +972,12 @@ __all__ = [
     "CaseContext",
     "build_case_detail",
     "build_case_out",
+    "build_case_summaries",
     "build_case_summary",
     "contract_source_class",
     "register_section",
     "register_summary",
+    "register_summary_prefetch",
     "section",
     "source_ref",
     "summary_field",
