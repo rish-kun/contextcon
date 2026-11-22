@@ -15,6 +15,7 @@
  */
 import type { Activity, ActivityPage } from "@/lib/run/types";
 import type { components } from "./schema";
+import { showcaseReadPath } from "./showcase-paths";
 
 /* ───────────────────────── Types ───────────────────────── */
 
@@ -109,7 +110,28 @@ interface CallOptions {
   init?: RequestInit;
 }
 
+/* ───────────────────────── Public showcase (read-only) ───────────────────────── */
+
+let publicShowcase = false;
+
+/**
+ * Browser only. While on `/showcase/**` the case, run, assessment, thesis and investor
+ * reads go to the API's public read-only routes (`/public/showcase/*`), which serve only
+ * the flagged showcase records, and every other call is refused here without a request.
+ * Server components call the `getShowcase*` functions directly instead.
+ */
+export function setPublicShowcaseMode(on: boolean): void {
+  publicShowcase = on;
+}
+
+function showcasePath(method: Method, path: string): string {
+  const mapped = showcaseReadPath(method, path);
+  if (mapped !== null) return mapped;
+  throw new ApiError(403, "This is a read-only showcase. Log in to work on your own cases.", path);
+}
+
 async function call<T>(method: Method, path: string, opts: CallOptions = {}): Promise<T> {
+  if (publicShowcase && typeof window !== "undefined") path = showcasePath(method, path);
   const headers = new Headers(opts.init?.headers);
   let body: BodyInit | undefined;
   if (opts.form) {
@@ -537,4 +559,33 @@ export function subscribeRun(
 export async function getPolicy(init?: RequestInit): Promise<PolicyOut> {
   if (isFixtureMode) return (await fx()).getPolicy();
   return call("GET", "/policy", { init });
+}
+
+/* ───────────────────────── Public showcase reads ───────────────────────── */
+
+export interface ShowcaseOut {
+  company_name: string | null;
+  website: string | null;
+  case_id: string | null;
+  thesis_id: string | null;
+  investor_search_id: string | null;
+  run_ids: string[];
+  provenance: string;
+}
+
+/** The flagged showcase records (no session needed). */
+export async function getShowcase(init?: RequestInit): Promise<ShowcaseOut> {
+  return call("GET", "/public/showcase", { init });
+}
+
+export async function getShowcaseCase(init?: RequestInit): Promise<CaseDetail> {
+  return call("GET", "/public/showcase/case", { init });
+}
+
+export async function getShowcaseDiscovery(init?: RequestInit): Promise<ThesisOut> {
+  return call("GET", "/public/showcase/discovery", { init });
+}
+
+export async function getShowcaseInvestors(init?: RequestInit): Promise<InvestorSearchOut> {
+  return call("GET", "/public/showcase/investors", { init });
 }

@@ -184,9 +184,28 @@ function previewMessage(message: MessageOut | null, state: PreviewState): Messag
   };
 }
 
+/** The drafted email as it stands on the public showcase: never approved, never sent. */
+function ShowcaseDraft({ subject, body }: { subject: string; body: string }) {
+  return (
+    <Section title="Drafted email">
+      <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
+        <p className="text-dense text-ink">
+          <span className="text-ink-secondary">Subject: </span>
+          {subject}
+        </p>
+        <pre className="whitespace-pre-wrap font-sans text-dense text-ink">{body}</pre>
+      </div>
+      <p className="rounded-lg border border-dashed border-line-strong px-4 py-3 font-mono text-xs text-ink-secondary">
+        Draft · not approved · not sent. DealProof drafted this during the run and did not
+        contact the company.
+      </p>
+    </Section>
+  );
+}
+
 export function RequestTab() {
   const detail = useCaseDetail();
-  const { caseId, basePath, mutate, reload } = useCase();
+  const { caseId, basePath, mutate, reload, readOnly } = useCase();
   const preview = useSearchParams().get("preview");
   const { request_list: list, claims, documents, assessment } = detail;
   const { history } = useAssessmentHistory(caseId, assessment?.version);
@@ -199,7 +218,7 @@ export function RequestTab() {
     return assessment ? (
       <EmptyState
         title="No request list yet"
-        actions={<BuildRequestList caseId={caseId} onBuilt={reload} />}
+        actions={readOnly ? undefined : <BuildRequestList caseId={caseId} onBuilt={reload} />}
       >
         DealProof can list the documents that would settle this case&apos;s open claims and draft
         the email to the seller. You review, edit and approve before anything is sent.
@@ -254,6 +273,9 @@ export function RequestTab() {
       ) : (
         <div className="grid gap-8 2xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
           <RequestList list={list} claims={claims} basePath={basePath} />
+          {readOnly ? (
+            <ShowcaseDraft subject={list.draft.subject} body={list.draft.body} />
+          ) : (
           <RequestApproval
             key={previewState ?? "record"}
             caseId={caseId}
@@ -264,6 +286,7 @@ export function RequestTab() {
             // The case header and the tab row read the message from the shared case.
             onChange={previewState ? undefined : (next) => mutate((d) => ({ ...d, message: next }))}
           />
+          )}
         </div>
       )}
 

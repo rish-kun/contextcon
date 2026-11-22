@@ -45,6 +45,11 @@ export interface CaseContextValue {
   caseId: string;
   /** `/app/cases/{id}`: prefix for links between tabs. */
   basePath: string;
+  /**
+   * The public showcase (`/showcase/case`): the case is shown as it is, and nothing that
+   * changes it (verify, checks, claims, uploads, identity picks, approval, send) is offered.
+   */
+  readOnly: boolean;
   /** The whole case from `GET /cases/{id}`. Null until loaded. */
   detail: CaseDetail | null;
   state: CaseLoadState;
@@ -82,6 +87,11 @@ export interface CaseContextValue {
 }
 
 const CaseContext = createContext<CaseContextValue | null>(null);
+
+/** True on the public read-only showcase; false outside a case or in the app. */
+export function useCaseReadOnly(): boolean {
+  return useContext(CaseContext)?.readOnly ?? false;
+}
 
 export function useCase(): CaseContextValue {
   const value = useContext(CaseContext);
@@ -143,11 +153,17 @@ export function CaseProvider({
   caseId,
   initial,
   children,
+  readOnly = false,
+  basePath: basePathProp,
 }: {
   caseId: string;
   /** The case fetched on the server, when that worked. */
   initial: CaseDetail | null;
   children: React.ReactNode;
+  /** The public read-only showcase: no actions, links under `basePath`. */
+  readOnly?: boolean;
+  /** Prefix for links between tabs; defaults to `/app/cases/{id}`. */
+  basePath?: string;
 }) {
   const [detail, setDetail] = useState<CaseDetail | null>(initial);
   const [state, setState] = useState<CaseLoadState>(initial ? "ready" : "loading");
@@ -245,6 +261,7 @@ export function CaseProvider({
 
   const checkClaim = useCallback(
     async (claimId: string) => {
+      if (readOnly) return;
       setRunError(null);
       try {
         followRun(await checkClaimApi(caseId, claimId));
@@ -252,10 +269,11 @@ export function CaseProvider({
         setRunError(describe(cause));
       }
     },
-    [caseId, followRun],
+    [caseId, followRun, readOnly],
   );
 
   const verify = useCallback(async () => {
+    if (readOnly) return;
     setRunError(null);
     try {
       let next = await startVerify(caseId);
@@ -269,7 +287,7 @@ export function CaseProvider({
     } catch (cause) {
       setRunError(describe(cause));
     }
-  }, [caseId, detail, followRun]);
+  }, [caseId, detail, followRun, readOnly]);
 
   // First load when the server could not fetch the case; pick up a run already going.
   useEffect(() => {
@@ -326,7 +344,8 @@ export function CaseProvider({
   const value = useMemo<CaseContextValue>(
     () => ({
       caseId,
-      basePath: `/app/cases/${encodeURIComponent(caseId)}`,
+      basePath: basePathProp ?? `/app/cases/${encodeURIComponent(caseId)}`,
+      readOnly,
       detail,
       state,
       error,
@@ -344,7 +363,7 @@ export function CaseProvider({
       setFeedPaused,
       claimLive,
     }),
-    [caseId, detail, state, error, reload, mutate, run, runActive, runError, verify, checkClaim, followRun, isClaimPending, feed, activity, setFeedPaused, claimLive],
+    [caseId, basePathProp, readOnly, detail, state, error, reload, mutate, run, runActive, runError, verify, checkClaim, followRun, isClaimPending, feed, activity, setFeedPaused, claimLive],
   );
 
   return <CaseContext.Provider value={value}>{children}</CaseContext.Provider>;

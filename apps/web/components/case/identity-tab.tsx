@@ -71,7 +71,7 @@ function ProfileRow({
 }
 
 function Confirmed({ detail }: { detail: CaseDetail }) {
-  const { verify, runActive } = useCase();
+  const { verify, runActive, readOnly } = useCase();
   const { identity, profile } = detail;
   const pick = identity.pick;
   const neverVerified = detail.assessment === null;
@@ -128,7 +128,7 @@ function Confirmed({ detail }: { detail: CaseDetail }) {
           </p>
         ) : null}
 
-        {neverVerified ? (
+        {neverVerified && !readOnly ? (
           <div className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3">
             <p className="text-dense text-ink">
               Identity-dependent checks are unblocked. Nothing has been checked yet

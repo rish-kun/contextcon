@@ -177,7 +177,7 @@ function ClaimsCell({ detail, basePath }: { detail: CaseDetail; basePath: string
  * tab, so nothing on a tab has to repeat it.
  */
 export function CaseHeader({ detail }: { detail: CaseDetail }) {
-  const { basePath, runActive, verify } = useCase();
+  const { basePath, runActive, verify, readOnly } = useCase();
   const pathname = usePathname();
   const router = useRouter();
   const assessment = detail.assessment;
@@ -210,15 +210,17 @@ export function CaseHeader({ detail }: { detail: CaseDetail }) {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2 print:hidden">
-          <Button
-            className="h-11 md:h-9"
-            onClick={() => void verify()}
-            disabled={runActive || identityOpen}
-            title={identityOpen ? "Resolve identity before running checks" : undefined}
-          >
-            <Icon icon={hasRun ? RotateCw : Play} />
-            {runActive ? "Verification running" : hasRun ? "Re-run verification" : "Run verification"}
-          </Button>
+          {readOnly ? null : (
+            <Button
+              className="h-11 md:h-9"
+              onClick={() => void verify()}
+              disabled={runActive || identityOpen}
+              title={identityOpen ? "Resolve identity before running checks" : undefined}
+            >
+              <Icon icon={hasRun ? RotateCw : Play} />
+              {runActive ? "Verification running" : hasRun ? "Re-run verification" : "Run verification"}
+            </Button>
+          )}
           <Button className="h-11 md:h-9" onClick={printMemo}>
             <Icon icon={Printer} />
             Print memo

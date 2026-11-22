@@ -3,6 +3,7 @@
 import { Download, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { getDocumentUrl, type DocumentUrlOut } from "@/lib/api/client";
+import { useCaseReadOnly } from "@/components/case/case-context";
 import { formatTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -14,6 +15,8 @@ import { Icon } from "@/components/ui/icon";
 export function DocumentDownload({ documentId, filename }: { documentId: string; filename: string }) {
   const [link, setLink] = useState<DocumentUrlOut | null>(null);
   const [state, setState] = useState<"idle" | "loading" | "failed">("idle");
+  // Stored files are private to the workspace; the showcase lists them without a link.
+  const readOnly = useCaseReadOnly();
 
   const request = async () => {
     setState("loading");
@@ -24,6 +27,8 @@ export function DocumentDownload({ documentId, filename }: { documentId: string;
       setState("failed");
     }
   };
+
+  if (readOnly) return <span className="text-xs text-ink-muted">Stored privately</span>;
 
   if (link) {
     return (

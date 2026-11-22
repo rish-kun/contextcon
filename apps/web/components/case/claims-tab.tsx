@@ -389,7 +389,7 @@ const ALL_CATEGORIES = "all";
  */
 export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
   const detail = useCaseDetail();
-  const { basePath, verify, checkClaim, runActive } = useCase();
+  const { basePath, verify, checkClaim, runActive, readOnly } = useCase();
   const counts = useMemo(() => statusCounts(detail.claims), [detail.claims]);
   const [statuses, setStatuses] = useState<Set<ClaimStatus>>(() => {
     const first = CLAIM_STATUSES.find((status) => status === initialStatus);
@@ -442,21 +442,25 @@ export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
             : "Nothing has been claimed yet"
         }
       >
-        <Button asChild className="h-11 md:h-9">
-          <a href="#add-to-ledger">
-            <Icon icon={Plus} />
-            Add claims or documents
-          </a>
-        </Button>
-        <Button
-          variant="primary"
-          className="h-11 md:h-9"
-          onClick={() => void verify()}
-          disabled={runActive || identityOpen || detail.claims.length === 0}
-        >
-          <Icon icon={RotateCw} />
-          {runActive ? "Verification running" : "Run verification again"}
-        </Button>
+        {readOnly ? null : (
+          <>
+            <Button asChild className="h-11 md:h-9">
+              <a href="#add-to-ledger">
+                <Icon icon={Plus} />
+                Add claims or documents
+              </a>
+            </Button>
+            <Button
+              variant="primary"
+              className="h-11 md:h-9"
+              onClick={() => void verify()}
+              disabled={runActive || identityOpen || detail.claims.length === 0}
+            >
+              <Icon icon={RotateCw} />
+              {runActive ? "Verification running" : "Run verification again"}
+            </Button>
+          </>
+        )}
       </TabHeading>
 
       {identityOpen ? (
@@ -541,7 +545,9 @@ export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
                   claim={{ ...toClaim(claim), retry_credits_estimate: retryCredits.get(claim.id) }}
                   changedHref={`${basePath}/assessment`}
                   onRunCheck={
-                    identityOpen || runActive ? undefined : () => void checkClaim(claim.id)
+                    readOnly || identityOpen || runActive
+                      ? undefined
+                      : () => void checkClaim(claim.id)
                   }
                   detail={<ClaimDetail claim={claim} />}
                 />
@@ -556,14 +562,16 @@ export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
         </div>
       )}
 
-      <section
-        id="add-to-ledger"
-        aria-label="Add to the ledger"
-        className="grid scroll-mt-6 gap-x-8 gap-y-6 rounded-lg border border-line bg-surface p-5 lg:grid-cols-2"
-      >
-        <AddClaims />
-        <SellerDocuments documents={detail.documents} />
-      </section>
+      {readOnly ? null : (
+        <section
+          id="add-to-ledger"
+          aria-label="Add to the ledger"
+          className="grid scroll-mt-6 gap-x-8 gap-y-6 rounded-lg border border-line bg-surface p-5 lg:grid-cols-2"
+        >
+          <AddClaims />
+          <SellerDocuments documents={detail.documents} />
+        </section>
+      )}
     </div>
   );
 }

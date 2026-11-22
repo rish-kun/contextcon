@@ -38,7 +38,8 @@ function caseFindings(detail: CaseDetail, basePath: string) {
  * The finished line stays only for a run this session watched, so a past run adds no noise.
  */
 export function CaseRun({ className }: { className?: string }) {
-  const { run, runActive, runError, feed, setFeedPaused, basePath, verify, detail } = useCase();
+  const { run, runActive, runError, feed, setFeedPaused, basePath, verify, detail, readOnly } =
+    useCase();
   const [watched, setWatched] = useState<string | null>(null);
   if (runActive && run && watched !== run.id) setWatched(run.id);
   const shown = feed.run && run && feed.run.id === run.id && (runActive || watched === run.id) ? feed.run : null;
@@ -64,7 +65,7 @@ export function CaseRun({ className }: { className?: string }) {
           logHref={`${basePath}/log`}
           sourcesHref={`${basePath}/sources`}
           costHref={`${basePath}/cost`}
-          onResume={() => void verify()}
+          onResume={readOnly ? undefined : () => void verify()}
           className={cn("print:hidden", className)}
         />
       ) : null}
