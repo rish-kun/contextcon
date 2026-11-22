@@ -6,6 +6,7 @@ import pytest
 
 from app.clients.crustdata_models import IdentifyResult
 from app.pipelines.verify.common import PublicTerms
+from app.pipelines.verify.comparables import same_activity
 from app.pipelines.verify.identity import Expected, decide_identity
 from app.pipelines.verify.registry import reliability_for
 from tests.pipelines.case_fakes import company
@@ -70,7 +71,7 @@ def test_ambiguous_group_domain_decision() -> None:
         expected,
         _results(
             company(11, "GroupCo Logistics (fixture)", group),
-            company(12, "GroupCo Warehousing (fixture)", "gw.example", all_domains=[group]),
+            company(12, "GroupCo Warehousing (fixture)", group),
         ),
         [],
     )
@@ -91,3 +92,63 @@ def test_public_terms_reject_free_text() -> None:
         PublicTerms(name=ACME, domain="https://acme.example/path?q=secret")
     with pytest.raises(ValueError):
         PublicTerms(name=ACME, cin="not-a-cin")
+
+
+def test_primary_domain_holder_beats_secondary_domain_listing() -> None:
+    expected = Expected(name="Acme Freight", domain=ACME_DOMAIN)
+    main = company(ACME_ID, "Acme Freight", ACME_DOMAIN, confidence=1.0)
+    side = company(2, "Acme Freight Services (fixture)", "afs.example", all_domains=[ACME_DOMAIN])
+    decision = decide_identity(expected, _results(main, side), _results(main))
+    assert decision.state == "confirmed"
+    assert decision.chosen.crustdata_company_id == ACME_ID
+    assert "secondary domain" in decision.note
+
+
+def test_secondary_listing_alone_with_stronger_rival_stays_ambiguous() -> None:
+    # The secondary-domain record matches on more identifiers: no tie-break.
+    expected = Expected(name="Acme Freight", domain=ACME_DOMAIN, founded_year=2001)
+    main = company(ACME_ID, "Acme Freight", ACME_DOMAIN, founded=2014)
+    side = company(
+        2, "Acme Freight Services", "afs.example", all_domains=[ACME_DOMAIN], founded=2001
+    )
+    decision = decide_identity(expected, _results(main, side), [])
+    assert decision.state == "ambiguous"
+
+
+def test_name_found_record_claiming_the_domain_is_a_possible_duplicate() -> None:
+    # Seen live: a thin record found by name lists the company's domain on its profile,
+    # but the domain lookup returns only the real owner.
+    expected = Expected(name="Acme Freight", domain=ACME_DOMAIN)
+    owner = company(ACME_ID, "Acme Freight", ACME_DOMAIN, confidence=1.0)
+    squatter = company(2, "E Commerce Acme Freight Services", ACME_DOMAIN, confidence=0.8)
+    decision = decide_identity(expected, _results(owner), _results(owner, squatter))
+    assert decision.state == "confirmed" and decision.chosen.crustdata_company_id == ACME_ID
+    assert "Possible duplicate" in decision.note
+    other = next(c for c in decision.candidates if c.crustdata_company_id == 2)
+    assert other.matched_keys == []
+    assert any(k["key"] == "domain_claimed" for k in other.matching)
+
+
+def test_name_found_domain_claimer_counts_when_domain_lookup_finds_nothing() -> None:
+    expected = Expected(name="Acme Freight", domain=ACME_DOMAIN)
+    only = company(ACME_ID, "Acme Freight", ACME_DOMAIN)
+    decision = decide_identity(expected, [], _results(only))
+    assert decision.state == "confirmed" and decision.chosen.matched_keys == ["domain"]
+
+
+def test_same_activity_needs_more_than_generic_overlap() -> None:
+    parcel = [
+        "E-Commerce",
+        "Freight Service",
+        "Last Mile Transportation",
+        "Logistics",
+        "Shipping",
+        "Supply Chain Management",
+        "Transportation",
+        "Warehousing",
+    ]
+    airline = ["Airlines", "Air Transportation", "Transportation", "Logistics", "Travel"]
+    courier = ["Courier", "Logistics", "Last Mile Transportation", "Shipping", "Freight Service"]
+    assert not same_activity(parcel, airline)
+    assert same_activity(parcel, courier)
+    assert not same_activity(parcel, [])

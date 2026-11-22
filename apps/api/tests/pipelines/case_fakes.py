@@ -64,6 +64,10 @@ def enrich_record(cid: int, name: str, domain: str, *, headcount: int = 420) -> 
                             "year_founded": 2014,
                         },
                         "locations": {"headquarters": "Pune, Maharashtra, India", "country": "IND"},
+                        "taxonomy": {
+                            "professional_network_industry": "Transportation, Logistics",
+                            "categories": ["Logistics", "Warehousing", "Freight Service"],
+                        },
                         "headcount": {
                             "total": headcount,
                             "timeseries": [
@@ -86,11 +90,19 @@ def enrich_record(cid: int, name: str, domain: str, *, headcount: int = 420) -> 
                             ],
                         },
                         "people": {
+                            # Shape seen live (2026-11-22).
                             "founders": [
                                 {
-                                    "name": "Asha Founder (fixture)",
-                                    "title": "Co-founder & CEO",
-                                    "linkedin_profile_url": "https://profiles.example/in/asha",
+                                    "crustdata_person_id": 91,
+                                    "basic_profile": {
+                                        "name": "Asha Founder (fixture)",
+                                        "current_title": "Co-founder & CEO",
+                                    },
+                                    "social_handles": {
+                                        "professional_network_identifier": {
+                                            "profile_url": "https://profiles.example/in/asha"
+                                        }
+                                    },
                                     "email": "asha@example.test",
                                 }
                             ]

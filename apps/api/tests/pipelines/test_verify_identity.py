@@ -112,14 +112,21 @@ def _happy_api(api: FakeCrustdata) -> None:
         f"<p>Acme Freight (fixture) opens a 200,000 sq ft warehouse in Pune.</p>"
         f'<p>More at <a href="https://{ACME_DOMAIN}/news">{ACME_DOMAIN}</a></p>',
     )
+    peer_categories = [
+        ["Logistics", "Warehousing"],
+        ["Logistics", "Freight Service", "Shipping"],
+        ["Logistics", "Warehousing"],  # headcount out of band
+        ["Airlines", "Logistics"],  # same coarse industry, one shared category: not fair
+    ]
     api.companies = [
         {
             "crustdata_company_id": 700100 + i,
             "basic_info": {"name": f"Peer {i} (fixture)"},
             "locations": {"country": "IND", "headquarters": "Mumbai"},
             "headcount": {"total": hc},
+            "taxonomy": {"categories": cats},
         }
-        for i, hc in enumerate([300, 500, 5000])
+        for i, (hc, cats) in enumerate(zip([300, 500, 5000, 400], peer_categories, strict=True))
     ] + [{"crustdata_company_id": ACME_ID, "headcount": {"total": 420}, "locations": {}}]
 
 
@@ -209,7 +216,7 @@ async def test_ambiguous_group_domain_blocks_dependent_steps(session, sm, api) -
     group = "groupco.example"
     api.identify[("domains", group)] = [
         company(11, "GroupCo Logistics (fixture)", group),
-        company(12, "GroupCo Warehousing (fixture)", "gw.example", all_domains=[group]),
+        company(12, "GroupCo Warehousing (fixture)", group),
     ]
     from app.api.cases_service import create_case
 
@@ -232,9 +239,9 @@ async def test_manual_pick_recorded_with_evidence_and_user(session, sm, api) -> 
     group = "groupco.example"
     api.identify[("domains", group)] = [
         company(11, "GroupCo Logistics (fixture)", group),
-        company(12, "GroupCo Warehousing (fixture)", "gw.example", all_domains=[group]),
+        company(12, "GroupCo Warehousing (fixture)", group),
     ]
-    api.enrich[12] = enrich_record(12, "GroupCo Warehousing (fixture)", "gw.example")
+    api.enrich[12] = enrich_record(12, "GroupCo Warehousing (fixture)", group)
     from fastapi import HTTPException
 
     from app.api.cases_service import create_case, pick_identity
@@ -400,7 +407,7 @@ async def test_web_queries_carry_public_terms_only(session, sm, api) -> None:
     await session.commit()
     await _drain(sm)
     searches = api.calls("/web/search/live")
-    assert len(searches) == 2
+    assert len(searches) == 3  # registry, news, news page 2 (one direct hit only)
     terms = PublicTerms(name=ACME, domain=ACME_DOMAIN)
     allowed = {registry_query(terms), news_query(terms)}
     secret_words = {w.lower() for w in CONFIDENTIAL.split() if len(w) > 3}
@@ -408,7 +415,7 @@ async def test_web_queries_carry_public_terms_only(session, sm, api) -> None:
         assert body["query"] in allowed
         blob = json.dumps(body).lower()
         assert not any(word in blob for word in secret_words), body
-        assert set(body) <= {"query", "location", "sources"}
+        assert set(body) <= {"query", "location", "sources", "page"}
 
 
 async def test_case_budget_is_150_and_exhaustion_skips_paid_steps(session, sm, api) -> None:
@@ -447,10 +454,10 @@ async def test_cost_shared_from_discovery_not_double_counted(session, sm, api) -
     detail = await build_case_detail(session, actor.workspace_id, await _case(session, case.id))
     assert detail.cost.shared_discovery is not None
     assert detail.cost.shared_discovery.cost.crustdata_credits == 30
-    # own spend: identify 0.4 + enrich 2 + registry 1+1 + news 1+1 + search 4 x 0.43
-    assert detail.cost.crustdata_credits == pytest.approx(8.12)
+    # own spend: identify 0.4 + enrich 2 + registry 1+1 + news 2+1 + search 5 x 0.43
+    assert detail.cost.crustdata_credits == pytest.approx(9.55)
     assert detail.cost.credit_budget == 150
-    assert sum(line.cost.crustdata_credits for line in detail.cost.by_step) == pytest.approx(8.12)
+    assert sum(line.cost.crustdata_credits for line in detail.cost.by_step) == pytest.approx(9.55)
 
 
 async def test_case_detail_sections_over_http(session, sm, api, monkeypatch) -> None:
@@ -502,3 +509,34 @@ async def test_cases_from_other_workspaces_are_not_visible(session, sm, api) -> 
     case = await create_case(session, actor, CaseCreate(name=ACME, website=ACME_DOMAIN))
     with pytest.raises(repo.NotFound):
         await pick_identity(session, other, str(case.id), IdentityPickIn(crustdata_company_id=1))
+
+
+async def test_redirect_hits_are_never_fetched_and_key_person_corroborates(
+    session, sm, api
+) -> None:
+    """Seen live: many news hits are google.com/goto redirects the fetcher cannot follow.
+    They are skipped (one extra news page is searched), and an article naming the
+    company and one of its founders is attached on that basis."""
+    actor = await _actor(session)
+    case = await _confirmed_case(session, sm, api, actor)
+    terms = PublicTerms(name=ACME, domain=ACME_DOMAIN)
+    redirect = "https://www.google.com/goto?url=CAESabc"
+    direct = "https://paper.example/business/2026-08-14/acme-funding"
+    api.web[news_query(terms)] = [{"url": redirect, "title": "x"}, {"url": direct, "title": "y"}]
+    api.pages[direct] = page(
+        direct,
+        "Acme Freight raises growth capital",
+        "<p>Acme Freight (fixture) raised a growth round, said co-founder "
+        "Asha Founder (fixture).</p>",
+        published=None,
+    )
+    await _drain(sm)
+    fetched = [u for body in api.calls("/web/enrich/live") for u in body["urls"]]
+    assert redirect not in fetched and direct in fetched
+    news_searches = [b for b in api.calls("/web/search/live") if b.get("sources") == ["news"]]
+    assert [b.get("page", 1) for b in news_searches] == [1, 2]
+    event = (await session.execute(select(Event).where(Event.case_id == case.id))).scalar_one()
+    assert str(event.event_date) == "2026-08-14"  # from the URL path
+    assert event.kind == "funding"
+    ev = await session.get(Evidence, event.evidence_id)
+    assert ev.entity_ref == f"crustdata:name+key_person:{ACME_ID}"
