@@ -8,8 +8,8 @@
 - confidential_payloads (+ steps.confidential_output_id): expiring storage for
   confidential step outputs and assessment snapshots.
 
-Revision ID: 0003
-Revises: 0002
+Revision ID: 0004
+Revises: 0003
 Create Date: 2026-11-22 21:00:00
 """
 
@@ -20,8 +20,8 @@ from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
-revision: str = "0003"
-down_revision: str | None = "0002"
+revision: str = "0004"
+down_revision: str | None = "0003"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
