@@ -1,13 +1,18 @@
-"""`/investor-searches` routes against Postgres, with the workspace dependency overridden."""
+"""`/investor-searches` routes against Postgres, signed in with a real session cookie."""
 
 from __future__ import annotations
 
+import datetime as dt
 import uuid
 
 import httpx2 as httpx
 import pytest
+import pytest_asyncio
 
-from app.api.investors import InvestorActor, get_investor_actor, investor_session
+from app.auth.config import get_auth_settings
+from app.auth.sessions import SESSION_COOKIE, create_session
+from app.db.models import InvestorRun
+from app.db.session import dispose_engine, init_engine
 from app.jobs import registry
 from app.main import create_app
 from app.pipelines.investors import steps
@@ -34,31 +39,49 @@ BODY = {
 }
 
 
-def _client(sm, workspace_id: uuid.UUID) -> httpx.AsyncClient:
-    app = create_app()
-
-    async def actor() -> InvestorActor:
-        return InvestorActor(workspace_id=workspace_id)
-
-    async def session():  # type: ignore[no-untyped-def]
-        async with sm() as s:
-            yield s
-
-    app.dependency_overrides[get_investor_actor] = actor
-    app.dependency_overrides[investor_session] = session
-    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t")
-
-
-async def test_create_list_and_get(session, sm, monkeypatch) -> None:
+@pytest.fixture(autouse=True)
+def _env(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("DEALPROOF_FIXTURES", raising=False)
+    monkeypatch.delenv("K_SERVICE", raising=False)
+    monkeypatch.setenv("AUTH_COOKIE_SECURE", "false")
+    get_auth_settings.cache_clear()
+    yield
+    get_auth_settings.cache_clear()
+
+
+@pytest_asyncio.fixture
+async def app(sm, db_url):
+    """The real app on the test database (no dependency overrides)."""
+    init_engine(db_url)
+    try:
+        yield create_app()
+    finally:
+        await dispose_engine()
+
+
+def _client(app, token: str | None = None) -> httpx.AsyncClient:
+    cookies = {SESSION_COOKIE: token} if token else None
+    return httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://t", cookies=cookies
+    )
+
+
+async def _signed_in(session, name: str):
+    t = await tenant(session, name)
+    token, _ = await create_session(session, t.user, ttl=dt.timedelta(hours=1))
+    await session.commit()
+    return t, token
+
+
+async def test_create_list_and_get(app, session, sm, monkeypatch) -> None:
     api = FakeCrustdata(
         [company(1, "Alpha Logistics", [round_("series_a", ago(40), [investor("Kite", "k1")])])]
     )
     monkeypatch.setattr(steps, "clients", FakeClients(api, FakeLlm()))
-    t = await tenant(session)
-    other = await tenant(session, "other")
+    t, token = await _signed_in(session, "acme")
+    other, other_token = await _signed_in(session, "other")
 
-    async with _client(sm, t.workspace.id) as c:
+    async with _client(app, token) as c:
         created = await c.post("/investor-searches", json=BODY)
         assert created.status_code == 201, created.text
         body = created.json()
@@ -83,14 +106,37 @@ async def test_create_list_and_get(session, sm, monkeypatch) -> None:
 
         assert (await c.get("/investor-searches/not-a-uuid")).status_code == 404
 
-    async with _client(sm, other.workspace.id) as c:
+    # The search belongs to the signed-in user's workspace and records who started it.
+    async with sm() as s:
+        row = await s.get(InvestorRun, uuid.UUID(body["id"]))
+        assert row.workspace_id == t.workspace.id
+        assert row.created_by == t.user.id
+
+    # Another workspace's user sees neither the search nor its listing.
+    async with _client(app, other_token) as c:
         assert (await c.get(f"/investor-searches/{body['id']}")).status_code == 404
         assert (await c.get("/investor-searches")).json() == []
+    assert other.workspace.id != t.workspace.id
 
 
-async def test_routes_fail_closed_without_auth(monkeypatch) -> None:
-    monkeypatch.delenv("DEALPROOF_FIXTURES", raising=False)
-    transport = httpx.ASGITransport(app=create_app())
-    async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
-        assert (await c.post("/investor-searches", json=BODY)).status_code == 501
-        assert (await c.get("/investor-searches")).status_code == 501
+async def test_routes_need_a_session(app, session) -> None:
+    await _signed_in(session, "acme")
+    for token in (None, "forged-token"):
+        async with _client(app, token) as c:
+            assert (await c.post("/investor-searches", json=BODY)).status_code == 401
+            assert (await c.get("/investor-searches")).status_code == 401
+            missing = "00000000-0000-0000-0000-000000000000"
+            assert (await c.get(f"/investor-searches/{missing}")).status_code == 401
+
+
+async def test_fixture_mode_needs_no_session(monkeypatch) -> None:
+    from app.api import fixtures
+
+    monkeypatch.setenv("DEALPROOF_FIXTURES", "1")
+    async with _client(create_app()) as c:
+        created = await c.post("/investor-searches", json=BODY)
+        assert created.status_code == 201 and created.json()["profile"] == BODY
+        assert (await c.get("/investor-searches")).status_code == 200
+        got = await c.get(f"/investor-searches/{fixtures.INVESTOR_SEARCH_ID}")
+        assert got.status_code == 200
+        assert (await c.get("/investor-searches/unknown")).status_code == 404
