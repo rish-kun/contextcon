@@ -1,7 +1,16 @@
+import ssl
+
 import pytest
 from sqlalchemy import event
 
-from app.db.session import _connect_args, make_engine, normalise_url, to_async_url
+from app.db.session import (
+    _connect_args,
+    make_engine,
+    normalise_url,
+    tls_mode,
+    to_async_url,
+    verified_ssl_context,
+)
 
 NEON_POOLED = (
     "postgresql://u:p@ep-x-123-pooler.ap-southeast-1.aws.neon.tech/neondb"
@@ -9,26 +18,75 @@ NEON_POOLED = (
 )
 
 
+def _assert_verifying(value: object) -> None:
+    assert isinstance(value, ssl.SSLContext)
+    assert value.verify_mode == ssl.CERT_REQUIRED
+    assert value.check_hostname is True
+    assert value.minimum_version >= ssl.TLSVersion.TLSv1_2
+
+
 def test_neon_url_becomes_asyncpg_url() -> None:
     url = "postgresql://u:p@ep-x-123.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
     async_url, args = normalise_url(url)
     assert async_url == "postgresql+asyncpg://u:p@ep-x-123.ap-southeast-1.aws.neon.tech/neondb"
-    assert args == {"ssl": "require"}
+    assert set(args) == {"ssl"}
+    _assert_verifying(args["ssl"])
     assert to_async_url(url) == async_url
 
 
-def test_neon_pooled_url_keeps_ssl_and_disables_statement_cache() -> None:
+def test_neon_pooled_url_verifies_tls_and_disables_statement_cache() -> None:
     async_url, args = normalise_url(NEON_POOLED)
     assert "channel_binding" not in async_url
     assert "sslmode" not in async_url
-    assert args["ssl"] == "require"
+    _assert_verifying(args["ssl"])
     assert args["statement_cache_size"] == 0
+
+
+@pytest.mark.parametrize("mode", ["require", "verify-ca", "verify-full", "true", "1"])
+def test_every_encrypting_mode_verifies_the_server(mode: str) -> None:
+    """libpq's `require` would accept any certificate; here it verifies CA and host."""
+    _, args = normalise_url(f"postgresql://u@db.example.com/db?sslmode={mode}")
+    _assert_verifying(args["ssl"])
+    assert tls_mode(args) == "verify-full"
+
+
+def test_remote_host_without_sslmode_still_verifies() -> None:
+    """asyncpg's own default is unverified `prefer`; a remote host never gets that."""
+    _, args = normalise_url("postgresql://u@db.example.com/db")
+    _assert_verifying(args["ssl"])
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "postgresql://u@127.0.0.1:5432/db",
+        "postgresql://u@localhost/db",
+        "postgresql://u@[::1]/db",
+        "postgresql:///db",
+    ],
+)
+def test_local_hosts_keep_asyncpg_default(url: str) -> None:
+    _, args = normalise_url(url)
+    assert "ssl" not in args
+    assert tls_mode(args) == "default"
+
+
+@pytest.mark.parametrize("mode", ["disable", "allow", "prefer"])
+def test_explicit_non_verifying_modes_pass_through(mode: str) -> None:
+    _, args = normalise_url(f"postgresql://u@127.0.0.1/db?sslmode={mode}")
+    assert args == {"ssl": mode}
+
+
+def test_verified_context_uses_a_ca_store() -> None:
+    """The image must ship CA certificates or every Neon connection fails."""
+    assert verified_ssl_context().cert_store_stats()["x509_ca"] > 0
 
 
 def test_other_query_params_are_kept() -> None:
     async_url, args = normalise_url("postgresql://u@h/db?application_name=dp&sslmode=verify-full")
     assert async_url == "postgresql+asyncpg://u@h/db?application_name=dp"
-    assert args == {"ssl": "verify-full"}
+    assert set(args) == {"ssl"}
+    _assert_verifying(args["ssl"])
 
 
 def test_unknown_sslmode_rejected() -> None:
@@ -56,7 +114,7 @@ async def test_make_engine_passes_ssl_to_asyncpg() -> None:
                 pass
     finally:
         await engine.dispose()
-    assert seen["ssl"] == "require"
+    _assert_verifying(seen["ssl"])
     assert seen["statement_cache_size"] == 0
     assert "channel_binding" not in seen
     assert "sslmode" not in seen

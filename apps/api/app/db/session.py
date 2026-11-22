@@ -1,5 +1,8 @@
 """Async engine and sessions (SQLAlchemy 2 + asyncpg)."""
 
+import ipaddress
+import logging
+import ssl
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -15,12 +18,41 @@ from sqlalchemy.ext.asyncio import (
 
 from app.settings import get_settings
 
+log = logging.getLogger(__name__)
+
 # libpq query parameters asyncpg does not understand. Neon's URLs carry
 # `channel_binding=require`, which asyncpg rejects.
 _DROP_PARAMS = {"channel_binding", "options", "target_session_attrs"}
-# libpq names for the TLS mode; asyncpg takes the same modes as its `ssl` argument.
+# libpq names for the TLS mode.
 _SSL_PARAMS = {"sslmode", "ssl"}
 _SSL_MODES = {"disable", "allow", "prefer", "require", "verify-ca", "verify-full"}
+# Modes that ask for encryption. All of them get full verification (CA chain and
+# hostname): libpq's `require` encrypts without authenticating the server, which
+# lets anyone on the path impersonate the database, so it is upgraded here.
+_VERIFIED_MODES = {"require", "verify-ca", "verify-full"}
+
+
+def verified_ssl_context() -> ssl.SSLContext:
+    """TLS that authenticates the server: the system CA store plus a hostname check.
+
+    asyncpg passes the URL's host as `server_hostname`, so the certificate must name
+    the host in the URL (Neon's certificates cover `*.<region>.aws.neon.tech`)."""
+    ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+    # create_default_context already sets these; pin them so a later edit can't relax them.
+    ctx.check_hostname = True
+    ctx.verify_mode = ssl.CERT_REQUIRED
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    return ctx
+
+
+def _is_local(host: str | None) -> bool:
+    """Loopback, a Unix socket directory, or no host (libpq's local default)."""
+    if not host or host.startswith("/") or host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
 
 
 def normalise_url(url: str) -> tuple[str, dict[str, Any]]:
@@ -29,6 +61,11 @@ def normalise_url(url: str) -> tuple[str, dict[str, Any]]:
     `postgres://` / `postgresql://` become `postgresql+asyncpg://`. `sslmode=…` is
     removed from the query and returned as asyncpg's `ssl` connect argument, and
     parameters asyncpg rejects (such as `channel_binding`) are dropped.
+
+    TLS: `require`, `verify-ca` and `verify-full` all become a verifying
+    `ssl.SSLContext` (see `verified_ssl_context`). A remote host with no `sslmode`
+    gets the same, instead of asyncpg's unverified `prefer` default. `disable`,
+    `allow` and `prefer` pass through unchanged for local development.
     """
     if not url:
         raise ValueError("DATABASE_URL is empty")
@@ -49,9 +86,11 @@ def normalise_url(url: str) -> tuple[str, dict[str, Any]]:
                 mode = "disable"
             if mode not in _SSL_MODES:
                 raise ValueError(f"unsupported {key} value in DATABASE_URL")
-            connect_args["ssl"] = mode
+            connect_args["ssl"] = verified_ssl_context() if mode in _VERIFIED_MODES else mode
             continue
         params.append((key, value))
+    if "ssl" not in connect_args and not _is_local(parts.hostname):
+        connect_args["ssl"] = verified_ssl_context()
     async_url = urlunsplit((scheme, parts.netloc, parts.path, urlencode(params), parts.fragment))
     connect_args.update(_connect_args(async_url))
     return async_url, connect_args
@@ -71,6 +110,15 @@ def _connect_args(url: str) -> dict[str, Any]:
             "prepared_statement_name_func": lambda: f"__asyncpg_{uuid4()}__",
         }
     return {}
+
+
+def tls_mode(connect_args: dict[str, Any]) -> str:
+    """A loggable description of the TLS setting in `normalise_url`'s connect args."""
+    value = connect_args.get("ssl")
+    if isinstance(value, ssl.SSLContext):
+        verified = value.verify_mode == ssl.CERT_REQUIRED and value.check_hostname
+        return "verify-full" if verified else "unverified"
+    return str(value) if value is not None else "default"
 
 
 def make_engine(url: str, **kwargs: Any) -> AsyncEngine:
@@ -93,6 +141,7 @@ def init_engine(url: str | None = None, **kwargs: Any) -> AsyncEngine:
     global _engine, _sessionmaker
     if url is None:
         url = get_settings().database_url.get_secret_value()
+    log.info("database TLS: %s", tls_mode(normalise_url(url)[1]))
     _engine = make_engine(url, **kwargs)
     _sessionmaker = make_sessionmaker(_engine)
     return _engine

@@ -11,6 +11,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Database TLS verifies Neon's certificate against the system CA store
+# (app/db/session.py). The slim base ships ca-certificates; fail the build if not.
+RUN python -c "import ssl, sys; n = ssl.create_default_context().cert_store_stats()['x509_ca']; sys.exit(0 if n else 'no CA certificates in the image')"
+
 # Install dependencies first for better layer caching.
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
