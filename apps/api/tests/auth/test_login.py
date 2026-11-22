@@ -1,12 +1,19 @@
 """Sign-in, sessions, logout, expiry and the login rate limit, through the real app."""
 
 import asyncio
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select, update
 
 from app.auth.config import get_auth_settings
+from app.auth.ratelimit import (
+    VerifierBusy,
+    login_limiter,
+    reset_login_limiter,
+    verification_slots,
+)
 from app.auth.sessions import SESSION_COOKIE, hash_token
 from app.db.models import AuthSession
 from tests.auth.conftest import client_for
@@ -175,3 +182,29 @@ async def test_cookie_secure_in_production(app, session, monkeypatch, env, heade
         response = await login(client, "asha@fund.example", headers=headers)
     assert response.status_code == 200
     assert ("secure" in _cookie_attrs(response.headers["set-cookie"])) is secure
+
+
+async def test_distinct_emails_hit_the_per_ip_limit(client, session, monkeypatch) -> None:
+    monkeypatch.setenv("AUTH_LOGIN_MAX_FAILURES_PER_IP", "3")
+    get_auth_settings.cache_clear()
+    reset_login_limiter()
+    await account(session, "asha")
+    for i in range(3):
+        assert (await login(client, f"nobody{i}@fund.example", "x")).status_code == 401
+    # A fourth made-up email from the same IP is refused before any password check.
+    blocked = await login(client, "asha@fund.example", PASSWORD)
+    assert blocked.status_code == 429
+
+
+async def test_busy_verifier_returns_503_and_refunds(client, session, monkeypatch) -> None:
+    await account(session, "asha")
+
+    @asynccontextmanager
+    async def busy():
+        raise VerifierBusy
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(verification_slots(), "slot", busy)
+    response = await login(client, "asha@fund.example")
+    assert response.status_code == 503 and response.headers["retry-after"]
+    assert len(login_limiter()) == 0  # the attempt did not count

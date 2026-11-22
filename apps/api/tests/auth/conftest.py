@@ -6,7 +6,7 @@ import pytest_asyncio
 
 from app.act.deps import get_act_service
 from app.auth.config import get_auth_settings
-from app.auth.ratelimit import login_limiter
+from app.auth.ratelimit import reset_login_limiter, reset_verification_slots
 from app.db.session import dispose_engine, init_engine
 from app.main import create_app
 from tests.act.fakes import make_service
@@ -18,11 +18,16 @@ def _auth_env(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("DEALPROOF_FIXTURES", raising=False)
     monkeypatch.delenv("K_SERVICE", raising=False)
     monkeypatch.setenv("AUTH_COOKIE_SECURE", "false")
-    get_auth_settings.cache_clear()
-    login_limiter().reset()
+    _reset_auth_state()
     yield
+    _reset_auth_state()
+
+
+def _reset_auth_state() -> None:
+    """Re-read auth settings and start the limiter and Argon2 slots afresh."""
     get_auth_settings.cache_clear()
-    login_limiter().reset()
+    reset_login_limiter()
+    reset_verification_slots()
 
 
 @pytest_asyncio.fixture

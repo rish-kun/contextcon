@@ -16,6 +16,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.passwords import hash_password, needs_rehash, verify_password
+from app.auth.ratelimit import verification_slots
 from app.db import repo
 from app.db.models import AuthSession, User, Workspace
 
@@ -54,11 +55,15 @@ async def find_user_by_email(db: AsyncSession, email: str) -> User | None:
 
 
 async def authenticate(db: AsyncSession, email: str, password: str) -> User | None:
-    """The user if the password matches, else None (same work either way)."""
+    """The user if the password matches, else None (same work either way).
+
+    Raises `ratelimit.VerifierBusy` when every Argon2 slot stays taken too long."""
     user = await find_user_by_email(db, email)
-    # Argon2 is deliberately slow; keep it off the event loop.
+    # Argon2 is deliberately slow; keep it off the event loop, and cap how many run at once.
     stored = user.password_hash if user else None
-    if not await asyncio.to_thread(verify_password, stored, password):
+    async with verification_slots().slot():
+        ok = await asyncio.to_thread(verify_password, stored, password)
+    if not ok:
         return None
     assert user is not None and user.password_hash is not None
     if needs_rehash(user.password_hash):

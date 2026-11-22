@@ -23,6 +23,14 @@ class AuthSettings(BaseSettings):
     login_max_failures_per_client: int = Field(default=5, ge=1)
     login_max_failures_per_email: int = Field(default=20, ge=1)
     login_window_seconds: int = Field(default=900, ge=1)
+    # Failed sign-ins allowed per client IP across all emails, and in total, per window.
+    login_max_failures_per_ip: int = Field(default=50, ge=1)
+    login_max_failures_global: int = Field(default=1000, ge=1)
+    # Limiter keys kept in memory at most (least recently hit evicted first).
+    login_max_tracked_keys: int = Field(default=100_000, ge=100)
+    # Argon2 checks running at once, and how long a sign-in waits for a slot before 503.
+    login_max_concurrent_verifications: int = Field(default=4, ge=1)
+    login_verification_wait_seconds: float = Field(default=5.0, gt=0)
     min_password_length: int = Field(default=10, ge=8)
     # How many trusted proxies append to `X-Forwarded-For` in front of the API. The client
     # IP is the entry that many places from the right; 0 ignores the header and uses the

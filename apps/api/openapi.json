@@ -96,6 +96,16 @@
               }
             }
           },
+          "503": {
+            "description": "Too many sign-ins at once; see Retry-After.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {

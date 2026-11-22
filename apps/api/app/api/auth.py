@@ -15,7 +15,7 @@ from app.api.schemas.common import ErrorOut
 from app.auth.config import get_auth_settings
 from app.auth.cookies import clear_session_cookie, client_ip, set_session_cookie
 from app.auth.deps import CurrentUser
-from app.auth.ratelimit import login_limiter
+from app.auth.ratelimit import VerifierBusy, login_limiter
 from app.auth.sessions import (
     SESSION_COOKIE,
     AuthUser,
@@ -40,7 +40,8 @@ def _user_out(user: AuthUser) -> UserOut:
     "/login",
     response_model=UserOut,
     responses={
-        429: {"model": ErrorOut, "description": "Too many failed sign-ins; see Retry-After."}
+        429: {"model": ErrorOut, "description": "Too many failed sign-ins; see Retry-After."},
+        503: {"model": ErrorOut, "description": "Too many sign-ins at once; see Retry-After."},
     },
 )
 async def login(body: LoginIn, request: Request, response: Response) -> UserOut:
@@ -60,7 +61,15 @@ async def login(body: LoginIn, request: Request, response: Response) -> UserOut:
         )
     ttl = timedelta(hours=settings.session_ttl_hours)
     async with get_sessionmaker()() as db:
-        user = await authenticate(db, email, body.password)
+        try:
+            user = await authenticate(db, email, body.password)
+        except VerifierBusy:
+            limiter.refund(email, ip, reservation)  # no password was checked
+            raise HTTPException(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                "Too many sign-ins at once. Try again in a moment.",
+                headers={"Retry-After": "2"},
+            ) from None
         if user is None:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, BAD_CREDENTIALS)
         await purge_expired_sessions(db)
