@@ -140,9 +140,10 @@ Every status except Supported names what would settle it, as a document or recor
   ("Searched: ..."), and a seller document is asked for only for what they did not find.
 - Certifications (since 2026-11-22.7) match on the standard itself: "ISO/IEC
   27001:2022" on a register states "ISO 27001", "SOC 2 Type I" does not state "SOC 2
-  Type II". A claim naming several standards is checked once per standard, and every
-  certification claim also asserts that the certificate is current
-  (`certificate_valid_until` on or after today). The register, the certification
+  Type II". A claim naming several standards is checked once per standard, and each
+  standard also asserts that its certificate is current (`certificate_valid_until` on
+  or after today), settled only by a validity date from a source that names that
+  standard: a current ISO 9001 record says nothing about ISO 27001. The register, the certification
   body's record, or the certificate or auditor's report settle that; the company's own
   page never does. An expired certificate on a register contradicts the claim.
   A lookup the case budget refuses is skipped; if all are refused the claim reads

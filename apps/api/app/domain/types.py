@@ -104,6 +104,10 @@ class ClaimComponent(Model):
     name: str  # a key of app.rules.policy.COMPONENT_RULES
     value: Any
     op: Literal["eq", "gte", "lte"] = "eq"
+    # Rules-only: a certificate's validity is about one standard. Set on the
+    # `certificate_valid_until` components the rules add, so only facts from an
+    # origin that also names this standard can settle it.
+    scope: str | None = Field(default=None, exclude=True)
 
 
 class Claim(Model):

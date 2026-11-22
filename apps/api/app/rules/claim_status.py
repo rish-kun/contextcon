@@ -23,6 +23,7 @@ from app.domain.enums import (
     ComponentState,
     NotCheckedReason,
     SourceReliability,
+    ValueKind,
 )
 from app.domain.types import (
     CheckOutcome,
@@ -178,6 +179,8 @@ def effective_components(claim: Claim) -> list[ClaimComponent]:
 
 
 def _compliance_components(comps: list[ClaimComponent]) -> list[ClaimComponent]:
+    """One `certification` per standard, each with its own validity component scoped
+    to that standard: a current ISO 9001 record says nothing about ISO 27001."""
     out: list[ClaimComponent] = []
     for c in comps:
         found = standards_in(c.value) if c.name == "certification" else []
@@ -185,13 +188,29 @@ def _compliance_components(comps: list[ClaimComponent]) -> list[ClaimComponent]:
             out.extend(ClaimComponent(name=c.name, value=s.display) for s in found)
         else:
             out.append(c)
-    if any(c.name == "certification" for c in out) and not any(
-        c.name == "certificate_valid_until" for c in out
-    ):
+    if any(c.name == "certificate_valid_until" for c in out):
+        return out  # the claim states its own validity date
+    on = today().isoformat()
+    for c in [c for c in out if c.name == "certification"]:
         out.append(
-            ClaimComponent(name="certificate_valid_until", value=today().isoformat(), op="gte")
+            ClaimComponent(name="certificate_valid_until", value=on, op="gte", scope=str(c.value))
         )
     return out
+
+
+def _scoped(
+    relevant: list[ExtractedFact], standard: str, valid: list[ExtractedFact]
+) -> list[ExtractedFact]:
+    """Validity facts from origins that also state `standard` (a certification fact
+    from the same origin that names it). A validity date with no standard beside it
+    settles nothing."""
+    origins = {
+        f.evidence.source.origin
+        for f in valid
+        if f.component == "certification"
+        and compare(ValueKind.STANDARD, standard, "eq", f.value) == "match"
+    }
+    return [f for f in relevant if f.evidence.source.origin in origins]
 
 
 def _origin_adequacy(
@@ -262,6 +281,8 @@ def decide_claim_status(check: ClaimCheck) -> CheckOutcome:
         rule = policy.COMPONENT_RULES.get(comp.name)
         check_cat = _check_of(comp.name, claim)
         relevant = [f for f in valid if f.component == comp.name]
+        if comp.scope is not None:
+            relevant = _scoped(relevant, comp.scope, valid)
         if rule is None:
             for f in relevant:
                 refs.append(_ref(f, "not_adequate", "no rule for this component"))

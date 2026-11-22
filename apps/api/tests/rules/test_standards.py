@@ -71,10 +71,11 @@ def _claim(value: str) -> Claim:
 def test_effective_components_split_standards_and_add_validity(monkeypatch):
     monkeypatch.setattr(claim_status, "today", lambda: date(2026, 11, 22))
     comps = effective_components(_claim("ISO 9001:2015 and ISO/IEC 27001:2022"))
-    assert [(c.name, c.value, c.op) for c in comps] == [
-        ("certification", "ISO 9001", "eq"),
-        ("certification", "ISO 27001", "eq"),
-        ("certificate_valid_until", "2026-11-22", "gte"),
+    assert [(c.name, c.value, c.op, c.scope) for c in comps] == [
+        ("certification", "ISO 9001", "eq", None),
+        ("certification", "ISO 27001", "eq", None),
+        ("certificate_valid_until", "2026-11-22", "gte", "ISO 9001"),
+        ("certificate_valid_until", "2026-11-22", "gte", "ISO 27001"),
     ]
 
 
@@ -113,3 +114,37 @@ def test_compliance_status_by_source_class(monkeypatch, reliability, expiry, exp
     assert out.status is expected, out.reason
     if expected is not ClaimStatus.SUPPORTED:
         assert "auditor's report under NDA" in out.settle_with[0]
+
+
+def _two_standard_claim() -> Claim:
+    return _claim("ISO 9001:2015 and ISO/IEC 27001:2022")
+
+
+def test_validity_of_one_standard_does_not_cover_another(monkeypatch):
+    # A current ISO 9001 register entry, and ISO 27001 only on the company's own page:
+    # never Supported.
+    monkeypatch.setattr(claim_status, "today", lambda: date(2026, 11, 22))
+    facts = [
+        _fact(1, "certification", "ISO 9001:2015", "ISO 9001:2015", R.REGISTRY),
+        _fact(1, "certificate_valid_until", "2028-03-14", "Valid until 14 March 2028", R.REGISTRY),
+        _fact(
+            2, "certification", "ISO 27001", "We are ISO 27001 certified", R.COMPANY_ANNOUNCEMENT
+        ),
+    ]
+    facts = [f.model_copy(update={"id": f"f{i}"}) for i, f in enumerate(facts)]
+    out = decide_claim_status(ClaimCheck(claim=_two_standard_claim(), facts=facts))
+    assert out.status is ClaimStatus.PARTIALLY_CORROBORATED, out.reason
+    states = [(f.component, f.state.value) for f in out.components]
+    assert states.count(("certificate_valid_until", "matched")) == 1
+    assert states.count(("certificate_valid_until", "unsettled")) == 1
+
+
+def test_expiry_from_an_origin_without_the_standard_settles_nothing(monkeypatch):
+    monkeypatch.setattr(claim_status, "today", lambda: date(2026, 11, 22))
+    facts = [
+        _fact(1, "certification", "ISO/IEC 27001:2022", "ISO/IEC 27001:2022", R.REGISTRY),
+        _fact(2, "certificate_valid_until", "2024-03-14", "Valid until 14 March 2024", R.REGISTRY),
+    ]
+    facts[1] = facts[1].model_copy(update={"id": "f2"})
+    out = decide_claim_status(ClaimCheck(claim=_claim("ISO 27001"), facts=facts))
+    assert out.status is ClaimStatus.PARTIALLY_CORROBORATED, out.reason
