@@ -632,6 +632,10 @@ async def test_check_waits_for_verify_steps_appended_after_it(sm, session):
     first, later = steps[f"checks.claim:{claim.id}"], steps[f"checks.claim:{claim.id}~1"]
     assert first.output["deferred_to"] == later.key
     assert "verify.profile" in later.depends_on and later.state == "done"
+    # The assessment that waited for the first check also waits for its successor.
+    assessments = [s for s in steps.values() if s.handler == "evaluate.assess"]
+    assert assessments and all(later.key in s.depends_on for s in assessments)
+    assert all(s.finished_at >= later.finished_at for s in assessments)
     checks = list((await session.execute(select(ClaimCheck))).scalars())
     assert len(checks) == 1 and checks[0].step_id == later.id
 

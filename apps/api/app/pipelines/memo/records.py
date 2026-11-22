@@ -25,6 +25,7 @@ from app.db.models import (
     Claim,
     DeletionRecord,
     Document,
+    DocumentRequestItem,
     Evidence,
     ExtractedText,
     Source,
@@ -158,6 +159,15 @@ async def documents_out(session: AsyncSession, case: Case) -> list[DocumentOut]:
             )
         ).all()
     )
+    answers: dict[uuid.UUID, list[str]] = defaultdict(list)
+    for doc_id, item_id in (
+        await session.execute(
+            select(DocumentRequestItem.document_id, DocumentRequestItem.request_item_id)
+            .where(DocumentRequestItem.document_id.in_(ids))
+            .order_by(DocumentRequestItem.request_item_id)
+        )
+    ).all():
+        answers[doc_id].append(str(item_id))
     return [
         DocumentOut(
             id=str(d.id),
@@ -172,6 +182,7 @@ async def documents_out(session: AsyncSession, case: Case) -> list[DocumentOut]:
             delete_after=d.delete_after,
             purged=d.deleted_at is not None,
             redaction_counts=d.redaction_counts or redactions.get(d.id, {}),
+            answers_request_item_ids=answers.get(d.id, []),
             claims_extracted=int(claims.get(d.id, 0)),
         )
         for d, name in docs

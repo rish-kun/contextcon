@@ -15,7 +15,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.clients.activity import reset_activity_topic, set_activity_topic
 from app.db.enums import IdentityStatus, StepState
@@ -66,7 +66,25 @@ async def _defer_behind_unfinished(ctx: StepContext, claim: Claim) -> str | None
             )
         ]
     )
+    await _carry_dependents(ctx, key)
     return key
+
+
+async def _carry_dependents(ctx: StepContext, successor: str) -> None:
+    """Steps that waited for this check (the next check, evaluate) now also wait for its
+    successor, so evaluate never reads a check that has not run yet. No cycle: the
+    successor waits only for verify steps and this check, never for those dependents."""
+    rows = await ctx.session.execute(
+        select(Step).where(
+            Step.run_id == ctx.run.id, Step.state == StepState.PENDING, Step.key != successor
+        )
+    )
+    for step in rows.scalars():
+        deps = list(step.depends_on or [])
+        if ctx.key in deps and successor not in deps:
+            await ctx.session.execute(
+                update(Step).where(Step.id == step.id).values(depends_on=[*deps, successor])
+            )
 
 
 def _optional(build: Any, *args: Any, **kwargs: Any) -> Any:

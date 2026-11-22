@@ -7,6 +7,7 @@ from typing import Any
 
 import app.pipelines.verify.checks.steps  # noqa: F401  (registers verify.checks.claim)
 from app.clients.activity import activity_topic
+from app.db.enums import RunKind
 from app.db.models import Document
 from app.jobs import StepContext, step_handler
 from app.jobs.activity import NoticeCode, Subject, doc_kind, render
@@ -41,10 +42,26 @@ async def extract_claims_step(ctx: StepContext) -> dict[str, Any]:
     finally:
         await close_quietly(llm)
     to_check = [c for c in intake.claims if str(c.id) not in intake.checked]
-    if to_check:
+    rechecked = 0
+    if ctx.run.kind == RunKind.RECHECK and ctx.run.case_id is not None:
+        # A seller response: the new claims and the claims behind the answered request
+        # items are checked in one batch, then evaluate and the request list follow.
+        from app.pipelines.verify.claims.recheck import plan_recheck
+
+        rechecked = await plan_recheck(
+            ctx.session,
+            run_id=ctx.run.id,
+            case_id=ctx.run.case_id,
+            plan=ctx.input.get("recheck") or {},
+            new_claims=to_check,
+            document_id=document.id,
+            after=ctx.key,
+        )
+    elif to_check:
         await schedule_claim_checks(
             ctx.session, run_id=ctx.run.id, claims=to_check, document_ids=[document.id]
         )
+    if to_check:
         # Ids and categories only: the client already has the claim text.
         await ctx.activity.findings(
             lambda _batch: render("finding.claims_queued", n=len(to_check)),
@@ -66,4 +83,5 @@ async def extract_claims_step(ctx: StepContext) -> dict[str, Any]:
         "checks": intake.checked,
         "dropped": intake.dropped,
         "redaction_counts": intake.redaction_counts,
+        "rechecked": rechecked,
     }

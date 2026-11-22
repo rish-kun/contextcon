@@ -572,6 +572,17 @@ class RequestItemClaim(Base):
     claim_id: Mapped[uuid.UUID] = mapped_column(_fk("claims.id"), primary_key=True)
 
 
+class DocumentRequestItem(Base):
+    """Which request items a seller response answers, as the uploader marked them."""
+
+    __tablename__ = "document_request_items"
+
+    document_id: Mapped[uuid.UUID] = mapped_column(_fk("documents.id"), primary_key=True)
+    request_item_id: Mapped[uuid.UUID] = mapped_column(
+        _fk("request_items.id"), primary_key=True, index=True
+    )
+
+
 class MessageRevision(IdMixin, Base):
     """Immutable text of a seller message. Editing creates a new revision."""
 

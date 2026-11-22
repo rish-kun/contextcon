@@ -1,5 +1,10 @@
 """Document upload (CP-20) and signed download URLs. Recheck on seller responses: CP-24.
 
+A `seller_response` names the request items it answers (`answers_request_item_ids`,
+checked against the case's request lists, 422 otherwise). The links are stored and a
+`recheck` run starts: claims from the new document, re-checks of the claims behind
+the answered items, a new assessment version naming the upload, a new request list.
+
 The upload body is declared in OpenAPI by hand and parsed with `await request.form()`.
 An upload is validated (size, then type by extension and content), its text extracted
 and regex-redacted, and the original stored privately under
@@ -24,6 +29,12 @@ from app.documents.storage import DEFAULT_URL_TTL
 from app.documents.validation import DEFAULT_MAX_UPLOAD_MB
 from app.jobs import events
 from app.pipelines.verify.claims.intake import schedule_document_extraction, store_upload
+from app.pipelines.verify.claims.recheck import (
+    UnknownRequestItems,
+    answered_items,
+    link_answers,
+    schedule_recheck,
+)
 from app.settings import get_settings
 
 router = make_router(tags=["documents"])
@@ -86,7 +97,9 @@ async def _read_upload(request: Request, limit: int) -> tuple[UploadFile, str, l
     kind = form.get("kind") or DocumentKind.seller_deck.value
     if not isinstance(kind, str) or kind not in DocumentKind.__members__:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Unknown document kind.")
-    answers = [a for a in form.getlist("answers_request_item_ids") if isinstance(a, str)]
+    answers = [
+        a for a in form.getlist("answers_request_item_ids") if isinstance(a, str) and a.strip()
+    ]
     return upload, kind, answers
 
 
@@ -121,6 +134,17 @@ async def upload_document(
     now = datetime.now(UTC)
     async with get_sessionmaker()() as db:
         case = await load_case(db, user.workspace_id, case_id)
+        answered: list = []
+        if answers:
+            if kind != DocumentKind.seller_response.value:
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    "Only a seller response answers request items.",
+                )
+            try:
+                answered = await answered_items(db, case, answers)
+            except UnknownRequestItems as exc:
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from None
         try:
             stored = await store_upload(
                 db,
@@ -135,15 +159,17 @@ async def upload_document(
             )
         except UploadRejected as exc:
             raise HTTPException(exc.status_code, exc.reason) from None
-        run_out: Any = None
-        if kind != DocumentKind.seller_response.value:  # seller responses: CP-24 recheck
+        if kind == DocumentKind.seller_response.value:  # CP-24: recheck the case
+            await link_answers(db, stored.document.id, answered)
+            run = await schedule_recheck(
+                db, case=case, stored=stored, answered=answered, created_by=user.id
+            )
+        else:
             run = await schedule_document_extraction(
                 db, case=case, stored=stored, created_by=user.id
             )
-            await db.commit()
-            run_out = await events.load_run_out(db, user.workspace_id, run.id)
-        else:
-            await db.commit()
+        await db.commit()
+        run_out: Any = await events.load_run_out(db, user.workspace_id, run.id)
         doc = stored.document
         return DocumentOut(
             id=str(doc.id),
@@ -158,7 +184,7 @@ async def upload_document(
             delete_after=doc.delete_after,
             purged=False,
             redaction_counts=stored.result.redaction_log,
-            answers_request_item_ids=answers,
+            answers_request_item_ids=[str(i) for i in answered],
             claims_extracted=0,
             run=run_out,
         )
