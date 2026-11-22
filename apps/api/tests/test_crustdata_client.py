@@ -692,3 +692,52 @@ def test_default_limits_follow_crustdata_defaults() -> None:
     assert DEFAULT_RATE_LIMITS["/web/enrich/live"] == 10
     assert DEFAULT_RATE_LIMITS["/company/identify"] == 30
     assert CrustdataClient("k").rate_limiter is SHARED_RATE_LIMITER
+
+
+async def test_comma_separated_investor_lists_are_normalised() -> None:
+    payload = [
+        {
+            "matches": [
+                {
+                    "company_data": {
+                        "crustdata_company_id": 42,
+                        "funding": {
+                            "investors": "Fund One, Fund Two",
+                            "milestones": [
+                                {"round_type": "seed", "lead_investors": "Fund One, Angel X"}
+                            ],
+                        },
+                    }
+                }
+            ]
+        }
+    ]
+    h = Harness(lambda request: ok(payload, credits="2"), cache=True)
+    results, _ = await h.client.enrich_company(42)
+    funding = results[0].matches[0].company_data.funding
+    assert funding.investors == ["Fund One", "Fund Two"]
+    assert funding.milestones[0].lead_investors == ["Fund One", "Angel X"]
+    # A cached payload from before normalisation (a raw string) still parses.
+    from app.clients.crustdata_models import FundingRound
+
+    assert FundingRound.model_validate({"lead_investors": "A, B"}).lead_investors == ["A", "B"]
+
+
+async def test_invalid_typed_response_keeps_usage_and_raw_payload() -> None:
+    bad = [{"matches": [{"company_data": {"crustdata_company_id": "not-an-int"}}]}]
+    h = Harness(lambda request: ok(bad, credits="2", request_id="req-paid"), cache=True)
+    from app.clients import CrustdataResponseInvalid
+
+    with pytest.raises(CrustdataResponseInvalid) as info:
+        await h.client.enrich_company(42)
+    assert info.value.raw == bad
+    assert info.value.record.status == "succeeded"
+    assert info.value.record.credits_used == 2
+    assert h.recorder.final()[0].credits_used == 2
+    # The raw request replays the paid response from the cache.
+    from app.clients.crustdata import COMPANY_ENRICH, DEFAULT_ENRICH_FIELDS
+
+    body = {"crustdata_company_ids": [42], "fields": list(DEFAULT_ENRICH_FIELDS)}
+    data, record = await h.client.post(COMPANY_ENRICH, body)
+    assert data == bad and record.status == "cache_hit"
+    assert len(h.requests) == 1

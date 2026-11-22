@@ -7,9 +7,20 @@ returns ``null`` (or omits a group) whenever it has no data.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
+
+
+def _names(value: Any) -> Any:
+    """Accept a list or one comma-separated string (live enrich sends both)."""
+    if isinstance(value, str):
+        return [part.strip() for part in value.split(",") if part.strip()]
+    return value
+
+
+# A list of names that the API may also send as "A, B, C".
+NameList = Annotated[list[str] | None, BeforeValidator(_names)]
 
 
 class _Model(BaseModel):
@@ -57,7 +68,7 @@ class InvestorDetail(_Model):
     uuid: str | None = None
     permalink: str | None = None
     crunchbase_profile_url: str | None = None
-    categories: list[str] | None = None
+    categories: NameList = None
 
 
 class FundingRound(_Model):
@@ -67,8 +78,8 @@ class FundingRound(_Model):
     date: str | None = None
     funding_date: str | None = None
     amount_usd: float | None = None
-    investors: list[str] | None = None
-    lead_investors: list[str] | None = None
+    investors: NameList = None
+    lead_investors: NameList = None
     investors_detailed: list[InvestorDetail] | None = None
     is_fund: bool | None = None
     permalink: str | None = None
@@ -80,7 +91,7 @@ class Funding(_Model):
     last_fundraise_date: str | None = None
     last_round_type: str | None = None
     num_funding_rounds: int | None = None
-    investors: list[str] | None = None
+    investors: NameList = None
     investors_detailed: list[InvestorDetail] | None = None
     milestones: list[FundingRound] | None = None
 

@@ -25,6 +25,7 @@ from app.documents.redact import regex_redactor
 KEEP = "keep"  # any subtree; contact-named keys stripped, strings checked
 TEXT = "text"  # free text: always redacted
 S = "scalar"  # a scalar; containers are dropped
+NAMES = "names"  # a list of names, or one comma-separated string: normalised to a list
 
 Spec = Any
 
@@ -71,11 +72,27 @@ def _clean_tree(value: Any) -> Any:
     return value
 
 
+def split_names(value: Any) -> list[str] | None:
+    """Names as a list. Live enrich sends some investor lists as one comma-separated
+    string ("Fund A, Fund B"); both shapes become ``["Fund A", "Fund B"]``."""
+    if value is None:
+        return None
+    items = value.split(",") if isinstance(value, str) else value
+    if not isinstance(items, list):
+        return None
+    names = [
+        _clean_str(str(i).strip(), free_text=False) for i in items if not isinstance(i, dict | list)
+    ]
+    return [n for n in names if n]
+
+
 def apply_spec(spec: Spec, value: Any) -> Any:
     if value is None:
         return None
     if spec == KEEP:
         return _clean_tree(value)
+    if spec == NAMES:
+        return split_names(value)
     if spec in (TEXT, S):
         if isinstance(value, dict | list):
             return None
@@ -119,7 +136,7 @@ INVESTOR = {
     "uuid": S,
     "permalink": S,
     "crunchbase_profile_url": S,
-    "categories": [S],
+    "categories": NAMES,
 }
 
 FUNDING = {
@@ -128,7 +145,7 @@ FUNDING = {
     "last_fundraise_date": S,
     "last_round_type": S,
     "num_funding_rounds": S,
-    "investors": [S],
+    "investors": NAMES,
     "investors_detailed": [INVESTOR],
     "milestones": [
         {
@@ -136,8 +153,8 @@ FUNDING = {
             "date": S,
             "funding_date": S,
             "amount_usd": S,
-            "investors": [S],
-            "lead_investors": KEEP,
+            "investors": NAMES,
+            "lead_investors": NAMES,
             "investors_detailed": [INVESTOR],
             "is_fund": S,
             "permalink": S,

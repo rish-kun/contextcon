@@ -63,6 +63,7 @@ ERROR_CODES: frozenset[str] = frozenset(
         "max_tokens",
         "no_output",
         "invalid_output",
+        "invalid_response",
         "empty_reply",
         # Anthropic error types.
         "invalid_request_error",

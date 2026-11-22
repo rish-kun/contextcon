@@ -28,6 +28,7 @@ from collections.abc import Awaitable, Callable, Sequence
 from typing import Any, NoReturn
 
 import httpx2
+from pydantic import ValidationError
 
 from app.clients.base import (
     CallOperation,
@@ -161,6 +162,31 @@ class CrustdataCreditsError(CrustdataError):
     """402: the account is out of credits."""
 
 
+class CrustdataResponseInvalid(CrustdataError):
+    """A paid response that does not fit the typed model.
+
+    The call was still recorded with its usage and the (sanitised) response cached, so
+    nothing paid for is lost: `raw` holds the payload, and the same request through
+    `CrustdataClient.post` (or a retry) replays it from the cache for free."""
+
+    def __init__(self, message: str, *, record: CallRecord, raw: Any) -> None:
+        super().__init__(
+            message, status=record.http_status, error_type="invalid_response", record=record
+        )
+        self.raw = raw
+
+
+def _typed[M](endpoint: str, parse: Callable[[Any], M], data: Any, record: CallRecord) -> M:
+    try:
+        return parse(data)
+    except (ValidationError, TypeError, ValueError):
+        raise CrustdataResponseInvalid(
+            _message(endpoint, record.http_status, "invalid_response", record.provider_request_id),
+            record=record,
+            raw=data,
+        ) from None
+
+
 def _error_class(status: int | None, *, natural_language: bool) -> type[CrustdataError]:
     if status == 402:
         return CrustdataCreditsError
@@ -255,7 +281,8 @@ class CrustdataClient:
         if exact_match is not None:
             body["exact_match"] = exact_match
         data, record = await self._post(COMPANY_IDENTIFY, body)
-        return [IdentifyResult.model_validate(item) for item in data or []], record
+        parse = lambda d: [IdentifyResult.model_validate(item) for item in d or []]  # noqa: E731
+        return _typed(COMPANY_IDENTIFY, parse, data, record), record
 
     async def search_companies(
         self,
@@ -303,7 +330,9 @@ class CrustdataClient:
                 raise
             body.pop("search")
             data, record = await self._post(COMPANY_SEARCH, body)
-        result = CompanySearchResult.model_validate(data or {})
+        result = _typed(
+            COMPANY_SEARCH, lambda d: CompanySearchResult.model_validate(d or {}), data, record
+        )
         result.natural_language = "search" in body
         return result, record
 
@@ -328,7 +357,8 @@ class CrustdataClient:
             raise ValueError(f"enrich_company takes between 1 and {MAX_ENRICH_IDS} company ids.")
         body = {"crustdata_company_ids": ids, "fields": list(fields)}
         data, record = await self._post(COMPANY_ENRICH, body)
-        return [EnrichResult.model_validate(item) for item in data or []], record
+        parse = lambda d: [EnrichResult.model_validate(item) for item in d or []]  # noqa: E731
+        return _typed(COMPANY_ENRICH, parse, data, record), record
 
     # --- People ----------------------------------------------------------------
 
@@ -347,7 +377,8 @@ class CrustdataClient:
         if sorts:
             body["sorts"] = list(sorts)
         data, record = await self._post(PERSON_SEARCH, body)
-        return PersonSearchResult.model_validate(data or {}), record
+        parse = lambda d: PersonSearchResult.model_validate(d or {})  # noqa: E731
+        return _typed(PERSON_SEARCH, parse, data, record), record
 
     async def search_company_leadership(
         self,
@@ -400,7 +431,8 @@ class CrustdataClient:
         if fields:
             body["fields"] = list(fields)
         data, record = await self._post(JOB_SEARCH, body)
-        return JobSearchResult.model_validate(data or {}), record
+        parse = lambda d: JobSearchResult.model_validate(d or {})  # noqa: E731
+        return _typed(JOB_SEARCH, parse, data, record), record
 
     # --- Web -------------------------------------------------------------------
 
@@ -430,7 +462,8 @@ class CrustdataClient:
         if page != 1:
             body["page"] = page
         data, record = await self._post(WEB_SEARCH_LIVE, body)
-        return WebSearchResult.model_validate(data or {}), record
+        parse = lambda d: WebSearchResult.model_validate(d or {})  # noqa: E731
+        return _typed(WEB_SEARCH_LIVE, parse, data, record), record
 
     async def fetch_pages(
         self, urls: Sequence[str], *, human_mode: bool = False
@@ -447,7 +480,8 @@ class CrustdataClient:
         if human_mode:
             body["human_mode"] = True
         data, record = await self._post(WEB_FETCH_LIVE, body)
-        return [WebPage.model_validate(item) for item in data or []], record
+        parse = lambda d: [WebPage.model_validate(item) for item in d or []]  # noqa: E731
+        return _typed(WEB_FETCH_LIVE, parse, data, record), record
 
     # --- Transport ---------------------------------------------------------------
 
@@ -463,6 +497,14 @@ class CrustdataClient:
                     continue
         delay = self.backoff_base * (2**attempt)
         return min(delay + random.uniform(0, self.backoff_base), self.backoff_max)
+
+    async def post(self, endpoint: str, body: dict[str, Any]) -> tuple[Any, CallRecord]:
+        """The sanitised JSON of one request, without a typed model.
+
+        Same cache key, recorder, retries and field allowlist as the typed methods
+        (``enrich_company`` builds ``{"crustdata_company_ids": [...], "fields": [...]}``
+        for `COMPANY_ENRICH`), so a typed call and a raw call share one paid response."""
+        return await self._post(endpoint, body)
 
     async def _post(self, endpoint: str, body: dict[str, Any]) -> tuple[Any, CallRecord]:
         """One operation: cache lookup, then dispatches until success or give-up.

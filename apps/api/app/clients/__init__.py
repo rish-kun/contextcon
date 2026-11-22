@@ -13,6 +13,7 @@ from app.clients.crustdata import (
     CrustdataCreditsError,
     CrustdataError,
     CrustdataPlanError,
+    CrustdataResponseInvalid,
     SemanticSearchUnavailable,
     failed_urls,
 )
@@ -28,6 +29,7 @@ __all__ = [
     "CrustdataCreditsError",
     "CrustdataError",
     "CrustdataPlanError",
+    "CrustdataResponseInvalid",
     "InMemoryCache",
     "InMemoryRecorder",
     "LLMClient",
