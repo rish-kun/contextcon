@@ -609,3 +609,24 @@ async def test_identity_outcome_is_streamed_with_candidates(session, sm, api) ->
     assert {i["id"] for i in identity["items"]} == {"11", "12"}
     assert all(i["stage"] == "ambiguous" and i["matched_keys"] for i in identity["items"])
     assert any(e["kind"] == "notice" and e["code"] == "identity_blocked" for e in events)
+
+
+async def test_case_from_picked_crustdata_id_confirms_on_the_id(session, sm, api) -> None:
+    actor = await _actor(session)
+    group = "groupco.example"
+    api.identify[("domains", group)] = [
+        company(11, "GroupCo Logistics (fixture)", group),
+        company(12, "GroupCo Warehousing (fixture)", group),
+    ]
+    from app.api.cases_service import create_case
+
+    case = await create_case(
+        session,
+        actor,
+        CaseCreate(name="GroupCo Warehousing (fixture)", website=group, crustdata_id=12),
+    )
+    assert case.identity_identifiers["expected"]["crustdata_company_id"] == 12
+    await _drain(sm)
+    case = await _case(session, case.id)
+    assert case.identity_status == "confirmed"
+    assert case.crustdata_company_id == "12"

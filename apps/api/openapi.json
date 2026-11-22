@@ -1287,6 +1287,81 @@
         }
       }
     },
+    "/companies/lookup": {
+      "get": {
+        "tags": [
+          "companies"
+        ],
+        "summary": "Lookup Companies",
+        "description": "Companies matching a typed name, each with a short description, to pick from\nbefore a case opens.",
+        "operationId": "lookup_companies",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyLookupOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to this user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not implemented yet (stub).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/cases/{case_id}/decision-flip": {
       "get": {
         "tags": [
@@ -4275,6 +4350,18 @@
               }
             ],
             "title": "Thesis Id"
+          },
+          "crustdata_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crustdata Id"
           }
         },
         "additionalProperties": false,
@@ -5136,6 +5223,115 @@
         ],
         "title": "ClaimStatus"
       },
+      "CompanyCandidateOut": {
+        "properties": {
+          "crustdata_id": {
+            "type": "integer",
+            "title": "Crustdata Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "hq_city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hq City"
+          },
+          "hq_country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hq Country"
+          },
+          "founded_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Founded Year"
+          },
+          "headcount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headcount"
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Industry"
+          },
+          "listed": {
+            "type": "boolean",
+            "title": "Listed",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "crustdata_id",
+          "name",
+          "domain",
+          "description",
+          "hq_city",
+          "hq_country",
+          "founded_year",
+          "headcount",
+          "industry",
+          "listed"
+        ],
+        "title": "CompanyCandidateOut"
+      },
       "CompanyItemOut": {
         "properties": {
           "id": {
@@ -5305,6 +5501,34 @@
         ],
         "title": "CompanyItemOut",
         "description": "`subject: company` (and `peer`). Later stages send only the rows that changed."
+      },
+      "CompanyLookupOut": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/CompanyCandidateOut"
+            },
+            "type": "array",
+            "title": "Candidates"
+          },
+          "credits_used": {
+            "type": "number",
+            "title": "Credits Used",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "query",
+          "candidates",
+          "credits_used"
+        ],
+        "title": "CompanyLookupOut"
       },
       "CompanyProfileOut": {
         "properties": {

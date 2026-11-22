@@ -5,14 +5,17 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   ApiError,
+  type CompanyCandidate,
   type ThesisSummary,
   addClaim,
   createCase,
   listTheses,
+  lookupCompanies,
   uploadDocument,
 } from "@/lib/api/client";
 import { plural } from "@/lib/format";
 import {
+  Badge,
   Button,
   Field,
   Input,
@@ -55,6 +58,29 @@ export function NewCaseForm() {
   const [nameError, setNameError] = useState<string | undefined>();
   const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<{ message: string; caseId?: string } | null>(null);
+  // Without a website, the company is picked from a lookup first.
+  const [knowsWebsite, setKnowsWebsite] = useState(false);
+  const [candidates, setCandidates] = useState<CompanyCandidate[] | null>(null);
+  const [looking, setLooking] = useState(false);
+
+  async function findCompanies() {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setNameError("Enter the company name");
+      return;
+    }
+    setNameError(undefined);
+    setError(null);
+    setLooking(true);
+    setCandidates(null);
+    try {
+      setCandidates((await lookupCompanies(trimmed)).candidates);
+    } catch (cause) {
+      setError({ message: describe(cause, "The lookup did not finish") });
+    } finally {
+      setLooking(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -72,7 +98,15 @@ export function NewCaseForm() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const trimmed = name.trim();
+    if (!knowsWebsite) {
+      await findCompanies();
+      return;
+    }
+    await open(null);
+  }
+
+  async function open(picked: CompanyCandidate | null) {
+    const trimmed = picked?.name ?? name.trim();
     if (!trimmed) {
       setNameError("Enter the company name");
       return;
@@ -85,7 +119,8 @@ export function NewCaseForm() {
     try {
       const created = await createCase({
         name: trimmed,
-        website: website.trim() || null,
+        website: picked ? picked.domain : website.trim() || null,
+        crustdata_id: picked?.crustdata_id ?? null,
         thesis_id: thesis === NO_THESIS ? null : thesis,
       });
       caseId = created.id;
@@ -127,6 +162,7 @@ export function NewCaseForm() {
             />
           )}
         </Field>
+        {knowsWebsite ? (
         <Field label="Website" hint="Used to match the company by its domain, not by its name">
           {(control) => (
             <Input
@@ -141,6 +177,34 @@ export function NewCaseForm() {
             />
           )}
         </Field>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-3">
+          {knowsWebsite ? null : (
+            <Button type="button" variant="primary" onClick={findCompanies} disabled={looking}>
+              {looking ? "Finding companies" : "Find companies"}
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="quiet"
+            onClick={() => {
+              setKnowsWebsite((v) => !v);
+              setCandidates(null);
+            }}
+          >
+            {knowsWebsite ? "Find the company by name instead" : "I know the website"}
+          </Button>
+        </div>
+        {!knowsWebsite && candidates !== null ? (
+          <CandidateList
+            candidates={candidates}
+            onPick={(c) => void open(c)}
+            onNone={() => {
+              setKnowsWebsite(true);
+              setCandidates(null);
+            }}
+          />
+        ) : null}
         {theses.length > 0 ? (
           <Field
             label="Thesis (optional)"
@@ -234,9 +298,11 @@ export function NewCaseForm() {
       ) : null}
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line pt-6">
-        <Button type="submit" variant="primary" className="h-11 md:h-9" disabled={busy}>
-          {busy ? progress : "Start verification"}
-        </Button>
+        {knowsWebsite || busy ? (
+          <Button type="submit" variant="primary" className="h-11 md:h-9" disabled={busy}>
+            {busy ? progress : "Start verification"}
+          </Button>
+        ) : null}
         <Button asChild variant="quiet">
           <Link href="/app">Cancel</Link>
         </Button>
@@ -246,5 +312,57 @@ export function NewCaseForm() {
         {progress}
       </p>
     </form>
+  );
+}
+
+function CandidateList({
+  candidates,
+  onPick,
+  onNone,
+}: {
+  candidates: CompanyCandidate[];
+  onPick: (candidate: CompanyCandidate) => void;
+  onNone: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      {candidates.length === 0 ? (
+        <p className="text-dense text-ink-secondary">No companies match that name</p>
+      ) : (
+        <ul className="flex flex-col gap-2" aria-label="Matching companies">
+          {candidates.map((c) => {
+            const hq = [c.hq_city, c.hq_country].filter(Boolean).join(", ");
+            const facts = [
+              hq,
+              c.founded_year ? `Founded ${c.founded_year}` : null,
+              c.headcount ? `${c.headcount.toLocaleString()} people` : null,
+              c.industry,
+            ].filter(Boolean);
+            return (
+              <li
+                key={c.crustdata_id}
+                className="flex flex-col gap-2 rounded-md border border-line px-3 py-3 sm:flex-row sm:items-start sm:justify-between"
+              >
+                <div className="flex min-w-0 flex-col gap-1">
+                  <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-ink">
+                    {c.name}
+                    {c.domain ? <span className="text-xs font-normal text-ink-muted">{c.domain}</span> : null}
+                    {c.listed ? <Badge>Listed</Badge> : null}
+                  </p>
+                  {c.description ? <p className="text-dense text-ink-secondary">{c.description}</p> : null}
+                  {facts.length > 0 ? <p className="text-xs text-ink-muted">{facts.join(" · ")}</p> : null}
+                </div>
+                <Button type="button" variant="secondary" className="shrink-0" onClick={() => onPick(c)}>
+                  Verify this company
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <Button type="button" variant="quiet" className="self-start" onClick={onNone}>
+        None of these — enter website instead
+      </Button>
+    </div>
   );
 }
