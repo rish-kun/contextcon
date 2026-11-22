@@ -891,6 +891,14 @@ class Lookup:
     listing_hosts: tuple[str, ...] = ()
     focus: tuple[str, ...] = ()  # words that pick the relevant passages of a fetched page
     quote_entity: bool = True  # False for a standard's name ("ISO 27001")
+    # What the fetched page on the other party's site must state to count as its
+    # record (for a trademark register: the mark, the company as proprietor and a
+    # class). Returns None when it does, else why not. Checked on the page body only,
+    # never on search titles or snippets; the page must still carry a second
+    # identifier (domain or HQ city) like any page.
+    party_check: Callable[[str, PublicTerms], str | None] | None = field(
+        default=None, compare=False
+    )
 
 
 def classify_hit(
@@ -912,6 +920,10 @@ def classify_hit(
         cls, how = (
             (lookup.party_class, "party_site") if on_party else (R.COMPANY_ANNOUNCEMENT, "listing")
         )
+        if on_party and lookup.party_check is not None:
+            problem = lookup.party_check(page_text, terms)
+            if problem is not None:
+                return Attachment(False, cls, [], problem)
         probe = hit.model_copy(update={"url": "", "content": f"{hit.content or ''}\n{page_text}"})
         att = attach_hit(probe, terms, corroborators)
         if att.attached:
@@ -1067,6 +1079,8 @@ async def run_lookups(env: CheckEnv, claim: Claim, lookups: list[Lookup], out: G
 SOURCE_MODULES: dict[str, str] = {
     "partnership": "partnership",
     "compliance": "compliance",
+    "intellectual_property": "trademark",
+    "customers": "customers",
 }
 
 
@@ -1076,9 +1090,15 @@ def source_kind(claim: Claim) -> str:
     claims are `partnership`."""
     if claim.category is ClaimCategory.CUSTOMER_PARTNERSHIP:
         names = {c.name for c in claim.components}
-        if names & {"customer_count", "country_count"} and "counterparty" not in names:
+        counts = {"customer_count", "country_count", "customer_satisfaction_pct"}
+        if names & counts and "counterparty" not in names:
             return "customers"
         return "partnership"
+    if claim.category in (ClaimCategory.IDENTITY_INCORPORATION, ClaimCategory.OTHER):
+        # A mark read under another category goes to the register lookup, on its
+        # structured components only (never on the claim's wording).
+        if any(c.name in policy.IP_COMPONENTS for c in claim.components):
+            return ClaimCategory.INTELLECTUAL_PROPERTY.value
     return claim.category.value
 
 

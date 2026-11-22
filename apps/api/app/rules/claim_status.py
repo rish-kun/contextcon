@@ -60,10 +60,42 @@ def _check_of(component: str, claim: Claim) -> ClaimCategory:
     return rule.check if rule else claim.category
 
 
+def is_ip_claim(claim: Claim) -> bool:
+    """A trademark or other intellectual-property claim, by category, components or words."""
+    if claim.category is ClaimCategory.INTELLECTUAL_PROPERTY:
+        return True
+    if any(c.name in policy.IP_COMPONENTS for c in claim.components):
+        return True
+    text = claim.text.casefold()
+    return any(cue in text for cue in policy.IP_CUES)
+
+
+def category_document(claim: Claim) -> str:
+    """What settles a claim with no known component (or none still open)."""
+    if is_ip_claim(claim):
+        return policy.DOC_TRADEMARK
+    return policy.CATEGORY_DOCUMENTS[claim.category]
+
+
+# The one identity component an IP claim may carry: the mark's owner read as
+# `legal_name`. Only when the claim carries nothing else about incorporation is it
+# settled by the mark's registration; a claim that also states a CIN, a date or a
+# city still needs the certificate of incorporation for those.
+_IP_OWNER_ALIASES = frozenset({"legal_name"})
+
+
+def _owner_read_as_identity(component: str, claim: Claim) -> bool:
+    if component not in _IP_OWNER_ALIASES or not is_ip_claim(claim):
+        return False
+    return all(c.name in _IP_OWNER_ALIASES | policy.IP_COMPONENTS for c in claim.components)
+
+
 def document_for(component: str, claim: Claim) -> str:
     rule = policy.COMPONENT_RULES.get(component)
     if rule is None:
-        return policy.CATEGORY_DOCUMENTS[claim.category]
+        return category_document(claim)
+    if _owner_read_as_identity(component, claim):
+        return policy.DOC_TRADEMARK
     if rule.check is ClaimCategory.DATED_EVENT and rule.document == policy.DOC_EVENT:
         event = next((c.value for c in claim.components if c.name == "event"), claim.text)
         if any(contains_phrase(event, w) for w in policy.FACILITY_WORDS):
@@ -113,7 +145,7 @@ def _not_checked(
     detail = detail if detail is not None else check.not_run_detail
     detail_text = f" ({detail})" if detail else ""
     docs = _dedupe([document_for(c.name, claim) for c in claim.components]) or [
-        policy.CATEGORY_DOCUMENTS[claim.category]
+        category_document(claim)
     ]
     return CheckOutcome(
         claim_id=claim.id,
@@ -431,7 +463,7 @@ def decide_claim_status(check: ClaimCheck) -> CheckOutcome:
     if status is ClaimStatus.SUPPORTED:
         settle: list[str] = []
     else:
-        settle = _dedupe(unsettled_docs) or [policy.CATEGORY_DOCUMENTS[claim.category]]
+        settle = _dedupe(unsettled_docs) or [category_document(claim)]
 
     headline = status_label(status)
     if not components:

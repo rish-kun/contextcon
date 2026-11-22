@@ -84,6 +84,7 @@ _DESCRIPTIONS: dict[str, str] = {
     "mark_owner": "the legal owner the claim names for the trademark",
     "customer_count": "number of customers or clients",
     "country_count": "number of countries the customers are in",
+    "customer_satisfaction_pct": "a customer satisfaction or positive-feedback percentage",
 }
 
 
@@ -121,6 +122,10 @@ Rules:
 - Leave a part out when the claim does not state it. Never use a component for a
   vague description: "a national logistics firm" is employer_industry=logistics,
   not employer.
+- "PALMS\u2122 is a registered trademark of Acme Pvt Ltd" is trademark=PALMS (without
+  the TM sign), mark_owner=Acme Pvt Ltd; the owner of a mark is never legal_name.
+- "Trusted by 100+ clients in 20+ countries" is customer_count=100 (gte) and
+  country_count=20 (gte); counterparty is only a NAMED customer.
 - "We have no debt" is has_debt=false. "We opened a facility" is event plus
   stage=operating. "We raised funding in 2025" is raised=true, round_year=2025.
 """
@@ -176,12 +181,24 @@ _ALIASES: dict[str, dict[str, str]] = {
         "investor": "investor",
     },
     "dated_event": {"event": "event", "date": "event_date", "stage": "stage"},
-    "customer_partnership": {"customer": "counterparty", "partner": "counterparty"},
+    "customer_partnership": {
+        "customer": "counterparty",
+        "partner": "counterparty",
+        "customers": "customer_count",
+        "clients": "customer_count",
+        "countries": "country_count",
+    },
     "financials": {"revenue": "revenue", "year": "fiscal_year"},
     "debt_security": {"lender": "lender"},
     "litigation": {},
     "compliance": {"certification": "certification", "standard": "certification"},
-    "intellectual_property": {"trademark": "trademark", "mark": "trademark", "owner": "mark_owner"},
+    "intellectual_property": {
+        "trademark": "trademark",
+        "mark": "trademark",
+        "brand": "trademark",
+        "owner": "mark_owner",
+        "proprietor": "mark_owner",
+    },
     "other": {},
 }
 

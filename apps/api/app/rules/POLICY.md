@@ -1,6 +1,6 @@
 # DealProof scoring and verification policy
 
-Policy version: **2026-11-22.8** (`POLICY_VERSION` in `app/rules/policy.py`).
+Policy version: **2026-11-22.9** (`POLICY_VERSION` in `app/rules/policy.py`).
 
 DealProof's rules decide every status, score and recommendation. The AI only reads
 documents and pulls out values; it never decides. The same records under the same
@@ -146,6 +146,17 @@ Every status except Supported names what would settle it, as a document or recor
   standard: a current ISO 9001 record says nothing about ISO 27001. The register, the certification
   body's record, or the certificate or auditor's report settle that; the company's own
   page never does. An expired certificate on a register contradicts the claim.
+- Trademarks (since 2026-11-22.9): a register page found by search is a copy of the
+  register's record (`registry_mirror`) and counts only when the fetched page has a
+  labelled proprietor field that is exactly the confirmed company's name, next to the
+  mark and a class, and carries a second identifier (address city or domain). A claim
+  about a trademark or other IP asks for the trademark registration certificate or IP
+  assignment records, not the certificate of incorporation, even when its owner was
+  read as `legal_name`; only a mark component routes it to the register lookup.
+- Customer counts and satisfaction figures (since 2026-11-22.9): one public lookup for
+  the company's customer case studies; named customers found are kept as evidence,
+  but no public page counts customers, so the claim stays Cannot verify until a dated
+  customer list or reference letters (under NDA) arrive.
   A lookup the case budget refuses is skipped; if all are refused the claim reads
   Not checked (budget). A count of customers is the company's own figure and stays
   Cannot verify unless a dated customer list or audited note settles it.
@@ -192,8 +203,9 @@ A seller document counts only when it is one of the document types listed; "date
 | `relationship` | customer partnership | audited_statement, company_announcement, counterparty_confirmation, seller_document | customer_confirmation, customer_contract | Customer confirmation or signed contract |
 | `since_year` | customer partnership | audited_statement, company_announcement, counterparty_confirmation, seller_document | customer_confirmation, customer_contract | Customer confirmation or signed contract |
 | `contract_value` | customer partnership | audited_statement, company_announcement, counterparty_confirmation, seller_document | customer_confirmation, customer_contract | Customer confirmation or signed contract |
-| `customer_count` | customer partnership | audited_statement, seller_document | any | Dated customer list, or audited revenue by customer |
-| `country_count` | customer partnership | audited_statement, seller_document | any | Dated customer list, or audited revenue by customer |
+| `customer_count` | customer partnership | audited_statement, seller_document | any | Dated customer list or customer reference letters (under NDA) |
+| `country_count` | customer partnership | audited_statement, seller_document | any | Dated customer list or customer reference letters (under NDA) |
+| `customer_satisfaction_pct` | customer partnership | audited_statement, seller_document | any | Dated customer list or customer reference letters (under NDA) |
 | `certification` | compliance | company_announcement, counterparty_confirmation, registry, registry_mirror, seller_document | any | Certificate from the certification body, with its number, scope and validity, or the auditor's report under NDA |
 | `certificate_valid_until` | compliance | counterparty_confirmation, registry, registry_mirror, seller_document | audit_report, compliance_certificate | Certificate from the certification body, with its number, scope and validity, or the auditor's report under NDA |
 | `trademark` | intellectual property | company_announcement, registry, registry_mirror, seller_document | any | Trademark registration certificate or IP assignment records |

@@ -20,7 +20,7 @@ from app.domain.enums import (
     ValueKind,
 )
 
-POLICY_VERSION = "2026-11-22.8"
+POLICY_VERSION = "2026-11-22.9"
 
 # Why each policy version changed, used as the reason on refreshed assessments.
 POLICY_CHANGES: dict[str, str] = {
@@ -35,6 +35,10 @@ POLICY_CHANGES: dict[str, str] = {
         "certificate on a register contradicts the claim"
     ),
     "2026-11-22.8": "Financial assessment reads public filings and estimates",
+    "2026-11-22.9": (
+        "trademark register lookups; IP claims read under any category ask for the "
+        "trademark registration; customer satisfaction figures ask for a customer list"
+    ),
 }
 
 # --- Discover: fit -----------------------------------------------------------
@@ -270,7 +274,8 @@ _TRADEMARK_SOURCES = frozenset(
     {R.REGISTRY, R.REGISTRY_MIRROR, R.SELLER_DOCUMENT, R.COMPANY_ANNOUNCEMENT}
 )
 # A customer count is the company's own figure; only an audited note or a dated
-# customer list from the seller settles it. Case studies name customers, never count them.
+# customer list or reference letters from the seller settle it. Case studies name
+# customers, never count them.
 _CUSTOMER_COUNT_SOURCES = frozenset({R.AUDITED_STATEMENT, R.SELLER_DOCUMENT})
 # A listed company's results as filed with an exchange (registry_mirror) are reported,
 # not audited, figures; they answer "what did the company report".
@@ -308,7 +313,21 @@ CERTIFICATE_VALIDITY_CAVEAT = (
     "The company's own page names the standard; only the certification body's "
     "record or the certificate shows that it is current"
 )
-DOC_CUSTOMER_LIST = "Dated customer list, or audited revenue by customer"
+# A trademark or IP claim is settled by the mark's registration or an assignment,
+# never by the owner's certificate of incorporation, whatever category it was read
+# under ("PALMS(TM) is a trademark of <legal name>" read as identity).
+IP_CUES = (
+    "trademark",
+    "trade mark",
+    "\u2122",  # TM
+    "\u00ae",  # (R)
+    "intellectual property",
+    "registered mark",
+    "patent",
+    "copyright",
+)
+IP_COMPONENTS = frozenset({"trademark", "mark_owner"})
+DOC_CUSTOMER_LIST = "Dated customer list or customer reference letters (under NDA)"
 
 D = DocumentType
 _PAYROLL_DOCS = {R.SELLER_DOCUMENT: frozenset({D.PAYROLL_RECORD})}
@@ -609,6 +628,13 @@ COMPONENT_RULES: dict[str, ComponentRule] = {
     "country_count": ComponentRule(
         ClaimCategory.CUSTOMER_PARTNERSHIP,
         ValueKind.COUNT,
+        _CUSTOMER_COUNT_SOURCES,
+        DOC_CUSTOMER_LIST,
+    ),
+    # "99% positive feedback": the company's own survey figure, settled the same way.
+    "customer_satisfaction_pct": ComponentRule(
+        ClaimCategory.CUSTOMER_PARTNERSHIP,
+        ValueKind.PERCENT,
         _CUSTOMER_COUNT_SOURCES,
         DOC_CUSTOMER_LIST,
     ),

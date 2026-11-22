@@ -27,8 +27,12 @@ _SYNONYMS = {
 }
 
 
+# Trademark signs are not part of a name: NFKD would turn "PALMS\u2122" into "palmstm".
+_MARK_SIGNS = re.compile("[\u2122\u2120\u00ae\u00a9]")
+
+
 def normalize_text(value: Any) -> str:
-    text = unicodedata.normalize("NFKD", str(value))
+    text = unicodedata.normalize("NFKD", _MARK_SIGNS.sub(" ", str(value)))
     text = "".join(ch for ch in text if not unicodedata.combining(ch)).casefold()
     text = text.replace("&", " and ")
     text = re.sub(r"[^a-z0-9]+", " ", text)
