@@ -77,7 +77,9 @@ async def test_verify_run_ends_with_assessment_and_request_list(sm, session) -> 
     # evaluate waited for every check, including any deferred re-check added later
     assert set(checks) <= set(steps["evaluate"].depends_on)
     assert steps["evaluate"].state == "done" and steps["request_list"].state == "done"
-    assert steps["request_list"].depends_on == ["evaluate"]
+    assert steps["decision_flip"].depends_on == ["evaluate"]
+    assert steps["request_list"].depends_on == ["evaluate", "decision_flip"]
+    assert steps["decision_flip"].finished_at <= steps["request_list"].started_at
     assert all(steps[k].finished_at <= steps["evaluate"].started_at for k in checks)
     assert await _count(session, AssessmentVersion, case_id) == 1
     assert await _count(session, RequestList, case_id) == 1
@@ -97,13 +99,19 @@ async def test_verify_run_ends_with_assessment_and_request_list(sm, session) -> 
     )
     late_id = late.id
     added = await schedule_claim_checks(session, run_id=run_id, claims=[late])
-    assert [s.key for s in added] == [f"checks.claim:{late_id}", "evaluate@2", "request_list@2"]
+    assert [s.key for s in added] == [
+        f"checks.claim:{late_id}",
+        "evaluate@2",
+        "decision_flip@2",
+        "request_list@2",
+    ]
     await session.commit()
     set_client_factory(FakeFactory(llm_client=late_llm, crustdata_client=pune_crustdata()))
     await _drain(sm)
     steps = await _steps(session, run_id)
     assert steps["evaluate@2"].state == "done" and steps["request_list@2"].state == "done"
-    assert steps["request_list@2"].depends_on == ["evaluate@2"]
+    assert steps["decision_flip@2"].state == "done"
+    assert steps["request_list@2"].depends_on == ["evaluate@2", "decision_flip@2"]
     assert f"checks.claim:{late_id}" in steps["evaluate@2"].depends_on
     assert (await session.get(Run, run_id)).state == "done"
 
@@ -123,7 +131,7 @@ async def test_batches_join_a_pending_assessment(sm, session) -> None:
     a = await schedule_claim_checks(session, run_id=run_id, claims=[first], document_ids=["d1"])
     b = await schedule_claim_checks(session, run_id=run_id, claims=[second], document_ids=["d2"])
     await session.commit()
-    assert [s.key for s in a][1:] == ["evaluate", "request_list"]
+    assert [s.key for s in a][1:] == ["evaluate", "decision_flip", "request_list"]
     assert [s.key for s in b] == [f"checks.claim:{second_id}"]
     steps = await _steps(session, run_id)
     assert f"checks.claim:{second_id}" in steps["evaluate"].depends_on

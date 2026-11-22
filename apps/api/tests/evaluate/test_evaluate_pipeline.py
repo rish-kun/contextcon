@@ -152,13 +152,16 @@ async def test_direct_verify_waits_for_strategy_criteria_then_scores(sm, session
     assert res.status_code == 200, res.text
     run = res.json()["run"]
     assert run["kind"] == "evaluate"
-    [step] = run["steps"]
+    step, flip = run["steps"]
     assert step["key"] == "evaluate"
+    assert flip["key"] == "decision_flip"
 
     worker = make_worker(sm, default_registry)
     assert await worker.run_once()
     async with sm() as s:
-        row = (await s.execute(select(Step).where(Step.run_id == run["id"]))).scalar_one()
+        row = (
+            await s.execute(select(Step).where(Step.run_id == run["id"], Step.key == "evaluate"))
+        ).scalar_one()
         assert row.state == "done", row.error
         assert row.output["created"] is True and row.output["version"] == 2
         latest = (

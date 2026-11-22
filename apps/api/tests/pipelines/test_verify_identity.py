@@ -168,8 +168,9 @@ async def test_shortlist_case_confirms_and_builds_profile(session, sm, api) -> N
     actor = await _actor(session)
     _happy_api(api)
     case = await _shortlist_case(session, actor)
-    # identity, profile, registry, events, comparables, then evaluate → request list
-    assert await _drain(sm) == 7
+    # identity, profile, registry, events, comparables, then evaluate → decision flip →
+    # request list
+    assert await _drain(sm) == 8
     case = await _case(session, case.id)
 
     assert case.identity_status == "confirmed"

@@ -664,11 +664,13 @@ async def test_recheck_after_identity_pick_gets_new_steps(sm, session):
     assert ledger["We employ 250 people"].not_checked_reason == "identity_unresolved"
     case.identity_status = "confirmed"
     run = (await session.execute(select(Run))).scalar_one()
-    [step, assess, request] = await schedule_case_checks(session, case=case, run_id=run.id)
+    [step, assess, flip, request] = await schedule_case_checks(session, case=case, run_id=run.id)
     await session.commit()
     assert step.key == f"checks.claim:{claim.id}@2"
     assert assess.key == "evaluate@2" and step.key in assess.depends_on
-    assert request.key == "request_list@2" and request.depends_on == ["evaluate@2"]
+    assert flip.key == "decision_flip@2" and flip.depends_on == ["evaluate@2"]
+    assert request.key == "request_list@2"
+    assert request.depends_on == ["evaluate@2", "decision_flip@2"]
     await make_worker(sm, registry).drain()
     session.expire_all()
     await session.refresh(case)
@@ -703,6 +705,7 @@ async def test_claim_checks_end_in_an_assessment_version(sm, session):
     assert [s.key for s in created] == [
         f"checks.claim:{claim.id}",
         "evaluate@2",
+        "decision_flip@2",
         "request_list@2",
     ]
     assert created[1].input["document_ids"] == [str(doc_id)]

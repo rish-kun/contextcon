@@ -138,7 +138,8 @@ async def test_seller_response_links_items_and_runs_a_recheck(api, client, sessi
         k: (s.state, s.error) for k, s in steps.items()
     }
     assert set(checks) <= set(steps["evaluate"].depends_on)
-    assert steps["request_list"].depends_on == ["evaluate"]
+    assert steps["decision_flip"].depends_on == ["evaluate"]
+    assert steps["request_list"].depends_on == ["evaluate", "decision_flip"]
 
     latest = (
         await session.execute(

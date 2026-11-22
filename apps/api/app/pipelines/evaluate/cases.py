@@ -21,6 +21,7 @@ from app.db.enums import RunKind, RunState
 from app.db.models import Case, Criterion, Run, Thesis, User
 from app.jobs import create_run
 from app.jobs.events import load_run_out
+from app.pipelines.evaluate.flip_step import decision_flip_step
 from app.pipelines.evaluate.service import evaluate_step
 from app.settings import get_settings
 
@@ -79,7 +80,7 @@ async def queue_evaluation(
         workspace_id=case.workspace_id,
         kind=RunKind.EVALUATE.value,
         case_id=case.id,
-        steps=[evaluate_step(trigger=trigger)],
+        steps=[evaluate_step(trigger=trigger), decision_flip_step()],
         created_by=user_id,
     )
 

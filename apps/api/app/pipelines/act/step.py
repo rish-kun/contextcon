@@ -13,14 +13,18 @@ HANDLER = "act.request_list"
 STEP_KEY = "request_list"
 
 
-def request_list_step(*, depends_on: list[str] | tuple[str, ...] = ("evaluate",)) -> StepSpec:
-    """Runs after `evaluate.assess`: the request list for the new assessment version."""
+def request_list_step(
+    *, depends_on: list[str] | tuple[str, ...] = ("evaluate", "decision_flip")
+) -> StepSpec:
+    """Runs after `evaluate.assess` and `evaluate.decision_flip`: the request list for
+    the new assessment version. A failed analysis does not block it."""
     return StepSpec(
         key=STEP_KEY,
         handler=HANDLER,
         label="Draft the document request",
         depends_on=tuple(depends_on),
         uses_budget=False,
+        tolerate_failed_deps=True,
     )
 
 

@@ -61,8 +61,8 @@ EXTRACT_PREFIX = "claims.extract:"
 CHECK_PREFIX = "checks.claim:"
 OWN_HANDLERS = frozenset({EXTRACT_HANDLER, CHECK_HANDLER})
 # Steps that run after the checks (they wait for them), so a check never defers
-# behind them: `evaluate.assess` and the request list built from its version.
-DOWNSTREAM_HANDLERS = frozenset({"evaluate.assess", "act.request_list"})
+# behind them: `evaluate.assess`, its DecisionFlip and the request list built from it.
+DOWNSTREAM_HANDLERS = frozenset({"evaluate.assess", "evaluate.decision_flip", "act.request_list"})
 
 
 class _CaptureRepository:

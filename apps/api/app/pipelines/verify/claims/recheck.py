@@ -36,6 +36,8 @@ from app.db.models import (
 )
 from app.jobs import StepSpec, create_run
 from app.pipelines.act.step import request_list_step
+from app.pipelines.evaluate.flip_step import STEP_KEY as FLIP_KEY
+from app.pipelines.evaluate.flip_step import decision_flip_step
 from app.pipelines.evaluate.service import STEP_KEY as EVALUATE_KEY
 from app.pipelines.evaluate.service import evaluate_step
 from app.pipelines.verify.claims.intake import (
@@ -125,7 +127,8 @@ async def schedule_recheck(
                 uses_budget=False,
             ),
             evaluate_step(depends_on=[extract_key], document_ids=[str(document.id)]),
-            request_list_step(depends_on=(EVALUATE_KEY,)),
+            decision_flip_step(),
+            request_list_step(depends_on=(EVALUATE_KEY, FLIP_KEY)),
         ],
     )
 

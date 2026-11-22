@@ -185,7 +185,9 @@ async def test_step_handler_builds_the_list_in_a_run(session, sm, monkeypatch) -
         assert (await s.get(Run, run.id)).state == "done"
     assert llm.calls == 1
     assert "act.request_list" in default_registry.names()
-    assert act_pipeline.request_list_step().depends_on == ("evaluate",)
+    spec = act_pipeline.request_list_step()
+    assert spec.depends_on == ("evaluate", "decision_flip")
+    assert spec.tolerate_failed_deps is True  # a failed analysis never blocks Act
 
 
 def _client(sm, user: AuthUser) -> httpx.AsyncClient:
