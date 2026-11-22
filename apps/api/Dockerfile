@@ -30,6 +30,8 @@ RUN useradd --create-home --uid 1000 appuser
 USER appuser
 
 EXPOSE 8080
-# Runs `alembic upgrade head` (fails the start if it fails), then uvicorn on $PORT
-# (Cloud Run sets it; 8080 locally). RUN_MIGRATIONS=0 skips the migration step.
+# docker-entrypoint.sh: by default `alembic upgrade head` (fails the start if it
+# fails), then uvicorn on $PORT (Cloud Run sets it; 8080 locally). RUN_MIGRATIONS=only
+# migrates and exits (migration job), =verify only checks the schema is at head (the
+# deployed API), =0 skips. uvicorn trusts no X-Forwarded-* headers.
 CMD ["sh", "/app/docker-entrypoint.sh"]
