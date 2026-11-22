@@ -24,26 +24,38 @@ from app.domain.types import Claim
 from app.pipelines.verify.checks.gather import CheckEnv, Gathered, Lookup, run_lookups
 from app.rules.compare import normalize_text
 
-# Platforms whose partner directories and newsrooms live on their own domain.
-# Keyed by a normalised name the counterparty contains; first host is searched.
-PARTNER_SITES: dict[str, tuple[str, ...]] = {
-    "microsoft": ("microsoft.com",),
-    "azure": ("microsoft.com",),
-    "qlik": ("qlik.com",),
-    "qlikview": ("qlik.com",),
-    "aws": ("amazon.com",),
-    "amazon web services": ("amazon.com",),
-    "google cloud": ("google.com",),
-    "salesforce": ("salesforce.com",),
-    "tableau": ("tableau.com", "salesforce.com"),
-    "sap": ("sap.com",),
-    "oracle": ("oracle.com",),
-    "ibm": ("ibm.com",),
-    "servicenow": ("servicenow.com",),
-    "snowflake": ("snowflake.com",),
-    "databricks": ("databricks.com",),
-    "zebra": ("zebra.com",),
-    "honeywell": ("honeywell.com",),
+# Platforms whose partner directories and newsrooms live on their own domain:
+# (domain searched with `site:`, exact hosts whose pages are the platform's own
+# record). Exact hosts only: forums and community Q&A on other subdomains carry
+# user content and are read as ordinary pages.
+PARTNER_SITES: dict[str, tuple[str, tuple[str, ...]]] = {
+    "microsoft": (
+        "microsoft.com",
+        (
+            "appsource.microsoft.com",
+            "azuremarketplace.microsoft.com",
+            "partner.microsoft.com",
+            "news.microsoft.com",
+        ),
+    ),
+    "azure": (
+        "microsoft.com",
+        ("appsource.microsoft.com", "azuremarketplace.microsoft.com", "partner.microsoft.com"),
+    ),
+    "qlik": ("qlik.com", ("qlik.com", "partners.qlik.com")),
+    "qlikview": ("qlik.com", ("qlik.com", "partners.qlik.com")),
+    "aws": ("aws.amazon.com", ("partners.amazonaws.com", "aws.amazon.com")),
+    "amazon web services": ("aws.amazon.com", ("partners.amazonaws.com", "aws.amazon.com")),
+    "google cloud": ("cloud.google.com", ("cloud.google.com",)),
+    "salesforce": ("salesforce.com", ("appexchange.salesforce.com", "salesforce.com")),
+    "sap": ("sap.com", ("partnerfinder.sap.com", "news.sap.com", "sap.com")),
+    "oracle": ("oracle.com", ("partner-finder.oracle.com", "oracle.com")),
+    "ibm": ("ibm.com", ("ibm.com", "newsroom.ibm.com")),
+    "servicenow": ("servicenow.com", ("store.servicenow.com", "servicenow.com")),
+    "snowflake": ("snowflake.com", ("snowflake.com",)),
+    "databricks": ("databricks.com", ("databricks.com",)),
+    "zebra": ("zebra.com", ("zebra.com", "partnerportal.zebra.com")),
+    "honeywell": ("honeywell.com", ("honeywell.com",)),
 }
 
 # Relationship words a lookup may carry (all in query.LOOKUP_WORDS).
@@ -56,10 +68,10 @@ _RELATIONSHIP_WORDS: tuple[tuple[str, str], ...] = (
 )
 
 
-def partner_sites(counterparty: str) -> tuple[str, ...]:
+def partner_sites(counterparty: str) -> tuple[str, tuple[str, ...]] | None:
     text = f" {normalize_text(counterparty)} "
     keys = sorted((k for k in PARTNER_SITES if f" {k} " in text), key=len, reverse=True)
-    return PARTNER_SITES[keys[0]] if keys else ()
+    return PARTNER_SITES[keys[0]] if keys else None
 
 
 def relationship_words(claim: Claim) -> str:
@@ -77,23 +89,27 @@ def plan(claim: Claim) -> list[Lookup]:
     words = relationship_words(claim)
     if not counterparty:
         return [Lookup(label="the company's partner announcements", words=words)]
-    hosts = partner_sites(counterparty)
+    known = partner_sites(counterparty)
+    hosts = known[1] if known else ()
+    # A known platform's record is on its curated hosts only; otherwise a host whose
+    # registrable name is the counterparty's ("tatasteel.com") is its own site.
+    names = () if known else (counterparty,)
     focus = tuple(words.split())
     first = (
         Lookup(
-            label=f"{counterparty} partner directory ({hosts[0]})",
+            label=f"{counterparty} partner directory ({known[0]})",
             words="",
-            site=hosts[0],
+            site=known[0],
             party_hosts=hosts,
-            party_names=(counterparty,),
+            party_names=names,
             focus=(counterparty, *focus),
         )
-        if hosts
+        if known
         else Lookup(
             label=f"{counterparty} announcements",
             words=words,
             entity=counterparty,
-            party_names=(counterparty,),
+            party_names=names,
             focus=focus,
         )
     )
@@ -102,7 +118,7 @@ def plan(claim: Claim) -> list[Lookup]:
         words=f"{words} press release",
         entity=counterparty,
         party_hosts=hosts,
-        party_names=(counterparty,),
+        party_names=names,
         focus=focus,
     )
     return [first, second]

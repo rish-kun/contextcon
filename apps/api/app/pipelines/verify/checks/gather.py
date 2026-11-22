@@ -875,7 +875,8 @@ class Lookup:
 
     `words` come from `query.LOOKUP_WORDS`; `entity` is one public name from the
     claim's structured components (partner, certifier, mark), never claim wording.
-    A page on one of `party_hosts` is the other party's own record (partner
+    A page on one of `party_hosts` (exact host names, never any subdomain: user
+    content lives on subdomains such as forums) is the other party's own record (partner
     directory, certifier register, trademark registry mirror) and gets `party_class`.
     """
 
@@ -900,8 +901,11 @@ def classify_hit(
 ) -> Attachment:
     """Attach a lookup result to the company. The other party's own page must name
     the company AND carry a second identifier (its domain or HQ city), like any page;
-    then it is the other party's record (`lookup.party_class`)."""
-    if on_party_site(hit.url, lookup):
+    then it is the other party's record (`lookup.party_class`). The company's own site
+    is checked first: it is never the other party, whatever the lookup says."""
+    if same_site(hit.url, terms.domain):
+        return attach_hit(hit, terms, corroborators)
+    if on_party_site(hit.url, lookup, terms):
         probe = hit.model_copy(update={"url": "", "content": f"{hit.content or ''}\n{page_text}"})
         att = attach_hit(probe, terms, corroborators)
         if att.attached:
@@ -918,14 +922,42 @@ def _compact(value: str) -> str:
     return "".join(ch for ch in value.casefold() if ch.isalnum())
 
 
-def on_party_site(url: str | None, lookup: Lookup) -> bool:
-    """Is this page on the other party's own site?"""
-    if any(same_site(url, h) for h in lookup.party_hosts):
-        return True
+# Suffixes under which a name-derived host may be the party's own site. A host is
+# matched on its registrable label only ("tatasteel" in tatasteel.com or
+# tatasteel.co.in), never on any other label ("tatasteel.blog.example" is not it).
+_PARTY_SUFFIXES = frozenset({"com", "in", "co.in", "net", "org", "co.uk", "com.au", "co"})
+
+
+def _registrable(host: str) -> tuple[str, str] | None:
+    """(registrable label, suffix) for hosts under `_PARTY_SUFFIXES`, else None."""
+    labels = host.split(".")
+    for n in (2, 1):
+        if len(labels) > n and ".".join(labels[-n:]) in _PARTY_SUFFIXES:
+            return labels[-n - 1], ".".join(labels[-n:])
+    return None
+
+
+def on_party_site(url: str | None, lookup: Lookup, terms: PublicTerms | None = None) -> bool:
+    """Is this page on the other party's own site? Exact curated hosts, or a host
+    whose registrable label is the party's name. Never the company's own domain or a
+    host that carries the company's name."""
     host = host_of(url) or ""
-    labels = host.split(".")[:-1]  # without the top-level domain
-    names = {_compact(n) for n in lookup.party_names if len(_compact(n)) >= 3}
-    return bool(names) and any(_compact(label) in names for label in labels)
+    if not host or (terms is not None and same_site(url, terms.domain)):
+        return False
+    if host in {h.casefold().removeprefix("www.") for h in lookup.party_hosts}:
+        return True
+    reg = _registrable(host)
+    if reg is None:
+        return False
+    label = _compact(reg[0])
+    company = _compact(terms.company_name) if terms is not None else ""
+    names = {
+        _compact(n)
+        for n in lookup.party_names
+        if len(_compact(n)) >= 3
+        and not (company and (_compact(n) in company or company in _compact(n)))
+    }
+    return label in names
 
 
 def _names_company(hit: WebSearchHit, terms: PublicTerms) -> bool:
@@ -977,7 +1009,7 @@ async def run_lookups(env: CheckEnv, claim: Claim, lookups: list[Lookup], out: G
             ranked = sorted(
                 (h for h in hits if _names_company(h, terms)),
                 key=lambda h: (
-                    0 if on_party_site(h.url, lookup) else 1,
+                    0 if on_party_site(h.url, lookup, terms) else 1,
                     0 if same_site(h.url, terms.domain) else 1,
                 ),
             )
