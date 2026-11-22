@@ -167,3 +167,44 @@ class Compatibility(StrEnum):
     COMPATIBLE = "compatible"
     INCOMPATIBLE = "incompatible"
     UNKNOWN = "unknown"
+
+
+# --- DecisionFlip (rules/decision_flip.py, POLICY.md §9) ----------------------
+
+
+class ItemKind(StrEnum):
+    """What an unresolved item is. Item ids are ``claim:<id>``, ``check:<category>``,
+    ``criterion:<id>``, ``identity`` and ``financial_inputs``."""
+
+    CLAIM = "claim"
+    CHECK_GAP = "check_gap"
+    CRITERION = "criterion"
+    IDENTITY = "identity"
+    FINANCIAL_INPUTS = "financial_inputs"
+
+
+class ItemClass(StrEnum):
+    DECISION_BLOCKER = "decision_blocker"
+    DISQUALIFIER_RISK = "disqualifier_risk"
+    NON_BLOCKING = "non_blocking"
+
+
+class FlipState(StrEnum):
+    HAS_BLOCKERS = "has_blockers"
+    NO_BLOCKERS = "no_blockers"
+    DISQUALIFIED = "disqualified"
+    NOT_EVIDENCE_LIMITED = "not_evidence_limited"
+
+
+class FlipSearch(StrEnum):
+    EXHAUSTIVE = "exhaustive"
+    GREEDY = "greedy"
+
+
+class NextAction(StrEnum):
+    REQUEST_DOCUMENTS = "request_documents"
+    RESOLVE_IDENTITY = "resolve_identity"
+    RERUN_CHECKS = "rerun_checks"
+    ANALYST_FOLLOW_UP = "analyst_follow_up"
+    REVIEW_DISQUALIFIER = "review_disqualifier"
+    NONE = "none"

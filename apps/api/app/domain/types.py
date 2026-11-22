@@ -23,8 +23,13 @@ from app.domain.enums import (
     CriterionResult,
     Disposition,
     DocumentType,
+    FlipSearch,
+    FlipState,
     FundingKind,
     IdentityStatus,
+    ItemClass,
+    ItemKind,
+    NextAction,
     NotCheckedReason,
     SourceReliability,
 )
@@ -446,6 +451,95 @@ class AssessmentDiff(Model):
     claim_changes: list[ClaimChange]
     judgment_changes: list[JudgmentChange]
     disposition_change: DispositionChange | None
+
+
+# --- DecisionFlip --------------------------------------------------------------
+# Output of ``app.rules.decision_flip.analyse``: which open items stand between
+# the case and the next disposition, found by re-running the rules with items
+# forced to a hypothetical state. Ids, enums, policy document names and rule
+# reasons only: no claim text and no evidence values.
+
+
+class ItemOutcome(Model):
+    """The disposition the rules give with one or more items forced. Never verified."""
+
+    hypothetical: Literal[True] = True
+    disposition: Disposition
+    rule: str  # decide_disposition's rule id
+    reasons: list[str]
+    changes_disposition: bool  # differs from the real disposition
+
+
+class UnresolvedItem(Model):
+    # "claim:<id>", "check:<category>", "criterion:<id>", "identity" or "financial_inputs"
+    id: str
+    kind: ItemKind
+    claim_id: str | None = None
+    criterion_id: str | None = None
+    check: ClaimCategory | None = None
+    # e.g. a claim status ("cannot_verify"), "unknown" for a criterion, "absent"
+    # for a required check never claimed, the identity status, "not_assessed".
+    current_state: str
+    classification: ItemClass
+    decision_blocker: bool  # in at least one minimal set (or the greedy set)
+    disqualifier_risk: bool  # if contradicted, the case would be Deprioritise
+    required_in_every_path: bool
+    flips_alone: bool  # forcing only this item supported reaches the target
+    locks_target: bool  # contradicted, the target is out of reach even if all else is supported
+    seller_resolvable: bool
+    analyst_retry: bool
+    depends_on: list[str] = Field(default_factory=list)
+    settle_with: list[str] = Field(default_factory=list)  # policy document names
+    if_supported: ItemOutcome | None = None
+    if_contradicted: ItemOutcome | None = None  # None when not simulated
+
+
+class SettleDocument(Model):
+    document: str
+    item_ids: list[str]
+    seller_resolvable: bool
+
+
+class MinimalSet(Model):
+    """A set of items that, all forced supported, reaches the target and has no
+    reaching proper subset (greedy: no single item can be dropped)."""
+
+    hypothetical: Literal[True] = True
+    item_ids: list[str]
+    documents: list[SettleDocument]
+    outcome: ItemOutcome
+
+
+class NextBestAction(Model):
+    action: NextAction
+    text: str  # from the fixed templates, never a model
+    item_ids: list[str] = Field(default_factory=list)
+    documents: list[str] = Field(default_factory=list)
+
+
+class DecisionFlipAnalysis(Model):
+    hypothetical: Literal[True] = True
+    case_id: str
+    assessment_version: int
+    policy_version: str
+    inputs_hash: str
+    flip_version: str
+    # sha256 of {inputs_hash, policy_version, flip_version, materiality}
+    analysis_key: str
+    state: FlipState
+    current: Disposition
+    current_rule: str
+    current_reasons: list[str]
+    target: Disposition | None
+    ceiling: ItemOutcome  # every item forced supported
+    items: list[UnresolvedItem]
+    minimal_sets: list[MinimalSet]  # exhaustive: all; greedy: the one found
+    minimum_evidence: MinimalSet | None
+    worst_if_contradicted: ItemOutcome | None
+    next_best_action: NextBestAction
+    search: FlipSearch
+    greedy: bool
+    evaluations: int  # number of rule runs
 
 
 # --- Investors ---------------------------------------------------------------

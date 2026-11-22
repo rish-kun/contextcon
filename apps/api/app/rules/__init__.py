@@ -12,6 +12,22 @@ from app.rules.claim_status import (
     effective_components,
 )
 from app.rules.company_type import classify_company, criteria_for, required_checks
+from app.rules.decision_flip import (
+    FLIP_VERSION,
+    DecisionFlipAnalysis,
+    FlipSearch,
+    FlipState,
+    ItemClass,
+    ItemKind,
+    ItemOutcome,
+    MinimalSet,
+    NextAction,
+    NextBestAction,
+    ReplayMismatch,
+    SettleDocument,
+    UnresolvedItem,
+    analyse,
+)
 from app.rules.diff import diff
 from app.rules.evaluate import (
     assess,
@@ -45,7 +61,21 @@ from app.rules.validation import (
 )
 
 __all__ = [
+    "FLIP_VERSION",
     "POLICY_VERSION",
+    "DecisionFlipAnalysis",
+    "FlipSearch",
+    "FlipState",
+    "ItemClass",
+    "ItemKind",
+    "ItemOutcome",
+    "MinimalSet",
+    "NextAction",
+    "NextBestAction",
+    "ReplayMismatch",
+    "SettleDocument",
+    "UnresolvedItem",
+    "analyse",
     "assess",
     "assess_candidate",
     "assess_case_candidate",
