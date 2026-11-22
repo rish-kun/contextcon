@@ -1,0 +1,4844 @@
+{
+  "case": {
+    "id": "8f180081-8dcf-46b9-a594-7a6fe2ef3bae",
+    "name": "Palms Warehouse Management System",
+    "website": "onpalms.com",
+    "status": "assessed",
+    "identity_state": "confirmed",
+    "crustdata_company_id": 2819498,
+    "thesis_id": "192ba5ab-5134-483e-8e16-823efa73fb4a",
+    "shortlist_item_id": "29e6c473-36bb-4a22-97a9-f27695d373b3",
+    "credit_budget": 600.0,
+    "created_at": "2026-11-22T11:57:59.003088Z",
+    "owner": {
+      "user_id": "",
+      "display_name": "Asha Rao"
+    },
+    "run": {
+      "id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+      "kind": "verify",
+      "state": "done",
+      "subject": "Palms Warehouse Management System",
+      "case_id": "8f180081-8dcf-46b9-a594-7a6fe2ef3bae",
+      "thesis_id": null,
+      "investor_search_id": null,
+      "budget_credits": 600.0,
+      "cost": {
+        "crustdata_credits": 8.7,
+        "llm_usd": 0.009279,
+        "input_tokens": 39800,
+        "output_tokens": 10601,
+        "unknown_cost_calls": 3
+      },
+      "reserved_credits": 0.0,
+      "checks_not_run": 0,
+      "created_at": "2026-11-22T11:57:59.003088Z",
+      "finished_at": "2026-11-22T12:09:35.703380Z",
+      "resumed_at": "2026-11-22T12:07:19.574773Z",
+      "error": null,
+      "steps": [
+        {
+          "id": "b032cc1a-b381-4f08-a645-1907715e6ec3",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "key": "verify.identity",
+          "label": "Confirm which company this is",
+          "position": 0,
+          "state": "done",
+          "attempts": 1,
+          "detail": null,
+          "result": "Identity confirmed: Palms Warehouse Management System (crustdata_company_id, domain)",
+          "error": null,
+          "from_cache": false,
+          "cost": {
+            "crustdata_credits": 0.4,
+            "llm_usd": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "unknown_cost_calls": 0
+          },
+          "reserved_credits": 0.0,
+          "started_at": "2026-11-22T11:58:00.177797Z",
+          "finished_at": "2026-11-22T11:58:00.853718Z"
+        },
+        {
+          "id": "e407e0a5-7583-49b9-bce3-aea47ea3fac2",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "key": "claims.extract:23682b97-3801-4ab5-8d44-708bb266dd1f",
+          "label": "Read claims from the uploaded document",
+          "position": 1,
+          "state": "done",
+          "attempts": 1,
+          "detail": null,
+          "result": "9 claims read from palms-technoforte-public-website-2026-11-22.pdf",
+          "error": null,
+          "from_cache": false,
+          "cost": {
+            "crustdata_credits": 0.0,
+            "llm_usd": 0.005125,
+            "input_tokens": 18716,
+            "output_tokens": 6507,
+            "unknown_cost_calls": 3
+          },
+          "reserved_credits": 0.0,
+          "started_at": "2026-11-22T11:58:06.273166Z",
+          "finished_at": "2026-11-22T12:07:20.804685Z"
+        },
+        {
+          "id": "d47dce5a-ed89-4426-89cb-4458c7d42ad6",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "key": "verify.profile",
+          "label": "Build the company profile",
+          "position": 2,
+          "state": "done",
+          "attempts": 1,
+          "detail": null,
+          "result": "14 profile facts; established",
+          "error": null,
+          "from_cache": false,
+          "cost": {
+            "crustdata_credits": 2.0,
+            "llm_usd": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "unknown_cost_calls": 0
+          },
+          "reserved_credits": 0.0,
+          "started_at": "2026-11-22T11:58:19.574658Z",
+          "finished_at": "2026-11-22T11:58:20.139450Z"
+        },
+        {
+          "id": "90ce8241-92fe-44b7-93ed-f92346df82fa",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "key": "verify.registry",
+          "label": "Look for registry records",
+          "position": 3,
+          "state": "done",
+          "attempts": 1,
+          "detail": null,
+          "result": "No registry pages found",
+          "error": null,
+          "from_cache": false,
+          "cost": {
+            "crustdata_credits": 1.0,
+            "llm_usd": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "unknown_cost_calls": 0
+          },
+          "reserved_credits": 0.0,
+          "started_at": "2026-11-22T11:58:30.068124Z",
+          "finished_at": "2026-11-22T11:58:30.745136Z"
+        },
+        {
+          "id": "8ed23f0a-73e7-4b01-919c-7543a0872bf1",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "key": "verify.events",
+          "label": "Gather dated events",
+          "position": 4,
+          "state": "done",
+          "attempts": 1,
+          "detail": null,
+          "result": "No news found",
+          "error": null,
+          "from_cache": false,
+          "cost": {
+            "crustdata_credits": 0.0,
+            "llm_usd": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "unknown_cost_calls": 0
+          },
+          "reserved_credits": 0.0,
+          "started_at": "2026-11-22T11:58:37.790018Z",
+          "finished_at": "2026-11-22T11:58:38.345083Z"
+        },
+        {
+          "id": "19cb3ec6-279e-43ff-b483-63197a45a2c2",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "key": "verify.comparables",
+          "label": "Find comparable companies",
+          "position": 5,
+          "state": "done",
+          "attempts": 1,
+          "detail": null,
+          "result": "5 fair peers",
+          "error": null,
+          "from_cache": false,
+          "cost": {
+            "crustdata_credits": 5.3,
+            "llm_usd": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "unknown_cost_calls": 0
+          },
+          "reserved_credits": 0.0,
+          "started_at": "2026-11-22T11:59:05.175504Z",
+          "finished_at": "2026-11-22T11:59:05.745072Z"
+        },
+        {
+          "id": "8b2cb333-5a03-4c5e-8c4d-ad9955c77390",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "key": "evaluate",
+          "label": "Update the assessment",
+          "position": 6,
+          "state": "done",
+          "attempts": 1,
+          "detail": null,
+          "result": "Version 1: deprioritise",
+          "error": null,
+          "from_cache": false,
+          "cost": {
+            "crustdata_credits": 0.0,
+            "llm_usd": 0.001371,
+            "input_tokens": 6552,
+            "output_tokens": 1433,
+            "unknown_cost_calls": 0
+          },
+          "reserved_credits": 0.0,
+          "started_at": "2026-11-22T11:59:45.140173Z",
+          "finished_at": "2026-11-22T11:59:45.844042Z"
+        },
+        {
+          "id": "2728bd69-c354-4dfb-a87b-71f7da8ef1df",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "key": "request_list",
+          "label": "Draft the document request",
+          "position": 7,
+          "state": "done",
+          "attempts": 1,
+          "detail": null,
+          "result": "Request list drafted",
+          "error": null,
+          "from_cache": false,
+          "cost": {
+            "crustdata_credits": 0.0,
+            "llm_usd": 0.000128,
+            "input_tokens": 555,
+            "output_tokens": 145,
+            "unknown_cost_calls": 0
+          },
+          "reserved_credits": 0.0,
+          "started_at": "2026-11-22T12:00:02.130623Z",
+          "finished_at": "2026-11-22T12:00:02.706025Z"
+        },
+        {
+          "id": "c4f6166f-e178-4a52-8e84-bc0c59d8dae7",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "key": "checks.claim:00533c0d-3520-4f52-9cfa-b6b5a0b46dd1",
+          "label": "Check claim: customer partnership",
+          "position": 8,
+          "state": "done",
+          "attempts": 1,
+          "detail": null,
+          "result": "Cannot verify",
+          "error": null,
+          "from_cache": false,
+          "cost": {
+            "crustdata_credits": 0.0,
+            "llm_usd": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "unknown_cost_calls": 0
+          },
+          "reserved_credits": 0.0,
+          "started_at": "2026-11-22T12:08:06.918628Z",
+          "finished_at": "2026-11-22T12:08:07.589824Z"
+        },
+        {
+          "id": "84ed880b-8dee-41ab-8b29-1cf0fbd34d61",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "key": "checks.claim:7b240f0b-f3c0-4282-89f2-aa0cccc7d7e5",
+          "label": "Check claim: other",
+          "position": 9,
+          "state": "done",
+          "attempts": 1,
+          "detail": null,
+          "result": "Cannot verify",
+          "error": null,
+          "from_cache": false,
+          "cost": {
+            "crustdata_credits": 0.0,
+            "llm_usd": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "unknown_cost_calls": 0
+          },
+          "reserved_credits": 0.0,
+          "started_at": "2026-11-22T12:08:13.253259Z",
+          "finished_at": "2026-11-22T12:08:13.928475Z"
+        },
+        {
+          "id": "25725b74-19c3-43d0-b6b8-0c2ff33684ca",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "key": "checks.claim:4da1c128-7615-4229-88bb-571a527ab971",
+          "label": "Check claim: customer partnership",
+          "position": 10,
+          "state": "done",
+          "attempts": 1,
+          "detail": null,
+          "result": "Cannot verify",
+          "error": null,
+          "from_cache": false,
+          "cost": {
+            "crustdata_credits": 0.0,
+            "llm_usd": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "unknown_cost_calls": 0
+          },
+          "reserved_credits": 0.0,
+          "started_at": "2026-11-22T12:08:19.592099Z",
+          "finished_at": "2026-11-22T12:08:20.150400Z"
+        },
+        {
+          "id": "c0e88085-ac7d-429c-87b5-6d6b84f4ddca",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "key": "checks.claim:a54fa89a-1783-4ce7-b82d-1c0ab8b2e468",
+          "label": "Check claim: other",
+          "position": 11,
+          "state": "done",
+          "attempts": 1,
+          "detail": null,
+          "result": "Cannot verify",
+          "error": null,
+          "from_cache": false,
+          "cost": {
+            "crustdata_credits": 0.0,
+            "llm_usd": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "unknown_cost_calls": 0
+          },
+          "reserved_credits": 0.0,
+          "started_at": "2026-11-22T12:08:24.888121Z",
+          "finished_at": "2026-11-22T12:08:25.430447Z"
+        },
+        {
+          "id": "624894b3-154b-41d2-8854-243882ecaf23",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "key": "checks.claim:8571e343-38d0-44e2-a89b-270a43f7e95a",
+          "label": "Check claim: other",
+          "position": 12,
+          "state": "done",
+          "attempts": 1,
+          "detail": null,
+          "result": "Cannot verify",
+          "error": null,
+          "from_cache": false,
+          "cost": {
+            "crustdata_credits": 0.0,
+            "llm_usd": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "unknown_cost_calls": 0
+          },
+          "reserved_credits": 0.0,
+          "started_at": "2026-11-22T12:08:30.781969Z",
+          "finished_at": "2026-11-22T12:08:31.519371Z"
+        },
+        {
+          "id": "356dddf2-b4b4-46b9-9788-343c542db83e",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "key": "checks.claim:3826c8c6-0a42-4849-b7c0-4b0adc223a3b",
+          "label": "Check claim: location",
+          "position": 13,
+          "state": "done",
+          "attempts": 1,
+          "detail": null,
+          "result": "Contradicted",
+          "error": null,
+          "from_cache": true,
+          "cost": {
+            "crustdata_credits": 0.0,
+            "llm_usd": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "unknown_cost_calls": 0
+          },
+          "reserved_credits": 0.0,
+          "started_at": "2026-11-22T12:08:36.188858Z",
+          "finished_at": "2026-11-22T12:08:36.760570Z"
+        },
+        {
+          "id": "c68e9b39-e014-4556-ba57-f3140d0f09a1",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "key": "checks.claim:ebbcdb57-a013-4771-bed8-f8f3ee910003",
+          "label": "Check claim: customer partnership",
+          "position": 14,
+          "state": "done",
+          "attempts": 1,
+          "detail": null,
+          "result": "Cannot verify",
+          "error": null,
+          "from_cache": false,
+          "cost": {
+            "crustdata_credits": 0.0,
+            "llm_usd": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "unknown_cost_calls": 0
+          },
+          "reserved_credits": 0.0,
+          "started_at": "2026-11-22T12:08:46.661062Z",
+          "finished_at": "2026-11-22T12:08:47.219932Z"
+        },
+        {
+          "id": "6d095c98-80cb-41cb-b5d3-fa301097c309",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "key": "checks.claim:1369ff41-948f-42ee-8062-24b022801f1b",
+          "label": "Check claim: customer partnership",
+          "position": 15,
+          "state": "done",
+          "attempts": 1,
+          "detail": null,
+          "result": "Cannot verify",
+          "error": null,
+          "from_cache": false,
+          "cost": {
+            "crustdata_credits": 0.0,
+            "llm_usd": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "unknown_cost_calls": 0
+          },
+          "reserved_credits": 0.0,
+          "started_at": "2026-11-22T12:08:52.968096Z",
+          "finished_at": "2026-11-22T12:08:53.786998Z"
+        },
+        {
+          "id": "e4b53534-301c-44af-aa88-0b111daaa0ee",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "key": "checks.claim:21131745-27f5-417a-ac29-3f8a79bd414a",
+          "label": "Check claim: customer partnership",
+          "position": 16,
+          "state": "done",
+          "attempts": 1,
+          "detail": null,
+          "result": "Cannot verify",
+          "error": null,
+          "from_cache": false,
+          "cost": {
+            "crustdata_credits": 0.0,
+            "llm_usd": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "unknown_cost_calls": 0
+          },
+          "reserved_credits": 0.0,
+          "started_at": "2026-11-22T12:08:59.713561Z",
+          "finished_at": "2026-11-22T12:09:00.515723Z"
+        },
+        {
+          "id": "b496f5cb-c9ff-41d2-8899-eeca91fff25f",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "key": "evaluate@2",
+          "label": "Update the assessment",
+          "position": 17,
+          "state": "done",
+          "attempts": 1,
+          "detail": null,
+          "result": "Version 2: deprioritise",
+          "error": null,
+          "from_cache": false,
+          "cost": {
+            "crustdata_credits": 0.0,
+            "llm_usd": 0.002175,
+            "input_tokens": 12719,
+            "output_tokens": 1807,
+            "unknown_cost_calls": 0
+          },
+          "reserved_credits": 0.0,
+          "started_at": "2026-11-22T12:09:06.457254Z",
+          "finished_at": "2026-11-22T12:09:07.210063Z"
+        },
+        {
+          "id": "b1b953af-5c0f-48d9-9ad7-23e703e64cd0",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "key": "request_list@2",
+          "label": "Draft the document request",
+          "position": 18,
+          "state": "done",
+          "attempts": 1,
+          "detail": null,
+          "result": "Request list drafted",
+          "error": null,
+          "from_cache": false,
+          "cost": {
+            "crustdata_credits": 0.0,
+            "llm_usd": 0.00048,
+            "input_tokens": 1258,
+            "output_tokens": 709,
+            "unknown_cost_calls": 0
+          },
+          "reserved_credits": 0.0,
+          "started_at": "2026-11-22T12:09:34.950212Z",
+          "finished_at": "2026-11-22T12:09:35.703380Z"
+        }
+      ]
+    }
+  },
+  "opportunity": {
+    "thesis_id": "192ba5ab-5134-483e-8e16-823efa73fb4a",
+    "thesis_text": "privately held Indian warehousing and supply-chain software companies that serve enterprise customers and show recent expansion",
+    "criteria": [
+      {
+        "id": "9bf26a3d-0b54-42fa-a3dd-6976fa173c7a",
+        "position": 0,
+        "label": "Privately held",
+        "kind": "must",
+        "dimension": "ownership",
+        "operator": "eq",
+        "value": "Privately held",
+        "crustdata_filter": {
+          "type": "=",
+          "field": "basic_info.company_type",
+          "value": "Privately held"
+        },
+        "assessed_from_evidence": false,
+        "edited": false
+      },
+      {
+        "id": "83680a0c-5244-40e6-80c7-fa6f45e5a704",
+        "position": 1,
+        "label": "Indian company",
+        "kind": "must",
+        "dimension": "geography",
+        "operator": "eq",
+        "value": "India",
+        "crustdata_filter": {
+          "type": "=",
+          "field": "locations.country",
+          "value": "India"
+        },
+        "assessed_from_evidence": false,
+        "edited": false
+      },
+      {
+        "id": "819e632b-3f3e-475a-8ca1-9f12224fc5ce",
+        "position": 2,
+        "label": "Warehousing and supply-chain software",
+        "kind": "must",
+        "dimension": "industry_activity",
+        "operator": "contains_any",
+        "value": "warehousing and supply-chain software",
+        "crustdata_filter": null,
+        "assessed_from_evidence": true,
+        "edited": false
+      },
+      {
+        "id": "79fd6d3a-3f30-4e18-9b36-e2fa6c24df55",
+        "position": 3,
+        "label": "Serves enterprise customers",
+        "kind": "must",
+        "dimension": "customer_type",
+        "operator": "contains_any",
+        "value": "enterprise customers",
+        "crustdata_filter": null,
+        "assessed_from_evidence": true,
+        "edited": false
+      },
+      {
+        "id": "56501931-bed8-4370-a24e-a678c0405e0f",
+        "position": 4,
+        "label": "Recent expansion",
+        "kind": "preference",
+        "dimension": "growth_signal",
+        "operator": "is_true",
+        "value": null,
+        "crustdata_filter": null,
+        "assessed_from_evidence": true,
+        "edited": false
+      }
+    ],
+    "fit_state": "scored",
+    "fit": 50,
+    "assessable_pct": 40,
+    "criterion_results": [
+      {
+        "criterion_id": "9bf26a3d-0b54-42fa-a3dd-6976fa173c7a",
+        "label": "Privately held",
+        "kind": "must",
+        "weight": 2,
+        "state": "pass",
+        "reason": "basic_info.company_type = 'Privately Held' (sourced)",
+        "evidence": [
+          {
+            "evidence_id": "4c93d955-317a-4e11-81c0-e9095407b266",
+            "source": {
+              "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+              "provider": "crustdata",
+              "label": "Company record: profile",
+              "url_or_endpoint": "/company/enrich",
+              "retrieved_at": "2026-11-22T11:58:20.139450Z",
+              "source_class": "data_provider",
+              "origin_id": null
+            },
+            "quote": null,
+            "page": null,
+            "field_path": "basic_info.company_type",
+            "value": "Privately Held",
+            "as_of": "2026-11-22",
+            "attached_to": null,
+            "deleted": false
+          }
+        ]
+      },
+      {
+        "criterion_id": "83680a0c-5244-40e6-80c7-fa6f45e5a704",
+        "label": "Indian company",
+        "kind": "must",
+        "weight": 2,
+        "state": "fail",
+        "reason": "locations.country = 'IND' (sourced)",
+        "evidence": [
+          {
+            "evidence_id": "87519713-aa2e-40ae-a7e1-b1af6942d287",
+            "source": {
+              "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+              "provider": "crustdata",
+              "label": "Company record: profile",
+              "url_or_endpoint": "/company/enrich",
+              "retrieved_at": "2026-11-22T11:58:20.139450Z",
+              "source_class": "data_provider",
+              "origin_id": null
+            },
+            "quote": null,
+            "page": null,
+            "field_path": "locations.country",
+            "value": "IND",
+            "as_of": "2026-11-22",
+            "attached_to": null,
+            "deleted": false
+          }
+        ]
+      },
+      {
+        "criterion_id": "819e632b-3f3e-475a-8ca1-9f12224fc5ce",
+        "label": "Warehousing and supply-chain software",
+        "kind": "must",
+        "weight": 2,
+        "state": "unknown",
+        "reason": "No record states basic_info.industries",
+        "evidence": []
+      },
+      {
+        "criterion_id": "79fd6d3a-3f30-4e18-9b36-e2fa6c24df55",
+        "label": "Serves enterprise customers",
+        "kind": "must",
+        "weight": 2,
+        "state": "unknown",
+        "reason": "No record states unassessable",
+        "evidence": []
+      },
+      {
+        "criterion_id": "56501931-bed8-4370-a24e-a678c0405e0f",
+        "label": "Recent expansion",
+        "kind": "preference",
+        "weight": 1,
+        "state": "unknown",
+        "reason": "No record states headcount.growth_percent.12m",
+        "evidence": []
+      }
+    ],
+    "relevance": [
+      "The company meets the thesis criterion \"Privately held,\" as its ownership type is recorded as Privately Held [F1]."
+    ]
+  },
+  "identity": {
+    "state": "confirmed",
+    "entity_name": "Palms Warehouse Management System",
+    "crustdata_company_id": 2819498,
+    "keys": [
+      {
+        "key": "crustdata_company_id",
+        "label": "Crustdata id",
+        "value": "2819498",
+        "evidence": [
+          {
+            "evidence_id": "2c15483f-c43c-44be-b983-f868005f9a38",
+            "source": {
+              "source_id": "d2cea78e-4151-4937-b1d8-305b848ef756",
+              "provider": "crustdata",
+              "label": "Company identify by domain",
+              "url_or_endpoint": "/company/identify",
+              "retrieved_at": "2026-11-22T11:58:00.853718Z",
+              "source_class": "data_provider",
+              "origin_id": null
+            },
+            "quote": null,
+            "page": null,
+            "field_path": "crustdata_company_id",
+            "value": "2819498",
+            "as_of": "2026-11-22",
+            "attached_to": {
+              "entity_name": "Palms Warehouse Management System",
+              "matched_on": [
+                "domain"
+              ],
+              "identity_confidence": 1.0
+            },
+            "deleted": false
+          }
+        ]
+      },
+      {
+        "key": "domain",
+        "label": "Domain",
+        "value": "onpalms.com",
+        "evidence": [
+          {
+            "evidence_id": "ade3c35c-1266-421b-865a-be4dff059b37",
+            "source": {
+              "source_id": "d2cea78e-4151-4937-b1d8-305b848ef756",
+              "provider": "crustdata",
+              "label": "Company identify by domain",
+              "url_or_endpoint": "/company/identify",
+              "retrieved_at": "2026-11-22T11:58:00.853718Z",
+              "source_class": "data_provider",
+              "origin_id": null
+            },
+            "quote": null,
+            "page": null,
+            "field_path": "basic_info.primary_domain",
+            "value": "onpalms.com",
+            "as_of": "2026-11-22",
+            "attached_to": {
+              "entity_name": "Palms Warehouse Management System",
+              "matched_on": [
+                "domain"
+              ],
+              "identity_confidence": 1.0
+            },
+            "deleted": false
+          }
+        ]
+      }
+    ],
+    "candidates": [],
+    "pick": null,
+    "note": "Confirmed on crustdata id, domain."
+  },
+  "profile": {
+    "crustdata_company_id": 2819498,
+    "name": {
+      "value": "Palms Warehouse Management System",
+      "source": {
+        "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+        "provider": "crustdata",
+        "label": "Company record",
+        "url_or_endpoint": "/company/enrich",
+        "retrieved_at": "2026-11-22T11:58:20.139450Z",
+        "source_class": "data_provider",
+        "origin_id": null
+      },
+      "evidence_id": "f9fd277c-e539-4889-a638-b5ccc7b4a7e7",
+      "as_of": "2026-11-22",
+      "is_estimate": false,
+      "estimate_kind": null,
+      "estimate_basis": null
+    },
+    "legal_name": null,
+    "domain": {
+      "value": "onpalms.com",
+      "source": {
+        "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+        "provider": "crustdata",
+        "label": "Company record",
+        "url_or_endpoint": "/company/enrich",
+        "retrieved_at": "2026-11-22T11:58:20.139450Z",
+        "source_class": "data_provider",
+        "origin_id": null
+      },
+      "evidence_id": "dd224ad6-d14c-4fd9-9f4a-b2e607e41f56",
+      "as_of": "2026-11-22",
+      "is_estimate": false,
+      "estimate_kind": null,
+      "estimate_basis": null
+    },
+    "description": {
+      "value": "OnPalms Yet? (www.onpalms.com) is a Technoforte Supply Chain initiative.PALMSTM offers ready-to-implement Warehouse Management System software which provides configurable Supply Chain processes required by companies to provide better customer service and control operational costs. Highly advanced logic based stock put away, collection and intelligent direct stock movement features in PALMSTM helps dramatically control labor costs and space utilization.These products are based on Service Oriented Architecture,  offering full integration to sales, purchasing, logistics and other 3rd party systems.For more detail kindly contact ushttp://www.onpalms.com/T - (India): [redacted:phone] (UAE): [redacted:phone]E - [redacted:email]",
+      "source": {
+        "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+        "provider": "crustdata",
+        "label": "Company record",
+        "url_or_endpoint": "/company/enrich",
+        "retrieved_at": "2026-11-22T11:58:20.139450Z",
+        "source_class": "data_provider",
+        "origin_id": null
+      },
+      "evidence_id": "ee1d8786-064f-424a-9f52-cdf27678f5fd",
+      "as_of": "2026-11-22",
+      "is_estimate": false,
+      "estimate_kind": null,
+      "estimate_basis": null
+    },
+    "industries": null,
+    "headquarters": {
+      "value": "HSR Layout, Karnataka, India",
+      "source": {
+        "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+        "provider": "crustdata",
+        "label": "Company record",
+        "url_or_endpoint": "/company/enrich",
+        "retrieved_at": "2026-11-22T11:58:20.139450Z",
+        "source_class": "data_provider",
+        "origin_id": null
+      },
+      "evidence_id": "1d2cbdb1-6633-4545-af71-8dd7024704e6",
+      "as_of": "2026-11-22",
+      "is_estimate": false,
+      "estimate_kind": null,
+      "estimate_basis": null
+    },
+    "country": {
+      "value": "IND",
+      "source": {
+        "source_id": "9f409a6a-5268-41b5-b589-bee44c2faede",
+        "provider": "crustdata",
+        "label": "Company profile",
+        "url_or_endpoint": "/company/enrich",
+        "retrieved_at": "2026-11-22T12:08:39.088090Z",
+        "source_class": "data_provider",
+        "origin_id": null
+      },
+      "evidence_id": "121cc736-6f6a-4524-86c3-bda00f0c2e14",
+      "as_of": null,
+      "is_estimate": false,
+      "estimate_kind": null,
+      "estimate_basis": null
+    },
+    "year_founded": {
+      "value": 2001,
+      "source": {
+        "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+        "provider": "crustdata",
+        "label": "Company record",
+        "url_or_endpoint": "/company/enrich",
+        "retrieved_at": "2026-11-22T11:58:20.139450Z",
+        "source_class": "data_provider",
+        "origin_id": null
+      },
+      "evidence_id": "8e768180-1575-4a33-b93f-b56c361e8c02",
+      "as_of": "2026-11-22",
+      "is_estimate": false,
+      "estimate_kind": null,
+      "estimate_basis": null
+    },
+    "incorporation_date": null,
+    "registry_id": null,
+    "company_type": "established",
+    "company_type_reason": "founded 2001, 25 years ago (more than 10)",
+    "headcount": {
+      "value": 5,
+      "source": {
+        "source_id": "395dea1d-7c32-423d-bf57-ac6ded78207f",
+        "provider": "crustdata",
+        "label": "Profile estimate",
+        "url_or_endpoint": "/company/enrich",
+        "retrieved_at": "2026-11-22T11:58:20.139450Z",
+        "source_class": "professional_profile_signal",
+        "origin_id": null
+      },
+      "evidence_id": "3fcfa4f5-b0fe-4f20-a476-31823ffe45a7",
+      "as_of": "2026-11-02",
+      "is_estimate": true,
+      "estimate_kind": "signal",
+      "estimate_basis": "from professional profiles, not a payroll count"
+    },
+    "headcount_growth_yoy_pct": {
+      "value": 25.0,
+      "source": {
+        "source_id": "395dea1d-7c32-423d-bf57-ac6ded78207f",
+        "provider": "crustdata",
+        "label": "Profile estimate",
+        "url_or_endpoint": "/company/enrich",
+        "retrieved_at": "2026-11-22T11:58:20.139450Z",
+        "source_class": "professional_profile_signal",
+        "origin_id": null
+      },
+      "evidence_id": "1c762f77-27e5-4a24-b895-34fb21273a71",
+      "as_of": "2026-11-02",
+      "is_estimate": true,
+      "estimate_kind": "signal",
+      "estimate_basis": "from professional profiles, not a payroll count"
+    },
+    "headcount_series": {
+      "points": [
+        {
+          "date": "2022-11-28",
+          "employee_count": 3
+        },
+        {
+          "date": "2022-12-05",
+          "employee_count": 3
+        },
+        {
+          "date": "2022-12-12",
+          "employee_count": 3
+        },
+        {
+          "date": "2022-12-19",
+          "employee_count": 3
+        },
+        {
+          "date": "2022-12-26",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-01-02",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-01-09",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-01-16",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-01-23",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-01-30",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-02-06",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-02-13",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-02-20",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-02-27",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-03-06",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-03-13",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-03-20",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-03-27",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-04-03",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-04-10",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-04-17",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-04-24",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-05-01",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-05-08",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-05-15",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-05-22",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-05-29",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-06-05",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-06-12",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-06-19",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-06-26",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-07-03",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-07-10",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-07-17",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-07-24",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-07-31",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-08-07",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-08-14",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-08-21",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-08-28",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-09-04",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-09-11",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-09-18",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-09-25",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-10-02",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-10-09",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-10-16",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-10-23",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-10-30",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-11-06",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-11-13",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-11-20",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-11-27",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-12-04",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-12-11",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-12-18",
+          "employee_count": 3
+        },
+        {
+          "date": "2023-12-25",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-01-01",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-01-08",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-01-15",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-01-22",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-01-29",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-02-05",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-02-12",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-02-19",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-02-26",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-03-04",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-03-11",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-03-18",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-03-25",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-04-01",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-04-08",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-04-15",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-04-22",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-04-29",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-05-06",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-05-13",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-05-20",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-05-27",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-06-03",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-06-10",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-06-17",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-06-24",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-07-01",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-07-08",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-07-15",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-07-22",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-07-29",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-08-05",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-08-12",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-08-19",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-08-26",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-09-02",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-09-09",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-09-16",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-09-23",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-09-30",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-10-07",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-10-14",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-10-21",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-10-28",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-11-04",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-11-11",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-11-18",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-11-25",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-12-02",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-12-09",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-12-16",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-12-23",
+          "employee_count": 3
+        },
+        {
+          "date": "2024-12-30",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-01-06",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-01-13",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-01-20",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-01-27",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-02-03",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-02-10",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-02-17",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-02-24",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-03-03",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-03-10",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-03-17",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-03-24",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-03-31",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-04-07",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-04-14",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-04-21",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-04-28",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-05-05",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-05-12",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-05-19",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-05-26",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-06-02",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-06-09",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-06-16",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-06-23",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-06-30",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-07-07",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-07-14",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-07-21",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-07-28",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-08-04",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-08-11",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-08-18",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-08-25",
+          "employee_count": 3
+        },
+        {
+          "date": "2025-09-01",
+          "employee_count": 4
+        },
+        {
+          "date": "2025-09-08",
+          "employee_count": 4
+        },
+        {
+          "date": "2025-09-15",
+          "employee_count": 4
+        },
+        {
+          "date": "2025-09-22",
+          "employee_count": 4
+        },
+        {
+          "date": "2025-09-29",
+          "employee_count": 4
+        },
+        {
+          "date": "2025-10-06",
+          "employee_count": 4
+        },
+        {
+          "date": "2025-10-13",
+          "employee_count": 4
+        },
+        {
+          "date": "2025-10-20",
+          "employee_count": 4
+        },
+        {
+          "date": "2025-10-27",
+          "employee_count": 4
+        },
+        {
+          "date": "2025-11-03",
+          "employee_count": 4
+        },
+        {
+          "date": "2025-11-10",
+          "employee_count": 4
+        },
+        {
+          "date": "2025-11-17",
+          "employee_count": 4
+        },
+        {
+          "date": "2025-11-24",
+          "employee_count": 4
+        },
+        {
+          "date": "2025-12-01",
+          "employee_count": 4
+        },
+        {
+          "date": "2025-12-08",
+          "employee_count": 4
+        },
+        {
+          "date": "2025-12-15",
+          "employee_count": 4
+        },
+        {
+          "date": "2025-12-22",
+          "employee_count": 4
+        },
+        {
+          "date": "2025-12-29",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-01-05",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-01-12",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-01-19",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-01-26",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-02-02",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-02-09",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-02-16",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-02-23",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-03-02",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-03-09",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-03-16",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-03-23",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-03-30",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-04-06",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-04-13",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-04-20",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-04-27",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-05-04",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-05-11",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-05-18",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-05-25",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-06-01",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-06-08",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-06-15",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-06-22",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-06-29",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-07-06",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-07-13",
+          "employee_count": 4
+        },
+        {
+          "date": "2026-07-20",
+          "employee_count": 5
+        },
+        {
+          "date": "2026-07-27",
+          "employee_count": 5
+        },
+        {
+          "date": "2026-08-03",
+          "employee_count": 5
+        },
+        {
+          "date": "2026-08-10",
+          "employee_count": 5
+        },
+        {
+          "date": "2026-08-17",
+          "employee_count": 5
+        },
+        {
+          "date": "2026-11-02",
+          "employee_count": 5
+        }
+      ],
+      "source": {
+        "source_id": "395dea1d-7c32-423d-bf57-ac6ded78207f",
+        "provider": "crustdata",
+        "label": "Profile estimate",
+        "url_or_endpoint": "/company/enrich",
+        "retrieved_at": "2026-11-22T11:58:20.139450Z",
+        "source_class": "professional_profile_signal",
+        "origin_id": null
+      },
+      "estimate_basis": "from professional profiles, not a payroll count"
+    },
+    "total_funding_usd": null,
+    "funding_rounds": [],
+    "people": [],
+    "hiring": null
+  },
+  "claims": [
+    {
+      "id": "00533c0d-3520-4f52-9cfa-b6b5a0b46dd1",
+      "number": 1,
+      "original_text": "Trusted by 100+ clients in 20+ Countries",
+      "normalised_text": "Trusted by 100+ clients in 20+ Countries",
+      "category": "customer_partnership",
+      "components": {},
+      "material": true,
+      "origin": "document",
+      "stated_in": {
+        "document_id": "23682b97-3801-4ab5-8d44-708bb266dd1f",
+        "filename": "palms-technoforte-public-website-2026-11-22.pdf",
+        "page": 1,
+        "quote": "Trusted by 100+ clients in 20+ Countries",
+        "typed_by_name": null,
+        "typed_at": null
+      },
+      "status": "cannot_verify",
+      "reason": "Cannot verify. The claim has no checkable components. Would settle it: Customer confirmation or signed contract.",
+      "not_checked_reason": null,
+      "adequate_source_reached": false,
+      "substantive_result": null,
+      "settle_with": "Customer confirmation or signed contract",
+      "evidence": [],
+      "history": [
+        {
+          "id": "facc6cde-b1ed-4150-94b5-93ad6b30688c",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "status": "cannot_verify",
+          "reason": "Cannot verify. The claim has no checkable components. Would settle it: Customer confirmation or signed contract.",
+          "not_checked_reason": null,
+          "settle_with": "Customer confirmation or signed contract",
+          "evidence_ids": [],
+          "assessment_version": null,
+          "created_at": "2026-11-22T12:08:07.589824Z"
+        }
+      ],
+      "changed_in_version": null
+    },
+    {
+      "id": "1369ff41-948f-42ee-8062-24b022801f1b",
+      "number": 2,
+      "original_text": "PALMS™ is an OEM partner with QlikView.",
+      "normalised_text": "counterparty: QlikView · relationship: OEM partner",
+      "category": "customer_partnership",
+      "components": {
+        "counterparty": "QlikView",
+        "relationship": "OEM partner"
+      },
+      "material": true,
+      "origin": "document",
+      "stated_in": {
+        "document_id": "23682b97-3801-4ab5-8d44-708bb266dd1f",
+        "filename": "palms-technoforte-public-website-2026-11-22.pdf",
+        "page": 6,
+        "quote": "PALMS™ is an OEM partner with QlikView.",
+        "typed_by_name": null,
+        "typed_at": null
+      },
+      "status": "cannot_verify",
+      "reason": "Cannot verify. counterparty: no adequate source was found. relationship: no adequate source was found. Would settle it: Customer confirmation or signed contract.",
+      "not_checked_reason": null,
+      "adequate_source_reached": false,
+      "substantive_result": null,
+      "settle_with": "Customer confirmation or signed contract",
+      "evidence": [],
+      "history": [
+        {
+          "id": "8026edfd-725b-48aa-951c-70e5007e5556",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "status": "cannot_verify",
+          "reason": "Cannot verify. counterparty: no adequate source was found. relationship: no adequate source was found. Would settle it: Customer confirmation or signed contract.",
+          "not_checked_reason": null,
+          "settle_with": "Customer confirmation or signed contract",
+          "evidence_ids": [],
+          "assessment_version": null,
+          "created_at": "2026-11-22T12:08:53.786998Z"
+        }
+      ],
+      "changed_in_version": null
+    },
+    {
+      "id": "21131745-27f5-417a-ac29-3f8a79bd414a",
+      "number": 3,
+      "original_text": "PALMS™ has partnered with Microsoft Azure for providing PAAS, SAAS and IAAS services to its",
+      "normalised_text": "counterparty: Microsoft Azure · relationship: partnered",
+      "category": "customer_partnership",
+      "components": {
+        "counterparty": "Microsoft Azure",
+        "relationship": "partnered"
+      },
+      "material": true,
+      "origin": "document",
+      "stated_in": {
+        "document_id": "23682b97-3801-4ab5-8d44-708bb266dd1f",
+        "filename": "palms-technoforte-public-website-2026-11-22.pdf",
+        "page": 6,
+        "quote": "PALMS™ has partnered with Microsoft Azure for providing PAAS, SAAS and IAAS services to its",
+        "typed_by_name": null,
+        "typed_at": null
+      },
+      "status": "cannot_verify",
+      "reason": "Cannot verify. counterparty: no adequate source was found. relationship: no adequate source was found. Would settle it: Customer confirmation or signed contract.",
+      "not_checked_reason": null,
+      "adequate_source_reached": false,
+      "substantive_result": null,
+      "settle_with": "Customer confirmation or signed contract",
+      "evidence": [],
+      "history": [
+        {
+          "id": "38d3013b-035b-4571-a452-73d9af111ab8",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "status": "cannot_verify",
+          "reason": "Cannot verify. counterparty: no adequate source was found. relationship: no adequate source was found. Would settle it: Customer confirmation or signed contract.",
+          "not_checked_reason": null,
+          "settle_with": "Customer confirmation or signed contract",
+          "evidence_ids": [],
+          "assessment_version": null,
+          "created_at": "2026-11-22T12:09:00.515723Z"
+        }
+      ],
+      "changed_in_version": null
+    },
+    {
+      "id": "3826c8c6-0a42-4849-b7c0-4b0adc223a3b",
+      "number": 4,
+      "original_text": "Head Quartered in Bangalore, India Technoforte has branch office in Dubai, Kolkata and Bangalore.",
+      "normalised_text": "hq city: Bangalore · country: India · operating city: Dubai",
+      "category": "location",
+      "components": {
+        "hq_city": "Bangalore",
+        "country": "India",
+        "operating_city": "Dubai"
+      },
+      "material": true,
+      "origin": "document",
+      "stated_in": {
+        "document_id": "23682b97-3801-4ab5-8d44-708bb266dd1f",
+        "filename": "palms-technoforte-public-website-2026-11-22.pdf",
+        "page": 3,
+        "quote": "Head Quartered in Bangalore, India Technoforte has branch office in Dubai, Kolkata and Bangalore.",
+        "typed_by_name": null,
+        "typed_at": null
+      },
+      "status": "contradicted",
+      "reason": "Contradicted. hq_city: Company profile was read and does not state it. country: contradicted by Company profile (1 independent origin). operating_city: no adequate source was found. Would settle it: Registered-office filing or premises lease; Certificate of incorporation.",
+      "not_checked_reason": null,
+      "adequate_source_reached": true,
+      "substantive_result": "conflicts",
+      "settle_with": "Registered-office filing or premises lease; Certificate of incorporation",
+      "evidence": [
+        {
+          "evidence_id": "121cc736-6f6a-4524-86c3-bda00f0c2e14",
+          "source": {
+            "source_id": "9f409a6a-5268-41b5-b589-bee44c2faede",
+            "provider": "crustdata",
+            "label": "Company profile",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:08:39.088090Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "quote": null,
+          "page": null,
+          "field_path": "locations.country",
+          "value": "IND",
+          "as_of": null,
+          "attached_to": {
+            "entity_name": "Palms Warehouse Management System",
+            "matched_on": [
+              "crustdata_company_id"
+            ],
+            "identity_confidence": null
+          },
+          "deleted": false
+        }
+      ],
+      "history": [
+        {
+          "id": "18f9ea9d-34e5-4724-8cdd-8bc35dcdc155",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "status": "contradicted",
+          "reason": "Contradicted. hq_city: Company profile was read and does not state it. country: contradicted by Company profile (1 independent origin). operating_city: no adequate source was found. Would settle it: Registered-office filing or premises lease; Certificate of incorporation.",
+          "not_checked_reason": null,
+          "settle_with": "Registered-office filing or premises lease; Certificate of incorporation",
+          "evidence_ids": [
+            "121cc736-6f6a-4524-86c3-bda00f0c2e14"
+          ],
+          "assessment_version": null,
+          "created_at": "2026-11-22T12:08:36.760570Z"
+        }
+      ],
+      "changed_in_version": null
+    },
+    {
+      "id": "4da1c128-7615-4229-88bb-571a527ab971",
+      "number": 5,
+      "original_text": "we have successfully onboarded 80+ customers across",
+      "normalised_text": "we have successfully onboarded 80+ customers across",
+      "category": "customer_partnership",
+      "components": {},
+      "material": true,
+      "origin": "document",
+      "stated_in": {
+        "document_id": "23682b97-3801-4ab5-8d44-708bb266dd1f",
+        "filename": "palms-technoforte-public-website-2026-11-22.pdf",
+        "page": 1,
+        "quote": "With PALMS, we have successfully onboarded 80+ customers across",
+        "typed_by_name": null,
+        "typed_at": null
+      },
+      "status": "cannot_verify",
+      "reason": "Cannot verify. The claim has no checkable components. Would settle it: Customer confirmation or signed contract.",
+      "not_checked_reason": null,
+      "adequate_source_reached": false,
+      "substantive_result": null,
+      "settle_with": "Customer confirmation or signed contract",
+      "evidence": [],
+      "history": [
+        {
+          "id": "e0da3d22-9152-4fab-8146-a96460b099e6",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "status": "cannot_verify",
+          "reason": "Cannot verify. The claim has no checkable components. Would settle it: Customer confirmation or signed contract.",
+          "not_checked_reason": null,
+          "settle_with": "Customer confirmation or signed contract",
+          "evidence_ids": [],
+          "assessment_version": null,
+          "created_at": "2026-11-22T12:08:20.150400Z"
+        }
+      ],
+      "changed_in_version": null
+    },
+    {
+      "id": "7b240f0b-f3c0-4282-89f2-aa0cccc7d7e5",
+      "number": 6,
+      "original_text": "99% positive feedback",
+      "normalised_text": "99% positive feedback",
+      "category": "other",
+      "components": {},
+      "material": true,
+      "origin": "document",
+      "stated_in": {
+        "document_id": "23682b97-3801-4ab5-8d44-708bb266dd1f",
+        "filename": "palms-technoforte-public-website-2026-11-22.pdf",
+        "page": 1,
+        "quote": "99% positive feedback",
+        "typed_by_name": null,
+        "typed_at": null
+      },
+      "status": "cannot_verify",
+      "reason": "Cannot verify. The claim has no checkable components. Would settle it: A dated document that states it directly.",
+      "not_checked_reason": null,
+      "adequate_source_reached": false,
+      "substantive_result": null,
+      "settle_with": "A dated document that states it directly",
+      "evidence": [],
+      "history": [
+        {
+          "id": "05a322f5-f819-4bc7-bcf9-16ded95bbeb7",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "status": "cannot_verify",
+          "reason": "Cannot verify. The claim has no checkable components. Would settle it: A dated document that states it directly.",
+          "not_checked_reason": null,
+          "settle_with": "A dated document that states it directly",
+          "evidence_ids": [],
+          "assessment_version": null,
+          "created_at": "2026-11-22T12:08:13.928475Z"
+        }
+      ],
+      "changed_in_version": null
+    },
+    {
+      "id": "8571e343-38d0-44e2-a89b-270a43f7e95a",
+      "number": 7,
+      "original_text": "Technoforte is an ISO 9001:2015 and ISO/IEC 27001:2022 certified company engaged in providing high",
+      "normalised_text": "Technoforte is an ISO 9001:2015 and ISO/IEC 27001:2022 certified company engaged in providing high",
+      "category": "other",
+      "components": {},
+      "material": true,
+      "origin": "document",
+      "stated_in": {
+        "document_id": "23682b97-3801-4ab5-8d44-708bb266dd1f",
+        "filename": "palms-technoforte-public-website-2026-11-22.pdf",
+        "page": 3,
+        "quote": "Technoforte is an ISO 9001:2015 and ISO/IEC 27001:2022 certified company engaged in providing high",
+        "typed_by_name": null,
+        "typed_at": null
+      },
+      "status": "cannot_verify",
+      "reason": "Cannot verify. The claim has no checkable components. Would settle it: A dated document that states it directly.",
+      "not_checked_reason": null,
+      "adequate_source_reached": false,
+      "substantive_result": null,
+      "settle_with": "A dated document that states it directly",
+      "evidence": [],
+      "history": [
+        {
+          "id": "57578be4-78f9-415e-9fe7-b3cd71d81c29",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "status": "cannot_verify",
+          "reason": "Cannot verify. The claim has no checkable components. Would settle it: A dated document that states it directly.",
+          "not_checked_reason": null,
+          "settle_with": "A dated document that states it directly",
+          "evidence_ids": [],
+          "assessment_version": null,
+          "created_at": "2026-11-22T12:08:31.519371Z"
+        }
+      ],
+      "changed_in_version": null
+    },
+    {
+      "id": "a54fa89a-1783-4ce7-b82d-1c0ab8b2e468",
+      "number": 8,
+      "original_text": "PALMS™ is a registered trademark and Intellectual Property of Technoforte Software Private Limited.",
+      "normalised_text": "legal name: Technoforte Software Private Limited",
+      "category": "other",
+      "components": {
+        "legal_name": "Technoforte Software Private Limited"
+      },
+      "material": true,
+      "origin": "document",
+      "stated_in": {
+        "document_id": "23682b97-3801-4ab5-8d44-708bb266dd1f",
+        "filename": "palms-technoforte-public-website-2026-11-22.pdf",
+        "page": 3,
+        "quote": "PALMS™ is a registered trademark and Intellectual Property of Technoforte Software Private Limited.",
+        "typed_by_name": null,
+        "typed_at": null
+      },
+      "status": "cannot_verify",
+      "reason": "Cannot verify. legal_name: no adequate source was found. Would settle it: Certificate of incorporation.",
+      "not_checked_reason": null,
+      "adequate_source_reached": false,
+      "substantive_result": null,
+      "settle_with": "Certificate of incorporation",
+      "evidence": [],
+      "history": [
+        {
+          "id": "a5b52faf-03d3-45aa-a481-4811ecb02cbb",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "status": "cannot_verify",
+          "reason": "Cannot verify. legal_name: no adequate source was found. Would settle it: Certificate of incorporation.",
+          "not_checked_reason": null,
+          "settle_with": "Certificate of incorporation",
+          "evidence_ids": [],
+          "assessment_version": null,
+          "created_at": "2026-11-22T12:08:25.430447Z"
+        }
+      ],
+      "changed_in_version": null
+    },
+    {
+      "id": "ebbcdb57-a013-4771-bed8-f8f3ee910003",
+      "number": 9,
+      "original_text": "As a Microsoft Certified Partner, PALMS™ solutions are fully certified and validated for Microsoft",
+      "normalised_text": "relationship: Microsoft Certified Partner",
+      "category": "customer_partnership",
+      "components": {
+        "relationship": "Microsoft Certified Partner"
+      },
+      "material": true,
+      "origin": "document",
+      "stated_in": {
+        "document_id": "23682b97-3801-4ab5-8d44-708bb266dd1f",
+        "filename": "palms-technoforte-public-website-2026-11-22.pdf",
+        "page": 6,
+        "quote": "As a Microsoft Certified Partner, PALMS™ solutions are fully certified and validated for Microsoft",
+        "typed_by_name": null,
+        "typed_at": null
+      },
+      "status": "cannot_verify",
+      "reason": "Cannot verify. relationship: no adequate source was found. Would settle it: Customer confirmation or signed contract.",
+      "not_checked_reason": null,
+      "adequate_source_reached": false,
+      "substantive_result": null,
+      "settle_with": "Customer confirmation or signed contract",
+      "evidence": [],
+      "history": [
+        {
+          "id": "b4c96a81-4964-416a-bf38-d56e5ccc7000",
+          "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+          "status": "cannot_verify",
+          "reason": "Cannot verify. relationship: no adequate source was found. Would settle it: Customer confirmation or signed contract.",
+          "not_checked_reason": null,
+          "settle_with": "Customer confirmation or signed contract",
+          "evidence_ids": [],
+          "assessment_version": null,
+          "created_at": "2026-11-22T12:08:47.219932Z"
+        }
+      ],
+      "changed_in_version": null
+    }
+  ],
+  "events": [],
+  "comparables": {
+    "basis": {
+      "industry": "Warehousing and Storage",
+      "country": "IND",
+      "headcount_band": "3-10 (x0.5 to x2 of 5, estimate)"
+    },
+    "companies": [
+      {
+        "crustdata_company_id": 2090662,
+        "name": "Orex Development Group",
+        "observation": {
+          "value": "Headcount about 5 (estimate), HQ Wagle I.E., Mahārāshtra, India",
+          "source": {
+            "source_id": "bf76a13f-49e1-4802-8ae4-891bd06d64ba",
+            "provider": "crustdata",
+            "label": "Company search",
+            "url_or_endpoint": "/company/search",
+            "retrieved_at": "2026-11-22T11:59:05.745072Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "60fe25a5-8311-4888-86b7-72d0cfde98db",
+          "as_of": "2026-11-22",
+          "is_estimate": true,
+          "estimate_kind": "signal",
+          "estimate_basis": "from professional profiles, not a payroll count"
+        }
+      },
+      {
+        "crustdata_company_id": 2105747,
+        "name": "FarmQ",
+        "observation": {
+          "value": "Headcount about 5 (estimate), HQ Vasundhra Enclave, Mayur Vihar Ph-III, Ghazipur, National Capital Territory of Delhi, India",
+          "source": {
+            "source_id": "bf76a13f-49e1-4802-8ae4-891bd06d64ba",
+            "provider": "crustdata",
+            "label": "Company search",
+            "url_or_endpoint": "/company/search",
+            "retrieved_at": "2026-11-22T11:59:05.745072Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "f0aa4909-718d-461d-921e-160d4d6d8855",
+          "as_of": "2026-11-22",
+          "is_estimate": true,
+          "estimate_kind": "signal",
+          "estimate_basis": "from professional profiles, not a payroll count"
+        }
+      },
+      {
+        "crustdata_company_id": 1089017,
+        "name": "Godaam Innovations",
+        "observation": {
+          "value": "Headcount about 6 (estimate), HQ Cidco Colony (Nashik), Indira Nagar (Nashik), Mahārāshtra, India",
+          "source": {
+            "source_id": "bf76a13f-49e1-4802-8ae4-891bd06d64ba",
+            "provider": "crustdata",
+            "label": "Company search",
+            "url_or_endpoint": "/company/search",
+            "retrieved_at": "2026-11-22T11:59:05.745072Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "4bfef51e-3441-4c77-a3f5-b91c5c6ac33f",
+          "as_of": "2026-11-22",
+          "is_estimate": true,
+          "estimate_kind": "signal",
+          "estimate_basis": "from professional profiles, not a payroll count"
+        }
+      },
+      {
+        "crustdata_company_id": 1132989,
+        "name": "Scalar - Pioneering Industrial & Warehousing Spaces",
+        "observation": {
+          "value": "Headcount about 6 (estimate), HQ I.M.Colony, Somajiguda, Telangana, India",
+          "source": {
+            "source_id": "bf76a13f-49e1-4802-8ae4-891bd06d64ba",
+            "provider": "crustdata",
+            "label": "Company search",
+            "url_or_endpoint": "/company/search",
+            "retrieved_at": "2026-11-22T11:59:05.745072Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "29a76ee6-8a1e-4a97-8162-bc105d4f0dae",
+          "as_of": "2026-11-22",
+          "is_estimate": true,
+          "estimate_kind": "signal",
+          "estimate_basis": "from professional profiles, not a payroll count"
+        }
+      },
+      {
+        "crustdata_company_id": 1136658,
+        "name": "ANOVA WAREHOUSE INFRA TECHNOLOGIES PVT LTD",
+        "observation": {
+          "value": "Headcount about 6 (estimate), HQ Mumbai, Maharashtra, India",
+          "source": {
+            "source_id": "bf76a13f-49e1-4802-8ae4-891bd06d64ba",
+            "provider": "crustdata",
+            "label": "Company search",
+            "url_or_endpoint": "/company/search",
+            "retrieved_at": "2026-11-22T11:59:05.745072Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "b557a164-e928-4d95-9c76-dc27d87ca3c3",
+          "as_of": "2026-11-22",
+          "is_estimate": true,
+          "estimate_kind": "signal",
+          "estimate_basis": "from professional profiles, not a payroll count"
+        }
+      }
+    ],
+    "no_fair_comparison_reason": null
+  },
+  "assessment": {
+    "id": "21df27c7-5c87-4557-ac1e-8cba3af16260",
+    "version": 2,
+    "created_at": "2026-11-22T12:09:07.210063Z",
+    "policy_version": "2026-11-22.3",
+    "inputs_hash": "40d62c73a58c159657ea71d5d832b09e8d74190951fd003f924a7663e4632093",
+    "trigger": "initial verify",
+    "company_type": "established",
+    "judgments": {
+      "opportunity_fit": {
+        "state": "scored",
+        "fit": 50,
+        "assessable_pct": 40,
+        "note": "Fit 50 out of 100, with 40% of the criteria assessable",
+        "criterion_results": [
+          {
+            "criterion_id": "9bf26a3d-0b54-42fa-a3dd-6976fa173c7a",
+            "label": "Privately held",
+            "kind": "must",
+            "weight": 2,
+            "state": "pass",
+            "reason": "basic_info.company_type = 'Privately Held' (sourced)",
+            "evidence": [
+              {
+                "evidence_id": "4c93d955-317a-4e11-81c0-e9095407b266",
+                "source": {
+                  "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+                  "provider": "crustdata",
+                  "label": "Company record: profile",
+                  "url_or_endpoint": "/company/enrich",
+                  "retrieved_at": "2026-11-22T11:58:20.139450Z",
+                  "source_class": "data_provider",
+                  "origin_id": null
+                },
+                "quote": null,
+                "page": null,
+                "field_path": "basic_info.company_type",
+                "value": "Privately Held",
+                "as_of": "2026-11-22",
+                "attached_to": null,
+                "deleted": false
+              }
+            ]
+          },
+          {
+            "criterion_id": "83680a0c-5244-40e6-80c7-fa6f45e5a704",
+            "label": "Indian company",
+            "kind": "must",
+            "weight": 2,
+            "state": "fail",
+            "reason": "locations.country = 'IND' (sourced)",
+            "evidence": [
+              {
+                "evidence_id": "87519713-aa2e-40ae-a7e1-b1af6942d287",
+                "source": {
+                  "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+                  "provider": "crustdata",
+                  "label": "Company record: profile",
+                  "url_or_endpoint": "/company/enrich",
+                  "retrieved_at": "2026-11-22T11:58:20.139450Z",
+                  "source_class": "data_provider",
+                  "origin_id": null
+                },
+                "quote": null,
+                "page": null,
+                "field_path": "locations.country",
+                "value": "IND",
+                "as_of": "2026-11-22",
+                "attached_to": null,
+                "deleted": false
+              }
+            ]
+          },
+          {
+            "criterion_id": "819e632b-3f3e-475a-8ca1-9f12224fc5ce",
+            "label": "Warehousing and supply-chain software",
+            "kind": "must",
+            "weight": 2,
+            "state": "unknown",
+            "reason": "No record states basic_info.industries",
+            "evidence": []
+          },
+          {
+            "criterion_id": "79fd6d3a-3f30-4e18-9b36-e2fa6c24df55",
+            "label": "Serves enterprise customers",
+            "kind": "must",
+            "weight": 2,
+            "state": "unknown",
+            "reason": "No record states unassessable",
+            "evidence": []
+          },
+          {
+            "criterion_id": "56501931-bed8-4370-a24e-a678c0405e0f",
+            "label": "Recent expansion",
+            "kind": "preference",
+            "weight": 1,
+            "state": "unknown",
+            "reason": "No record states headcount.growth_percent.12m",
+            "evidence": []
+          }
+        ]
+      },
+      "evidence_sufficiency": {
+        "pct": 0,
+        "required_categories": [
+          "identity_incorporation",
+          "location",
+          "team_size",
+          "leadership_history",
+          "financials",
+          "customer_partnership"
+        ],
+        "settled": [],
+        "gaps": [
+          {
+            "category": "identity_incorporation",
+            "status": "cannot_verify",
+            "claim_ids": [
+              "a54fa89a-1783-4ce7-b82d-1c0ab8b2e468"
+            ],
+            "settle_with": "Certificate of incorporation",
+            "note": "identity incorporation: Cannot verify"
+          },
+          {
+            "category": "location",
+            "status": "contradicted",
+            "claim_ids": [
+              "3826c8c6-0a42-4849-b7c0-4b0adc223a3b"
+            ],
+            "settle_with": "Registered-office filing or premises lease",
+            "note": "location: Contradicted"
+          },
+          {
+            "category": "team_size",
+            "status": null,
+            "claim_ids": [],
+            "settle_with": "Dated payroll summary",
+            "note": "team size: not claimed and not checked"
+          },
+          {
+            "category": "leadership_history",
+            "status": null,
+            "claim_ids": [],
+            "settle_with": "Founder CV with dates, or an employer's confirmation",
+            "note": "leadership history: not claimed and not checked"
+          },
+          {
+            "category": "financials",
+            "status": null,
+            "claim_ids": [],
+            "settle_with": "Audited financial statements",
+            "note": "financials: not claimed and not checked"
+          },
+          {
+            "category": "customer_partnership",
+            "status": "cannot_verify",
+            "claim_ids": [
+              "1369ff41-948f-42ee-8062-24b022801f1b",
+              "21131745-27f5-417a-ac29-3f8a79bd414a",
+              "ebbcdb57-a013-4771-bed8-f8f3ee910003"
+            ],
+            "settle_with": "Customer confirmation or signed contract",
+            "note": "customer partnership: Cannot verify"
+          }
+        ]
+      },
+      "business_assessment": {
+        "assessed": true,
+        "reason": null,
+        "signals": [
+          {
+            "label": "Headcount estimate (professional profiles)",
+            "fact": {
+              "value": "5",
+              "source": {
+                "source_id": "395dea1d-7c32-423d-bf57-ac6ded78207f",
+                "provider": "crustdata",
+                "label": "Company record: headcount",
+                "url_or_endpoint": "/company/enrich",
+                "retrieved_at": "2026-11-22T11:58:20.139450Z",
+                "source_class": "professional_profile_signal",
+                "origin_id": null
+              },
+              "evidence_id": "3fcfa4f5-b0fe-4f20-a476-31823ffe45a7",
+              "as_of": "2026-11-02",
+              "is_estimate": true,
+              "estimate_kind": "signal",
+              "estimate_basis": "Observed operating signals, not confirmed results. Headcount and hiring come from professional profiles and job listings; they are never treated as revenue."
+            }
+          },
+          {
+            "label": "Locations on record",
+            "fact": {
+              "value": "HSR Layout, Karnataka, India, IND",
+              "source": {
+                "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+                "provider": "crustdata",
+                "label": "Company record: profile",
+                "url_or_endpoint": "/company/enrich",
+                "retrieved_at": "2026-11-22T11:58:20.139450Z",
+                "source_class": "data_provider",
+                "origin_id": null
+              },
+              "evidence_id": "1d2cbdb1-6633-4545-af71-8dd7024704e6",
+              "as_of": "2026-11-22",
+              "is_estimate": true,
+              "estimate_kind": "signal",
+              "estimate_basis": "Observed operating signals, not confirmed results. Headcount and hiring come from professional profiles and job listings; they are never treated as revenue."
+            }
+          }
+        ]
+      },
+      "financial_assessment": {
+        "assessed": false,
+        "reason": "Not assessed: no reliable financial inputs (audited statements or registry filings)",
+        "would_need": [
+          "Audited financial statements"
+        ],
+        "period": null,
+        "figures": [],
+        "conclusion": null
+      },
+      "screening_disposition": {
+        "disposition": "deprioritise",
+        "reasons": [
+          {
+            "text": "Must-have failed: Indian company (locations.country = 'IND' (sourced))",
+            "claim_ids": [],
+            "evidence_ids": []
+          }
+        ]
+      }
+    },
+    "diff_from_previous": [
+      {
+        "kind": "claim",
+        "subject": "Trusted by 100+ clients in 20+ Countries",
+        "subject_id": "00533c0d-3520-4f52-9cfa-b6b5a0b46dd1",
+        "before": null,
+        "after": "cannot_verify",
+        "because": "absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+        "evidence": []
+      },
+      {
+        "kind": "claim",
+        "subject": "PALMS™ is an OEM partner with QlikView.",
+        "subject_id": "1369ff41-948f-42ee-8062-24b022801f1b",
+        "before": null,
+        "after": "cannot_verify",
+        "because": "absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+        "evidence": []
+      },
+      {
+        "kind": "claim",
+        "subject": "PALMS™ has partnered with Microsoft Azure for providing PAAS, SAAS and IAAS services to its",
+        "subject_id": "21131745-27f5-417a-ac29-3f8a79bd414a",
+        "before": null,
+        "after": "cannot_verify",
+        "because": "absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+        "evidence": []
+      },
+      {
+        "kind": "claim",
+        "subject": "Head Quartered in Bangalore, India Technoforte has branch office in Dubai, Kolkata and Bangalore.",
+        "subject_id": "3826c8c6-0a42-4849-b7c0-4b0adc223a3b",
+        "before": null,
+        "after": "contradicted",
+        "because": "absent → Contradicted because of new evidence: Company profile (data_provider)",
+        "evidence": [
+          {
+            "evidence_id": "121cc736-6f6a-4524-86c3-bda00f0c2e14",
+            "source": {
+              "source_id": "9f409a6a-5268-41b5-b589-bee44c2faede",
+              "provider": "crustdata",
+              "label": "Company profile",
+              "url_or_endpoint": "/company/enrich",
+              "retrieved_at": "2026-11-22T12:08:39.088090Z",
+              "source_class": "data_provider",
+              "origin_id": null
+            },
+            "quote": null,
+            "page": null,
+            "field_path": "locations.country",
+            "value": "IND",
+            "as_of": null,
+            "attached_to": null,
+            "deleted": false
+          }
+        ]
+      },
+      {
+        "kind": "claim",
+        "subject": "we have successfully onboarded 80+ customers across",
+        "subject_id": "4da1c128-7615-4229-88bb-571a527ab971",
+        "before": null,
+        "after": "cannot_verify",
+        "because": "absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+        "evidence": []
+      },
+      {
+        "kind": "claim",
+        "subject": "99% positive feedback",
+        "subject_id": "7b240f0b-f3c0-4282-89f2-aa0cccc7d7e5",
+        "before": null,
+        "after": "cannot_verify",
+        "because": "absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+        "evidence": []
+      },
+      {
+        "kind": "claim",
+        "subject": "Technoforte is an ISO 9001:2015 and ISO/IEC 27001:2022 certified company engaged in providing high",
+        "subject_id": "8571e343-38d0-44e2-a89b-270a43f7e95a",
+        "before": null,
+        "after": "cannot_verify",
+        "because": "absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+        "evidence": []
+      },
+      {
+        "kind": "claim",
+        "subject": "PALMS™ is a registered trademark and Intellectual Property of Technoforte Software Private Limited.",
+        "subject_id": "a54fa89a-1783-4ce7-b82d-1c0ab8b2e468",
+        "before": null,
+        "after": "cannot_verify",
+        "because": "absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+        "evidence": []
+      },
+      {
+        "kind": "claim",
+        "subject": "As a Microsoft Certified Partner, PALMS™ solutions are fully certified and validated for Microsoft",
+        "subject_id": "ebbcdb57-a013-4771-bed8-f8f3ee910003",
+        "before": null,
+        "after": "cannot_verify",
+        "because": "absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+        "evidence": []
+      }
+    ],
+    "trigger_document_ids": [
+      "23682b97-3801-4ab5-8d44-708bb266dd1f"
+    ],
+    "document_ids": [],
+    "evidence_ids": [
+      "121cc736-6f6a-4524-86c3-bda00f0c2e14",
+      "1d2cbdb1-6633-4545-af71-8dd7024704e6",
+      "3fcfa4f5-b0fe-4f20-a476-31823ffe45a7",
+      "4c93d955-317a-4e11-81c0-e9095407b266",
+      "87519713-aa2e-40ae-a7e1-b1af6942d287"
+    ],
+    "confidential_removed_on": null
+  },
+  "memo": {
+    "assessment_version": 2,
+    "assessment_version_id": "21df27c7-5c87-4557-ac1e-8cba3af16260",
+    "policy_version": "2026-11-22.3",
+    "generated_at": "2026-11-22T12:09:07.210063Z",
+    "title": "Palms Warehouse Management System",
+    "sections": [
+      {
+        "key": "summary",
+        "number": null,
+        "heading": "Summary",
+        "drafted_text": null,
+        "used_fallback": false,
+        "lines": [
+          {
+            "text": "Screening disposition: Deprioritise",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          },
+          {
+            "text": "Reason: Must-have failed: Indian company (locations.country = 'IND' (sourced))",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          },
+          {
+            "text": "Opportunity fit: Fit 50 · 40% of criteria assessable",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          },
+          {
+            "text": "Evidence sufficiency: 0 of 6 checks settled · 0 not checked",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          },
+          {
+            "text": "Case cost: 8.7 of 600 Crustdata credits · $0.01 model usage + 3 call(s) of unknown cost · discovery shared from run 55194efa-4b4f-4065-9613-9427a19451c8: 50.12 credits, $0.01 (not added)",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          }
+        ],
+        "notes": [
+          "Fit measures match to your criteria. It says nothing about returns.",
+          "First-pass screening before formal due diligence. Every finding rests on the dated sources recorded at the end of this memo."
+        ]
+      },
+      {
+        "key": "changes",
+        "number": null,
+        "heading": "What changed since version 1",
+        "drafted_text": null,
+        "used_fallback": false,
+        "lines": [
+          {
+            "text": "Claim 1 (\"Trusted by 100+ clients in 20+ Countries\"): absent → Cannot verify. Because: absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+            "citation_ids": [],
+            "claim_ids": [
+              "00533c0d-3520-4f52-9cfa-b6b5a0b46dd1"
+            ],
+            "kind": null
+          },
+          {
+            "text": "Claim 2 (\"PALMS™ is an OEM partner with QlikView.\"): absent → Cannot verify. Because: absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+            "citation_ids": [],
+            "claim_ids": [
+              "1369ff41-948f-42ee-8062-24b022801f1b"
+            ],
+            "kind": null
+          },
+          {
+            "text": "Claim 3 (\"PALMS™ has partnered with Microsoft Azure for providing PAAS, SAAS and IAAS services to its\"): absent → Cannot verify. Because: absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+            "citation_ids": [],
+            "claim_ids": [
+              "21131745-27f5-417a-ac29-3f8a79bd414a"
+            ],
+            "kind": null
+          },
+          {
+            "text": "Claim 4 (\"Head Quartered in Bangalore, India Technoforte has branch office in Dubai, Kolkata and Bangalore.\"): absent → Contradicted. Because: absent → Contradicted because of new evidence: Company profile (data_provider)",
+            "citation_ids": [],
+            "claim_ids": [
+              "3826c8c6-0a42-4849-b7c0-4b0adc223a3b"
+            ],
+            "kind": null
+          },
+          {
+            "text": "Claim 5 (\"we have successfully onboarded 80+ customers across\"): absent → Cannot verify. Because: absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+            "citation_ids": [],
+            "claim_ids": [
+              "4da1c128-7615-4229-88bb-571a527ab971"
+            ],
+            "kind": null
+          },
+          {
+            "text": "Claim 6 (\"99% positive feedback\"): absent → Cannot verify. Because: absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+            "citation_ids": [],
+            "claim_ids": [
+              "7b240f0b-f3c0-4282-89f2-aa0cccc7d7e5"
+            ],
+            "kind": null
+          },
+          {
+            "text": "Claim 7 (\"Technoforte is an ISO 9001:2015 and ISO/IEC 27001:2022 certified company engaged in providing high\"): absent → Cannot verify. Because: absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+            "citation_ids": [],
+            "claim_ids": [
+              "8571e343-38d0-44e2-a89b-270a43f7e95a"
+            ],
+            "kind": null
+          },
+          {
+            "text": "Claim 8 (\"PALMS™ is a registered trademark and Intellectual Property of Technoforte Software Private Limited.\"): absent → Cannot verify. Because: absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+            "citation_ids": [],
+            "claim_ids": [
+              "a54fa89a-1783-4ce7-b82d-1c0ab8b2e468"
+            ],
+            "kind": null
+          },
+          {
+            "text": "Claim 9 (\"As a Microsoft Certified Partner, PALMS™ solutions are fully certified and validated for Microsoft\"): absent → Cannot verify. Because: absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+            "citation_ids": [],
+            "claim_ids": [
+              "ebbcdb57-a013-4771-bed8-f8f3ee910003"
+            ],
+            "kind": null
+          }
+        ],
+        "notes": [
+          "Updated on 2026-11-22 (initial verify). Version 1 remains archived and readable in full.",
+          "0 claims unchanged since version 1."
+        ]
+      },
+      {
+        "key": "opportunity",
+        "number": 1,
+        "heading": "The opportunity",
+        "drafted_text": "The company meets the thesis criterion \"Privately held,\" as its ownership type is recorded as Privately Held [F1].",
+        "used_fallback": false,
+        "lines": [
+          {
+            "text": "Investment thesis: privately held Indian warehousing and supply-chain software companies that serve enterprise customers and show recent expansion",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          },
+          {
+            "text": "Criteria met (1): Privately held",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          },
+          {
+            "text": "Criteria not met (1): Indian company",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          },
+          {
+            "text": "Criteria unknown (3): Warehousing and supply-chain software, Serves enterprise customers, Recent expansion",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          }
+        ],
+        "notes": [
+          "Evaluated as an established business on strategic fit, identity, operating scale, financial performance, commercial position, and leadership continuity."
+        ]
+      },
+      {
+        "key": "identity",
+        "number": 2,
+        "heading": "Identity and profile",
+        "drafted_text": "Ownership type: Privately Held [F2]. basic info › description: OnPalms Yet [F3]? (www.onpalms.com) is a Technoforte Supply Chain initiative.PALMSTM offers ready-to-implement Warehouse Management System software which provides configurable Supply Chain processes required by companies to provide better customer service and control operational costs [F3]. Highly advanced logic based stock put away, collection and intelligent direct stock movement features in PALMSTM helps dramatically control labor costs and space utilization.These products are based on Service Oriented Architecture,  offering full integration to sales, purchasing, logistics and other 3rd party systems.For more detail kindly contact ushttp://www.onpalms.com/T - (India):  (UAE): E - [F3]. basic info › employee count range: 51-200 [F4]. basic info › name: Palms Warehouse Management System [F5]. basic info › primary domain: onpalms.com [F6]. basic info › professional network url: https://www.linkedin.com/company/onpalms [F7]. basic info › website: http://www.onpalms.com [F8]. Year founded: 2001 [F9]. crustdata company id: 2819498 [F10]. headcount › growth percent › yoy: 25.0 [F11]. headcount › timeseries: {'date': '2022-11-28', 'employee_count': 3}, {'date': '2022-12-05', 'employee_count': 3}, {'date': '2022-12-12', 'employee_count': 3}, {'date': '2022-12-19', 'employee_count': 3}, {'date': '2022-12-26', 'employee_count': 3}, {'date': '2023-01-02', 'employee_count': 3}, {'date': '2023-01-09', 'employee_count': 3}, {'date': '2023-01-16', 'employee_count': 3}, {'date': '2023-01-23', 'employee_count': 3}, {'date': '2023-01-30', 'employee_count': 3}, {'date': '2023-02-06', 'employee_count': 3}, {'date': '2023-02-13', 'employee_count': 3}, {'date': '2023-02-20', 'employee_count': 3}, {'date': '2023-02-27', 'employee_count': 3}, {'date': '2023-03-06', 'employee_count': 3}, {'date': '2023-03-13', 'employee_count': 3}, {'date': '2023-03-20', 'employee_count': 3}, {'date': '2023-03-27', 'employee_count': 3}, {'date': '2023-04-03', 'employee_count': 3}, {'date': '2023-04-10', 'employee_count': 3}, {'date': '2023-04-17', 'employee_count': 3}, {'date': '2023-04-24', 'employee_count': 3}, {'date': '2023-05-01', 'employee_count': 3}, {'date': '2023-05-08', 'employee_count': 3}, {'date': '2023-05-15', 'employee_count': 3}, {'date': '2023-05-22', 'employee_count': 3}, {'date': '2023-05-29', 'employee_count': 3}, {'date': '2023-06-05', 'employee_count': 3}, {'date': '2023-06-12', 'employee_count': 3}, {'date': '2023-06-19', 'employee_count': 3}, {'date': '2023-06-26', 'employee_count': 3}, {'date': '2023-07-03', 'employee_count': 3}, {'date': '2023-07-10', 'employee_count': 3}, {'date': '2023-07-17', 'employee_count': 3}, {'date': '2023-07-24', 'employee_count': 3}, {'date': '2023-07-31', 'employee_count': 3}, {'date': '2023-08-07', 'employee_count': 3}, {'date': '2023-08-14', 'employee_count': 3}, {'date': '2023-08-21', 'employee_count': 3}, {'date': '2023-08-28', 'employee_count': 3}, {'date': '2023-09-04', 'employee_count': 3}, {'date': '2023-09-11', 'employee_count': 3}, {'date': '2023-09-18', 'employee_count': 3}, {'date': '2023-09-25', 'employee_count': 3}, {'date': '2023-10-02', 'employee_count': 3}, {'date': '2023-10-09', 'employee_count': 3}, {'date': '2023-10-16', 'employee_count': 3}, {'date': '2023-10-23', 'employee_count': 3}, {'date': '2023-10-30', 'employee_count': 3}, {'date': '2023-11-06', 'employee_count': 3}, {'date': '2023-11-13', 'employee_count': 3}, {'date': '2023-11-20', 'employee_count': 3}, {'date': '2023-11-27', 'employee_count': 3}, {'date': '2023-12-04', 'employee_count': 3}, {'date': '2023-12-11', 'employee_count': 3}, {'date': '2023-12-18', 'employee_count': 3}, {'date': '2023-12-25', 'employee_count': 3}, {'date': '2024-01-01', 'employee_count': 3}, {'date': '2024-01-08', 'employee_count': 3}, {'date': '2024-01-15', 'employee_count': 3}, {'date': '2024-01-22', 'employee_count': 3}, {'date': '2024-01-29', 'employee_count': 3}, {'date': '2024-02-05', 'employee_count': 3}, {'date': '2024-02-12', 'employee_count': 3}, {'date': '2024-02-19', 'employee_count': 3}, {'date': '2024-02-26', 'employee_count': 3}, {'date': '2024-03-04', 'employee_count': 3}, {'date': '2024-03-11', 'employee_count': 3}, {'date': '2024-03-18', 'employee_count': 3}, {'date': '2024-03-25', 'employee_count': 3}, {'date': '2024-04-01', 'employee_count': 3}, {'date': '2024-04-08', 'employee_count': 3}, {'date': '2024-04-15', 'employee_count': 3}, {'date': '2024-04-22', 'employee_count': 3}, {'date': '2024-04-29', 'employee_count': 3}, {'date': '2024-05-06', 'employee_count': 3}, {'date': '2024-05-13', 'employee_count': 3}, {'date': '2024-05-20', 'employee_count': 3}, {'date': '2024-05-27', 'employee_count': 3}, {'date': '2024-06-03', 'employee_count': 3}, {'date': '2024-06-10', 'employee_count': 3}, {'date': '2024-06-17', 'employee_count': 3}, {'date': '2024-06-24', 'employee_count': 3}, {'date': '2024-07-01', 'employee_count': 3}, {'date': '2024-07-08', 'employee_count': 3}, {'date': '2024-07-15', 'employee_count': 3}, {'date': '2024-07-22', 'employee_count': 3}, {'date': '2024-07-29', 'employee_count': 3}, {'date': '2024-08-05', 'employee_count': 3}, {'date': '2024-08-12', 'employee_count': 3}, {'date': '2024-08-19', 'employee_count': 3}, {'date': '2024-08-26', 'employee_count': 3}, {'date': '2024-09-02', 'employee_count': 3}, {'date': '2024-09-09', 'employee_count': 3}, {'date': '2024-09-16', 'employee_count': 3}, {'date': '2024-09-23', 'employee_count': 3}, {'date': '2024-09-30', 'employee_count': 3}, {'date': '2024-10-07', 'employee_count': 3}, {'date': '2024-10-14', 'employee_count': 3}, {'date': '2024-10-21', 'employee_count': 3}, {'date': '2024-10-28', 'employee_count': 3}, {'date': '2024-11-04', 'employee_count': 3}, {'date': '2024-11-11', 'employee_count': 3}, {'date': '2024-11-18', 'employee_count': 3}, {'date': '2024-11-25', 'employee_count': 3}, {'date': '2024-12-02', 'employee_count': 3}, {'date': '2024-12-09', 'employee_count': 3}, {'date': '2024-12-16', 'employee_count': 3}, {'date': '2024-12-23', 'employee_count': 3}, {'date': '2024-12-30', 'employee_count': 3}, {'date': '2025-01-06', 'employee_count': 3}, {'date': '2025-01-13', 'employee_count': 3}, {'date': '2025-01-20', 'employee_count': 3}, {'date': '2025-01-27', 'employee_count': 3}, {'date': '2025-02-03', 'employee_count': 3}, {'date': '2025-02-10', 'employee_count': 3}, {'date': '2025-02-17', 'employee_count': 3}, {'date': '2025-02-24', 'employee_count': 3}, {'date': '2025-03-03', 'employee_count': 3}, {'date': '2025-03-10', 'employee_count': 3}, {'date': '2025-03-17', 'employee_count': 3}, {'date': '2025-03-24', 'employee_count': 3}, {'date': '2025-03-31', 'employee_count': 3}, {'date': '2025-04-07', 'employee_count': 3}, {'date': '2025-04-14', 'employee_count': 3}, {'date': '2025-04-21', 'employee_count': 3}, {'date': '2025-04-28', 'employee_count': 3}, {'date': '2025-05-05', 'employee_count': 3}, {'date': '2025-05-12', 'employee_count': 3}, {'date': '2025-05-19', 'employee_count': 3}, {'date': '2025-05-26', 'employee_count': 3}, {'date': '2025-06-02', 'employee_count': 3}, {'date': '2025-06-09', 'employee_count': 3}, {'date': '2025-06-16', 'employee_count': 3}, {'date': '2025-06-23', 'employee_count': 3}, {'date': '2025-06-30', 'employee_count': 3}, {'date': '2025-07-07', 'employee_count': 3}, {'date': '2025-07-14', 'employee_count': 3}, {'date': '2025-07-21', 'employee_count': 3}, {'date': '2025-07-28', 'employee_count': 3}, {'date': '2025-08-04', 'employee_count': 3}, {'date': '2025-08-11', 'employee_count': 3}, {'date': '2025-08-18', 'employee_count': 3}, {'date': '2025-08-25', 'employee_count': 3}, {'date': '2025-09-01', 'employee_count': 4}, {'date': '2025-09-08', 'employee_count': 4}, {'date': '2025-09-15', 'employee_count': 4}, {'date': '2025-09-22', 'employee_count': 4}, {'date': '2025-09-29', 'employee_count': 4}, {'date': '2025-10-06', 'employee_count': 4}, {'date': '2025-10-13', 'employee_count': 4}, {'date': '2025-10-20', 'employee_count': 4}, {'date': '2025-10-27', 'employee_count': 4}, {'date': '2025-11-03', 'employee_count': 4}, {'date': '2025-11-10', 'employee_count': 4}, {'date': '2025-11-17', 'employee_count': 4}, {'date': '2025-11-24', 'employee_count': 4}, {'date': '2025-12-01', 'employee_count': 4}, {'date': '2025-12-08', 'employee_count': 4}, {'date': '2025-12-15', 'employee_count': 4}, {'date': '2025-12-22', 'employee_count': 4}, {'date': '2025-12-29', 'employee_count': 4}, {'date': '2026-01-05', 'employee_count': 4}, {'date': '2026-01-12', 'employee_count': 4}, {'date': '2026-01-19', 'employee_count': 4}, {'date': '2026-01-26', 'employee_count': 4}, {'date': '2026-02-02', 'employee_count': 4}, {'date': '2026-02-09', 'employee_count': 4}, {'date': '2026-02-16', 'employee_count': 4}, {'date': '2026-02-23', 'employee_count': 4}, {'date': '2026-03-02', 'employee_count': 4}, {'date': '2026-03-09', 'employee_count': 4}, {'date': '2026-03-16', 'employee_count': 4}, {'date': '2026-03-23', 'employee_count': 4}, {'date': '2026-03-30', 'employee_count': 4}, {'date': '2026-04-06', 'employee_count': 4}, {'date': '2026-04-13', 'employee_count': 4}, {'date': '2026-04-20', 'employee_count': 4}, {'date': '2026-04-27', 'employee_count': 4}, {'date': '2026-05-04', 'employee_count': 4}, {'date': '2026-05-11', 'employee_count': 4}, {'date': '2026-05-18', 'employee_count': 4}, {'date': '2026-05-25', 'employee_count': 4}, {'date': '2026-06-01', 'employee_count': 4}, {'date': '2026-06-08', 'employee_count': 4}, {'date': '2026-06-15', 'employee_count': 4}, {'date': '2026-06-22', 'employee_count': 4}, {'date': '2026-06-29', 'employee_count': 4}, {'date': '2026-07-06', 'employee_count': 4}, {'date': '2026-07-13', 'employee_count': 4}, {'date': '2026-07-20', 'employee_count': 5}, {'date': '2026-07-27', 'employee_count': 5}, {'date': '2026-08-03', 'employee_count': 5}, {'date': '2026-08-10', 'employee_count': 5}, {'date': '2026-08-17', 'employee_count': 5}, {'date': '2026-11-02', 'employee_count': 5} [F12]. Headcount estimate from professional profiles (not a payroll count): 5 [F13]. Country on record: IND [F14]. Headquarters on record: HSR Layout, Karnataka, India [F15]. taxonomy › professional network industry: Warehousing and Storage [F16].",
+        "used_fallback": true,
+        "lines": [
+          {
+            "text": "Identity confirmed.",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          },
+          {
+            "text": "Headcount estimate (professional profiles): 5",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": "signal"
+          },
+          {
+            "text": "Locations on record: ['HSR Layout, Karnataka, India', 'IND']",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": "signal"
+          }
+        ],
+        "notes": [
+          "Records in this case were attached using verified identifiers, not on a matching name alone.",
+          "Operating signals and profile-based headcount estimates are indirect indicators. They are not payroll counts and are never treated as proof of revenue."
+        ]
+      },
+      {
+        "key": "claims",
+        "number": 3,
+        "heading": "Claims",
+        "drafted_text": null,
+        "used_fallback": false,
+        "lines": [
+          {
+            "text": "Summary: 0 Supported · 0 Partially corroborated · 0 Conflicting evidence · 1 Contradicted · 8 Cannot verify · 0 Not checked.",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          },
+          {
+            "text": "Claim 1 (\"Trusted by 100+ clients in 20+ Countries\"): Cannot verify. Cannot verify. The claim has no checkable components. Would settle it: Customer confirmation or signed contract. What would settle it: Customer confirmation or signed contract.",
+            "citation_ids": [],
+            "claim_ids": [
+              "00533c0d-3520-4f52-9cfa-b6b5a0b46dd1"
+            ],
+            "kind": null
+          },
+          {
+            "text": "Claim 2 (\"PALMS™ is an OEM partner with QlikView.\"): Cannot verify. Cannot verify. counterparty: no adequate source was found. relationship: no adequate source was found. Would settle it: Customer confirmation or signed contract. What would settle it: Customer confirmation or signed contract.",
+            "citation_ids": [],
+            "claim_ids": [
+              "1369ff41-948f-42ee-8062-24b022801f1b"
+            ],
+            "kind": null
+          },
+          {
+            "text": "Claim 3 (\"PALMS™ has partnered with Microsoft Azure for providing PAAS, SAAS and IAAS services to its\"): Cannot verify. Cannot verify. counterparty: no adequate source was found. relationship: no adequate source was found. Would settle it: Customer confirmation or signed contract. What would settle it: Customer confirmation or signed contract.",
+            "citation_ids": [],
+            "claim_ids": [
+              "21131745-27f5-417a-ac29-3f8a79bd414a"
+            ],
+            "kind": null
+          },
+          {
+            "text": "Claim 4 (\"Head Quartered in Bangalore, India Technoforte has branch office in Dubai, Kolkata and Bangalore.\"): Contradicted. Contradicted. hq_city: Company profile was read and does not state it. country: contradicted by Company profile (1 independent origin). operating_city: no adequate source was found. Would settle it: Registered-office filing or premises lease; Certificate of incorporation. What would settle it: Registered-office filing or premises lease; Certificate of incorporation.",
+            "citation_ids": [],
+            "claim_ids": [
+              "3826c8c6-0a42-4849-b7c0-4b0adc223a3b"
+            ],
+            "kind": null
+          },
+          {
+            "text": "Claim 5 (\"we have successfully onboarded 80+ customers across\"): Cannot verify. Cannot verify. The claim has no checkable components. Would settle it: Customer confirmation or signed contract. What would settle it: Customer confirmation or signed contract.",
+            "citation_ids": [],
+            "claim_ids": [
+              "4da1c128-7615-4229-88bb-571a527ab971"
+            ],
+            "kind": null
+          },
+          {
+            "text": "Claim 6 (\"99% positive feedback\"): Cannot verify. Cannot verify. The claim has no checkable components. Would settle it: A dated document that states it directly. What would settle it: A dated document that states it directly.",
+            "citation_ids": [],
+            "claim_ids": [
+              "7b240f0b-f3c0-4282-89f2-aa0cccc7d7e5"
+            ],
+            "kind": null
+          },
+          {
+            "text": "Claim 7 (\"Technoforte is an ISO 9001:2015 and ISO/IEC 27001:2022 certified company engaged in providing high\"): Cannot verify. Cannot verify. The claim has no checkable components. Would settle it: A dated document that states it directly. What would settle it: A dated document that states it directly.",
+            "citation_ids": [],
+            "claim_ids": [
+              "8571e343-38d0-44e2-a89b-270a43f7e95a"
+            ],
+            "kind": null
+          },
+          {
+            "text": "Claim 8 (\"PALMS™ is a registered trademark and Intellectual Property of Technoforte Software Private Limited.\"): Cannot verify. Cannot verify. legal_name: no adequate source was found. Would settle it: Certificate of incorporation. What would settle it: Certificate of incorporation.",
+            "citation_ids": [],
+            "claim_ids": [
+              "a54fa89a-1783-4ce7-b82d-1c0ab8b2e468"
+            ],
+            "kind": null
+          },
+          {
+            "text": "Claim 9 (\"As a Microsoft Certified Partner, PALMS™ solutions are fully certified and validated for Microsoft\"): Cannot verify. Cannot verify. relationship: no adequate source was found. Would settle it: Customer confirmation or signed contract. What would settle it: Customer confirmation or signed contract.",
+            "citation_ids": [],
+            "claim_ids": [
+              "ebbcdb57-a013-4771-bed8-f8f3ee910003"
+            ],
+            "kind": null
+          }
+        ],
+        "notes": [
+          "Cannot verify is a finished screening result where available records cannot settle the question. Not checked indicates that a check did not run and is excluded from settled counts."
+        ]
+      },
+      {
+        "key": "events",
+        "number": 4,
+        "heading": "Recent events",
+        "drafted_text": null,
+        "used_fallback": false,
+        "lines": [],
+        "notes": [
+          "No recent dated public events were returned on record for this confirmed entity."
+        ]
+      },
+      {
+        "key": "comparables",
+        "number": 5,
+        "heading": "Comparable companies",
+        "drafted_text": null,
+        "used_fallback": false,
+        "lines": [
+          {
+            "text": "Orex Development Group: Headcount about 5 (estimate), HQ Wagle I.E., Mahārāshtra, India",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          },
+          {
+            "text": "FarmQ: Headcount about 5 (estimate), HQ Vasundhra Enclave, Mayur Vihar Ph-III, Ghazipur, National Capital Territory of Delhi, India",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          },
+          {
+            "text": "Godaam Innovations: Headcount about 6 (estimate), HQ Cidco Colony (Nashik), Indira Nagar (Nashik), Mahārāshtra, India",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          },
+          {
+            "text": "Scalar - Pioneering Industrial & Warehousing Spaces: Headcount about 6 (estimate), HQ I.M.Colony, Somajiguda, Telangana, India",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          },
+          {
+            "text": "ANOVA WAREHOUSE INFRA TECHNOLOGIES PVT LTD: Headcount about 6 (estimate), HQ Mumbai, Maharashtra, India",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          }
+        ],
+        "notes": [
+          "Basis of comparison: Warehousing and Storage, IND, headcount 3-10 (x0.5 to x2 of 5, estimate). Informational only: comparables are not scored."
+        ]
+      },
+      {
+        "key": "financial",
+        "number": 6,
+        "heading": "Financial evaluation",
+        "drafted_text": null,
+        "used_fallback": false,
+        "lines": [
+          {
+            "text": "Not assessed · no reliable financial inputs.",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": "gap"
+          },
+          {
+            "text": "Would need: Audited financial statements and current management accounts.",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          }
+        ],
+        "notes": [
+          "Public records for private companies do not provide complete current financial statements, and no audited statements were supplied for this case. DealProof does not fill missing financial inputs with guesses."
+        ]
+      },
+      {
+        "key": "risks",
+        "number": 7,
+        "heading": "Risks, assumptions and unknowns",
+        "drafted_text": null,
+        "used_fallback": false,
+        "lines": [
+          {
+            "text": "Claim 4 (\"Head Quartered in Bangalore, India Technoforte has branch office in Dubai, Kolkata and Bangalore.\"): Contradicted. Contradicted. hq_city: Company profile was read and does not state it. country: contradicted by Company profile (1 independent origin). operating_city: no adequate source was found. Would settle it: Registered-office filing or premises lease; Certificate of incorporation.",
+            "citation_ids": [],
+            "claim_ids": [
+              "3826c8c6-0a42-4849-b7c0-4b0adc223a3b"
+            ],
+            "kind": "risk"
+          },
+          {
+            "text": "identity incorporation: Cannot verify. Would settle it: Certificate of incorporation.",
+            "citation_ids": [],
+            "claim_ids": [
+              "a54fa89a-1783-4ce7-b82d-1c0ab8b2e468"
+            ],
+            "kind": "gap"
+          },
+          {
+            "text": "location: Contradicted. Would settle it: Registered-office filing or premises lease.",
+            "citation_ids": [],
+            "claim_ids": [
+              "3826c8c6-0a42-4849-b7c0-4b0adc223a3b"
+            ],
+            "kind": "gap"
+          },
+          {
+            "text": "team size: not claimed and not checked. Would settle it: Dated payroll summary.",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": "gap"
+          },
+          {
+            "text": "leadership history: not claimed and not checked. Would settle it: Founder CV with dates, or an employer's confirmation.",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": "gap"
+          },
+          {
+            "text": "financials: not claimed and not checked. Would settle it: Audited financial statements.",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": "gap"
+          },
+          {
+            "text": "customer partnership: Cannot verify. Would settle it: Customer confirmation or signed contract.",
+            "citation_ids": [],
+            "claim_ids": [
+              "1369ff41-948f-42ee-8062-24b022801f1b",
+              "21131745-27f5-417a-ac29-3f8a79bd414a",
+              "ebbcdb57-a013-4771-bed8-f8f3ee910003"
+            ],
+            "kind": "gap"
+          },
+          {
+            "text": "Headcount estimate (professional profiles): 5. Observed operating signals, not confirmed results. Headcount and hiring come from professional profiles and job listings; they are never treated as revenue.",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": "estimate_used"
+          },
+          {
+            "text": "Criterion unknown: Warehousing and supply-chain software.",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": "gap"
+          },
+          {
+            "text": "Criterion unknown: Serves enterprise customers.",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": "gap"
+          },
+          {
+            "text": "Criterion unknown: Recent expansion.",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": "gap"
+          }
+        ],
+        "notes": [
+          "Missing information is stated plainly and is not treated as negative performance."
+        ]
+      },
+      {
+        "key": "next_step",
+        "number": 8,
+        "heading": "Recommended next step",
+        "drafted_text": null,
+        "used_fallback": false,
+        "lines": [
+          {
+            "text": "Disposition: Deprioritise (Policy 2026-11-22.3)",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          },
+          {
+            "text": "1. Must-have failed: Indian company (locations.country = 'IND' (sourced))",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          },
+          {
+            "text": "Recommended action: Do not pursue under this thesis unless the failed requirement changes; keep the reasons on file.",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          }
+        ],
+        "notes": [
+          "This disposition is produced by stated rules under Policy 2026-11-22.3 from the records attached to this case. It is a first-pass screening recommendation, not a prediction of returns, legal advice, or formal due diligence."
+        ]
+      },
+      {
+        "key": "requests",
+        "number": 9,
+        "heading": "Information to request from the seller",
+        "drafted_text": null,
+        "used_fallback": false,
+        "lines": [
+          {
+            "text": "1. Customer confirmation or signed contract — settles Claim 1 (\"Trusted by 100+ clients in 20+ Countries\"), Claim 2 (\"PALMS™ is an OEM partner with QlikView.\"), Claim 3 (\"PALMS™ has partnered with Microsoft Azure for providing PAAS, SAAS and IAAS services to its\"), Claim 5 (\"we have successfully onboarded 80+ customers across\"), Claim 9 (\"As a Microsoft Certified Partner, PALMS™ solutions are fully certified and validated for Microsoft\")",
+            "citation_ids": [],
+            "claim_ids": [
+              "00533c0d-3520-4f52-9cfa-b6b5a0b46dd1",
+              "1369ff41-948f-42ee-8062-24b022801f1b",
+              "21131745-27f5-417a-ac29-3f8a79bd414a",
+              "4da1c128-7615-4229-88bb-571a527ab971",
+              "ebbcdb57-a013-4771-bed8-f8f3ee910003"
+            ],
+            "kind": null
+          },
+          {
+            "text": "2. Registered-office filing or premises lease — settles Claim 4 (\"Head Quartered in Bangalore, India Technoforte has branch office in Dubai, Kolkata and Bangalore.\")",
+            "citation_ids": [],
+            "claim_ids": [
+              "3826c8c6-0a42-4849-b7c0-4b0adc223a3b"
+            ],
+            "kind": null
+          },
+          {
+            "text": "3. Certificate of incorporation — settles Claim 4 (\"Head Quartered in Bangalore, India Technoforte has branch office in Dubai, Kolkata and Bangalore.\"), Claim 8 (\"PALMS™ is a registered trademark and Intellectual Property of Technoforte Software Private Limited.\")",
+            "citation_ids": [],
+            "claim_ids": [
+              "3826c8c6-0a42-4849-b7c0-4b0adc223a3b",
+              "a54fa89a-1783-4ce7-b82d-1c0ab8b2e468"
+            ],
+            "kind": null
+          },
+          {
+            "text": "4. A dated document that states it directly — settles Claim 6 (\"99% positive feedback\"), Claim 7 (\"Technoforte is an ISO 9001:2015 and ISO/IEC 27001:2022 certified company engaged in providing high\")",
+            "citation_ids": [],
+            "claim_ids": [
+              "7b240f0b-f3c0-4282-89f2-aa0cccc7d7e5",
+              "8571e343-38d0-44e2-a89b-270a43f7e95a"
+            ],
+            "kind": null
+          },
+          {
+            "text": "5. Audited financial statements — settles open questions",
+            "citation_ids": [],
+            "claim_ids": [],
+            "kind": null
+          }
+        ],
+        "notes": [
+          "The following documents would settle the open claims in this case."
+        ]
+      },
+      {
+        "key": "sources",
+        "number": 10,
+        "heading": "Sources",
+        "drafted_text": null,
+        "used_fallback": false,
+        "lines": [],
+        "notes": [
+          "Complete record of every source used in this case so all findings can be audited and reproduced.",
+          "6 sources on record; see the source record.",
+          "Confidentiality: Uploaded seller documents were used only for this case, were not used to train AI models and were not shared across customers. They are scheduled for deletion on 2026-12-22."
+        ]
+      }
+    ],
+    "citations": [
+      {
+        "id": "F1",
+        "number": 1,
+        "evidence": {
+          "evidence_id": "4c93d955-317a-4e11-81c0-e9095407b266",
+          "source": {
+            "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+            "provider": "crustdata",
+            "label": "Company record: profile",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T11:58:20.139450Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "quote": null,
+          "page": null,
+          "field_path": "basic_info.company_type",
+          "value": "Privately Held",
+          "as_of": "2026-11-22",
+          "attached_to": null,
+          "deleted": false
+        },
+        "deletion": null
+      },
+      {
+        "id": "F2",
+        "number": 2,
+        "evidence": {
+          "evidence_id": "4c93d955-317a-4e11-81c0-e9095407b266",
+          "source": {
+            "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+            "provider": "crustdata",
+            "label": "Company record: profile",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T11:58:20.139450Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "quote": null,
+          "page": null,
+          "field_path": "basic_info.company_type",
+          "value": "Privately Held",
+          "as_of": "2026-11-22",
+          "attached_to": null,
+          "deleted": false
+        },
+        "deletion": null
+      },
+      {
+        "id": "F3",
+        "number": 3,
+        "evidence": {
+          "evidence_id": "ee1d8786-064f-424a-9f52-cdf27678f5fd",
+          "source": {
+            "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+            "provider": "crustdata",
+            "label": "Company record: profile",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T11:58:20.139450Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "quote": null,
+          "page": null,
+          "field_path": "basic_info.description",
+          "value": "OnPalms Yet? (www.onpalms.com) is a Technoforte Supply Chain initiative.PALMSTM offers ready-to-implement Warehouse Management System software which provides configurable Supply Chain processes required by companies to provide better customer service and control operational costs. Highly advanced logic based stock put away, collection and intelligent direct stock movement features in PALMSTM helps dramatically control labor costs and space utilization.These products are based on Service Oriented Architecture,  offering full integration to sales, purchasing, logistics and other 3rd party systems.For more detail kindly contact ushttp://www.onpalms.com/T - (India): [redacted:phone] (UAE): [redacted:phone]E - [redacted:email]",
+          "as_of": "2026-11-22",
+          "attached_to": null,
+          "deleted": false
+        },
+        "deletion": null
+      },
+      {
+        "id": "F4",
+        "number": 4,
+        "evidence": {
+          "evidence_id": "94478239-e5fe-4817-84e5-ac67ec606d5c",
+          "source": {
+            "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+            "provider": "crustdata",
+            "label": "Company record: profile",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T11:58:20.139450Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "quote": null,
+          "page": null,
+          "field_path": "basic_info.employee_count_range",
+          "value": "51-200",
+          "as_of": "2026-11-22",
+          "attached_to": null,
+          "deleted": false
+        },
+        "deletion": null
+      },
+      {
+        "id": "F5",
+        "number": 5,
+        "evidence": {
+          "evidence_id": "f9fd277c-e539-4889-a638-b5ccc7b4a7e7",
+          "source": {
+            "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+            "provider": "crustdata",
+            "label": "Company record: profile",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T11:58:20.139450Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "quote": null,
+          "page": null,
+          "field_path": "basic_info.name",
+          "value": "Palms Warehouse Management System",
+          "as_of": "2026-11-22",
+          "attached_to": null,
+          "deleted": false
+        },
+        "deletion": null
+      },
+      {
+        "id": "F6",
+        "number": 6,
+        "evidence": {
+          "evidence_id": "dd224ad6-d14c-4fd9-9f4a-b2e607e41f56",
+          "source": {
+            "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+            "provider": "crustdata",
+            "label": "Company record: profile",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T11:58:20.139450Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "quote": null,
+          "page": null,
+          "field_path": "basic_info.primary_domain",
+          "value": "onpalms.com",
+          "as_of": "2026-11-22",
+          "attached_to": null,
+          "deleted": false
+        },
+        "deletion": null
+      },
+      {
+        "id": "F7",
+        "number": 7,
+        "evidence": {
+          "evidence_id": "31755fdf-b7d2-4555-82de-fbfdcda6f914",
+          "source": {
+            "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+            "provider": "crustdata",
+            "label": "Company record: profile",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T11:58:20.139450Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "quote": null,
+          "page": null,
+          "field_path": "basic_info.professional_network_url",
+          "value": "https://www.linkedin.com/company/onpalms",
+          "as_of": "2026-11-22",
+          "attached_to": null,
+          "deleted": false
+        },
+        "deletion": null
+      },
+      {
+        "id": "F8",
+        "number": 8,
+        "evidence": {
+          "evidence_id": "4e86cd61-49bd-4009-b444-1772ad0e12a8",
+          "source": {
+            "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+            "provider": "crustdata",
+            "label": "Company record: profile",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T11:58:20.139450Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "quote": null,
+          "page": null,
+          "field_path": "basic_info.website",
+          "value": "http://www.onpalms.com",
+          "as_of": "2026-11-22",
+          "attached_to": null,
+          "deleted": false
+        },
+        "deletion": null
+      },
+      {
+        "id": "F9",
+        "number": 9,
+        "evidence": {
+          "evidence_id": "8e768180-1575-4a33-b93f-b56c361e8c02",
+          "source": {
+            "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+            "provider": "crustdata",
+            "label": "Company record: profile",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T11:58:20.139450Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "quote": null,
+          "page": null,
+          "field_path": "basic_info.year_founded",
+          "value": 2001,
+          "as_of": "2026-11-22",
+          "attached_to": null,
+          "deleted": false
+        },
+        "deletion": null
+      },
+      {
+        "id": "F10",
+        "number": 10,
+        "evidence": {
+          "evidence_id": "2c15483f-c43c-44be-b983-f868005f9a38",
+          "source": {
+            "source_id": "d2cea78e-4151-4937-b1d8-305b848ef756",
+            "provider": "crustdata",
+            "label": "Company identify by domain",
+            "url_or_endpoint": "/company/identify",
+            "retrieved_at": "2026-11-22T11:58:00.853718Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "quote": null,
+          "page": null,
+          "field_path": "crustdata_company_id",
+          "value": "2819498",
+          "as_of": "2026-11-22",
+          "attached_to": null,
+          "deleted": false
+        },
+        "deletion": null
+      },
+      {
+        "id": "F11",
+        "number": 11,
+        "evidence": {
+          "evidence_id": "1c762f77-27e5-4a24-b895-34fb21273a71",
+          "source": {
+            "source_id": "395dea1d-7c32-423d-bf57-ac6ded78207f",
+            "provider": "crustdata",
+            "label": "Company record: headcount",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T11:58:20.139450Z",
+            "source_class": "professional_profile_signal",
+            "origin_id": null
+          },
+          "quote": null,
+          "page": null,
+          "field_path": "headcount.growth_percent.yoy",
+          "value": 25.0,
+          "as_of": "2026-11-02",
+          "attached_to": null,
+          "deleted": false
+        },
+        "deletion": null
+      },
+      {
+        "id": "F12",
+        "number": 12,
+        "evidence": {
+          "evidence_id": "9d288511-9f86-45bf-b881-dfecae71c5c0",
+          "source": {
+            "source_id": "395dea1d-7c32-423d-bf57-ac6ded78207f",
+            "provider": "crustdata",
+            "label": "Company record: headcount",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T11:58:20.139450Z",
+            "source_class": "professional_profile_signal",
+            "origin_id": null
+          },
+          "quote": null,
+          "page": null,
+          "field_path": "headcount.timeseries",
+          "value": [
+            {
+              "date": "2022-11-28",
+              "employee_count": 3
+            },
+            {
+              "date": "2022-12-05",
+              "employee_count": 3
+            },
+            {
+              "date": "2022-12-12",
+              "employee_count": 3
+            },
+            {
+              "date": "2022-12-19",
+              "employee_count": 3
+            },
+            {
+              "date": "2022-12-26",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-01-02",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-01-09",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-01-16",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-01-23",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-01-30",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-02-06",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-02-13",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-02-20",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-02-27",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-03-06",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-03-13",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-03-20",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-03-27",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-04-03",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-04-10",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-04-17",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-04-24",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-05-01",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-05-08",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-05-15",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-05-22",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-05-29",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-06-05",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-06-12",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-06-19",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-06-26",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-07-03",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-07-10",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-07-17",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-07-24",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-07-31",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-08-07",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-08-14",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-08-21",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-08-28",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-09-04",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-09-11",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-09-18",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-09-25",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-10-02",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-10-09",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-10-16",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-10-23",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-10-30",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-11-06",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-11-13",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-11-20",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-11-27",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-12-04",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-12-11",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-12-18",
+              "employee_count": 3
+            },
+            {
+              "date": "2023-12-25",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-01-01",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-01-08",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-01-15",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-01-22",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-01-29",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-02-05",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-02-12",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-02-19",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-02-26",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-03-04",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-03-11",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-03-18",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-03-25",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-04-01",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-04-08",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-04-15",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-04-22",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-04-29",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-05-06",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-05-13",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-05-20",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-05-27",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-06-03",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-06-10",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-06-17",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-06-24",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-07-01",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-07-08",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-07-15",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-07-22",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-07-29",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-08-05",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-08-12",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-08-19",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-08-26",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-09-02",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-09-09",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-09-16",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-09-23",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-09-30",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-10-07",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-10-14",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-10-21",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-10-28",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-11-04",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-11-11",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-11-18",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-11-25",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-12-02",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-12-09",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-12-16",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-12-23",
+              "employee_count": 3
+            },
+            {
+              "date": "2024-12-30",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-01-06",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-01-13",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-01-20",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-01-27",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-02-03",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-02-10",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-02-17",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-02-24",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-03-03",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-03-10",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-03-17",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-03-24",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-03-31",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-04-07",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-04-14",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-04-21",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-04-28",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-05-05",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-05-12",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-05-19",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-05-26",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-06-02",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-06-09",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-06-16",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-06-23",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-06-30",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-07-07",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-07-14",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-07-21",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-07-28",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-08-04",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-08-11",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-08-18",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-08-25",
+              "employee_count": 3
+            },
+            {
+              "date": "2025-09-01",
+              "employee_count": 4
+            },
+            {
+              "date": "2025-09-08",
+              "employee_count": 4
+            },
+            {
+              "date": "2025-09-15",
+              "employee_count": 4
+            },
+            {
+              "date": "2025-09-22",
+              "employee_count": 4
+            },
+            {
+              "date": "2025-09-29",
+              "employee_count": 4
+            },
+            {
+              "date": "2025-10-06",
+              "employee_count": 4
+            },
+            {
+              "date": "2025-10-13",
+              "employee_count": 4
+            },
+            {
+              "date": "2025-10-20",
+              "employee_count": 4
+            },
+            {
+              "date": "2025-10-27",
+              "employee_count": 4
+            },
+            {
+              "date": "2025-11-03",
+              "employee_count": 4
+            },
+            {
+              "date": "2025-11-10",
+              "employee_count": 4
+            },
+            {
+              "date": "2025-11-17",
+              "employee_count": 4
+            },
+            {
+              "date": "2025-11-24",
+              "employee_count": 4
+            },
+            {
+              "date": "2025-12-01",
+              "employee_count": 4
+            },
+            {
+              "date": "2025-12-08",
+              "employee_count": 4
+            },
+            {
+              "date": "2025-12-15",
+              "employee_count": 4
+            },
+            {
+              "date": "2025-12-22",
+              "employee_count": 4
+            },
+            {
+              "date": "2025-12-29",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-01-05",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-01-12",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-01-19",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-01-26",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-02-02",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-02-09",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-02-16",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-02-23",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-03-02",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-03-09",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-03-16",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-03-23",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-03-30",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-04-06",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-04-13",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-04-20",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-04-27",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-05-04",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-05-11",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-05-18",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-05-25",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-06-01",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-06-08",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-06-15",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-06-22",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-06-29",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-07-06",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-07-13",
+              "employee_count": 4
+            },
+            {
+              "date": "2026-07-20",
+              "employee_count": 5
+            },
+            {
+              "date": "2026-07-27",
+              "employee_count": 5
+            },
+            {
+              "date": "2026-08-03",
+              "employee_count": 5
+            },
+            {
+              "date": "2026-08-10",
+              "employee_count": 5
+            },
+            {
+              "date": "2026-08-17",
+              "employee_count": 5
+            },
+            {
+              "date": "2026-11-02",
+              "employee_count": 5
+            }
+          ],
+          "as_of": "2026-11-02",
+          "attached_to": null,
+          "deleted": false
+        },
+        "deletion": null
+      },
+      {
+        "id": "F13",
+        "number": 13,
+        "evidence": {
+          "evidence_id": "3fcfa4f5-b0fe-4f20-a476-31823ffe45a7",
+          "source": {
+            "source_id": "395dea1d-7c32-423d-bf57-ac6ded78207f",
+            "provider": "crustdata",
+            "label": "Company record: headcount",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T11:58:20.139450Z",
+            "source_class": "professional_profile_signal",
+            "origin_id": null
+          },
+          "quote": null,
+          "page": null,
+          "field_path": "headcount.total",
+          "value": 5,
+          "as_of": "2026-11-02",
+          "attached_to": null,
+          "deleted": false
+        },
+        "deletion": null
+      },
+      {
+        "id": "F14",
+        "number": 14,
+        "evidence": {
+          "evidence_id": "87519713-aa2e-40ae-a7e1-b1af6942d287",
+          "source": {
+            "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+            "provider": "crustdata",
+            "label": "Company record: profile",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T11:58:20.139450Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "quote": null,
+          "page": null,
+          "field_path": "locations.country",
+          "value": "IND",
+          "as_of": "2026-11-22",
+          "attached_to": null,
+          "deleted": false
+        },
+        "deletion": null
+      },
+      {
+        "id": "F15",
+        "number": 15,
+        "evidence": {
+          "evidence_id": "1d2cbdb1-6633-4545-af71-8dd7024704e6",
+          "source": {
+            "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+            "provider": "crustdata",
+            "label": "Company record: profile",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T11:58:20.139450Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "quote": null,
+          "page": null,
+          "field_path": "locations.headquarters",
+          "value": "HSR Layout, Karnataka, India",
+          "as_of": "2026-11-22",
+          "attached_to": null,
+          "deleted": false
+        },
+        "deletion": null
+      },
+      {
+        "id": "F16",
+        "number": 16,
+        "evidence": {
+          "evidence_id": "556eeb76-267f-47dc-a42e-[redacted:phone]f6",
+          "source": {
+            "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+            "provider": "crustdata",
+            "label": "Company record: profile",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T11:58:20.139450Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "quote": null,
+          "page": null,
+          "field_path": "taxonomy.professional_network_industry",
+          "value": "Warehousing and Storage",
+          "as_of": "2026-11-22",
+          "attached_to": null,
+          "deleted": false
+        },
+        "deletion": null
+      }
+    ],
+    "retention_notice": "Uploaded seller documents were used only for this case, were not used to train AI models and were not shared across customers. They are scheduled for deletion on 2026-12-22."
+  },
+  "risks": [
+    {
+      "kind": "risk",
+      "text": "Claim 4 (\"Head Quartered in Bangalore, India Technoforte has branch office in Dubai, Kolkata and Bangalore.\"): Contradicted. Contradicted. hq_city: Company profile was read and does not state it. country: contradicted by Company profile (1 independent origin). operating_city: no adequate source was found. Would settle it: Registered-office filing or premises lease; Certificate of incorporation.",
+      "claim_ids": [
+        "3826c8c6-0a42-4849-b7c0-4b0adc223a3b"
+      ]
+    },
+    {
+      "kind": "gap",
+      "text": "identity incorporation: Cannot verify. Would settle it: Certificate of incorporation.",
+      "claim_ids": [
+        "a54fa89a-1783-4ce7-b82d-1c0ab8b2e468"
+      ]
+    },
+    {
+      "kind": "gap",
+      "text": "location: Contradicted. Would settle it: Registered-office filing or premises lease.",
+      "claim_ids": [
+        "3826c8c6-0a42-4849-b7c0-4b0adc223a3b"
+      ]
+    },
+    {
+      "kind": "gap",
+      "text": "team size: not claimed and not checked. Would settle it: Dated payroll summary.",
+      "claim_ids": []
+    },
+    {
+      "kind": "gap",
+      "text": "leadership history: not claimed and not checked. Would settle it: Founder CV with dates, or an employer's confirmation.",
+      "claim_ids": []
+    },
+    {
+      "kind": "gap",
+      "text": "financials: not claimed and not checked. Would settle it: Audited financial statements.",
+      "claim_ids": []
+    },
+    {
+      "kind": "gap",
+      "text": "customer partnership: Cannot verify. Would settle it: Customer confirmation or signed contract.",
+      "claim_ids": [
+        "1369ff41-948f-42ee-8062-24b022801f1b",
+        "21131745-27f5-417a-ac29-3f8a79bd414a",
+        "ebbcdb57-a013-4771-bed8-f8f3ee910003"
+      ]
+    },
+    {
+      "kind": "estimate_used",
+      "text": "Headcount estimate (professional profiles): 5. Observed operating signals, not confirmed results. Headcount and hiring come from professional profiles and job listings; they are never treated as revenue.",
+      "claim_ids": []
+    },
+    {
+      "kind": "gap",
+      "text": "Criterion unknown: Warehousing and supply-chain software.",
+      "claim_ids": []
+    },
+    {
+      "kind": "gap",
+      "text": "Criterion unknown: Serves enterprise customers.",
+      "claim_ids": []
+    },
+    {
+      "kind": "gap",
+      "text": "Criterion unknown: Recent expansion.",
+      "claim_ids": []
+    }
+  ],
+  "request_list": {
+    "id": "7072b407-46a3-44f4-afae-d9d9fe039828",
+    "case_id": "8f180081-8dcf-46b9-a594-7a6fe2ef3bae",
+    "assessment_version": 2,
+    "items": [
+      {
+        "id": "9fab27fb-1c88-47b6-bb68-37ce2078940e",
+        "document": "Customer confirmation or signed contract",
+        "reason": "Settles customer partnership (Cannot verify)",
+        "categories": [
+          "customer_partnership"
+        ],
+        "claim_ids": [
+          "00533c0d-3520-4f52-9cfa-b6b5a0b46dd1",
+          "1369ff41-948f-42ee-8062-24b022801f1b",
+          "21131745-27f5-417a-ac29-3f8a79bd414a",
+          "4da1c128-7615-4229-88bb-571a527ab971",
+          "ebbcdb57-a013-4771-bed8-f8f3ee910003"
+        ],
+        "questions": [
+          "\"Trusted by 100+ clients in 20+ Countries\": Cannot verify.",
+          "\"PALMS™ is an OEM partner with QlikView.\": Cannot verify.",
+          "\"PALMS™ has partnered with Microsoft Azure for providing PAAS, SAAS and IAAS services to its\": Cannot verify.",
+          "\"we have successfully onboarded 80+ customers across\": Cannot verify.",
+          "\"As a Microsoft Certified Partner, PALMS™ solutions are fully certified and validated for Microsoft\": Cannot verify."
+        ]
+      },
+      {
+        "id": "3ec1d2d0-42f2-498c-b320-0e74ef0d8bb9",
+        "document": "Registered-office filing or premises lease",
+        "reason": "Settles location (Contradicted)",
+        "categories": [
+          "location"
+        ],
+        "claim_ids": [
+          "3826c8c6-0a42-4849-b7c0-4b0adc223a3b"
+        ],
+        "questions": [
+          "\"Head Quartered in Bangalore, India Technoforte has branch office in Dubai, Kolkata and Bangalore.\": Contradicted."
+        ]
+      },
+      {
+        "id": "86972872-d4ea-4b49-be6c-1f2552aa5a97",
+        "document": "Certificate of incorporation",
+        "reason": "Settles location (Contradicted); settles other (Cannot verify)",
+        "categories": [
+          "location",
+          "other"
+        ],
+        "claim_ids": [
+          "3826c8c6-0a42-4849-b7c0-4b0adc223a3b",
+          "a54fa89a-1783-4ce7-b82d-1c0ab8b2e468"
+        ],
+        "questions": [
+          "\"Head Quartered in Bangalore, India Technoforte has branch office in Dubai, Kolkata and Bangalore.\": Contradicted.",
+          "\"PALMS™ is a registered trademark and Intellectual Property of Technoforte Software Private Limited.\": Cannot verify."
+        ]
+      },
+      {
+        "id": "67a8310d-9c5a-464d-8094-fb55140c4e89",
+        "document": "A dated document that states it directly",
+        "reason": "Settles other (Cannot verify)",
+        "categories": [
+          "other"
+        ],
+        "claim_ids": [
+          "7b240f0b-f3c0-4282-89f2-aa0cccc7d7e5",
+          "8571e343-38d0-44e2-a89b-270a43f7e95a"
+        ],
+        "questions": [
+          "\"99% positive feedback\": Cannot verify.",
+          "\"Technoforte is an ISO 9001:2015 and ISO/IEC 27001:2022 certified company engaged in providing high\": Cannot verify."
+        ]
+      },
+      {
+        "id": "03544418-134a-49bc-ab49-f6345d6c7972",
+        "document": "Audited financial statements",
+        "reason": "Gives the financial assessment reliable inputs",
+        "categories": [
+          "financials"
+        ],
+        "claim_ids": [],
+        "questions": [
+          "No reliable financial inputs: the financial assessment cannot be made."
+        ]
+      }
+    ],
+    "analyst_retries": [],
+    "draft": {
+      "subject": "Documents requested for first-pass review",
+      "body": "Dear team,\n\nThank you for your time so far. The documents below would help us complete a first-pass review of the Palms Warehouse Management System.\n\n1. Customer confirmation or signed contract. This would help confirm the customer claims on your materials, including the number of clients and countries served, the OEM partnership with QlikView, the Microsoft Azure partnership, and the Microsoft certification and validation claims.\n\n2. Registered-office filing or premises lease. This would confirm where the company is headquartered and whether it has the branch offices listed in the materials.\n\n3. Certificate of incorporation. This would confirm the company's location and that PALMS™ is a registered trademark and intellectual property of Technoforte Software Private Limited.\n\n4. A dated document that states it directly. This would confirm the 99% positive feedback figure and the ISO 9001:2015 and ISO/IEC 27001:2022 certifications.\n\n5. Audited financial statements. This would give us the financial information we need to complete the financial assessment.\n\nIf any of these are not available, please let us know.\n\nBest regards,"
+    },
+    "message_id": "7072b407-46a3-44f4-afae-d9d9fe039828",
+    "email_send_enabled": false,
+    "created_at": "2026-11-22T12:09:35.703380Z"
+  },
+  "message": {
+    "id": "7072b407-46a3-44f4-afae-d9d9fe039828",
+    "case_id": "8f180081-8dcf-46b9-a594-7a6fe2ef3bae",
+    "status": "draft",
+    "current_revision": {
+      "id": "5ded6563-e215-4381-bb69-16e049bc618e",
+      "number": 1,
+      "subject": "Documents requested for first-pass review",
+      "body": "Dear team,\n\nThank you for your time so far. The documents below would help us complete a first-pass review of the Palms Warehouse Management System.\n\n1. Customer confirmation or signed contract. This would help confirm the customer claims on your materials, including the number of clients and countries served, the OEM partnership with QlikView, the Microsoft Azure partnership, and the Microsoft certification and validation claims.\n\n2. Registered-office filing or premises lease. This would confirm where the company is headquartered and whether it has the branch offices listed in the materials.\n\n3. Certificate of incorporation. This would confirm the company's location and that PALMS™ is a registered trademark and intellectual property of Technoforte Software Private Limited.\n\n4. A dated document that states it directly. This would confirm the 99% positive feedback figure and the ISO 9001:2015 and ISO/IEC 27001:2022 certifications.\n\n5. Audited financial statements. This would give us the financial information we need to complete the financial assessment.\n\nIf any of these are not available, please let us know.\n\nBest regards,",
+      "recipient": "",
+      "entered_by_user_id": "",
+      "created_at": "2026-11-22T12:09:35.703380Z"
+    },
+    "approval": null,
+    "send": null,
+    "revisions": [
+      {
+        "id": "5ded6563-e215-4381-bb69-16e049bc618e",
+        "number": 1,
+        "subject": "Documents requested for first-pass review",
+        "body": "Dear team,\n\nThank you for your time so far. The documents below would help us complete a first-pass review of the Palms Warehouse Management System.\n\n1. Customer confirmation or signed contract. This would help confirm the customer claims on your materials, including the number of clients and countries served, the OEM partnership with QlikView, the Microsoft Azure partnership, and the Microsoft certification and validation claims.\n\n2. Registered-office filing or premises lease. This would confirm where the company is headquartered and whether it has the branch offices listed in the materials.\n\n3. Certificate of incorporation. This would confirm the company's location and that PALMS™ is a registered trademark and intellectual property of Technoforte Software Private Limited.\n\n4. A dated document that states it directly. This would confirm the 99% positive feedback figure and the ISO 9001:2015 and ISO/IEC 27001:2022 certifications.\n\n5. Audited financial statements. This would give us the financial information we need to complete the financial assessment.\n\nIf any of these are not available, please let us know.\n\nBest regards,",
+        "recipient": "",
+        "entered_by_user_id": "",
+        "created_at": "2026-11-22T12:09:35.703380Z"
+      }
+    ]
+  },
+  "documents": [
+    {
+      "id": "23682b97-3801-4ab5-8d44-708bb266dd1f",
+      "case_id": "8f180081-8dcf-46b9-a594-7a6fe2ef3bae",
+      "kind": "other",
+      "filename": "palms-technoforte-public-website-2026-11-22.pdf",
+      "mime": "application/pdf",
+      "size_bytes": 20825,
+      "pages": 7,
+      "uploaded_at": "2026-11-22T11:58:02.906076Z",
+      "uploaded_by_name": "Asha Rao",
+      "delete_after": "2026-12-22T11:58:02.636082Z",
+      "purged": false,
+      "redaction_counts": {},
+      "answers_request_item_ids": [],
+      "claims_extracted": 9,
+      "run": null
+    }
+  ],
+  "deletions": [],
+  "sources": [
+    {
+      "source_id": "d2cea78e-4151-4937-b1d8-305b848ef756",
+      "provider": "crustdata",
+      "label": "Company identify by domain",
+      "url_or_endpoint": "/company/identify",
+      "request": {
+        "domains": [
+          "onpalms.com"
+        ]
+      },
+      "retrieved_at": "2026-11-22T11:58:00.853718Z",
+      "source_class": "data_provider",
+      "origin_id": null,
+      "title": "Company identify by domain",
+      "publisher": null,
+      "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+      "attached": true,
+      "unattached_reason": null,
+      "request_hash": "8fac559935eddd9583a1d2fd66d86665ad0a86fb7211932b1d60d01c8d616024",
+      "excerpt": null,
+      "delete_after": null,
+      "deleted_at": null,
+      "deletion_reason": null
+    },
+    {
+      "source_id": "3697582c-6e8d-489f-abc2-4582b66847d9",
+      "provider": "crustdata",
+      "label": "Company identify by name",
+      "url_or_endpoint": "/company/identify",
+      "request": {
+        "names": [
+          "Palms Warehouse Management System"
+        ]
+      },
+      "retrieved_at": "2026-11-22T11:58:00.853718Z",
+      "source_class": "data_provider",
+      "origin_id": null,
+      "title": "Company identify by name",
+      "publisher": null,
+      "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+      "attached": true,
+      "unattached_reason": null,
+      "request_hash": "3a920850d77f1a33f8c1d726c9bda29d7982cd5d77a136cb99f92da3670564c4",
+      "excerpt": null,
+      "delete_after": null,
+      "deleted_at": null,
+      "deletion_reason": null
+    },
+    {
+      "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+      "provider": "crustdata",
+      "label": "Company record",
+      "url_or_endpoint": "/company/enrich",
+      "request": {
+        "part": "profile",
+        "crustdata_company_ids": [
+          2819498
+        ]
+      },
+      "retrieved_at": "2026-11-22T11:58:20.139450Z",
+      "source_class": "data_provider",
+      "origin_id": null,
+      "title": "Company record: profile",
+      "publisher": "Crustdata",
+      "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+      "attached": true,
+      "unattached_reason": null,
+      "request_hash": "a98089afb98a63369835cd49e18a17a458b509a754d24681116c70afb7239106",
+      "excerpt": null,
+      "delete_after": null,
+      "deleted_at": null,
+      "deletion_reason": null
+    },
+    {
+      "source_id": "395dea1d-7c32-423d-bf57-ac6ded78207f",
+      "provider": "crustdata",
+      "label": "Profile estimate",
+      "url_or_endpoint": "/company/enrich",
+      "request": {
+        "part": "headcount",
+        "crustdata_company_ids": [
+          2819498
+        ]
+      },
+      "retrieved_at": "2026-11-22T11:58:20.139450Z",
+      "source_class": "professional_profile_signal",
+      "origin_id": null,
+      "title": "Company record: headcount",
+      "publisher": "Crustdata",
+      "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+      "attached": true,
+      "unattached_reason": null,
+      "request_hash": "9a0c44beb144d68032d5d6c5163285eefef202ed1840211d1b7d5905e3b7c98a",
+      "excerpt": null,
+      "delete_after": null,
+      "deleted_at": null,
+      "deletion_reason": null
+    },
+    {
+      "source_id": "bf76a13f-49e1-4802-8ae4-891bd06d64ba",
+      "provider": "crustdata",
+      "label": "Company search",
+      "url_or_endpoint": "/company/search",
+      "request": {
+        "part": "comparables",
+        "limit": 10,
+        "filters": {
+          "op": "and",
+          "conditions": [
+            {
+              "type": "in",
+              "field": "basic_info.industries",
+              "value": [
+                "Warehousing and Storage"
+              ]
+            },
+            {
+              "type": "=",
+              "field": "locations.country",
+              "value": "IND"
+            },
+            {
+              "type": "=>",
+              "field": "headcount.total",
+              "value": 3
+            },
+            {
+              "type": "=<",
+              "field": "headcount.total",
+              "value": 10
+            }
+          ]
+        }
+      },
+      "retrieved_at": "2026-11-22T11:59:05.745072Z",
+      "source_class": "data_provider",
+      "origin_id": null,
+      "title": "Comparable companies",
+      "publisher": "Crustdata",
+      "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+      "attached": true,
+      "unattached_reason": null,
+      "request_hash": "76db86d51efcb0b466025cfe8090bc17e78dcb6e8da05133ed2acc99904fb978",
+      "excerpt": null,
+      "delete_after": null,
+      "deleted_at": null,
+      "deletion_reason": null
+    },
+    {
+      "source_id": "9f409a6a-5268-41b5-b589-bee44c2faede",
+      "provider": "crustdata",
+      "label": "Company profile",
+      "url_or_endpoint": "/company/enrich",
+      "request": {
+        "fields": [
+          "basic_info",
+          "headcount",
+          "funding",
+          "locations",
+          "hiring",
+          "taxonomy",
+          "people",
+          "news",
+          "metadata",
+          "updated_at"
+        ],
+        "matched_on": [
+          "crustdata_company_id"
+        ],
+        "written_by": "verify.checks",
+        "crustdata_company_ids": [
+          2819498
+        ]
+      },
+      "retrieved_at": "2026-11-22T12:08:39.088090Z",
+      "source_class": "data_provider",
+      "origin_id": null,
+      "title": "Company profile",
+      "publisher": null,
+      "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+      "attached": true,
+      "unattached_reason": null,
+      "request_hash": "0dce0da6d2a6d4cfb2d6fb201cdf736bc0064aff50582797e0cf04c7da828576",
+      "excerpt": null,
+      "delete_after": null,
+      "deleted_at": null,
+      "deletion_reason": null
+    }
+  ],
+  "cost": {
+    "crustdata_credits": 8.7,
+    "llm_usd": 0.009279,
+    "unknown_cost_calls": 3,
+    "credit_budget": 600.0,
+    "checks_not_run": 0,
+    "by_step": [
+      {
+        "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+        "run_kind": "verify",
+        "step_key": "verify.identity",
+        "step_label": "Confirm which company this is",
+        "cost": {
+          "crustdata_credits": 0.4,
+          "llm_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "unknown_cost_calls": 0
+        },
+        "cached": false,
+        "at": "2026-11-22T11:58:15.464684Z"
+      },
+      {
+        "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+        "run_kind": "verify",
+        "step_key": "verify.profile",
+        "step_label": "Build the company profile",
+        "cost": {
+          "crustdata_credits": 2.0,
+          "llm_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "unknown_cost_calls": 0
+        },
+        "cached": false,
+        "at": "2026-11-22T11:58:26.288205Z"
+      },
+      {
+        "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+        "run_kind": "verify",
+        "step_key": "verify.registry",
+        "step_label": "Look for registry records",
+        "cost": {
+          "crustdata_credits": 1.0,
+          "llm_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "unknown_cost_calls": 0
+        },
+        "cached": false,
+        "at": "2026-11-22T11:58:40.710614Z"
+      },
+      {
+        "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+        "run_kind": "verify",
+        "step_key": "verify.events",
+        "step_label": "Gather dated events",
+        "cost": {
+          "crustdata_credits": 0.0,
+          "llm_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "unknown_cost_calls": 0
+        },
+        "cached": false,
+        "at": "2026-11-22T11:59:02.963150Z"
+      },
+      {
+        "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+        "run_kind": "verify",
+        "step_key": "verify.comparables",
+        "step_label": "Find comparable companies",
+        "cost": {
+          "crustdata_credits": 5.3,
+          "llm_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "unknown_cost_calls": 0
+        },
+        "cached": false,
+        "at": "2026-11-22T11:59:11.970160Z"
+      },
+      {
+        "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+        "run_kind": "verify",
+        "step_key": "evaluate",
+        "step_label": "Update the assessment",
+        "cost": {
+          "crustdata_credits": 0.0,
+          "llm_usd": 0.001371,
+          "input_tokens": 6552,
+          "output_tokens": 1433,
+          "unknown_cost_calls": 0
+        },
+        "cached": false,
+        "at": "2026-11-22T11:59:59.279194Z"
+      },
+      {
+        "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+        "run_kind": "verify",
+        "step_key": "request_list",
+        "step_label": "Draft the document request",
+        "cost": {
+          "crustdata_credits": 0.0,
+          "llm_usd": 0.000128,
+          "input_tokens": 555,
+          "output_tokens": 145,
+          "unknown_cost_calls": 0
+        },
+        "cached": false,
+        "at": "2026-11-22T12:00:07.011156Z"
+      },
+      {
+        "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+        "run_kind": "verify",
+        "step_key": "claims.extract:23682b97-3801-4ab5-8d44-708bb266dd1f",
+        "step_label": "Read claims from the uploaded document",
+        "cost": {
+          "crustdata_credits": 0.0,
+          "llm_usd": 0.005125,
+          "input_tokens": 18716,
+          "output_tokens": 6507,
+          "unknown_cost_calls": 3
+        },
+        "cached": false,
+        "at": "2026-11-22T12:08:02.438844Z"
+      },
+      {
+        "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+        "run_kind": "verify",
+        "step_key": "evaluate@2",
+        "step_label": "Update the assessment",
+        "cost": {
+          "crustdata_credits": 0.0,
+          "llm_usd": 0.002175,
+          "input_tokens": 12719,
+          "output_tokens": 1807,
+          "unknown_cost_calls": 0
+        },
+        "cached": false,
+        "at": "2026-11-22T12:09:27.328874Z"
+      },
+      {
+        "run_id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+        "run_kind": "verify",
+        "step_key": "request_list@2",
+        "step_label": "Draft the document request",
+        "cost": {
+          "crustdata_credits": 0.0,
+          "llm_usd": 0.00048,
+          "input_tokens": 1258,
+          "output_tokens": 709,
+          "unknown_cost_calls": 0
+        },
+        "cached": false,
+        "at": "2026-11-22T12:09:44.016369Z"
+      }
+    ],
+    "shared_discovery": {
+      "run_id": "55194efa-4b4f-4065-9613-9427a19451c8",
+      "thesis_id": "192ba5ab-5134-483e-8e16-823efa73fb4a",
+      "cost": {
+        "crustdata_credits": 50.12,
+        "llm_usd": 0.008488,
+        "input_tokens": 20755,
+        "output_tokens": 12818,
+        "unknown_cost_calls": 0
+      }
+    }
+  },
+  "runs": [
+    {
+      "id": "0dbf06fb-3a01-41bd-885c-6ef1ce3f876a",
+      "kind": "verify",
+      "state": "done",
+      "created_at": "2026-11-22T11:57:59.003088Z",
+      "finished_at": "2026-11-22T12:09:35.703380Z",
+      "cost": {
+        "crustdata_credits": 8.7,
+        "llm_usd": 0.009279,
+        "input_tokens": 39800,
+        "output_tokens": 10601,
+        "unknown_cost_calls": 3
+      }
+    }
+  ]
+}

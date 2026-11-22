@@ -1,0 +1,36 @@
+{
+  "exported_at": "2026-11-22T12:13:45.154372+00:00",
+  "source": "GET /public/showcase/* on the live API (records flagged is_showcase)",
+  "run_started_at": "2026-11-22T11:46:43.765525Z",
+  "run_finished_at": "2026-11-22T12:10:50.279910Z",
+  "thesis_id": "192ba5ab-5134-483e-8e16-823efa73fb4a",
+  "case_id": "8f180081-8dcf-46b9-a594-7a6fe2ef3bae",
+  "investor_search_id": "aca9198e-d8dc-4529-a460-06dc6cfb19ec",
+  "company_name": "Palms Warehouse Management System",
+  "company_domain": "onpalms.com",
+  "claims_origin": "public_website",
+  "credits_total": 118.02,
+  "llm_usd_total": 0.018227,
+  "credits_by_part": {
+    "discovery": 50.12,
+    "case": 8.7,
+    "investors": 59.2
+  },
+  "credit_budget": 600.0,
+  "returned_count": 25,
+  "excluded_count": 0,
+  "claims_count": 9,
+  "assessment_versions": [
+    1,
+    2
+  ],
+  "policy_version": "2026-11-22.3",
+  "provenance": "Real runs of DealProof's pipelines on public information only: the company's own public website, Crustdata records and public web pages. Nothing was sent to the company.",
+  "claims_source": "The company's website says (retrieved 2026-11-22): onpalms.com (home, about-us, clients, contact offices, technology-partners) and technoforte.co.in, fetched through Crustdata /web/enrich/live and uploaded as one text PDF, one source URL per page.",
+  "kept_and_dropped": "Kept the company's own words verbatim. Dropped site navigation, cookie banners, product feature lists, the FAQ, descriptions of third-party clients, and contact lines (emails, phones, a named contact person).",
+  "outside_pipeline_credits": 21,
+  "outside_pipeline_credits_detail": "17 credits of Crustdata page fetches and 4 web searches, used to find and read public pages before the run.",
+  "earlier_discovery_run": "A first discovery run on the same thesis (15 enriched, 36.53 credits) was replaced by the run shown here (25 enriched).",
+  "known_issue": "Claim 'Head Quartered in Bangalore, India' was marked contradicted because the record stores country as the ISO code IND. Fixed in code on 2026-11-22; the case needs a re-verify on the fixed API to clear it.",
+  "nothing_sent": "The request list and email were drafted only. Nothing was approved or sent and the company was not contacted."
+}

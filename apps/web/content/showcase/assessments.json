@@ -1,0 +1,587 @@
+[
+  {
+    "id": "43dd7900-fc85-499e-bcd4-46b248ef6e6f",
+    "version": 1,
+    "created_at": "2026-11-22T11:59:45.844042Z",
+    "policy_version": "2026-11-22.2",
+    "inputs_hash": "cb0b49b9318dd6c16aca51bcab666fd4f013ab31becd987afc79807bafbd3d70",
+    "trigger": "initial verify",
+    "company_type": "established",
+    "judgments": {
+      "opportunity_fit": {
+        "state": "scored",
+        "fit": 50,
+        "assessable_pct": 40,
+        "note": "Fit 50 out of 100, with 40% of the criteria assessable",
+        "criterion_results": [
+          {
+            "criterion_id": "9bf26a3d-0b54-42fa-a3dd-6976fa173c7a",
+            "label": "Privately held",
+            "kind": "must",
+            "weight": 2,
+            "state": "pass",
+            "reason": "basic_info.company_type = 'Privately Held' (sourced)",
+            "evidence": [
+              {
+                "evidence_id": "4c93d955-317a-4e11-81c0-e9095407b266",
+                "source": {
+                  "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+                  "provider": "crustdata",
+                  "label": "Company record: profile",
+                  "url_or_endpoint": "/company/enrich",
+                  "retrieved_at": "2026-11-22T11:58:20.139450Z",
+                  "source_class": "data_provider",
+                  "origin_id": null
+                },
+                "quote": null,
+                "page": null,
+                "field_path": "basic_info.company_type",
+                "value": "Privately Held",
+                "as_of": "2026-11-22",
+                "attached_to": null,
+                "deleted": false
+              }
+            ]
+          },
+          {
+            "criterion_id": "83680a0c-5244-40e6-80c7-fa6f45e5a704",
+            "label": "Indian company",
+            "kind": "must",
+            "weight": 2,
+            "state": "fail",
+            "reason": "locations.country = 'IND' (sourced)",
+            "evidence": [
+              {
+                "evidence_id": "87519713-aa2e-40ae-a7e1-b1af6942d287",
+                "source": {
+                  "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+                  "provider": "crustdata",
+                  "label": "Company record: profile",
+                  "url_or_endpoint": "/company/enrich",
+                  "retrieved_at": "2026-11-22T11:58:20.139450Z",
+                  "source_class": "data_provider",
+                  "origin_id": null
+                },
+                "quote": null,
+                "page": null,
+                "field_path": "locations.country",
+                "value": "IND",
+                "as_of": "2026-11-22",
+                "attached_to": null,
+                "deleted": false
+              }
+            ]
+          },
+          {
+            "criterion_id": "819e632b-3f3e-475a-8ca1-9f12224fc5ce",
+            "label": "Warehousing and supply-chain software",
+            "kind": "must",
+            "weight": 2,
+            "state": "unknown",
+            "reason": "No record states basic_info.industries",
+            "evidence": []
+          },
+          {
+            "criterion_id": "79fd6d3a-3f30-4e18-9b36-e2fa6c24df55",
+            "label": "Serves enterprise customers",
+            "kind": "must",
+            "weight": 2,
+            "state": "unknown",
+            "reason": "No record states unassessable",
+            "evidence": []
+          },
+          {
+            "criterion_id": "56501931-bed8-4370-a24e-a678c0405e0f",
+            "label": "Recent expansion",
+            "kind": "preference",
+            "weight": 1,
+            "state": "unknown",
+            "reason": "No record states headcount.growth_percent.12m",
+            "evidence": []
+          }
+        ]
+      },
+      "evidence_sufficiency": {
+        "pct": 0,
+        "required_categories": [
+          "identity_incorporation",
+          "location",
+          "team_size",
+          "leadership_history",
+          "financials",
+          "customer_partnership"
+        ],
+        "settled": [],
+        "gaps": [
+          {
+            "category": "identity_incorporation",
+            "status": null,
+            "claim_ids": [],
+            "settle_with": "Certificate of incorporation",
+            "note": "identity incorporation: not claimed and not checked"
+          },
+          {
+            "category": "location",
+            "status": null,
+            "claim_ids": [],
+            "settle_with": "Registered-office filing or premises lease",
+            "note": "location: not claimed and not checked"
+          },
+          {
+            "category": "team_size",
+            "status": null,
+            "claim_ids": [],
+            "settle_with": "Dated payroll summary",
+            "note": "team size: not claimed and not checked"
+          },
+          {
+            "category": "leadership_history",
+            "status": null,
+            "claim_ids": [],
+            "settle_with": "Founder CV with dates, or an employer's confirmation",
+            "note": "leadership history: not claimed and not checked"
+          },
+          {
+            "category": "financials",
+            "status": null,
+            "claim_ids": [],
+            "settle_with": "Audited financial statements",
+            "note": "financials: not claimed and not checked"
+          },
+          {
+            "category": "customer_partnership",
+            "status": null,
+            "claim_ids": [],
+            "settle_with": "Customer confirmation or signed contract",
+            "note": "customer partnership: not claimed and not checked"
+          }
+        ]
+      },
+      "business_assessment": {
+        "assessed": true,
+        "reason": null,
+        "signals": [
+          {
+            "label": "Headcount estimate (professional profiles)",
+            "fact": {
+              "value": "5",
+              "source": {
+                "source_id": "395dea1d-7c32-423d-bf57-ac6ded78207f",
+                "provider": "crustdata",
+                "label": "Company record: headcount",
+                "url_or_endpoint": "/company/enrich",
+                "retrieved_at": "2026-11-22T11:58:20.139450Z",
+                "source_class": "professional_profile_signal",
+                "origin_id": null
+              },
+              "evidence_id": "3fcfa4f5-b0fe-4f20-a476-31823ffe45a7",
+              "as_of": "2026-11-02",
+              "is_estimate": true,
+              "estimate_kind": "signal",
+              "estimate_basis": "Observed operating signals, not confirmed results. Headcount and hiring come from professional profiles and job listings; they are never treated as revenue."
+            }
+          },
+          {
+            "label": "Locations on record",
+            "fact": {
+              "value": "HSR Layout, Karnataka, India, IND",
+              "source": {
+                "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+                "provider": "crustdata",
+                "label": "Company record: profile",
+                "url_or_endpoint": "/company/enrich",
+                "retrieved_at": "2026-11-22T11:58:20.139450Z",
+                "source_class": "data_provider",
+                "origin_id": null
+              },
+              "evidence_id": "1d2cbdb1-6633-4545-af71-8dd7024704e6",
+              "as_of": "2026-11-22",
+              "is_estimate": true,
+              "estimate_kind": "signal",
+              "estimate_basis": "Observed operating signals, not confirmed results. Headcount and hiring come from professional profiles and job listings; they are never treated as revenue."
+            }
+          }
+        ]
+      },
+      "financial_assessment": {
+        "assessed": false,
+        "reason": "Not assessed: no reliable financial inputs (audited statements or registry filings)",
+        "would_need": [
+          "Audited financial statements"
+        ],
+        "period": null,
+        "figures": [],
+        "conclusion": null
+      },
+      "screening_disposition": {
+        "disposition": "deprioritise",
+        "reasons": [
+          {
+            "text": "Must-have failed: Indian company (locations.country = 'IND' (sourced))",
+            "claim_ids": [],
+            "evidence_ids": []
+          }
+        ]
+      }
+    },
+    "diff_from_previous": null,
+    "trigger_document_ids": [],
+    "document_ids": [],
+    "evidence_ids": [
+      "1d2cbdb1-6633-4545-af71-8dd7024704e6",
+      "3fcfa4f5-b0fe-4f20-a476-31823ffe45a7",
+      "4c93d955-317a-4e11-81c0-e9095407b266",
+      "87519713-aa2e-40ae-a7e1-b1af6942d287"
+    ],
+    "confidential_removed_on": null
+  },
+  {
+    "id": "21df27c7-5c87-4557-ac1e-8cba3af16260",
+    "version": 2,
+    "created_at": "2026-11-22T12:09:07.210063Z",
+    "policy_version": "2026-11-22.3",
+    "inputs_hash": "40d62c73a58c159657ea71d5d832b09e8d74190951fd003f924a7663e4632093",
+    "trigger": "initial verify",
+    "company_type": "established",
+    "judgments": {
+      "opportunity_fit": {
+        "state": "scored",
+        "fit": 50,
+        "assessable_pct": 40,
+        "note": "Fit 50 out of 100, with 40% of the criteria assessable",
+        "criterion_results": [
+          {
+            "criterion_id": "9bf26a3d-0b54-42fa-a3dd-6976fa173c7a",
+            "label": "Privately held",
+            "kind": "must",
+            "weight": 2,
+            "state": "pass",
+            "reason": "basic_info.company_type = 'Privately Held' (sourced)",
+            "evidence": [
+              {
+                "evidence_id": "4c93d955-317a-4e11-81c0-e9095407b266",
+                "source": {
+                  "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+                  "provider": "crustdata",
+                  "label": "Company record: profile",
+                  "url_or_endpoint": "/company/enrich",
+                  "retrieved_at": "2026-11-22T11:58:20.139450Z",
+                  "source_class": "data_provider",
+                  "origin_id": null
+                },
+                "quote": null,
+                "page": null,
+                "field_path": "basic_info.company_type",
+                "value": "Privately Held",
+                "as_of": "2026-11-22",
+                "attached_to": null,
+                "deleted": false
+              }
+            ]
+          },
+          {
+            "criterion_id": "83680a0c-5244-40e6-80c7-fa6f45e5a704",
+            "label": "Indian company",
+            "kind": "must",
+            "weight": 2,
+            "state": "fail",
+            "reason": "locations.country = 'IND' (sourced)",
+            "evidence": [
+              {
+                "evidence_id": "87519713-aa2e-40ae-a7e1-b1af6942d287",
+                "source": {
+                  "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+                  "provider": "crustdata",
+                  "label": "Company record: profile",
+                  "url_or_endpoint": "/company/enrich",
+                  "retrieved_at": "2026-11-22T11:58:20.139450Z",
+                  "source_class": "data_provider",
+                  "origin_id": null
+                },
+                "quote": null,
+                "page": null,
+                "field_path": "locations.country",
+                "value": "IND",
+                "as_of": "2026-11-22",
+                "attached_to": null,
+                "deleted": false
+              }
+            ]
+          },
+          {
+            "criterion_id": "819e632b-3f3e-475a-8ca1-9f12224fc5ce",
+            "label": "Warehousing and supply-chain software",
+            "kind": "must",
+            "weight": 2,
+            "state": "unknown",
+            "reason": "No record states basic_info.industries",
+            "evidence": []
+          },
+          {
+            "criterion_id": "79fd6d3a-3f30-4e18-9b36-e2fa6c24df55",
+            "label": "Serves enterprise customers",
+            "kind": "must",
+            "weight": 2,
+            "state": "unknown",
+            "reason": "No record states unassessable",
+            "evidence": []
+          },
+          {
+            "criterion_id": "56501931-bed8-4370-a24e-a678c0405e0f",
+            "label": "Recent expansion",
+            "kind": "preference",
+            "weight": 1,
+            "state": "unknown",
+            "reason": "No record states headcount.growth_percent.12m",
+            "evidence": []
+          }
+        ]
+      },
+      "evidence_sufficiency": {
+        "pct": 0,
+        "required_categories": [
+          "identity_incorporation",
+          "location",
+          "team_size",
+          "leadership_history",
+          "financials",
+          "customer_partnership"
+        ],
+        "settled": [],
+        "gaps": [
+          {
+            "category": "identity_incorporation",
+            "status": "cannot_verify",
+            "claim_ids": [
+              "a54fa89a-1783-4ce7-b82d-1c0ab8b2e468"
+            ],
+            "settle_with": "Certificate of incorporation",
+            "note": "identity incorporation: Cannot verify"
+          },
+          {
+            "category": "location",
+            "status": "contradicted",
+            "claim_ids": [
+              "3826c8c6-0a42-4849-b7c0-4b0adc223a3b"
+            ],
+            "settle_with": "Registered-office filing or premises lease",
+            "note": "location: Contradicted"
+          },
+          {
+            "category": "team_size",
+            "status": null,
+            "claim_ids": [],
+            "settle_with": "Dated payroll summary",
+            "note": "team size: not claimed and not checked"
+          },
+          {
+            "category": "leadership_history",
+            "status": null,
+            "claim_ids": [],
+            "settle_with": "Founder CV with dates, or an employer's confirmation",
+            "note": "leadership history: not claimed and not checked"
+          },
+          {
+            "category": "financials",
+            "status": null,
+            "claim_ids": [],
+            "settle_with": "Audited financial statements",
+            "note": "financials: not claimed and not checked"
+          },
+          {
+            "category": "customer_partnership",
+            "status": "cannot_verify",
+            "claim_ids": [
+              "1369ff41-948f-42ee-8062-24b022801f1b",
+              "21131745-27f5-417a-ac29-3f8a79bd414a",
+              "ebbcdb57-a013-4771-bed8-f8f3ee910003"
+            ],
+            "settle_with": "Customer confirmation or signed contract",
+            "note": "customer partnership: Cannot verify"
+          }
+        ]
+      },
+      "business_assessment": {
+        "assessed": true,
+        "reason": null,
+        "signals": [
+          {
+            "label": "Headcount estimate (professional profiles)",
+            "fact": {
+              "value": "5",
+              "source": {
+                "source_id": "395dea1d-7c32-423d-bf57-ac6ded78207f",
+                "provider": "crustdata",
+                "label": "Company record: headcount",
+                "url_or_endpoint": "/company/enrich",
+                "retrieved_at": "2026-11-22T11:58:20.139450Z",
+                "source_class": "professional_profile_signal",
+                "origin_id": null
+              },
+              "evidence_id": "3fcfa4f5-b0fe-4f20-a476-31823ffe45a7",
+              "as_of": "2026-11-02",
+              "is_estimate": true,
+              "estimate_kind": "signal",
+              "estimate_basis": "Observed operating signals, not confirmed results. Headcount and hiring come from professional profiles and job listings; they are never treated as revenue."
+            }
+          },
+          {
+            "label": "Locations on record",
+            "fact": {
+              "value": "HSR Layout, Karnataka, India, IND",
+              "source": {
+                "source_id": "a44e4f45-4236-4c2b-86d8-4fc1812e8572",
+                "provider": "crustdata",
+                "label": "Company record: profile",
+                "url_or_endpoint": "/company/enrich",
+                "retrieved_at": "2026-11-22T11:58:20.139450Z",
+                "source_class": "data_provider",
+                "origin_id": null
+              },
+              "evidence_id": "1d2cbdb1-6633-4545-af71-8dd7024704e6",
+              "as_of": "2026-11-22",
+              "is_estimate": true,
+              "estimate_kind": "signal",
+              "estimate_basis": "Observed operating signals, not confirmed results. Headcount and hiring come from professional profiles and job listings; they are never treated as revenue."
+            }
+          }
+        ]
+      },
+      "financial_assessment": {
+        "assessed": false,
+        "reason": "Not assessed: no reliable financial inputs (audited statements or registry filings)",
+        "would_need": [
+          "Audited financial statements"
+        ],
+        "period": null,
+        "figures": [],
+        "conclusion": null
+      },
+      "screening_disposition": {
+        "disposition": "deprioritise",
+        "reasons": [
+          {
+            "text": "Must-have failed: Indian company (locations.country = 'IND' (sourced))",
+            "claim_ids": [],
+            "evidence_ids": []
+          }
+        ]
+      }
+    },
+    "diff_from_previous": [
+      {
+        "kind": "claim",
+        "subject": "Trusted by 100+ clients in 20+ Countries",
+        "subject_id": "00533c0d-3520-4f52-9cfa-b6b5a0b46dd1",
+        "before": null,
+        "after": "cannot_verify",
+        "because": "absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+        "evidence": []
+      },
+      {
+        "kind": "claim",
+        "subject": "PALMS™ is an OEM partner with QlikView.",
+        "subject_id": "1369ff41-948f-42ee-8062-24b022801f1b",
+        "before": null,
+        "after": "cannot_verify",
+        "because": "absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+        "evidence": []
+      },
+      {
+        "kind": "claim",
+        "subject": "PALMS™ has partnered with Microsoft Azure for providing PAAS, SAAS and IAAS services to its",
+        "subject_id": "21131745-27f5-417a-ac29-3f8a79bd414a",
+        "before": null,
+        "after": "cannot_verify",
+        "because": "absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+        "evidence": []
+      },
+      {
+        "kind": "claim",
+        "subject": "Head Quartered in Bangalore, India Technoforte has branch office in Dubai, Kolkata and Bangalore.",
+        "subject_id": "3826c8c6-0a42-4849-b7c0-4b0adc223a3b",
+        "before": null,
+        "after": "contradicted",
+        "because": "absent → Contradicted because of new evidence: Company profile (data_provider)",
+        "evidence": [
+          {
+            "evidence_id": "121cc736-6f6a-4524-86c3-bda00f0c2e14",
+            "source": {
+              "source_id": "9f409a6a-5268-41b5-b589-bee44c2faede",
+              "provider": "crustdata",
+              "label": "Company profile",
+              "url_or_endpoint": "/company/enrich",
+              "retrieved_at": "2026-11-22T12:08:39.088090Z",
+              "source_class": "data_provider",
+              "origin_id": null
+            },
+            "quote": null,
+            "page": null,
+            "field_path": "locations.country",
+            "value": "IND",
+            "as_of": null,
+            "attached_to": null,
+            "deleted": false
+          }
+        ]
+      },
+      {
+        "kind": "claim",
+        "subject": "we have successfully onboarded 80+ customers across",
+        "subject_id": "4da1c128-7615-4229-88bb-571a527ab971",
+        "before": null,
+        "after": "cannot_verify",
+        "because": "absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+        "evidence": []
+      },
+      {
+        "kind": "claim",
+        "subject": "99% positive feedback",
+        "subject_id": "7b240f0b-f3c0-4282-89f2-aa0cccc7d7e5",
+        "before": null,
+        "after": "cannot_verify",
+        "because": "absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+        "evidence": []
+      },
+      {
+        "kind": "claim",
+        "subject": "Technoforte is an ISO 9001:2015 and ISO/IEC 27001:2022 certified company engaged in providing high",
+        "subject_id": "8571e343-38d0-44e2-a89b-270a43f7e95a",
+        "before": null,
+        "after": "cannot_verify",
+        "because": "absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+        "evidence": []
+      },
+      {
+        "kind": "claim",
+        "subject": "PALMS™ is a registered trademark and Intellectual Property of Technoforte Software Private Limited.",
+        "subject_id": "a54fa89a-1783-4ce7-b82d-1c0ab8b2e468",
+        "before": null,
+        "after": "cannot_verify",
+        "because": "absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+        "evidence": []
+      },
+      {
+        "kind": "claim",
+        "subject": "As a Microsoft Certified Partner, PALMS™ solutions are fully certified and validated for Microsoft",
+        "subject_id": "ebbcdb57-a013-4771-bed8-f8f3ee910003",
+        "before": null,
+        "after": "cannot_verify",
+        "because": "absent → Cannot verify because of policy changed from 2026-11-22.2 to 2026-11-22.3",
+        "evidence": []
+      }
+    ],
+    "trigger_document_ids": [
+      "23682b97-3801-4ab5-8d44-708bb266dd1f"
+    ],
+    "document_ids": [],
+    "evidence_ids": [
+      "121cc736-6f6a-4524-86c3-bda00f0c2e14",
+      "1d2cbdb1-6633-4545-af71-8dd7024704e6",
+      "3fcfa4f5-b0fe-4f20-a476-31823ffe45a7",
+      "4c93d955-317a-4e11-81c0-e9095407b266",
+      "87519713-aa2e-40ae-a7e1-b1af6942d287"
+    ],
+    "confidential_removed_on": null
+  }
+]

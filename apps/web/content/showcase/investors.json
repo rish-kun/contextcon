@@ -1,0 +1,2357 @@
+{
+  "id": "aca9198e-d8dc-4529-a460-06dc6cfb19ec",
+  "profile": {
+    "sector": "Warehouse management system (WMS) and supply-chain software for enterprise customers",
+    "location": "India",
+    "stage": "series_a",
+    "size": "1-10",
+    "funding_sought": "equity growth"
+  },
+  "status": "ready",
+  "created_at": "2026-11-22T12:08:29.026295Z",
+  "searched_at": "2026-11-22T12:10:00.734366Z",
+  "scope_note": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+  "comparables_considered": 25,
+  "funding_kind_sought": "growth_equity",
+  "rounds_read": 40,
+  "rounds_excluded": 8,
+  "ranking_basis": "Ranked by comparable investments found in the record, weighted toward recent rounds. This describes past behaviour; it does not predict whether an investor will invest.",
+  "run": {
+    "id": "62aecfef-50cf-43d3-8f71-d1229cc3f525",
+    "kind": "investor_discover",
+    "state": "done",
+    "subject": "Warehouse management system (WMS) and supply-chain software for enterprise customers, India, series_a",
+    "case_id": null,
+    "thesis_id": null,
+    "investor_search_id": "aca9198e-d8dc-4529-a460-06dc6cfb19ec",
+    "budget_credits": 300.0,
+    "cost": {
+      "crustdata_credits": 59.2,
+      "llm_usd": 0.00046,
+      "input_tokens": 2310,
+      "output_tokens": 457,
+      "unknown_cost_calls": 0
+    },
+    "reserved_credits": 0.0,
+    "checks_not_run": 0,
+    "created_at": "2026-11-22T12:08:29.026295Z",
+    "finished_at": "2026-11-22T12:10:50.279910Z",
+    "resumed_at": null,
+    "error": null,
+    "steps": [
+      {
+        "id": "b1649a3a-bfb4-49b5-9b52-0d222b9ba2e2",
+        "run_id": "62aecfef-50cf-43d3-8f71-d1229cc3f525",
+        "key": "investors.spec",
+        "label": "Read the business profile",
+        "position": 0,
+        "state": "done",
+        "attempts": 1,
+        "detail": null,
+        "result": "Comparables: Companies that build warehouse management system and supply-chain software for enterprise customers. (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity)",
+        "error": null,
+        "from_cache": false,
+        "cost": {
+          "crustdata_credits": 0.0,
+          "llm_usd": 0.00046,
+          "input_tokens": 2310,
+          "output_tokens": 457,
+          "unknown_cost_calls": 0
+        },
+        "reserved_credits": 0.0,
+        "started_at": "2026-11-22T12:09:47.921002Z",
+        "finished_at": "2026-11-22T12:09:48.683806Z"
+      },
+      {
+        "id": "652c0f12-4643-4963-bcbb-28012ef10d34",
+        "run_id": "62aecfef-50cf-43d3-8f71-d1229cc3f525",
+        "key": "investors.comparables",
+        "label": "Find comparable companies that raised money",
+        "position": 1,
+        "state": "done",
+        "attempts": 1,
+        "detail": null,
+        "result": "40 comparable companies found",
+        "error": null,
+        "from_cache": false,
+        "cost": {
+          "crustdata_credits": 9.2,
+          "llm_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "unknown_cost_calls": 0
+        },
+        "reserved_credits": 0.0,
+        "started_at": "2026-11-22T12:09:57.275613Z",
+        "finished_at": "2026-11-22T12:09:58.127964Z"
+      },
+      {
+        "id": "5c238f97-683b-47c4-ad0e-b67e629b8cb2",
+        "run_id": "62aecfef-50cf-43d3-8f71-d1229cc3f525",
+        "key": "investors.enrich",
+        "label": "Read dated funding rounds",
+        "position": 2,
+        "state": "done",
+        "attempts": 1,
+        "detail": null,
+        "result": "40 funding rounds read from 25 companies",
+        "error": null,
+        "from_cache": false,
+        "cost": {
+          "crustdata_credits": 50.0,
+          "llm_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "unknown_cost_calls": 0
+        },
+        "reserved_credits": 0.0,
+        "started_at": "2026-11-22T12:10:09.700042Z",
+        "finished_at": "2026-11-22T12:10:10.447026Z"
+      },
+      {
+        "id": "8e1767d1-923b-4086-b1fe-45e028770aa1",
+        "run_id": "62aecfef-50cf-43d3-8f71-d1229cc3f525",
+        "key": "investors.rank",
+        "label": "Group investors and rank by comparable rounds",
+        "position": 3,
+        "state": "done",
+        "attempts": 1,
+        "detail": null,
+        "result": "57 investors ranked from 82 dated, named investments; 8 excluded",
+        "error": null,
+        "from_cache": false,
+        "cost": {
+          "crustdata_credits": 0.0,
+          "llm_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "unknown_cost_calls": 0
+        },
+        "reserved_credits": 0.0,
+        "started_at": "2026-11-22T12:10:49.527059Z",
+        "finished_at": "2026-11-22T12:10:50.279910Z"
+      }
+    ]
+  },
+  "entries": [
+    {
+      "id": "d5fb29fb-86a1-53a2-b6c0-b6c6f41c6e50",
+      "rank": 1,
+      "investor_name": "Aeravti Ventures",
+      "investor_key": "id:cbe5ff4a-9519-46ef-b004-5197fcf5bd33",
+      "investor_uuid": "cbe5ff4a-9519-46ef-b004-5197fcf5bd33",
+      "score": 1.2443,
+      "comparable_rounds": [
+        {
+          "company_id": 653971,
+          "company_name": "FreightFox",
+          "round_type": "seed",
+          "date": "2023-10-04",
+          "amount_usd": 588553.0,
+          "source": {
+            "source_id": "df86ec71-4086-55ab-960e-7d81e5b6b23e",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "4e666ae8-b362-5365-9f2c-399df9f1b3cc"
+        },
+        {
+          "company_id": 653971,
+          "company_name": "FreightFox",
+          "round_type": "seed",
+          "date": "2026-08-11",
+          "amount_usd": 524132.0,
+          "source": {
+            "source_id": "df86ec71-4086-55ab-960e-7d81e5b6b23e",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "f379896d-f6e5-561d-978a-19efc2b9e1e0"
+        }
+      ],
+      "latest_sector_investment_found": "2026-08-11",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "2 comparable investments (FreightFox) in Logistics, Manufacturing, SaaS, Software, Transportation, Logistics, Supply Chain and Storage; latest 2026-08-11",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (2)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (2)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "3cac073e-4022-572a-8e9c-03843967bf6d",
+      "rank": 2,
+      "investor_name": "HighLeaf",
+      "investor_key": "id:3360a96d-62f0-417d-82d2-3c58249a01f4",
+      "investor_uuid": "3360a96d-62f0-417d-82d2-3c58249a01f4",
+      "score": 0.9069,
+      "comparable_rounds": [
+        {
+          "company_id": 653971,
+          "company_name": "FreightFox",
+          "round_type": "seed",
+          "date": "2026-08-11",
+          "amount_usd": 524132.0,
+          "source": {
+            "source_id": "df86ec71-4086-55ab-960e-7d81e5b6b23e",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "f379896d-f6e5-561d-978a-19efc2b9e1e0"
+        }
+      ],
+      "latest_sector_investment_found": "2026-08-11",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (FreightFox) in Logistics, Manufacturing, SaaS, Software, Transportation, Logistics, Supply Chain and Storage; latest 2026-08-11",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "458b6623-c166-54ad-9bfd-d3551e5d6bd0",
+      "rank": 3,
+      "investor_name": "Puru Gupta",
+      "investor_key": "id:1e41c687-b291-48ef-99e3-6dfb005a3ae5",
+      "investor_uuid": "1e41c687-b291-48ef-99e3-6dfb005a3ae5",
+      "score": 0.9069,
+      "comparable_rounds": [
+        {
+          "company_id": 653971,
+          "company_name": "FreightFox",
+          "round_type": "seed",
+          "date": "2026-08-11",
+          "amount_usd": 524132.0,
+          "source": {
+            "source_id": "df86ec71-4086-55ab-960e-7d81e5b6b23e",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "f379896d-f6e5-561d-978a-19efc2b9e1e0"
+        }
+      ],
+      "latest_sector_investment_found": "2026-08-11",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (FreightFox) in Logistics, Manufacturing, SaaS, Software, Transportation, Logistics, Supply Chain and Storage; latest 2026-08-11",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "8343c251-001f-5e03-bcdb-f12e11385b07",
+      "rank": 4,
+      "investor_name": "Vijender Yadav",
+      "investor_key": "id:c90feb5a-c048-4407-bd03-5f638903a4ba",
+      "investor_uuid": "c90feb5a-c048-4407-bd03-5f638903a4ba",
+      "score": 0.9069,
+      "comparable_rounds": [
+        {
+          "company_id": 653971,
+          "company_name": "FreightFox",
+          "round_type": "seed",
+          "date": "2026-08-11",
+          "amount_usd": 524132.0,
+          "source": {
+            "source_id": "df86ec71-4086-55ab-960e-7d81e5b6b23e",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "f379896d-f6e5-561d-978a-19efc2b9e1e0"
+        }
+      ],
+      "latest_sector_investment_found": "2026-08-11",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (FreightFox) in Logistics, Manufacturing, SaaS, Software, Transportation, Logistics, Supply Chain and Storage; latest 2026-08-11",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "fbb51af2-7b05-53cd-b670-aa89cecea9fb",
+      "rank": 5,
+      "investor_name": "LvlUp Ventures",
+      "investor_key": "id:6e7b9c28-3b38-4a21-a2bc-ed74dabadb25",
+      "investor_uuid": "6e7b9c28-3b38-4a21-a2bc-ed74dabadb25",
+      "score": 0.7911,
+      "comparable_rounds": [
+        {
+          "company_id": 981865,
+          "company_name": "Esarwa",
+          "round_type": "seed",
+          "date": "2026-03-20",
+          "amount_usd": 750000.0,
+          "source": {
+            "source_id": "ebf8a607-a06b-5558-871f-770ba3553a2c",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "dbd2d904-93b5-5e5d-b1e7-36b91e9b7b99"
+        }
+      ],
+      "latest_sector_investment_found": "2026-03-20",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Esarwa) in Software, Technology, Information and Internet, Technology, Information and Media; latest 2026-03-20",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "cde6a262-c2fe-5c2b-bfa0-6bcaacbe12da",
+      "rank": 6,
+      "investor_name": "Inflection Point Ventures",
+      "investor_key": "id:c5a9928e-44f5-4ab2-a840-c419c858d275",
+      "investor_uuid": "c5a9928e-44f5-4ab2-a840-c419c858d275",
+      "score": 0.7863,
+      "comparable_rounds": [
+        {
+          "company_id": 834217,
+          "company_name": "EKSUM COMTECH PRIVATE LIMITED (formerly known as Aksum Trademart Private Limited)",
+          "round_type": "seed",
+          "date": "2023-04-27",
+          "amount_usd": 1000000.0,
+          "source": {
+            "source_id": "774a9606-45c4-5b8d-826f-6671a860e22f",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "4831f697-235c-55bb-8483-a7f9081363fd"
+        },
+        {
+          "company_id": 950966,
+          "company_name": "Mushin",
+          "round_type": "seed",
+          "date": "2024-11-14",
+          "amount_usd": 250000.0,
+          "source": {
+            "source_id": "3cf818fe-7560-52be-9b56-a9c6868bc3d9",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "4a39a033-ec7f-5c50-9bc1-eb4bb81face1"
+        }
+      ],
+      "latest_sector_investment_found": "2024-11-14",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "2 comparable investments (EKSUM COMTECH PRIVATE LIMITED (formerly known as Aksum Trademart Private Limited), Mushin) in B2B, Industrial Automation, Manufacturing, Online Portals, Software Development, Supply Chain Management, Technology, Information and Internet, Technology, Information and Media, Warehouse Automation, Wholesale; latest 2024-11-14",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (2)",
+      "unknowns": [
+        "May be the same investor as another entry; not merged",
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (2)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": "a04f61e8-d4e0-5dd3-9724-56493eeb7d2d",
+      "possible_duplicates": [
+        "a04f61e8-d4e0-5dd3-9724-56493eeb7d2d"
+      ]
+    },
+    {
+      "id": "011afda8-c6da-5bee-a5f0-99b4b830d083",
+      "rank": 7,
+      "investor_name": "1Crowd",
+      "investor_key": "id:c4c89f5d-7dbb-f81a-ce7d-ff0571a7bd35",
+      "investor_uuid": "c4c89f5d-7dbb-f81a-ce7d-ff0571a7bd35",
+      "score": 0.7725,
+      "comparable_rounds": [
+        {
+          "company_id": 7897,
+          "company_name": "Mojro",
+          "round_type": "series_a",
+          "date": "2026-02-23",
+          "amount_usd": 5500000.0,
+          "source": {
+            "source_id": "c650f1c5-02c7-5df3-8de7-e4ba174af5d2",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "f73aa895-dbe6-5c0a-a722-8d0b986d5bb9"
+        }
+      ],
+      "latest_sector_investment_found": "2026-02-23",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Mojro) in Enterprise Software & Network Solutions, Fleet Management, Information Technology, Logistics, Software Development, Supply Chain Management, Technology, Information and Internet, Technology, Information and Media; latest 2026-02-23",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "02086112-e3c1-5068-9566-d7709b9a81e4",
+      "rank": 8,
+      "investor_name": "Dallas Venture Capital",
+      "investor_key": "id:47c7d66f-545f-338d-3cfd-16a1f0c7bc62",
+      "investor_uuid": "47c7d66f-545f-338d-3cfd-16a1f0c7bc62",
+      "score": 0.7725,
+      "comparable_rounds": [
+        {
+          "company_id": 7897,
+          "company_name": "Mojro",
+          "round_type": "series_a",
+          "date": "2026-02-23",
+          "amount_usd": 5500000.0,
+          "source": {
+            "source_id": "c650f1c5-02c7-5df3-8de7-e4ba174af5d2",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "f73aa895-dbe6-5c0a-a722-8d0b986d5bb9"
+        }
+      ],
+      "latest_sector_investment_found": "2026-02-23",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Mojro) in Enterprise Software & Network Solutions, Fleet Management, Information Technology, Logistics, Software Development, Supply Chain Management, Technology, Information and Internet, Technology, Information and Media; latest 2026-02-23",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "e144f1a3-ba34-5261-b2b1-c777d467f58a",
+      "rank": 9,
+      "investor_name": "IAN Alpha Fund",
+      "investor_key": "id:3a882182-05bb-4f95-a18f-6398ac674e93",
+      "investor_uuid": "3a882182-05bb-4f95-a18f-6398ac674e93",
+      "score": 0.7725,
+      "comparable_rounds": [
+        {
+          "company_id": 7897,
+          "company_name": "Mojro",
+          "round_type": "series_a",
+          "date": "2026-02-23",
+          "amount_usd": 5500000.0,
+          "source": {
+            "source_id": "c650f1c5-02c7-5df3-8de7-e4ba174af5d2",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "f73aa895-dbe6-5c0a-a722-8d0b986d5bb9"
+        }
+      ],
+      "latest_sector_investment_found": "2026-02-23",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Mojro) in Enterprise Software & Network Solutions, Fleet Management, Information Technology, Logistics, Software Development, Supply Chain Management, Technology, Information and Internet, Technology, Information and Media; latest 2026-02-23",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "f563312b-e538-5cc9-b5d9-bcfb2128fc4d",
+      "rank": 10,
+      "investor_name": "Dinesh Agarwal",
+      "investor_key": "id:df20659b-62fb-4d65-b40c-bf15c26e4b85",
+      "investor_uuid": "df20659b-62fb-4d65-b40c-bf15c26e4b85",
+      "score": 0.5201,
+      "comparable_rounds": [
+        {
+          "company_id": 707343,
+          "company_name": "CargoFL",
+          "round_type": "seed",
+          "date": "2025-01-02",
+          "amount_usd": 786673.0,
+          "source": {
+            "source_id": "cfb1210a-2829-5861-928d-555eda967a58",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "6134f0df-2a1f-5e0d-877f-05028995a0e9"
+        }
+      ],
+      "latest_sector_investment_found": "2025-01-02",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (CargoFL) in Fleet Management, Logistics, SaaS, Software, Supply Chain Management, Transportation, Logistics, Supply Chain and Storage; latest 2025-01-02",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "dc3c269f-e3c5-5929-8eda-0ad7677a8e9c",
+      "rank": 11,
+      "investor_name": "Dinesh Gulati",
+      "investor_key": "id:41e8974d-2cac-c16e-5168-03a8c2e45acb",
+      "investor_uuid": "41e8974d-2cac-c16e-5168-03a8c2e45acb",
+      "score": 0.5201,
+      "comparable_rounds": [
+        {
+          "company_id": 707343,
+          "company_name": "CargoFL",
+          "round_type": "seed",
+          "date": "2025-01-02",
+          "amount_usd": 786673.0,
+          "source": {
+            "source_id": "cfb1210a-2829-5861-928d-555eda967a58",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "6134f0df-2a1f-5e0d-877f-05028995a0e9"
+        }
+      ],
+      "latest_sector_investment_found": "2025-01-02",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (CargoFL) in Fleet Management, Logistics, SaaS, Software, Supply Chain Management, Transportation, Logistics, Supply Chain and Storage; latest 2025-01-02",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "28d8628b-d9fb-5336-b967-ec639edfd5fb",
+      "rank": 12,
+      "investor_name": "Murugavel Janakiraman",
+      "investor_key": "id:ed3f5535-8d4d-7e15-dc21-990e96c6f7f4",
+      "investor_uuid": "ed3f5535-8d4d-7e15-dc21-990e96c6f7f4",
+      "score": 0.5201,
+      "comparable_rounds": [
+        {
+          "company_id": 707343,
+          "company_name": "CargoFL",
+          "round_type": "seed",
+          "date": "2025-01-02",
+          "amount_usd": 786673.0,
+          "source": {
+            "source_id": "cfb1210a-2829-5861-928d-555eda967a58",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "6134f0df-2a1f-5e0d-877f-05028995a0e9"
+        }
+      ],
+      "latest_sector_investment_found": "2025-01-02",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (CargoFL) in Fleet Management, Logistics, SaaS, Software, Supply Chain Management, Transportation, Logistics, Supply Chain and Storage; latest 2025-01-02",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "8a0a02b7-11fa-51cd-b461-0408d181cb5e",
+      "rank": 13,
+      "investor_name": "Peaceful Progress",
+      "investor_key": "id:2bd8e924-10b0-4adf-a1bb-e7925a90678f",
+      "investor_uuid": "2bd8e924-10b0-4adf-a1bb-e7925a90678f",
+      "score": 0.5201,
+      "comparable_rounds": [
+        {
+          "company_id": 707343,
+          "company_name": "CargoFL",
+          "round_type": "seed",
+          "date": "2025-01-02",
+          "amount_usd": 786673.0,
+          "source": {
+            "source_id": "cfb1210a-2829-5861-928d-555eda967a58",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "6134f0df-2a1f-5e0d-877f-05028995a0e9"
+        }
+      ],
+      "latest_sector_investment_found": "2025-01-02",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (CargoFL) in Fleet Management, Logistics, SaaS, Software, Supply Chain Management, Transportation, Logistics, Supply Chain and Storage; latest 2025-01-02",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "5b0baecb-71f6-5caf-ab36-0fd112aa9394",
+      "rank": 14,
+      "investor_name": "Rajesh Sawhney",
+      "investor_key": "id:295c173d-9ad3-e683-4b23-9d800b5d0fc9",
+      "investor_uuid": "295c173d-9ad3-e683-4b23-9d800b5d0fc9",
+      "score": 0.5201,
+      "comparable_rounds": [
+        {
+          "company_id": 707343,
+          "company_name": "CargoFL",
+          "round_type": "seed",
+          "date": "2025-01-02",
+          "amount_usd": 786673.0,
+          "source": {
+            "source_id": "cfb1210a-2829-5861-928d-555eda967a58",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "6134f0df-2a1f-5e0d-877f-05028995a0e9"
+        }
+      ],
+      "latest_sector_investment_found": "2025-01-02",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (CargoFL) in Fleet Management, Logistics, SaaS, Software, Supply Chain Management, Transportation, Logistics, Supply Chain and Storage; latest 2025-01-02",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "1041522d-28b4-578e-abb9-dc4a846bf352",
+      "rank": 15,
+      "investor_name": "Real Time Angel Fund",
+      "investor_key": "id:26bfb070-4a3f-485e-b1a2-b49a07502ac0",
+      "investor_uuid": "26bfb070-4a3f-485e-b1a2-b49a07502ac0",
+      "score": 0.5201,
+      "comparable_rounds": [
+        {
+          "company_id": 707343,
+          "company_name": "CargoFL",
+          "round_type": "seed",
+          "date": "2025-01-02",
+          "amount_usd": 786673.0,
+          "source": {
+            "source_id": "cfb1210a-2829-5861-928d-555eda967a58",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "6134f0df-2a1f-5e0d-877f-05028995a0e9"
+        }
+      ],
+      "latest_sector_investment_found": "2025-01-02",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (CargoFL) in Fleet Management, Logistics, SaaS, Software, Supply Chain Management, Transportation, Logistics, Supply Chain and Storage; latest 2025-01-02",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "eb71b54a-f59a-5ab3-a14f-ad4ea14f62fe",
+      "rank": 16,
+      "investor_name": "SanchiConnect",
+      "investor_key": "id:01a2e296-0add-4a4c-b503-cac80774b77e",
+      "investor_uuid": "01a2e296-0add-4a4c-b503-cac80774b77e",
+      "score": 0.5201,
+      "comparable_rounds": [
+        {
+          "company_id": 707343,
+          "company_name": "CargoFL",
+          "round_type": "seed",
+          "date": "2025-01-02",
+          "amount_usd": 786673.0,
+          "source": {
+            "source_id": "cfb1210a-2829-5861-928d-555eda967a58",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "6134f0df-2a1f-5e0d-877f-05028995a0e9"
+        }
+      ],
+      "latest_sector_investment_found": "2025-01-02",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (CargoFL) in Fleet Management, Logistics, SaaS, Software, Supply Chain Management, Transportation, Logistics, Supply Chain and Storage; latest 2025-01-02",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "7c77082b-a948-52ae-abb5-e605a90fadc1",
+      "rank": 17,
+      "investor_name": "YourNest Venture Capital",
+      "investor_key": "id:0dc4887f-8ced-0843-cdef-934abf263b6b",
+      "investor_uuid": "0dc4887f-8ced-0843-cdef-934abf263b6b",
+      "score": 0.5201,
+      "comparable_rounds": [
+        {
+          "company_id": 707343,
+          "company_name": "CargoFL",
+          "round_type": "seed",
+          "date": "2025-01-02",
+          "amount_usd": 786673.0,
+          "source": {
+            "source_id": "cfb1210a-2829-5861-928d-555eda967a58",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "6134f0df-2a1f-5e0d-877f-05028995a0e9"
+        }
+      ],
+      "latest_sector_investment_found": "2025-01-02",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (CargoFL) in Fleet Management, Logistics, SaaS, Software, Supply Chain Management, Transportation, Logistics, Supply Chain and Storage; latest 2025-01-02",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "ba776fae-a158-5c42-9679-fa9fa06e8add",
+      "rank": 18,
+      "investor_name": "Endiya Partners",
+      "investor_key": "id:f5270d55-0c64-fa05-14ee-a2ef107e8070",
+      "investor_uuid": "f5270d55-0c64-fa05-14ee-a2ef107e8070",
+      "score": 0.4703,
+      "comparable_rounds": [
+        {
+          "company_id": 1247452,
+          "company_name": "AltiusHub",
+          "round_type": "seed",
+          "date": "2024-09-18",
+          "amount_usd": 2246258.0,
+          "source": {
+            "source_id": "200376c5-d29c-54f3-8193-b14fe0c336bb",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "99ff2f23-6927-52fb-bd66-8aafa5dfecc0"
+        }
+      ],
+      "latest_sector_investment_found": "2024-09-18",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (AltiusHub) in Enterprise Software & Network Solutions, Information Technology, Life Science, Pharmaceutical, Software, Software Development, Technology, Information and Internet, Technology, Information and Media; latest 2024-09-18",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "06be9c7c-dcef-5b8b-9fb0-579a78363f2a",
+      "rank": 19,
+      "investor_name": "Angel Scions",
+      "investor_key": "id:fb2a299e-1b6a-40d4-b2a4-4ac2c6f8babd",
+      "investor_uuid": "fb2a299e-1b6a-40d4-b2a4-4ac2c6f8babd",
+      "score": 0.3699,
+      "comparable_rounds": [
+        {
+          "company_id": 609440,
+          "company_name": "Accio Robotics",
+          "round_type": "seed",
+          "date": "2024-01-09",
+          "amount_usd": 1804373.0,
+          "source": {
+            "source_id": "b18dd081-050f-5e5e-82ca-0bffb72068e8",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "f4d7e325-0d2f-5db1-b6ca-a2d148e83494"
+        }
+      ],
+      "latest_sector_investment_found": "2024-01-09",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Accio Robotics) in Manufacturing, Robotics, Transportation, Logistics, Supply Chain and Storage; latest 2024-01-09",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "69a2f5ea-5ca3-5a60-9147-269ae0aba5a2",
+      "rank": 20,
+      "investor_name": "Anuj Bihani",
+      "investor_key": "id:cea34fa1-fb7b-4c83-8e9b-c31e71b5a4d4",
+      "investor_uuid": "cea34fa1-fb7b-4c83-8e9b-c31e71b5a4d4",
+      "score": 0.3699,
+      "comparable_rounds": [
+        {
+          "company_id": 609440,
+          "company_name": "Accio Robotics",
+          "round_type": "seed",
+          "date": "2024-01-09",
+          "amount_usd": 1804373.0,
+          "source": {
+            "source_id": "b18dd081-050f-5e5e-82ca-0bffb72068e8",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "f4d7e325-0d2f-5db1-b6ca-a2d148e83494"
+        }
+      ],
+      "latest_sector_investment_found": "2024-01-09",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Accio Robotics) in Manufacturing, Robotics, Transportation, Logistics, Supply Chain and Storage; latest 2024-01-09",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "1d036631-0fe0-5298-902c-9e7316cc2c4c",
+      "rank": 21,
+      "investor_name": "BIG Capital",
+      "investor_key": "id:253fb47d-6ff9-4350-8e9e-38a559b05486",
+      "investor_uuid": "253fb47d-6ff9-4350-8e9e-38a559b05486",
+      "score": 0.3699,
+      "comparable_rounds": [
+        {
+          "company_id": 609440,
+          "company_name": "Accio Robotics",
+          "round_type": "seed",
+          "date": "2024-01-09",
+          "amount_usd": 1804373.0,
+          "source": {
+            "source_id": "b18dd081-050f-5e5e-82ca-0bffb72068e8",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "f4d7e325-0d2f-5db1-b6ca-a2d148e83494"
+        }
+      ],
+      "latest_sector_investment_found": "2024-01-09",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Accio Robotics) in Manufacturing, Robotics, Transportation, Logistics, Supply Chain and Storage; latest 2024-01-09",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "f0c8b6c1-f7f8-5299-a167-c3d1a2eba725",
+      "rank": 22,
+      "investor_name": "Daniel John Fitzgerald",
+      "investor_key": "id:a2ca0a09-b25b-014e-ca92-1476aee0f9d5",
+      "investor_uuid": "a2ca0a09-b25b-014e-ca92-1476aee0f9d5",
+      "score": 0.3699,
+      "comparable_rounds": [
+        {
+          "company_id": 609440,
+          "company_name": "Accio Robotics",
+          "round_type": "seed",
+          "date": "2024-01-09",
+          "amount_usd": 1804373.0,
+          "source": {
+            "source_id": "b18dd081-050f-5e5e-82ca-0bffb72068e8",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "f4d7e325-0d2f-5db1-b6ca-a2d148e83494"
+        }
+      ],
+      "latest_sector_investment_found": "2024-01-09",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Accio Robotics) in Manufacturing, Robotics, Transportation, Logistics, Supply Chain and Storage; latest 2024-01-09",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "f05caf9a-1c46-55da-816d-4b8f8d2483fb",
+      "rank": 23,
+      "investor_name": "Roots Ventures",
+      "investor_key": "id:2d1ffc02-0bec-44e5-bcf0-96980800632e",
+      "investor_uuid": "2d1ffc02-0bec-44e5-bcf0-96980800632e",
+      "score": 0.3699,
+      "comparable_rounds": [
+        {
+          "company_id": 609440,
+          "company_name": "Accio Robotics",
+          "round_type": "seed",
+          "date": "2024-01-09",
+          "amount_usd": 1804373.0,
+          "source": {
+            "source_id": "b18dd081-050f-5e5e-82ca-0bffb72068e8",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "f4d7e325-0d2f-5db1-b6ca-a2d148e83494"
+        }
+      ],
+      "latest_sector_investment_found": "2024-01-09",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Accio Robotics) in Manufacturing, Robotics, Transportation, Logistics, Supply Chain and Storage; latest 2024-01-09",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "64caa545-eca7-5e1d-9c3a-64bae85379cc",
+      "rank": 24,
+      "investor_name": "Unisync Angels",
+      "investor_key": "id:dceff041-de81-4161-a991-a10e4cae1638",
+      "investor_uuid": "dceff041-de81-4161-a991-a10e4cae1638",
+      "score": 0.3699,
+      "comparable_rounds": [
+        {
+          "company_id": 609440,
+          "company_name": "Accio Robotics",
+          "round_type": "seed",
+          "date": "2024-01-09",
+          "amount_usd": 1804373.0,
+          "source": {
+            "source_id": "b18dd081-050f-5e5e-82ca-0bffb72068e8",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "f4d7e325-0d2f-5db1-b6ca-a2d148e83494"
+        }
+      ],
+      "latest_sector_investment_found": "2024-01-09",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Accio Robotics) in Manufacturing, Robotics, Transportation, Logistics, Supply Chain and Storage; latest 2024-01-09",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "62b00a29-2014-5733-b470-56a43e7954fc",
+      "rank": 25,
+      "investor_name": "Sadev Ventures",
+      "investor_key": "id:920a28cb-fcd8-489d-9e6f-4c24e3833878",
+      "investor_uuid": "920a28cb-fcd8-489d-9e6f-4c24e3833878",
+      "score": 0.3671,
+      "comparable_rounds": [
+        {
+          "company_id": 821042,
+          "company_name": "Crest AI",
+          "round_type": "seed",
+          "date": "2024-01-01",
+          "amount_usd": null,
+          "source": {
+            "source_id": "9d58ca32-378d-57a4-945f-f6f00b99933f",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "90397ab8-2eee-5658-a5c9-f470b8b1521e"
+        }
+      ],
+      "latest_sector_investment_found": "2024-01-01",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Crest AI) in Enterprise Software & Network Solutions, Information Technology, Retail Technology, Software, Software Development, Technology, Information and Internet, Technology, Information and Media; latest 2024-01-01",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Cheque size unknown for some rounds",
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "2728cb91-cb2a-51f2-9743-878caac0fb0f",
+      "rank": 26,
+      "investor_name": "Y Combinator",
+      "investor_key": "id:73633ee4-ea65-2967-6c5d-9b5fec7d2d5e",
+      "investor_uuid": "73633ee4-ea65-2967-6c5d-9b5fec7d2d5e",
+      "score": 0.3107,
+      "comparable_rounds": [
+        {
+          "company_id": 1247452,
+          "company_name": "AltiusHub",
+          "round_type": "pre_seed",
+          "date": "2023-07-09",
+          "amount_usd": null,
+          "source": {
+            "source_id": "200376c5-d29c-54f3-8193-b14fe0c336bb",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "45329c4c-8082-5f58-b96c-c466a35464f2"
+        }
+      ],
+      "latest_sector_investment_found": "2023-07-09",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (AltiusHub) in Enterprise Software & Network Solutions, Information Technology, Life Science, Pharmaceutical, Software, Software Development, Technology, Information and Internet, Technology, Information and Media; latest 2023-07-09",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Cheque size unknown for some rounds",
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "8193bc3c-3632-5f98-b9f0-7eabbfd23c2f",
+      "rank": 27,
+      "investor_name": "888vc",
+      "investor_key": "id:6fbf5135-1f49-4db2-ba59-a9be4a5d3992",
+      "investor_uuid": "6fbf5135-1f49-4db2-ba59-a9be4a5d3992",
+      "score": 0.2728,
+      "comparable_rounds": [
+        {
+          "company_id": 821042,
+          "company_name": "Crest AI",
+          "round_type": "pre_seed",
+          "date": "2023-02-22",
+          "amount_usd": 800000.0,
+          "source": {
+            "source_id": "9d58ca32-378d-57a4-945f-f6f00b99933f",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "05463fe5-f743-5fa3-8a51-d0a75fce3d09"
+        }
+      ],
+      "latest_sector_investment_found": "2023-02-22",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Crest AI) in Enterprise Software & Network Solutions, Information Technology, Retail Technology, Software, Software Development, Technology, Information and Internet, Technology, Information and Media; latest 2023-02-22",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "ec9aaa14-96bf-5140-b914-cfde13bca3aa",
+      "rank": 28,
+      "investor_name": "Akshay Ghulati",
+      "investor_key": "id:7c4b2bbb-1241-4201-9eb4-e4d35521388f",
+      "investor_uuid": "7c4b2bbb-1241-4201-9eb4-e4d35521388f",
+      "score": 0.2728,
+      "comparable_rounds": [
+        {
+          "company_id": 821042,
+          "company_name": "Crest AI",
+          "round_type": "pre_seed",
+          "date": "2023-02-22",
+          "amount_usd": 800000.0,
+          "source": {
+            "source_id": "9d58ca32-378d-57a4-945f-f6f00b99933f",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "05463fe5-f743-5fa3-8a51-d0a75fce3d09"
+        }
+      ],
+      "latest_sector_investment_found": "2023-02-22",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Crest AI) in Enterprise Software & Network Solutions, Information Technology, Retail Technology, Software, Software Development, Technology, Information and Internet, Technology, Information and Media; latest 2023-02-22",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "37642342-6cfb-57e2-89aa-0686c1e0c2ed",
+      "rank": 29,
+      "investor_name": "Faad Network",
+      "investor_key": "id:936ad5c7-9a97-482b-bbd2-d8415aae0055",
+      "investor_uuid": "936ad5c7-9a97-482b-bbd2-d8415aae0055",
+      "score": 0.2728,
+      "comparable_rounds": [
+        {
+          "company_id": 821042,
+          "company_name": "Crest AI",
+          "round_type": "pre_seed",
+          "date": "2023-02-22",
+          "amount_usd": 800000.0,
+          "source": {
+            "source_id": "9d58ca32-378d-57a4-945f-f6f00b99933f",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "05463fe5-f743-5fa3-8a51-d0a75fce3d09"
+        }
+      ],
+      "latest_sector_investment_found": "2023-02-22",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Crest AI) in Enterprise Software & Network Solutions, Information Technology, Retail Technology, Software, Software Development, Technology, Information and Internet, Technology, Information and Media; latest 2023-02-22",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "9e99842e-b7e8-5a0e-bf94-90ae68d009e5",
+      "rank": 30,
+      "investor_name": "Gautam Kapoor",
+      "investor_key": "id:64d69831-4397-9b27-d85a-d13cbccbe3d0",
+      "investor_uuid": "64d69831-4397-9b27-d85a-d13cbccbe3d0",
+      "score": 0.2728,
+      "comparable_rounds": [
+        {
+          "company_id": 821042,
+          "company_name": "Crest AI",
+          "round_type": "pre_seed",
+          "date": "2023-02-22",
+          "amount_usd": 800000.0,
+          "source": {
+            "source_id": "9d58ca32-378d-57a4-945f-f6f00b99933f",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "05463fe5-f743-5fa3-8a51-d0a75fce3d09"
+        }
+      ],
+      "latest_sector_investment_found": "2023-02-22",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Crest AI) in Enterprise Software & Network Solutions, Information Technology, Retail Technology, Software, Software Development, Technology, Information and Internet, Technology, Information and Media; latest 2023-02-22",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "b3904535-409a-552f-9272-05252372477f",
+      "rank": 31,
+      "investor_name": "IAN Group",
+      "investor_key": "id:aad7932d-12ea-95a4-b184-3202cf55ef69",
+      "investor_uuid": "aad7932d-12ea-95a4-b184-3202cf55ef69",
+      "score": 0.2728,
+      "comparable_rounds": [
+        {
+          "company_id": 821042,
+          "company_name": "Crest AI",
+          "round_type": "pre_seed",
+          "date": "2023-02-22",
+          "amount_usd": 800000.0,
+          "source": {
+            "source_id": "9d58ca32-378d-57a4-945f-f6f00b99933f",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "05463fe5-f743-5fa3-8a51-d0a75fce3d09"
+        }
+      ],
+      "latest_sector_investment_found": "2023-02-22",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Crest AI) in Enterprise Software & Network Solutions, Information Technology, Retail Technology, Software, Software Development, Technology, Information and Internet, Technology, Information and Media; latest 2023-02-22",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "a04f61e8-d4e0-5dd3-9724-56493eeb7d2d",
+      "rank": 32,
+      "investor_name": "Inflection Point Ventures",
+      "investor_key": "id:26d21db8-dae4-c7fd-e40d-b00390253c3b",
+      "investor_uuid": "26d21db8-dae4-c7fd-e40d-b00390253c3b",
+      "score": 0.2728,
+      "comparable_rounds": [
+        {
+          "company_id": 821042,
+          "company_name": "Crest AI",
+          "round_type": "pre_seed",
+          "date": "2023-02-22",
+          "amount_usd": 800000.0,
+          "source": {
+            "source_id": "9d58ca32-378d-57a4-945f-f6f00b99933f",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "05463fe5-f743-5fa3-8a51-d0a75fce3d09"
+        }
+      ],
+      "latest_sector_investment_found": "2023-02-22",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Crest AI) in Enterprise Software & Network Solutions, Information Technology, Retail Technology, Software, Software Development, Technology, Information and Internet, Technology, Information and Media; latest 2023-02-22",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "May be the same investor as another entry; not merged",
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": "cde6a262-c2fe-5c2b-bfa0-6bcaacbe12da",
+      "possible_duplicates": [
+        "cde6a262-c2fe-5c2b-bfa0-6bcaacbe12da"
+      ]
+    },
+    {
+      "id": "228e51dd-7997-53e7-ae47-e7fd4370b8fc",
+      "rank": 33,
+      "investor_name": "Kapil Bharati",
+      "investor_key": "id:e1362358-883b-39ca-23ae-1f090bec2789",
+      "investor_uuid": "e1362358-883b-39ca-23ae-1f090bec2789",
+      "score": 0.2728,
+      "comparable_rounds": [
+        {
+          "company_id": 821042,
+          "company_name": "Crest AI",
+          "round_type": "pre_seed",
+          "date": "2023-02-22",
+          "amount_usd": 800000.0,
+          "source": {
+            "source_id": "9d58ca32-378d-57a4-945f-f6f00b99933f",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "05463fe5-f743-5fa3-8a51-d0a75fce3d09"
+        }
+      ],
+      "latest_sector_investment_found": "2023-02-22",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Crest AI) in Enterprise Software & Network Solutions, Information Technology, Retail Technology, Software, Software Development, Technology, Information and Internet, Technology, Information and Media; latest 2023-02-22",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "511c58b5-75ae-5b72-adfc-422567a8ba61",
+      "rank": 34,
+      "investor_name": "PointOne Capital",
+      "investor_key": "id:fd7ce9e9-b9cc-4a1b-bc39-57533c005a35",
+      "investor_uuid": "fd7ce9e9-b9cc-4a1b-bc39-57533c005a35",
+      "score": 0.2728,
+      "comparable_rounds": [
+        {
+          "company_id": 821042,
+          "company_name": "Crest AI",
+          "round_type": "pre_seed",
+          "date": "2023-02-22",
+          "amount_usd": 800000.0,
+          "source": {
+            "source_id": "9d58ca32-378d-57a4-945f-f6f00b99933f",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "05463fe5-f743-5fa3-8a51-d0a75fce3d09"
+        }
+      ],
+      "latest_sector_investment_found": "2023-02-22",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Crest AI) in Enterprise Software & Network Solutions, Information Technology, Retail Technology, Software, Software Development, Technology, Information and Internet, Technology, Information and Media; latest 2023-02-22",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "011a64d6-b19c-5652-a1b7-161613658b51",
+      "rank": 35,
+      "investor_name": "Saahil Goel",
+      "investor_key": "id:a941bf15-ba4c-5f0e-e067-cd20cd77bad8",
+      "investor_uuid": "a941bf15-ba4c-5f0e-e067-cd20cd77bad8",
+      "score": 0.2728,
+      "comparable_rounds": [
+        {
+          "company_id": 821042,
+          "company_name": "Crest AI",
+          "round_type": "pre_seed",
+          "date": "2023-02-22",
+          "amount_usd": 800000.0,
+          "source": {
+            "source_id": "9d58ca32-378d-57a4-945f-f6f00b99933f",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "05463fe5-f743-5fa3-8a51-d0a75fce3d09"
+        }
+      ],
+      "latest_sector_investment_found": "2023-02-22",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Crest AI) in Enterprise Software & Network Solutions, Information Technology, Retail Technology, Software, Software Development, Technology, Information and Internet, Technology, Information and Media; latest 2023-02-22",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "2d0985c9-4398-5a45-9da3-b5c703aa42b2",
+      "rank": 36,
+      "investor_name": "Sahil Barua",
+      "investor_key": "id:12313e09-41e3-28ea-8f92-5d8393f6e45d",
+      "investor_uuid": "12313e09-41e3-28ea-8f92-5d8393f6e45d",
+      "score": 0.2728,
+      "comparable_rounds": [
+        {
+          "company_id": 821042,
+          "company_name": "Crest AI",
+          "round_type": "pre_seed",
+          "date": "2023-02-22",
+          "amount_usd": 800000.0,
+          "source": {
+            "source_id": "9d58ca32-378d-57a4-945f-f6f00b99933f",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "05463fe5-f743-5fa3-8a51-d0a75fce3d09"
+        }
+      ],
+      "latest_sector_investment_found": "2023-02-22",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Crest AI) in Enterprise Software & Network Solutions, Information Technology, Retail Technology, Software, Software Development, Technology, Information and Internet, Technology, Information and Media; latest 2023-02-22",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "dc0c24f6-e348-5e84-a20e-cab1ff3e4fd3",
+      "rank": 37,
+      "investor_name": "Vishesh Khurana",
+      "investor_key": "id:3415fd7b-24fd-6e13-6f1d-34e99d1bb58f",
+      "investor_uuid": "3415fd7b-24fd-6e13-6f1d-34e99d1bb58f",
+      "score": 0.2728,
+      "comparable_rounds": [
+        {
+          "company_id": 821042,
+          "company_name": "Crest AI",
+          "round_type": "pre_seed",
+          "date": "2023-02-22",
+          "amount_usd": 800000.0,
+          "source": {
+            "source_id": "9d58ca32-378d-57a4-945f-f6f00b99933f",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "05463fe5-f743-5fa3-8a51-d0a75fce3d09"
+        }
+      ],
+      "latest_sector_investment_found": "2023-02-22",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Crest AI) in Enterprise Software & Network Solutions, Information Technology, Retail Technology, Software, Software Development, Technology, Information and Internet, Technology, Information and Media; latest 2023-02-22",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "206fb137-398d-589c-82be-f509b8d9e451",
+      "rank": 38,
+      "investor_name": "Conquest",
+      "investor_key": "id:76764eb3-7e5b-e038-1013-f45fec20cc51",
+      "investor_uuid": "76764eb3-7e5b-e038-1013-f45fec20cc51",
+      "score": 0.2517,
+      "comparable_rounds": [
+        {
+          "company_id": 653971,
+          "company_name": "FreightFox",
+          "round_type": "seed",
+          "date": "2022-11-29",
+          "amount_usd": null,
+          "source": {
+            "source_id": "df86ec71-4086-55ab-960e-7d81e5b6b23e",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "86559107-d9fb-5102-af9c-ac414e3b2ca1"
+        }
+      ],
+      "latest_sector_investment_found": "2022-11-29",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (FreightFox) in Logistics, Manufacturing, SaaS, Software, Transportation, Logistics, Supply Chain and Storage; latest 2022-11-29",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Cheque size unknown for some rounds",
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "29082710-4b7a-5fc3-9ce0-8d2105a9d242",
+      "rank": 39,
+      "investor_name": "Deep Bajaj",
+      "investor_key": "id:1b804373-4fd7-4396-a075-77cc007a41c6",
+      "investor_uuid": "1b804373-4fd7-4396-a075-77cc007a41c6",
+      "score": 0.2252,
+      "comparable_rounds": [
+        {
+          "company_id": 821042,
+          "company_name": "Crest AI",
+          "round_type": "pre_seed",
+          "date": "2022-08-04",
+          "amount_usd": null,
+          "source": {
+            "source_id": "9d58ca32-378d-57a4-945f-f6f00b99933f",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "fbdcbfaf-6103-5d26-9bdc-2d5c9c253422"
+        }
+      ],
+      "latest_sector_investment_found": "2022-08-04",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Crest AI) in Enterprise Software & Network Solutions, Information Technology, Retail Technology, Software, Software Development, Technology, Information and Internet, Technology, Information and Media; latest 2022-08-04",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Cheque size unknown for some rounds",
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "b49da4ea-2cee-5b93-9ea8-ca667eb367bf",
+      "rank": 40,
+      "investor_name": "Diksha Pande",
+      "investor_key": "id:3e95b3d4-3440-4170-a7ba-844580d9bec8",
+      "investor_uuid": "3e95b3d4-3440-4170-a7ba-844580d9bec8",
+      "score": 0.2252,
+      "comparable_rounds": [
+        {
+          "company_id": 821042,
+          "company_name": "Crest AI",
+          "round_type": "pre_seed",
+          "date": "2022-08-04",
+          "amount_usd": null,
+          "source": {
+            "source_id": "9d58ca32-378d-57a4-945f-f6f00b99933f",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "fbdcbfaf-6103-5d26-9bdc-2d5c9c253422"
+        }
+      ],
+      "latest_sector_investment_found": "2022-08-04",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Crest AI) in Enterprise Software & Network Solutions, Information Technology, Retail Technology, Software, Software Development, Technology, Information and Internet, Technology, Information and Media; latest 2022-08-04",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Cheque size unknown for some rounds",
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "b24032cc-b20a-50eb-a03f-a59c36203a8d",
+      "rank": 41,
+      "investor_name": "July Ventures",
+      "investor_key": "id:fa9ab1d3-36d6-48da-acac-4584527738bd",
+      "investor_uuid": "fa9ab1d3-36d6-48da-acac-4584527738bd",
+      "score": 0.2252,
+      "comparable_rounds": [
+        {
+          "company_id": 821042,
+          "company_name": "Crest AI",
+          "round_type": "pre_seed",
+          "date": "2022-08-04",
+          "amount_usd": null,
+          "source": {
+            "source_id": "9d58ca32-378d-57a4-945f-f6f00b99933f",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "fbdcbfaf-6103-5d26-9bdc-2d5c9c253422"
+        }
+      ],
+      "latest_sector_investment_found": "2022-08-04",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Crest AI) in Enterprise Software & Network Solutions, Information Technology, Retail Technology, Software, Software Development, Technology, Information and Internet, Technology, Information and Media; latest 2022-08-04",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Cheque size unknown for some rounds",
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "36f1b2a6-ae5a-5533-86a4-b9756a10b5cd",
+      "rank": 42,
+      "investor_name": "Charlie Songhurst",
+      "investor_key": "id:c8e0c690-e891-4115-bb57-5652199c8aeb",
+      "investor_uuid": "c8e0c690-e891-4115-bb57-5652199c8aeb",
+      "score": 0.2041,
+      "comparable_rounds": [
+        {
+          "company_id": 829686,
+          "company_name": "Hyphen SCS",
+          "round_type": "pre_seed",
+          "date": "2022-04-22",
+          "amount_usd": 1000000.0,
+          "source": {
+            "source_id": "88b23cb7-b843-530b-84c4-584e40dda3ea",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "29ac0c14-09fe-5d8a-aaa9-9eb619ce237a"
+        }
+      ],
+      "latest_sector_investment_found": "2022-04-22",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Hyphen SCS) in B2B, Logistics, Marketplace, SaaS, Supply Chain Management, Transportation, Logistics, Supply Chain and Storage, Warehouse Automation, Warehousing; latest 2022-04-22",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "8a35e601-dbfe-5306-bcef-0bece0d128c7",
+      "rank": 43,
+      "investor_name": "Incisive Ventures",
+      "investor_key": "id:ff389cac-9c07-40d4-8dd9-bd1c66095ed2",
+      "investor_uuid": "ff389cac-9c07-40d4-8dd9-bd1c66095ed2",
+      "score": 0.2041,
+      "comparable_rounds": [
+        {
+          "company_id": 829686,
+          "company_name": "Hyphen SCS",
+          "round_type": "pre_seed",
+          "date": "2022-04-22",
+          "amount_usd": 1000000.0,
+          "source": {
+            "source_id": "88b23cb7-b843-530b-84c4-584e40dda3ea",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "29ac0c14-09fe-5d8a-aaa9-9eb619ce237a"
+        }
+      ],
+      "latest_sector_investment_found": "2022-04-22",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Hyphen SCS) in B2B, Logistics, Marketplace, SaaS, Supply Chain Management, Transportation, Logistics, Supply Chain and Storage, Warehouse Automation, Warehousing; latest 2022-04-22",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "51d5b7af-a0ba-57e3-820e-9e37f10d058d",
+      "rank": 44,
+      "investor_name": "ODX Flexport",
+      "investor_key": "id:e597d1e3-8d42-4299-a24d-1b1c772c3f2c",
+      "investor_uuid": "e597d1e3-8d42-4299-a24d-1b1c772c3f2c",
+      "score": 0.2041,
+      "comparable_rounds": [
+        {
+          "company_id": 829686,
+          "company_name": "Hyphen SCS",
+          "round_type": "pre_seed",
+          "date": "2022-04-22",
+          "amount_usd": 1000000.0,
+          "source": {
+            "source_id": "88b23cb7-b843-530b-84c4-584e40dda3ea",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "29ac0c14-09fe-5d8a-aaa9-9eb619ce237a"
+        }
+      ],
+      "latest_sector_investment_found": "2022-04-22",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Hyphen SCS) in B2B, Logistics, Marketplace, SaaS, Supply Chain Management, Transportation, Logistics, Supply Chain and Storage, Warehouse Automation, Warehousing; latest 2022-04-22",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "0e4d632b-b822-55bc-985d-830da56e9797",
+      "rank": 45,
+      "investor_name": "Robin Joffe",
+      "investor_key": "id:c4912067-9c78-436c-90d1-48ead6690fc5",
+      "investor_uuid": "c4912067-9c78-436c-90d1-48ead6690fc5",
+      "score": 0.2041,
+      "comparable_rounds": [
+        {
+          "company_id": 829686,
+          "company_name": "Hyphen SCS",
+          "round_type": "pre_seed",
+          "date": "2022-04-22",
+          "amount_usd": 1000000.0,
+          "source": {
+            "source_id": "88b23cb7-b843-530b-84c4-584e40dda3ea",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "29ac0c14-09fe-5d8a-aaa9-9eb619ce237a"
+        }
+      ],
+      "latest_sector_investment_found": "2022-04-22",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Hyphen SCS) in B2B, Logistics, Marketplace, SaaS, Supply Chain Management, Transportation, Logistics, Supply Chain and Storage, Warehouse Automation, Warehousing; latest 2022-04-22",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "259409e9-6f2f-5179-94f6-88cf8aa6c041",
+      "rank": 46,
+      "investor_name": "Mahindra Logistics",
+      "investor_key": "id:5fbb3f0b-5684-48ae-94ae-329e3137a701",
+      "investor_uuid": "5fbb3f0b-5684-48ae-94ae-329e3137a701",
+      "score": 0.1942,
+      "comparable_rounds": [
+        {
+          "company_id": 609440,
+          "company_name": "Accio Robotics",
+          "round_type": "non_equity_assistance",
+          "date": "2022-03-01",
+          "amount_usd": null,
+          "source": {
+            "source_id": "b18dd081-050f-5e5e-82ca-0bffb72068e8",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "e069835a-3d26-5ab4-bb0e-1399a85ab91f"
+        }
+      ],
+      "latest_sector_investment_found": "2022-03-01",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Accio Robotics) in Manufacturing, Robotics, Transportation, Logistics, Supply Chain and Storage; latest 2022-03-01",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: round types not recorded",
+      "unknowns": [
+        "Cheque size unknown for some rounds",
+        "Compatibility with growth equity unknown: round types not recorded",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "3d5411eb-5f7f-5d69-9d40-9f106c09454f",
+      "rank": 47,
+      "investor_name": "Capital A",
+      "investor_key": "id:ff4d3417-e3fd-4d12-85f3-73d067bc5a4d",
+      "investor_uuid": "ff4d3417-e3fd-4d12-85f3-73d067bc5a4d",
+      "score": 0.175,
+      "comparable_rounds": [
+        {
+          "company_id": 706898,
+          "company_name": "RoaDo",
+          "round_type": "seed",
+          "date": "2021-11-11",
+          "amount_usd": null,
+          "source": {
+            "source_id": "31f581ea-e2af-5a55-845a-47ef1a4efb4c",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "f4eb6fd5-dd05-57dd-a3e5-bbd0f9c360a7"
+        }
+      ],
+      "latest_sector_investment_found": "2021-11-11",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (RoaDo) in Consulting, Enterprise Software & Network Solutions, Information Technology, Logistics, Supply Chain Management, Transportation, Transportation, Logistics, Supply Chain and Storage, Warehousing; latest 2021-11-11",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Cheque size unknown for some rounds",
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "082660ab-7043-5a76-bea7-995f9182f07e",
+      "rank": 48,
+      "investor_name": "Jignesh Kenia",
+      "investor_key": "id:f8833c81-71a8-417e-9f4e-01b7064ba677",
+      "investor_uuid": "f8833c81-71a8-417e-9f4e-01b7064ba677",
+      "score": 0.1496,
+      "comparable_rounds": [
+        {
+          "company_id": 609440,
+          "company_name": "Accio Robotics",
+          "round_type": "angel",
+          "date": "2021-05-30",
+          "amount_usd": null,
+          "source": {
+            "source_id": "b18dd081-050f-5e5e-82ca-0bffb72068e8",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "722b6684-ac4d-5fcc-b266-e8bd5639a7da"
+        }
+      ],
+      "latest_sector_investment_found": "2021-05-30",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Accio Robotics) in Manufacturing, Robotics, Transportation, Logistics, Supply Chain and Storage; latest 2021-05-30",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Cheque size unknown for some rounds",
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "22ceb381-c6c5-5c5f-a4f4-29bfa4574670",
+      "rank": 49,
+      "investor_name": "Pankaj Bhargava",
+      "investor_key": "id:3e761ba2-0bef-4cd1-9940-2295bba4f934",
+      "investor_uuid": "3e761ba2-0bef-4cd1-9940-2295bba4f934",
+      "score": 0.1496,
+      "comparable_rounds": [
+        {
+          "company_id": 609440,
+          "company_name": "Accio Robotics",
+          "round_type": "angel",
+          "date": "2021-05-30",
+          "amount_usd": null,
+          "source": {
+            "source_id": "b18dd081-050f-5e5e-82ca-0bffb72068e8",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "722b6684-ac4d-5fcc-b266-e8bd5639a7da"
+        }
+      ],
+      "latest_sector_investment_found": "2021-05-30",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Accio Robotics) in Manufacturing, Robotics, Transportation, Logistics, Supply Chain and Storage; latest 2021-05-30",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Cheque size unknown for some rounds",
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "9a8bc501-59e2-5551-a799-2ddd38d8fbff",
+      "rank": 50,
+      "investor_name": "Uday Sodhi",
+      "investor_key": "id:6df6321b-f9e0-4aca-8c6d-ed49bdb104f0",
+      "investor_uuid": "6df6321b-f9e0-4aca-8c6d-ed49bdb104f0",
+      "score": 0.1496,
+      "comparable_rounds": [
+        {
+          "company_id": 609440,
+          "company_name": "Accio Robotics",
+          "round_type": "angel",
+          "date": "2021-05-30",
+          "amount_usd": null,
+          "source": {
+            "source_id": "b18dd081-050f-5e5e-82ca-0bffb72068e8",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "722b6684-ac4d-5fcc-b266-e8bd5639a7da"
+        }
+      ],
+      "latest_sector_investment_found": "2021-05-30",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Accio Robotics) in Manufacturing, Robotics, Transportation, Logistics, Supply Chain and Storage; latest 2021-05-30",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Cheque size unknown for some rounds",
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "16b7c204-f273-5c62-81ea-e7cb8b2ff246",
+      "rank": 51,
+      "investor_name": "Utpal Doshi",
+      "investor_key": "id:558db4d4-df4e-4a2a-b53b-71feba9677ba",
+      "investor_uuid": "558db4d4-df4e-4a2a-b53b-71feba9677ba",
+      "score": 0.1496,
+      "comparable_rounds": [
+        {
+          "company_id": 609440,
+          "company_name": "Accio Robotics",
+          "round_type": "angel",
+          "date": "2021-05-30",
+          "amount_usd": null,
+          "source": {
+            "source_id": "b18dd081-050f-5e5e-82ca-0bffb72068e8",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "722b6684-ac4d-5fcc-b266-e8bd5639a7da"
+        }
+      ],
+      "latest_sector_investment_found": "2021-05-30",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Accio Robotics) in Manufacturing, Robotics, Transportation, Logistics, Supply Chain and Storage; latest 2021-05-30",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Cheque size unknown for some rounds",
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "96f66a5b-2111-5dc2-8797-780d7379b342",
+      "rank": 52,
+      "investor_name": "Mahendra Yadav",
+      "investor_key": "id:e7b093ee-f5ac-03fa-03db-d2b84a18a308",
+      "investor_uuid": "e7b093ee-f5ac-03fa-03db-d2b84a18a308",
+      "score": 0.1434,
+      "comparable_rounds": [
+        {
+          "company_id": 653971,
+          "company_name": "FreightFox",
+          "round_type": "angel",
+          "date": "2021-04-15",
+          "amount_usd": 300000.0,
+          "source": {
+            "source_id": "df86ec71-4086-55ab-960e-7d81e5b6b23e",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "a72cd7f5-e484-59ba-8198-cc4f8e77002a"
+        }
+      ],
+      "latest_sector_investment_found": "2021-04-15",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (FreightFox) in Logistics, Manufacturing, SaaS, Software, Transportation, Logistics, Supply Chain and Storage; latest 2021-04-15",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "b8bb8e20-0224-5de3-bf47-cd21c91adabc",
+      "rank": 53,
+      "investor_name": "Mitul Bid",
+      "investor_key": "id:227231d8-ecdf-3b1f-a42e-8e13b15ea34b",
+      "investor_uuid": "227231d8-ecdf-3b1f-a42e-8e13b15ea34b",
+      "score": 0.1434,
+      "comparable_rounds": [
+        {
+          "company_id": 653971,
+          "company_name": "FreightFox",
+          "round_type": "angel",
+          "date": "2021-04-15",
+          "amount_usd": 300000.0,
+          "source": {
+            "source_id": "df86ec71-4086-55ab-960e-7d81e5b6b23e",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "a72cd7f5-e484-59ba-8198-cc4f8e77002a"
+        }
+      ],
+      "latest_sector_investment_found": "2021-04-15",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (FreightFox) in Logistics, Manufacturing, SaaS, Software, Transportation, Logistics, Supply Chain and Storage; latest 2021-04-15",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "9be295e8-dc89-51ce-b0d6-1e4965c8105f",
+      "rank": 54,
+      "investor_name": "Nikhil Prasad",
+      "investor_key": "id:8c813134-ca7c-4c35-949e-572e87913e6d",
+      "investor_uuid": "8c813134-ca7c-4c35-949e-572e87913e6d",
+      "score": 0.1434,
+      "comparable_rounds": [
+        {
+          "company_id": 653971,
+          "company_name": "FreightFox",
+          "round_type": "angel",
+          "date": "2021-04-15",
+          "amount_usd": 300000.0,
+          "source": {
+            "source_id": "df86ec71-4086-55ab-960e-7d81e5b6b23e",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "a72cd7f5-e484-59ba-8198-cc4f8e77002a"
+        }
+      ],
+      "latest_sector_investment_found": "2021-04-15",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (FreightFox) in Logistics, Manufacturing, SaaS, Software, Transportation, Logistics, Supply Chain and Storage; latest 2021-04-15",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "4e703c86-88b6-58b4-bab5-e0d3268afe26",
+      "rank": 55,
+      "investor_name": "Varun Jain",
+      "investor_key": "id:f716c629-1e7d-41e8-90e0-d7684459432d",
+      "investor_uuid": "f716c629-1e7d-41e8-90e0-d7684459432d",
+      "score": 0.1434,
+      "comparable_rounds": [
+        {
+          "company_id": 653971,
+          "company_name": "FreightFox",
+          "round_type": "angel",
+          "date": "2021-04-15",
+          "amount_usd": 300000.0,
+          "source": {
+            "source_id": "df86ec71-4086-55ab-960e-7d81e5b6b23e",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "a72cd7f5-e484-59ba-8198-cc4f8e77002a"
+        }
+      ],
+      "latest_sector_investment_found": "2021-04-15",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (FreightFox) in Logistics, Manufacturing, SaaS, Software, Transportation, Logistics, Supply Chain and Storage; latest 2021-04-15",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "bfd80efe-2531-5b8d-bc3c-3975a0cfb04b",
+      "rank": 56,
+      "investor_name": "100X.VC",
+      "investor_key": "id:9215ac6a-da30-495c-8a34-ec1e77b777b7",
+      "investor_uuid": "9215ac6a-da30-495c-8a34-ec1e77b777b7",
+      "score": 0.1325,
+      "comparable_rounds": [
+        {
+          "company_id": 609440,
+          "company_name": "Accio Robotics",
+          "round_type": "seed",
+          "date": "2021-01-22",
+          "amount_usd": 34247.0,
+          "source": {
+            "source_id": "b18dd081-050f-5e5e-82ca-0bffb72068e8",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "83264790-4607-5d8a-bd54-e95b2266b78a"
+        }
+      ],
+      "latest_sector_investment_found": "2021-01-22",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (Accio Robotics) in Manufacturing, Robotics, Transportation, Logistics, Supply Chain and Storage; latest 2021-01-22",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    },
+    {
+      "id": "ce9a46fd-04d5-5dbc-90ce-f93a4fd723bc",
+      "rank": 57,
+      "investor_name": "IIMK Live",
+      "investor_key": "id:044d6a1c-b5e5-4c4d-9bbd-9f1b264ad7a2",
+      "investor_uuid": "044d6a1c-b5e5-4c4d-9bbd-9f1b264ad7a2",
+      "score": 0.1299,
+      "comparable_rounds": [
+        {
+          "company_id": 14035,
+          "company_name": "NebulARC Technologies Pvt Ltd.",
+          "round_type": "seed",
+          "date": "2021-01-01",
+          "amount_usd": null,
+          "source": {
+            "source_id": "c0530909-e822-5e7a-b48d-59a036e05571",
+            "provider": "crustdata",
+            "label": "Crustdata funding record",
+            "url_or_endpoint": "/company/enrich",
+            "retrieved_at": "2026-11-22T12:10:16.570135Z",
+            "source_class": "data_provider",
+            "origin_id": null
+          },
+          "evidence_id": "0cae9678-968f-56f0-a1bb-947d6b243b81"
+        }
+      ],
+      "latest_sector_investment_found": "2021-01-01",
+      "latest_sector_investment_scope": "searched 2026-11-22 across 25 comparable companies (India; 1-10, 11-50 employees; last round seed, series_a, series_b, private_equity; rounds dated 2020 to 2026-11-22)",
+      "why": "1 comparable investment (NebulARC Technologies Pvt Ltd.) in Artificial Intelligence, Artificial Intelligence (AI), Information Technology, Information Technology & Services, Internet of Things, Logistics, SaaS, Supply Chain Management; latest 2021-01-01",
+      "compatibility": "unknown",
+      "funding_kind_compatibility": "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+      "unknowns": [
+        "Cheque size unknown for some rounds",
+        "Compatibility with growth equity unknown: no growth equity round found in the record; rounds found: venture equity (1)",
+        "Investments outside the 25 comparable companies examined are not counted"
+      ],
+      "possible_duplicate_of": null,
+      "possible_duplicates": []
+    }
+  ]
+}
