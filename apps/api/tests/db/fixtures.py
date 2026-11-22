@@ -29,11 +29,26 @@ def db_url(pg_server: str) -> str:
 
 @pytest_asyncio.fixture
 async def sm(db_url: str) -> AsyncIterator[async_sessionmaker[AsyncSession]]:
-    """Session factory on an emptied database."""
-    engine = make_engine(db_url, pool_size=20, max_overflow=20)
+    """Session factory on an emptied database, running as the app's runtime role.
+
+    Production runs the API as a DML-only role (scripts/db/app-role-grants.sql), so
+    app code under test gets the same privileges. Only the TRUNCATE below runs as the
+    owner. (The role comes from `pg.shared_app_role()` rather than a fixture, so the
+    conftests that import these fixtures by name need no change.)"""
+    app_role = pg.shared_app_role()
+    owner = make_engine(db_url)
     tables = ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)
-    async with engine.begin() as conn:
-        await conn.execute(text(f"TRUNCATE {tables} CASCADE"))
+    try:
+        async with owner.begin() as conn:
+            await conn.execute(text(f"TRUNCATE {tables} CASCADE"))
+    finally:
+        await owner.dispose()
+    engine = make_engine(
+        db_url,
+        pool_size=20,
+        max_overflow=20,
+        connect_args={"server_settings": {"role": app_role}},
+    )
     try:
         yield make_sessionmaker(engine)
     finally:

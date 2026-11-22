@@ -44,9 +44,12 @@ case "$mode" in
 esac
 
 # No proxy-header trust: uvicorn keeps request.client as the TCP peer (Cloud Run's
-# front end) and ignores X-Forwarded-For / X-Forwarded-Proto from any sender. The app
-# derives the caller's IP itself from the web proxy's signed X-DealProof-Proxy header
-# (PROXY_SHARED_SECRET). FORWARDED_ALLOW_IPS is cleared so it cannot re-enable trust.
+# front end) and never rewrites it from X-Forwarded-For / X-Forwarded-Proto, which any
+# sender can write. FORWARDED_ALLOW_IPS is cleared so it cannot re-enable that.
+# The caller's IP for rate limiting is the app's job (app.auth.cookies.client_ip): the
+# deployed API sets AUTH_TRUSTED_PROXY_HOPS=2 (scripts/deploy.sh), and the web proxy's
+# signed X-DealProof-Proxy header (PROXY_SHARED_SECRET) replaces that once the app
+# checks it. Without either, every caller would share the front end's address.
 unset FORWARDED_ALLOW_IPS
 exec uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8080}" \
   --no-proxy-headers --forwarded-allow-ips ''

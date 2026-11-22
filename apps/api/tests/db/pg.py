@@ -17,9 +17,11 @@ import socket
 import subprocess
 import tempfile
 import uuid
-from collections.abc import Iterator
+from collections.abc import Callable, Coroutine, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 import asyncpg
@@ -174,3 +176,79 @@ def shared_migrated_database() -> str:
         migrate(url)
         _db_url = url
     return _db_url
+
+
+# The grants production gives the API's runtime role (scripts/db/app-role-grants.sql).
+APP_ROLE_GRANTS = API_DIR.parents[1] / "scripts" / "db" / "app-role-grants.sql"
+
+
+def quote_ident(name: str) -> str:
+    return '"' + name.replace('"', '""') + '"'
+
+
+def app_role_grants_sql(app: str, owner: str, database: str) -> str:
+    return APP_ROLE_GRANTS.read_text().format(
+        app=quote_ident(app), owner=quote_ident(owner), database=quote_ident(database)
+    )
+
+
+def _run_outside_loop(fn: Callable[[], Coroutine[Any, Any, None]]) -> None:
+    """asyncio.run(fn()), also from inside a running loop (async fixtures), where it
+    runs on a worker thread. Cleanup at interpreter exit has no loop and no threads."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.run(fn())
+        return
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        pool.submit(lambda: asyncio.run(fn())).result()
+
+
+@contextmanager
+def app_role(db_url: str) -> Iterator[str]:
+    """A NOLOGIN role holding exactly the production runtime grants on `db_url`.
+
+    Tests reach it with SET ROLE (asyncpg `server_settings={"role": ...}`), so it needs
+    no password. Roles are cluster-wide, so the name is unique and the role is dropped
+    afterwards."""
+    name = f"dealproof_app_{uuid.uuid4().hex[:12]}"
+    database = urlsplit(db_url).path.lstrip("/")
+
+    async def create() -> None:
+        conn = await asyncpg.connect(_asyncpg_dsn(db_url))
+        try:
+            await conn.execute(f"CREATE ROLE {quote_ident(name)} NOLOGIN")
+            owner = await conn.fetchval(
+                "SELECT tableowner FROM pg_tables WHERE tablename = 'alembic_version'"
+            )
+            await conn.execute(f"SET ROLE {quote_ident(owner)}")
+            await conn.execute(app_role_grants_sql(name, owner, database))
+        finally:
+            await conn.close()
+
+    async def drop() -> None:
+        conn = await asyncpg.connect(_asyncpg_dsn(db_url))
+        try:
+            await conn.execute(f"DROP OWNED BY {quote_ident(name)}")
+            await conn.execute(f"DROP ROLE IF EXISTS {quote_ident(name)}")
+        finally:
+            await conn.close()
+
+    _run_outside_loop(create)
+    try:
+        yield name
+    finally:
+        _run_outside_loop(drop)
+
+
+_app_role: str | None = None
+
+
+def shared_app_role() -> str:
+    """The runtime role on the shared migrated database (see `app_role`)."""
+    global _app_role
+    if _app_role is None:
+        url = shared_migrated_database()
+        # Entered after the database, so the role is dropped before the database is.
+        _app_role = _stack.enter_context(app_role(url))  # type: ignore[union-attr]
+    return _app_role
