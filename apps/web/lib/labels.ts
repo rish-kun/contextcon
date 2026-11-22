@@ -71,6 +71,7 @@ export const ESTIMATE_LABEL: Record<EstimateKind, string> = {
 
 export const RELIABILITY_LABEL: Record<ReliabilityClass, string> = {
   registry: "Registry record",
+  registry_mirror: "Registry mirror",
   audited_statement: "Audited statement",
   counterparty_confirmation: "Counterparty confirmation",
   company_announcement: "Company announcement",
@@ -85,6 +86,8 @@ export const RELIABILITY_LABEL: Record<ReliabilityClass, string> = {
 export const RELIABILITY_NOTE: Record<ReliabilityClass, string> = {
   registry:
     "Strong on incorporation, registered office and filings. Says nothing about trading or scale",
+  registry_mirror:
+    "A third party's copy of registry records. Strong on incorporation and filings as of its last sync. It can lag the official register",
   audited_statement:
     "Strong on past revenue and balances for the period audited. Silent on anything after it",
   counterparty_confirmation:

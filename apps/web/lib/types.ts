@@ -16,6 +16,7 @@
 /** Reliability class of a source. Decides which questions it is strong on. */
 export const RELIABILITY_CLASSES = [
   "registry",
+  "registry_mirror",
   "audited_statement",
   "counterparty_confirmation",
   "company_announcement",

@@ -1,4 +1,5 @@
 import {
+  BookCopy,
   Database,
   FileCheck,
   FileText,
@@ -140,6 +141,8 @@ export function StatusGlyph({ status, ...props }: GlyphProps & { status: ClaimSt
 /** One glyph per reliability class, 14px inside a source chip. */
 const SOURCE_CLASS_ICON: Record<ReliabilityClass, LucideIcon> = {
   registry: Landmark,
+  // A copied ledger: the same records, one step removed from the register itself.
+  registry_mirror: BookCopy,
   audited_statement: FileCheck,
   counterparty_confirmation: Handshake,
   company_announcement: Megaphone,

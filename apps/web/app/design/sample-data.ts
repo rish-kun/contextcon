@@ -42,13 +42,13 @@ function source(
 
 export const ev = {
   registry: {
-    source: source("Registry mirror", "registry", "2014-03-12"),
+    source: source("Registry mirror", "registry_mirror", "2014-03-12"),
     field_path: "company.date_of_incorporation",
     value: "2014-03-12",
     attached_to: ENTITY,
   },
   registryOffice: {
-    source: source("Registry mirror", "registry", "2014-03-12"),
+    source: source("Registry mirror", "registry_mirror", "2014-03-12"),
     field_path: "company.registered_office.city",
     value: "Pune",
     attached_to: ENTITY,
@@ -105,7 +105,7 @@ export const ev = {
     attached_to: ENTITY,
   },
   registryDirectors: {
-    source: source("Registry mirror", "registry", "2026-08-01"),
+    source: source("Registry mirror", "registry_mirror", "2026-08-01"),
     field_path: "company.directors.count",
     value: "3",
     attached_to: ENTITY,
@@ -139,11 +139,26 @@ export const ev = {
 } satisfies Record<string, Evidence | ((page: number) => Evidence)>;
 
 export const allClasses: Evidence[] = [
+  {
+    source: source("Official registry", "registry", "2014-03-12"),
+    field_path: "company.date_of_incorporation",
+    value: "2014-03-12",
+    attached_to: ENTITY,
+  },
   ev.registry,
   ev.audited,
   ev.counterparty,
   ev.announcement,
   ev.profiles,
+  {
+    source: source("Crustdata company record", "data_provider", "2026-11", {
+      url: null,
+      request: "POST /company/enrich",
+    }),
+    field_path: "company.headquarters.city",
+    value: "Pune",
+    attached_to: ENTITY,
+  },
   ev.news,
   ev.deck(7),
   ev.typed,
