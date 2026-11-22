@@ -79,19 +79,19 @@ class ClaimCategory(StrEnum):
 
 
 class SourceClass(StrEnum):
-    registry_official = "registry_official"
+    """What kind of record a source is. Equal to `app.domain.enums.SourceReliability`,
+    which is the source of truth; `tests/api/test_contract.py` asserts they match."""
+
+    registry = "registry"
     registry_mirror = "registry_mirror"
     audited_statement = "audited_statement"
     counterparty_confirmation = "counterparty_confirmation"
     company_announcement = "company_announcement"
-    funding_database = "funding_database"
-    professional_profile = "professional_profile"
-    headcount_estimate = "headcount_estimate"
-    data_provider_profile = "data_provider_profile"
     news = "news"
+    professional_profile_signal = "professional_profile_signal"
+    data_provider = "data_provider"
     seller_document = "seller_document"
     seller_statement = "seller_statement"
-    user_typed = "user_typed"
 
 
 class CompanyType(StrEnum):

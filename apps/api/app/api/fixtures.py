@@ -188,21 +188,21 @@ S_PROFILE = _src(
     "crustdata",
     "Company profile",
     "POST /company/enrich",
-    SourceClass.data_provider_profile,
+    SourceClass.data_provider,
 )
 S_HEADCOUNT = _src(
     "fx-src-headcount",
     "crustdata",
     "Headcount estimate",
     "POST /company/enrich#headcount",
-    SourceClass.headcount_estimate,
+    SourceClass.professional_profile_signal,
 )
 S_FUNDING = _src(
     "fx-src-funding",
     "crustdata",
     "Funding record",
     "POST /company/enrich#funding",
-    SourceClass.funding_database,
+    SourceClass.data_provider,
 )
 S_REGISTRY = _src(
     "fx-src-registry",
@@ -225,7 +225,7 @@ S_PEOPLE = _src(
     "crustdata",
     "Professional profile",
     "POST /person/search",
-    SourceClass.professional_profile,
+    SourceClass.professional_profile_signal,
     minutes=4,
 )
 S_JOBS = _src(
@@ -233,7 +233,7 @@ S_JOBS = _src(
     "crustdata",
     "Job postings",
     "POST /job/search",
-    SourceClass.data_provider_profile,
+    SourceClass.data_provider,
     minutes=4,
 )
 S_NEWS_FUNDING = _src(
@@ -1888,7 +1888,7 @@ def policy() -> PolicyOut:
             AdequateSourcesOut(
                 category=C.identity_incorporation,
                 component="*",
-                source_classes=[SC.registry_official, SC.registry_mirror],
+                source_classes=[SC.registry, SC.registry_mirror],
             ),
             AdequateSourcesOut(
                 category=C.team_size,
@@ -1898,12 +1898,12 @@ def policy() -> PolicyOut:
             AdequateSourcesOut(
                 category=C.leadership_history,
                 component="*",
-                source_classes=[SC.professional_profile],
+                source_classes=[SC.professional_profile_signal],
             ),
             AdequateSourcesOut(
                 category=C.funding,
                 component="*",
-                source_classes=[SC.funding_database, SC.registry_official, SC.news],
+                source_classes=[SC.data_provider, SC.registry, SC.news],
             ),
         ],
         settle_with=[

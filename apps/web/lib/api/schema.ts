@@ -2295,9 +2295,11 @@ export interface components {
         };
         /**
          * SourceClass
+         * @description What kind of record a source is. Equal to `app.domain.enums.SourceReliability`,
+         *     which is the source of truth; `tests/api/test_contract.py` asserts they match.
          * @enum {string}
          */
-        SourceClass: "registry_official" | "registry_mirror" | "audited_statement" | "counterparty_confirmation" | "company_announcement" | "funding_database" | "professional_profile" | "headcount_estimate" | "data_provider_profile" | "news" | "seller_document" | "seller_statement" | "user_typed";
+        SourceClass: "registry" | "registry_mirror" | "audited_statement" | "counterparty_confirmation" | "company_announcement" | "news" | "professional_profile_signal" | "data_provider" | "seller_document" | "seller_statement";
         /**
          * SourceRecordOut
          * @description A full, reproducible source row for the Sources tab.

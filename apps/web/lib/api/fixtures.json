@@ -320,7 +320,7 @@
               "label": "Company profile",
               "url_or_endpoint": "POST /company/enrich",
               "retrieved_at": "2026-11-22T09:32:00Z",
-              "source_class": "data_provider_profile",
+              "source_class": "data_provider",
               "origin_id": null
             },
             "evidence_id": null,
@@ -337,7 +337,7 @@
               "label": "Company profile",
               "url_or_endpoint": "POST /company/enrich",
               "retrieved_at": "2026-11-22T09:32:00Z",
-              "source_class": "data_provider_profile",
+              "source_class": "data_provider",
               "origin_id": null
             },
             "evidence_id": null,
@@ -354,7 +354,7 @@
               "label": "Headcount estimate",
               "url_or_endpoint": "POST /company/enrich#headcount",
               "retrieved_at": "2026-11-22T09:32:00Z",
-              "source_class": "headcount_estimate",
+              "source_class": "professional_profile_signal",
               "origin_id": null
             },
             "evidence_id": null,
@@ -474,7 +474,7 @@
                   "label": "Headcount estimate",
                   "url_or_endpoint": "POST /company/enrich#headcount",
                   "retrieved_at": "2026-11-22T09:32:00Z",
-                  "source_class": "headcount_estimate",
+                  "source_class": "professional_profile_signal",
                   "origin_id": null
                 },
                 "quote": null,
@@ -513,7 +513,7 @@
               "label": "Company profile",
               "url_or_endpoint": "POST /company/enrich",
               "retrieved_at": "2026-11-22T09:32:00Z",
-              "source_class": "data_provider_profile",
+              "source_class": "data_provider",
               "origin_id": null
             },
             "evidence_id": null,
@@ -530,7 +530,7 @@
               "label": "Company profile",
               "url_or_endpoint": "POST /company/enrich",
               "retrieved_at": "2026-11-22T09:32:00Z",
-              "source_class": "data_provider_profile",
+              "source_class": "data_provider",
               "origin_id": null
             },
             "evidence_id": null,
@@ -547,7 +547,7 @@
               "label": "Headcount estimate",
               "url_or_endpoint": "POST /company/enrich#headcount",
               "retrieved_at": "2026-11-22T09:32:00Z",
-              "source_class": "headcount_estimate",
+              "source_class": "professional_profile_signal",
               "origin_id": null
             },
             "evidence_id": null,
@@ -564,7 +564,7 @@
               "label": "Headcount estimate",
               "url_or_endpoint": "POST /company/enrich#headcount",
               "retrieved_at": "2026-11-22T09:32:00Z",
-              "source_class": "headcount_estimate",
+              "source_class": "professional_profile_signal",
               "origin_id": null
             },
             "evidence_id": null,
@@ -581,7 +581,7 @@
               "label": "Funding record",
               "url_or_endpoint": "POST /company/enrich#funding",
               "retrieved_at": "2026-11-22T09:32:00Z",
-              "source_class": "funding_database",
+              "source_class": "data_provider",
               "origin_id": null
             },
             "evidence_id": null,
@@ -604,7 +604,7 @@
                 "label": "Funding record",
                 "url_or_endpoint": "POST /company/enrich#funding",
                 "retrieved_at": "2026-11-22T09:32:00Z",
-                "source_class": "funding_database",
+                "source_class": "data_provider",
                 "origin_id": null
               },
               "evidence_id": "fx-ev-funding-db"
@@ -619,7 +619,7 @@
                 "label": "Company profile",
                 "url_or_endpoint": "POST /company/enrich",
                 "retrieved_at": "2026-11-22T09:32:00Z",
-                "source_class": "data_provider_profile",
+                "source_class": "data_provider",
                 "origin_id": null
               },
               "evidence_id": null,
@@ -641,7 +641,7 @@
                   "label": "Job postings",
                   "url_or_endpoint": "POST /job/search",
                   "retrieved_at": "2026-11-22T09:34:00Z",
-                  "source_class": "data_provider_profile",
+                  "source_class": "data_provider",
                   "origin_id": null
                 }
               }
@@ -752,7 +752,7 @@
               "label": "Company profile",
               "url_or_endpoint": "POST /company/enrich",
               "retrieved_at": "2026-11-22T09:32:00Z",
-              "source_class": "data_provider_profile",
+              "source_class": "data_provider",
               "origin_id": null
             },
             "evidence_id": null,
@@ -769,7 +769,7 @@
               "label": "Company profile",
               "url_or_endpoint": "POST /company/enrich",
               "retrieved_at": "2026-11-22T09:32:00Z",
-              "source_class": "data_provider_profile",
+              "source_class": "data_provider",
               "origin_id": null
             },
             "evidence_id": null,
@@ -786,7 +786,7 @@
               "label": "Headcount estimate",
               "url_or_endpoint": "POST /company/enrich#headcount",
               "retrieved_at": "2026-11-22T09:32:00Z",
-              "source_class": "headcount_estimate",
+              "source_class": "professional_profile_signal",
               "origin_id": null
             },
             "evidence_id": null,
@@ -883,7 +883,7 @@
               "label": "Company profile",
               "url_or_endpoint": "POST /company/enrich",
               "retrieved_at": "2026-11-22T09:32:00Z",
-              "source_class": "data_provider_profile",
+              "source_class": "data_provider",
               "origin_id": null
             },
             "evidence_id": null,
@@ -900,7 +900,7 @@
               "label": "Company profile",
               "url_or_endpoint": "POST /company/enrich",
               "retrieved_at": "2026-11-22T09:32:00Z",
-              "source_class": "data_provider_profile",
+              "source_class": "data_provider",
               "origin_id": null
             },
             "evidence_id": null,
@@ -917,7 +917,7 @@
               "label": "Headcount estimate",
               "url_or_endpoint": "POST /company/enrich#headcount",
               "retrieved_at": "2026-11-22T09:32:00Z",
-              "source_class": "headcount_estimate",
+              "source_class": "professional_profile_signal",
               "origin_id": null
             },
             "evidence_id": null,
@@ -1074,7 +1074,7 @@
               "label": "Funding record",
               "url_or_endpoint": "POST /company/enrich#funding",
               "retrieved_at": "2026-11-22T09:32:00Z",
-              "source_class": "funding_database",
+              "source_class": "data_provider",
               "origin_id": null
             },
             "evidence_id": "fx-ev-round-1"
@@ -1091,7 +1091,7 @@
               "label": "Funding record",
               "url_or_endpoint": "POST /company/enrich#funding",
               "retrieved_at": "2026-11-22T09:32:00Z",
-              "source_class": "funding_database",
+              "source_class": "data_provider",
               "origin_id": null
             },
             "evidence_id": "fx-ev-round-2"
@@ -1125,7 +1125,7 @@
               "label": "Funding record",
               "url_or_endpoint": "POST /company/enrich#funding",
               "retrieved_at": "2026-11-22T09:32:00Z",
-              "source_class": "funding_database",
+              "source_class": "data_provider",
               "origin_id": null
             },
             "evidence_id": "fx-ev-round-3"
@@ -1159,7 +1159,7 @@
               "label": "Funding record",
               "url_or_endpoint": "POST /company/enrich#funding",
               "retrieved_at": "2026-11-22T09:32:00Z",
-              "source_class": "funding_database",
+              "source_class": "data_provider",
               "origin_id": null
             },
             "evidence_id": "fx-ev-round-4"
@@ -1504,7 +1504,7 @@
                   "label": "Headcount estimate",
                   "url_or_endpoint": "POST /company/enrich#headcount",
                   "retrieved_at": "2026-11-22T09:32:00Z",
-                  "source_class": "headcount_estimate",
+                  "source_class": "professional_profile_signal",
                   "origin_id": null
                 },
                 "quote": null,
@@ -1610,7 +1610,7 @@
             "label": "Company profile",
             "url_or_endpoint": "POST /company/enrich",
             "retrieved_at": "2026-11-22T09:32:00Z",
-            "source_class": "data_provider_profile",
+            "source_class": "data_provider",
             "origin_id": null
           },
           "evidence_id": null,
@@ -1644,7 +1644,7 @@
             "label": "Company profile",
             "url_or_endpoint": "POST /company/enrich",
             "retrieved_at": "2026-11-22T09:32:00Z",
-            "source_class": "data_provider_profile",
+            "source_class": "data_provider",
             "origin_id": null
           },
           "evidence_id": null,
@@ -1661,7 +1661,7 @@
             "label": "Company profile",
             "url_or_endpoint": "POST /company/enrich",
             "retrieved_at": "2026-11-22T09:32:00Z",
-            "source_class": "data_provider_profile",
+            "source_class": "data_provider",
             "origin_id": null
           },
           "evidence_id": null,
@@ -1681,7 +1681,7 @@
             "label": "Company profile",
             "url_or_endpoint": "POST /company/enrich",
             "retrieved_at": "2026-11-22T09:32:00Z",
-            "source_class": "data_provider_profile",
+            "source_class": "data_provider",
             "origin_id": null
           },
           "evidence_id": null,
@@ -1698,7 +1698,7 @@
             "label": "Company profile",
             "url_or_endpoint": "POST /company/enrich",
             "retrieved_at": "2026-11-22T09:32:00Z",
-            "source_class": "data_provider_profile",
+            "source_class": "data_provider",
             "origin_id": null
           },
           "evidence_id": null,
@@ -1715,7 +1715,7 @@
             "label": "Company profile",
             "url_or_endpoint": "POST /company/enrich",
             "retrieved_at": "2026-11-22T09:32:00Z",
-            "source_class": "data_provider_profile",
+            "source_class": "data_provider",
             "origin_id": null
           },
           "evidence_id": null,
@@ -1785,7 +1785,7 @@
             "label": "Headcount estimate",
             "url_or_endpoint": "POST /company/enrich#headcount",
             "retrieved_at": "2026-11-22T09:32:00Z",
-            "source_class": "headcount_estimate",
+            "source_class": "professional_profile_signal",
             "origin_id": null
           },
           "evidence_id": null,
@@ -1802,7 +1802,7 @@
             "label": "Headcount estimate",
             "url_or_endpoint": "POST /company/enrich#headcount",
             "retrieved_at": "2026-11-22T09:32:00Z",
-            "source_class": "headcount_estimate",
+            "source_class": "professional_profile_signal",
             "origin_id": null
           },
           "evidence_id": null,
@@ -1832,7 +1832,7 @@
             "label": "Headcount estimate",
             "url_or_endpoint": "POST /company/enrich#headcount",
             "retrieved_at": "2026-11-22T09:32:00Z",
-            "source_class": "headcount_estimate",
+            "source_class": "professional_profile_signal",
             "origin_id": null
           },
           "estimate_basis": "from professional profiles, not a payroll count"
@@ -1845,7 +1845,7 @@
             "label": "Funding record",
             "url_or_endpoint": "POST /company/enrich#funding",
             "retrieved_at": "2026-11-22T09:32:00Z",
-            "source_class": "funding_database",
+            "source_class": "data_provider",
             "origin_id": null
           },
           "evidence_id": null,
@@ -1868,7 +1868,7 @@
               "label": "Funding record",
               "url_or_endpoint": "POST /company/enrich#funding",
               "retrieved_at": "2026-11-22T09:32:00Z",
-              "source_class": "funding_database",
+              "source_class": "data_provider",
               "origin_id": null
             },
             "evidence_id": "fx-ev-funding-db"
@@ -1886,7 +1886,7 @@
                 "label": "Professional profile",
                 "url_or_endpoint": "POST /person/search",
                 "retrieved_at": "2026-11-22T09:34:00Z",
-                "source_class": "professional_profile",
+                "source_class": "professional_profile_signal",
                 "origin_id": null
               },
               "evidence_id": null,
@@ -1904,7 +1904,7 @@
                   "label": "Professional profile",
                   "url_or_endpoint": "POST /person/search",
                   "retrieved_at": "2026-11-22T09:34:00Z",
-                  "source_class": "professional_profile",
+                  "source_class": "professional_profile_signal",
                   "origin_id": null
                 },
                 "evidence_id": null,
@@ -1926,7 +1926,7 @@
               "label": "Company profile",
               "url_or_endpoint": "POST /company/enrich",
               "retrieved_at": "2026-11-22T09:32:00Z",
-              "source_class": "data_provider_profile",
+              "source_class": "data_provider",
               "origin_id": null
             },
             "evidence_id": null,
@@ -1948,7 +1948,7 @@
                 "label": "Job postings",
                 "url_or_endpoint": "POST /job/search",
                 "retrieved_at": "2026-11-22T09:34:00Z",
-                "source_class": "data_provider_profile",
+                "source_class": "data_provider",
                 "origin_id": null
               }
             }
@@ -2084,7 +2084,7 @@
                 "label": "Headcount estimate",
                 "url_or_endpoint": "POST /company/enrich#headcount",
                 "retrieved_at": "2026-11-22T09:32:00Z",
-                "source_class": "headcount_estimate",
+                "source_class": "professional_profile_signal",
                 "origin_id": null
               },
               "quote": null,
@@ -2163,7 +2163,7 @@
                 "label": "Professional profile",
                 "url_or_endpoint": "POST /person/search",
                 "retrieved_at": "2026-11-22T09:34:00Z",
-                "source_class": "professional_profile",
+                "source_class": "professional_profile_signal",
                 "origin_id": null
               },
               "quote": null,
@@ -2236,7 +2236,7 @@
                 "label": "Funding record",
                 "url_or_endpoint": "POST /company/enrich#funding",
                 "retrieved_at": "2026-11-22T09:32:00Z",
-                "source_class": "funding_database",
+                "source_class": "data_provider",
                 "origin_id": null
               },
               "quote": null,
@@ -2627,7 +2627,7 @@
                 "label": "Company profile",
                 "url_or_endpoint": "POST /company/enrich",
                 "retrieved_at": "2026-11-22T09:32:00Z",
-                "source_class": "data_provider_profile",
+                "source_class": "data_provider",
                 "origin_id": null
               },
               "evidence_id": null,
@@ -2734,7 +2734,7 @@
                       "label": "Headcount estimate",
                       "url_or_endpoint": "POST /company/enrich#headcount",
                       "retrieved_at": "2026-11-22T09:32:00Z",
-                      "source_class": "headcount_estimate",
+                      "source_class": "professional_profile_signal",
                       "origin_id": null
                     },
                     "quote": null,
@@ -2828,7 +2828,7 @@
                     "label": "Headcount estimate",
                     "url_or_endpoint": "POST /company/enrich#headcount",
                     "retrieved_at": "2026-11-22T09:32:00Z",
-                    "source_class": "headcount_estimate",
+                    "source_class": "professional_profile_signal",
                     "origin_id": null
                   },
                   "evidence_id": null,
@@ -2848,7 +2848,7 @@
                     "label": "Job postings",
                     "url_or_endpoint": "POST /job/search",
                     "retrieved_at": "2026-11-22T09:34:00Z",
-                    "source_class": "data_provider_profile",
+                    "source_class": "data_provider",
                     "origin_id": null
                   },
                   "evidence_id": null,
@@ -3251,7 +3251,7 @@
             ]
           },
           "retrieved_at": "2026-11-22T09:32:00Z",
-          "source_class": "data_provider_profile",
+          "source_class": "data_provider",
           "origin_id": null,
           "title": null,
           "publisher": null,
@@ -3270,7 +3270,7 @@
             ]
           },
           "retrieved_at": "2026-11-22T09:32:00Z",
-          "source_class": "headcount_estimate",
+          "source_class": "professional_profile_signal",
           "origin_id": null,
           "title": null,
           "publisher": null,
@@ -3289,7 +3289,7 @@
             ]
           },
           "retrieved_at": "2026-11-22T09:32:00Z",
-          "source_class": "funding_database",
+          "source_class": "data_provider",
           "origin_id": null,
           "title": null,
           "publisher": null,
@@ -3338,7 +3338,7 @@
             ]
           },
           "retrieved_at": "2026-11-22T09:34:00Z",
-          "source_class": "professional_profile",
+          "source_class": "professional_profile_signal",
           "origin_id": null,
           "title": null,
           "publisher": null,
@@ -3357,7 +3357,7 @@
             ]
           },
           "retrieved_at": "2026-11-22T09:34:00Z",
-          "source_class": "data_provider_profile",
+          "source_class": "data_provider",
           "origin_id": null,
           "title": null,
           "publisher": null,
@@ -4051,7 +4051,7 @@
                       "label": "Headcount estimate",
                       "url_or_endpoint": "POST /company/enrich#headcount",
                       "retrieved_at": "2026-11-22T09:32:00Z",
-                      "source_class": "headcount_estimate",
+                      "source_class": "professional_profile_signal",
                       "origin_id": null
                     },
                     "quote": null,
@@ -4145,7 +4145,7 @@
                     "label": "Headcount estimate",
                     "url_or_endpoint": "POST /company/enrich#headcount",
                     "retrieved_at": "2026-11-22T09:32:00Z",
-                    "source_class": "headcount_estimate",
+                    "source_class": "professional_profile_signal",
                     "origin_id": null
                   },
                   "evidence_id": null,
@@ -4165,7 +4165,7 @@
                     "label": "Job postings",
                     "url_or_endpoint": "POST /job/search",
                     "retrieved_at": "2026-11-22T09:34:00Z",
-                    "source_class": "data_provider_profile",
+                    "source_class": "data_provider",
                     "origin_id": null
                   },
                   "evidence_id": null,
@@ -4306,7 +4306,7 @@
                       "label": "Headcount estimate",
                       "url_or_endpoint": "POST /company/enrich#headcount",
                       "retrieved_at": "2026-11-22T09:32:00Z",
-                      "source_class": "headcount_estimate",
+                      "source_class": "professional_profile_signal",
                       "origin_id": null
                     },
                     "quote": null,
@@ -4400,7 +4400,7 @@
                     "label": "Headcount estimate",
                     "url_or_endpoint": "POST /company/enrich#headcount",
                     "retrieved_at": "2026-11-22T09:32:00Z",
-                    "source_class": "headcount_estimate",
+                    "source_class": "professional_profile_signal",
                     "origin_id": null
                   },
                   "evidence_id": null,
@@ -4420,7 +4420,7 @@
                     "label": "Job postings",
                     "url_or_endpoint": "POST /job/search",
                     "retrieved_at": "2026-11-22T09:34:00Z",
-                    "source_class": "data_provider_profile",
+                    "source_class": "data_provider",
                     "origin_id": null
                   },
                   "evidence_id": null,
@@ -5716,7 +5716,7 @@
         "category": "identity_incorporation",
         "component": "*",
         "source_classes": [
-          "registry_official",
+          "registry",
           "registry_mirror"
         ]
       },
@@ -5732,15 +5732,15 @@
         "category": "leadership_history",
         "component": "*",
         "source_classes": [
-          "professional_profile"
+          "professional_profile_signal"
         ]
       },
       {
         "category": "funding",
         "component": "*",
         "source_classes": [
-          "funding_database",
-          "registry_official",
+          "data_provider",
+          "registry",
           "news"
         ]
       }

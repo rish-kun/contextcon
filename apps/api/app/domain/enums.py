@@ -58,9 +58,8 @@ class SourceReliability(StrEnum):
     SELLER_STATEMENT = "seller_statement"
 
 
-# Note: the API contract's ``SourceClass`` (app/api/schemas/common.py) uses an
-# older vocabulary from the plan (registry_official, funding_database, ...). It is
-# deliberately not aliased here; the contract owner maps or adopts these values.
+# The API contract's ``SourceClass`` (app/api/schemas/common.py) mirrors these
+# values exactly; tests/api/test_contract.py enforces it.
 
 
 class ClaimCategory(StrEnum):

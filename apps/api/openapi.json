@@ -7199,21 +7199,19 @@
       "SourceClass": {
         "type": "string",
         "enum": [
-          "registry_official",
+          "registry",
           "registry_mirror",
           "audited_statement",
           "counterparty_confirmation",
           "company_announcement",
-          "funding_database",
-          "professional_profile",
-          "headcount_estimate",
-          "data_provider_profile",
           "news",
+          "professional_profile_signal",
+          "data_provider",
           "seller_document",
-          "seller_statement",
-          "user_typed"
+          "seller_statement"
         ],
-        "title": "SourceClass"
+        "title": "SourceClass",
+        "description": "What kind of record a source is. Equal to `app.domain.enums.SourceReliability`,\nwhich is the source of truth; `tests/api/test_contract.py` asserts they match."
       },
       "SourceRecordOut": {
         "properties": {

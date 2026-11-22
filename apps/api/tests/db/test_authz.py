@@ -51,7 +51,7 @@ async def test_claim_check_cannot_cite_evidence_from_another_case(session: Async
         case_id=other_case.id,
         provider="crustdata",
         endpoint_or_url="/company/enrich",
-        source_class="data_provider_profile",
+        source_class="data_provider",
     )
     session.add(src)
     await session.flush()

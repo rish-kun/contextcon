@@ -284,10 +284,10 @@ SHARED_ENUMS = [  # spec §5.0: exact equality
     ("CriterionKind", "CriterionKind"),
     ("CriterionResultState", "TriState"),
     ("IdentityState", "IdentityState"),
+    ("SourceClass", "SourceReliability"),
 ]
 OTHER_ENUMS = [  # the contract may be a superset (e.g. `litigation`, spec §6.3)
     ("ClaimCategory", "ClaimCategory"),
-    ("SourceClass", "SourceClass"),
     ("RunKind", "RunKind"),
     ("StepState", "StepState"),
     ("CompanyType", "CompanyType"),
