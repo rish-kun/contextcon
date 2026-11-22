@@ -36,6 +36,7 @@ from app.rules.evaluate import (
     evidence_sufficiency,
     financial_assessment,
     inputs_hash,
+    redecide,
 )
 from app.rules.fit import (
     assess_candidate,
@@ -101,6 +102,7 @@ __all__ = [
     "must_have_failures",
     "opportunity_fit",
     "rank_investors",
+    "redecide",
     "required_checks",
     "screen_company_record",
     "screen_evidence",

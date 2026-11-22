@@ -27,6 +27,8 @@ from app.domain.types import (
     CheckOutcome,
     CheckSufficiency,
     Claim,
+    Criterion,
+    CriterionEvaluation,
     DispositionDecision,
     Evidence,
     EvidenceSufficiency,
@@ -40,7 +42,7 @@ from app.domain.types import (
 from app.rules import policy
 from app.rules.claim_status import combine_states, decide_claim_status, document_for, status_label
 from app.rules.company_type import classify_company, required_checks
-from app.rules.fit import assess_case_candidate
+from app.rules.fit import assess_case_candidate, fit_from_evaluations, must_have_failures
 from app.rules.requests import build_request_list
 from app.rules.validation import screen_fact
 
@@ -360,6 +362,44 @@ def decide_disposition(
     )
 
 
+def must_have_failure_reasons(
+    criteria: list[Criterion], evaluations: list[CriterionEvaluation]
+) -> list[str]:
+    """The exclusion reasons ``assess_case_candidate`` gives, in the same words."""
+    labels = {c.id: c.label for c in criteria}
+    return [
+        f"Must-have failed: {labels[e.criterion_id]} ({e.reason})"
+        for e in must_have_failures(evaluations)
+    ]
+
+
+def redecide(
+    *,
+    identity_status: IdentityStatus,
+    company_type: CompanyType,
+    outcomes: list[CheckOutcome],
+    evaluations: list[CriterionEvaluation],
+    criteria: list[Criterion],
+    claims: dict[str, Claim],
+) -> tuple[OpportunityFit, EvidenceSufficiency, DispositionDecision]:
+    """Fit, evidence sufficiency and the disposition from already-decided claim
+    outcomes and criterion evaluations. ``assess`` calls it with the real values
+    and DecisionFlip with some of them forced, so a hypothetical and a real
+    disposition always come from the same rules. ``criteria`` supplies weights
+    and labels."""
+    fit = fit_from_evaluations(criteria, evaluations)
+    sufficiency = evidence_sufficiency(company_type, outcomes, claims)
+    decision = decide_disposition(
+        identity_status,
+        fit,
+        sufficiency,
+        must_have_failure_reasons(criteria, evaluations),
+        outcomes=outcomes,
+        claims=claims,
+    )
+    return fit, sufficiency, decision
+
+
 # --- Versioned assessment -------------------------------------------------------
 
 
@@ -416,19 +456,18 @@ def assess(inputs: AssessmentInputs) -> AssessmentVersion:
         inputs.profile.funding_stage,
         inputs.today,
     )
-    sufficiency = evidence_sufficiency(ctype.company_type, outcomes, claims)
+    _, sufficiency, decision = redecide(
+        identity_status=inputs.identity_status,
+        company_type=ctype.company_type,
+        outcomes=outcomes,
+        evaluations=candidate.fit.evaluations,
+        criteria=inputs.criteria,
+        claims=claims,
+    )
     business = business_assessment(inputs.business)
     financial = financial_assessment(
         [f for c in inputs.claim_checks for f in c.facts] + list(inputs.financial_facts),
         [inputs.company.entity_id],
-    )
-    decision = decide_disposition(
-        inputs.identity_status,
-        candidate.fit,
-        sufficiency,
-        candidate.exclusion_reasons,
-        outcomes=outcomes,
-        claims=claims,
     )
     requests = build_request_list(
         outcomes,
