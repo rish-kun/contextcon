@@ -15,12 +15,15 @@
  * - Results, misses included, are cached in memory here and in the browser.
  *
  * A miss is a 404 with no body; the ticker then shows the source-class glyph.
+ *
+ * Off by default: unless `FAVICON_PROXY_ENABLED=true`, every request is a 404 and no
+ * upstream request is made (see docs/deploy.md).
  */
 import { lookup } from "node:dns/promises";
 import type { NextRequest } from "next/server";
 
 import { SESSION_COOKIE } from "@/lib/api/proxy-rules";
-import { isPublicAddress, publicHost } from "@/lib/run/favicon-rules";
+import { faviconProxyEnabled, isPublicAddress, publicHost } from "@/lib/run/favicon-rules";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -155,6 +158,12 @@ const baseHeaders = {
 };
 
 export async function GET(request: NextRequest): Promise<Response> {
+  if (!faviconProxyEnabled(process.env)) {
+    return new Response(null, {
+      status: 404,
+      headers: { ...baseHeaders, "cache-control": "private, max-age=3600" },
+    });
+  }
   const fixtures = process.env.NEXT_PUBLIC_API_MODE === "fixtures";
   if (!fixtures && !request.cookies.has(SESSION_COOKIE)) {
     return new Response(null, { status: 401, headers: baseHeaders });

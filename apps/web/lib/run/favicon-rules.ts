@@ -4,6 +4,14 @@
  */
 import { isIP } from "node:net";
 
+/**
+ * The proxy is off unless `FAVICON_PROXY_ENABLED` is exactly `true` (server-only env).
+ * Off, the route answers 404 to everything and the ticker shows source-class glyphs.
+ */
+export function faviconProxyEnabled(env: Record<string, string | undefined>): boolean {
+  return env.FAVICON_PROXY_ENABLED?.trim().toLowerCase() === "true";
+}
+
 /** Names that never resolve on the public internet, or must not be asked. */
 const RESERVED_SUFFIXES = [
   ".example",

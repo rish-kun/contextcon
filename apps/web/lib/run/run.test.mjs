@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { appendActivities, deriveView, visibleEvents } from "./activity-store.ts";
-import { isPublicAddress, publicHost } from "./favicon-rules.ts";
+import { faviconProxyEnabled, isPublicAddress, publicHost } from "./favicon-rules.ts";
 import { RevealQueue } from "./reveal-queue.ts";
 
 function fakeClock() {
@@ -152,6 +152,15 @@ test("the favicon proxy only asks public hosts", () => {
   }
   assert.equal(isPublicAddress("93.184.216.34"), true);
   assert.equal(isPublicAddress("2606:2800:220:1:248:1893:25c8:1946"), true);
+});
+
+test("the favicon proxy is off unless FAVICON_PROXY_ENABLED is true", () => {
+  assert.equal(faviconProxyEnabled({}), false);
+  for (const value of ["", "false", "0", "1", "yes", "on"]) {
+    assert.equal(faviconProxyEnabled({ FAVICON_PROXY_ENABLED: value }), false, value);
+  }
+  assert.equal(faviconProxyEnabled({ FAVICON_PROXY_ENABLED: "true" }), true);
+  assert.equal(faviconProxyEnabled({ FAVICON_PROXY_ENABLED: " TRUE " }), true);
 });
 
 /* The API's own recorded fixture streams, replayed through the store. */
