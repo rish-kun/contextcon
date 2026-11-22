@@ -1,18 +1,19 @@
 """Storage for the Act step, behind a small Protocol.
 
-`app/db/` (SQLAlchemy + Postgres) is being built separately and was not on `main` when
-this module was written, so this file defines the Protocol plus an in-memory
-implementation. The Postgres implementation must keep the same guarantees:
+Two implementations: `InMemoryActRepository` (tests, local runs) and
+`PostgresActRepository` (`app/act/pg_repository.py`, production). Both keep the
+same guarantees:
 
 * `sends.send_key` UNIQUE and `sends.revision_id` UNIQUE.
-* Partial unique index `sends(message_id) WHERE status IN ('sending','sent','unknown')`,
-  so two concurrent `create_send` calls for one message cannot both insert; the loser
-  gets an IntegrityError, which maps to `SendExistsError`.
-* `transition_send` is a compare-and-set:
-  `UPDATE sends SET ... WHERE id = :id AND status = ANY(:from) RETURNING *`.
-* `add_revision`, `add_approval` and `create_send` lock the message row
-  (`SELECT ... FOR UPDATE`) so an edit cannot slip in between an approval check and a
-  send claim.
+* At most one active send (`sending`, `sent`, `unknown`) per message. In Postgres this
+  is the partial unique index on `send_attempts(request_list_id)`; the loser of two
+  concurrent inserts gets an IntegrityError, which maps to `SendExistsError`.
+* `transition_send` is a compare-and-set on the status *and*, when given, on the
+  record's `generation` (bumped by every transition) or `attempts`.
+* `add_revision`, `add_approval`, `create_send` and `claim_retry` lock the message
+  (`SELECT ... FOR UPDATE` on the request list) and check, under that lock, that the
+  revision is current and carries the approval being used. An edit therefore cannot
+  slip in between an approval check and a send claim.
 * Revisions and approvals are insert-only.
 """
 
@@ -29,6 +30,7 @@ from app.act.models import (
     Approval,
     Message,
     MessageRevision,
+    NotApprovedError,
     NotFoundError,
     SendExistsError,
     SendRecord,
@@ -66,8 +68,21 @@ class ActRepository(Protocol):
     async def create_send(self, send: SendRecord) -> SendRecord:
         """Insert a send in status `sending` (or the given status).
 
-        Raises `SendExistsError` if the revision already has a send or the message has
-        an active send. Raises `StaleRevisionError` if the revision is not current.
+        Under the message lock: raises `StaleRevisionError` if the revision is not
+        current, `NotApprovedError` if `send.approval_id` is not an approval of that
+        revision, and `SendExistsError` if the revision already has a send or the
+        message has an active send.
+        """
+        ...
+
+    async def claim_retry(
+        self, send_id: str, from_status: SendStatus, expected_generation: int, **changes: Any
+    ) -> SendRecord | None:
+        """Move a `failed`, `suppressed_test_mode` or `unknown` send back to `sending`.
+
+        Under the message lock, checks that the send's revision is still current and
+        still approved (`StaleRevisionError` / `NotApprovedError`), then applies the
+        same compare-and-set as `transition_send`. Returns None on a lost race.
         """
         ...
 
@@ -76,11 +91,19 @@ class ActRepository(Protocol):
     async def get_latest_send(self, message_id: str) -> SendRecord | None: ...
 
     async def transition_send(
-        self, send_id: str, from_statuses: Iterable[SendStatus], **changes: Any
+        self,
+        send_id: str,
+        from_statuses: Iterable[SendStatus],
+        *,
+        expected_generation: int | None = None,
+        expected_attempts: int | None = None,
+        **changes: Any,
     ) -> SendRecord | None:
-        """Atomically apply `changes` if the send's status is in `from_statuses`.
+        """Atomically apply `changes` if the send's status is in `from_statuses` (and its
+        generation / attempts match when given), bumping `generation`.
 
-        Returns the updated record, or None if the status had moved on (lost race).
+        Returns the updated record, or None if the send had moved on (lost race), or if
+        the change would make a second send of the message active.
         """
         ...
 
@@ -156,6 +179,9 @@ class InMemoryActRepository:
             message = self._require_message(send.message_id)
             if message.current_revision_id != send.revision_id:
                 raise StaleRevisionError("Revision is no longer current.")
+            approvals = self._approvals.get(send.revision_id, [])
+            if not any(a.id == send.approval_id for a in approvals):
+                raise NotApprovedError("The current revision has not been approved.")
             existing_id = self._send_by_revision.get(send.revision_id)
             if existing_id is not None:
                 existing = self._sends[existing_id]
@@ -182,23 +208,34 @@ class InMemoryActRepository:
             return self._sends[ids[-1]] if ids else None
 
     async def transition_send(
-        self, send_id: str, from_statuses: Iterable[SendStatus], **changes: Any
+        self,
+        send_id: str,
+        from_statuses: Iterable[SendStatus],
+        *,
+        expected_generation: int | None = None,
+        expected_attempts: int | None = None,
+        **changes: Any,
     ) -> SendRecord | None:
-        allowed = frozenset(from_statuses)
+        with self._lock:
+            return self._transition(
+                send_id, frozenset(from_statuses), expected_generation, expected_attempts, changes
+            )
+
+    async def claim_retry(
+        self, send_id: str, from_status: SendStatus, expected_generation: int, **changes: Any
+    ) -> SendRecord | None:
         with self._lock:
             current = self._sends.get(send_id)
             if current is None:
                 raise NotFoundError("send not found")
-            if current.status not in allowed:
-                return None
-            new_status = changes.get("status", current.status)
-            if new_status in ACTIVE_SEND_STATUSES:
-                other = self._active_send(current.message_id)
-                if other is not None and other.id != send_id:
-                    return None
-            updated = replace(current, **changes)
-            self._sends[send_id] = updated
-            return updated
+            message = self._require_message(current.message_id)
+            if message.current_revision_id != current.revision_id:
+                raise StaleRevisionError("The message was edited; this revision is superseded.")
+            if not self._approvals.get(current.revision_id):
+                raise NotApprovedError("The current revision has not been approved.")
+            return self._transition(
+                send_id, frozenset({from_status}), expected_generation, None, changes
+            )
 
     async def count_sends_by_status(self, case_id: str) -> dict[SendStatus, int]:
         with self._lock:
@@ -212,6 +249,32 @@ class InMemoryActRepository:
         if message is None:
             raise NotFoundError("message not found")
         return message
+
+    def _transition(
+        self,
+        send_id: str,
+        allowed: frozenset[SendStatus],
+        expected_generation: int | None,
+        expected_attempts: int | None,
+        changes: dict[str, Any],
+    ) -> SendRecord | None:
+        current = self._sends.get(send_id)
+        if current is None:
+            raise NotFoundError("send not found")
+        if current.status not in allowed:
+            return None
+        if expected_generation is not None and current.generation != expected_generation:
+            return None
+        if expected_attempts is not None and current.attempts != expected_attempts:
+            return None
+        new_status = changes.get("status", current.status)
+        if new_status in ACTIVE_SEND_STATUSES:
+            other = self._active_send(current.message_id)
+            if other is not None and other.id != send_id:
+                return None
+        updated = replace(current, **changes, generation=current.generation + 1)
+        self._sends[send_id] = updated
+        return updated
 
     def _active_send(self, message_id: str) -> SendRecord | None:
         for send_id in self._sends_by_message.get(message_id, []):

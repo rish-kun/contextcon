@@ -191,13 +191,15 @@ def _classify_send_response(response: httpx.Response) -> SendResult:
             return SendResult("accepted", provider_message_id=str(email_id))
         return SendResult("indeterminate", error=f"HTTP {status} without an email id")
     detail = _error_text(response)
-    if status == 409 and "concurrent" in detail:
-        # Another request with this idempotency key is still being processed.
+    if status == 409:
+        # Idempotency conflicts: another request with this key is in flight, or a
+        # request with this key but a different payload was seen before. Either way an
+        # email under this key may already exist, so this is never a plain failure.
         return SendResult("indeterminate", error=f"HTTP 409: {detail}")
     if status >= 500:
         # A server error can happen after the email was queued.
         return SendResult("indeterminate", error=f"HTTP {status}: {detail}")
-    # 4xx (validation, auth, rate limit, idempotency payload mismatch): not accepted.
+    # Other 4xx (validation, auth, rate limit): not accepted.
     return SendResult("rejected", error=f"HTTP {status}: {detail}")
 
 

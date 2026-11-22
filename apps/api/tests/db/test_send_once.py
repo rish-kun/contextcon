@@ -88,3 +88,15 @@ async def test_collision_does_not_reveal_another_workspaces_send(session: AsyncS
             session, other.workspace.id, approval_id=other_approval.id, send_key="same"
         )
     assert info.value.attempt is None
+
+
+async def test_approval_of_an_edited_revision_cannot_start_a_send(session: AsyncSession) -> None:
+    t, rl, approval = await _approved(session)
+    await repo.add_message_revision(
+        session, t.workspace.id, rl.id, subject="s", body="edited", recipient="cfo@seller.test"
+    )
+    await session.commit()
+    with pytest.raises(repo.StaleApproval):
+        await repo.begin_send(session, t.workspace.id, approval_id=approval.id, send_key="k")
+    count = await session.execute(text("SELECT count(*) FROM send_attempts"))
+    assert count.scalar_one() == 0

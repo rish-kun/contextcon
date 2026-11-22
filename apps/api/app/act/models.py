@@ -9,9 +9,10 @@ the repository.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
+from typing import Any
 
 
 class SendStatus(StrEnum):
@@ -113,6 +114,13 @@ class SendRecord:
     completed_at: datetime | None = None
     provider_message_id: str | None = None
     error: str | None = None
+    # Bumped by every status transition. Each transition names the generation it read,
+    # so a stale snapshot can never overwrite a newer attempt's state.
+    generation: int = 1
+    # The exact request handed to the provider (from, to, subject, text, tags). Every
+    # retry re-sends these bytes, so the provider's idempotency check never sees a
+    # different payload under the same key.
+    payload: dict[str, Any] | None = field(default=None, compare=False)
 
 
 # --- errors -------------------------------------------------------------------------

@@ -259,6 +259,15 @@ class Document(IdMixin, Base):
     size_bytes: Mapped[int | None] = mapped_column(Integer)
     sha256: Mapped[str | None] = mapped_column(String(64))
     pages: Mapped[int | None] = mapped_column(Integer)
+    # What ingestion found: the parsed file type ("pdf", "pptx", ...) and whether the
+    # text could be read ("ok" | "no_text_layer" | "unreadable") with the reason.
+    file_kind: Mapped[str | None] = mapped_column(String(16))
+    text_status: Mapped[str | None] = mapped_column(String(32))
+    text_status_reason: Mapped[str | None] = mapped_column(Text)
+    # PII kind -> spans replaced. Counts only, never the redacted values.
+    redaction_counts: Mapped[dict] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )
     uploaded_by: Mapped[uuid.UUID | None] = mapped_column(_fk("users.id", ondelete="SET NULL"))
     delete_after: Mapped[datetime] = _ts(nullable=False)
     deleted_at: Mapped[datetime | None] = _ts()
@@ -277,6 +286,10 @@ class ExtractedText(IdMixin, Base):
     document_id: Mapped[uuid.UUID] = mapped_column(_fk("documents.id"), index=True)
     case_id: Mapped[uuid.UUID] = mapped_column(_fk("cases.id"), index=True)
     page: Mapped[int | None] = mapped_column(Integer)
+    # Order within the document, and the DOCX paragraph index (None for PDF/PPTX).
+    position: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    paragraph: Mapped[int | None] = mapped_column(Integer)
+    has_text_layer: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
     text: Mapped[str] = mapped_column(Text)
     redaction_counts: Mapped[dict] = mapped_column(JSONB, default=dict)
     delete_after: Mapped[datetime] = _ts(nullable=False)
@@ -422,10 +435,10 @@ class AssessmentVersion(IdMixin, Base):
 
     __tablename__ = "assessment_versions"
 
-    case_id: Mapped[uuid.UUID] = mapped_column(_fk("cases.id"), index=True)
+    case_id: Mapped[uuid.UUID] = mapped_column(_fk("cases.id", ondelete="RESTRICT"), index=True)
     version: Mapped[int] = mapped_column(Integer)
     previous_version_id: Mapped[uuid.UUID | None] = mapped_column(
-        _fk("assessment_versions.id", ondelete="SET NULL")
+        _fk("assessment_versions.id", ondelete="RESTRICT")
     )
     policy_version: Mapped[str] = mapped_column(String(64))
     inputs_hash: Mapped[str] = mapped_column(String(128))
@@ -434,8 +447,9 @@ class AssessmentVersion(IdMixin, Base):
     reasons: Mapped[list] = mapped_column(JSONB, default=list)
     diff_from_previous: Mapped[dict | None] = mapped_column(JSONB)
     trigger: Mapped[str] = mapped_column(String(64), default="evaluate")
-    run_id: Mapped[uuid.UUID | None] = mapped_column(_fk("runs.id", ondelete="SET NULL"))
-    created_by: Mapped[uuid.UUID | None] = mapped_column(_fk("users.id", ondelete="SET NULL"))
+    # RESTRICT, not SET NULL: nulling a column is an UPDATE, which the trigger rejects.
+    run_id: Mapped[uuid.UUID | None] = mapped_column(_fk("runs.id", ondelete="RESTRICT"))
+    created_by: Mapped[uuid.UUID | None] = mapped_column(_fk("users.id", ondelete="RESTRICT"))
 
     __table_args__ = (
         CheckConstraint(check_in("disposition", Disposition), name="disposition"),
@@ -486,13 +500,16 @@ class MessageRevision(IdMixin, Base):
 
     __tablename__ = "message_revisions"
 
-    request_list_id: Mapped[uuid.UUID] = mapped_column(_fk("request_lists.id"), index=True)
-    case_id: Mapped[uuid.UUID] = mapped_column(_fk("cases.id"), index=True)
+    request_list_id: Mapped[uuid.UUID] = mapped_column(
+        _fk("request_lists.id", ondelete="RESTRICT"), index=True
+    )
+    case_id: Mapped[uuid.UUID] = mapped_column(_fk("cases.id", ondelete="RESTRICT"), index=True)
     revision: Mapped[int] = mapped_column(Integer)
     subject: Mapped[str] = mapped_column(Text)
     body: Mapped[str] = mapped_column(Text)
+    # Empty until a person types the address in (a drafted first revision has none).
     recipient: Mapped[str] = mapped_column(String(320))
-    created_by: Mapped[uuid.UUID | None] = mapped_column(_fk("users.id", ondelete="SET NULL"))
+    created_by: Mapped[uuid.UUID | None] = mapped_column(_fk("users.id", ondelete="RESTRICT"))
 
     __table_args__ = (UniqueConstraint("request_list_id", "revision"),)
 
@@ -502,7 +519,9 @@ class Approval(IdMixin, Base):
 
     __tablename__ = "approvals"
 
-    message_revision_id: Mapped[uuid.UUID] = mapped_column(_fk("message_revisions.id"), index=True)
+    message_revision_id: Mapped[uuid.UUID] = mapped_column(
+        _fk("message_revisions.id", ondelete="RESTRICT"), index=True
+    )
     user_id: Mapped[uuid.UUID] = mapped_column(_fk("users.id", ondelete="RESTRICT"))
     user_display_name: Mapped[str] = mapped_column(String(200))
     approved_at: Mapped[datetime] = mapped_column(
@@ -517,14 +536,27 @@ class SendAttempt(IdMixin, Base):
 
     __tablename__ = "send_attempts"
 
-    request_list_id: Mapped[uuid.UUID] = mapped_column(_fk("request_lists.id"), index=True)
-    message_revision_id: Mapped[uuid.UUID] = mapped_column(_fk("message_revisions.id"), unique=True)
+    request_list_id: Mapped[uuid.UUID] = mapped_column(
+        _fk("request_lists.id", ondelete="RESTRICT"), index=True
+    )
+    message_revision_id: Mapped[uuid.UUID] = mapped_column(
+        _fk("message_revisions.id", ondelete="RESTRICT"), unique=True
+    )
     approval_id: Mapped[uuid.UUID] = mapped_column(_fk("approvals.id", ondelete="RESTRICT"))
     send_key: Mapped[str] = mapped_column(String(200), unique=True)
     status: Mapped[str] = mapped_column(String(32), default=SendStatus.PENDING)
     provider: Mapped[str] = mapped_column(String(64), default="resend")
     provider_message_id: Mapped[str | None] = mapped_column(String(500))
     error: Mapped[str | None] = mapped_column(Text)
+    # Bumped by every status change; a transition names the generation it read.
+    generation: Mapped[int] = mapped_column(Integer, default=1, server_default=text("1"))
+    attempts: Mapped[int] = mapped_column(Integer, default=1, server_default=text("1"))
+    test_mode: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    # The exact provider request (from, to, subject, text, tags); retries resend it.
+    payload: Mapped[dict | None] = mapped_column(JSONB)
+    dispatched_at: Mapped[datetime | None] = _ts()
+    last_attempt_at: Mapped[datetime | None] = _ts()
+    completed_at: Mapped[datetime | None] = _ts()
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

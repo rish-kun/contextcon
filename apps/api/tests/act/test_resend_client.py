@@ -56,7 +56,7 @@ def test_send_posts_with_idempotency_key_auth_and_tag() -> None:
         (422, {"name": "validation_error", "message": "bad to"}, "rejected"),
         (401, {"name": "missing_api_key"}, "rejected"),
         (429, {"name": "rate_limit_exceeded"}, "rejected"),
-        (409, {"name": "invalid_idempotent_request"}, "rejected"),
+        (409, {"name": "invalid_idempotent_request"}, "indeterminate"),
         (409, {"name": "concurrent_idempotent_requests"}, "indeterminate"),
         (500, {"name": "internal_server_error"}, "indeterminate"),
         (200, {"unexpected": True}, "indeterminate"),

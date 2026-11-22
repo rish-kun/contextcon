@@ -47,6 +47,10 @@ class Forbidden(PermissionError):
     """The acting user may not do this (e.g. approve in another workspace)."""
 
 
+class StaleApproval(RuntimeError):
+    """The approval is for a revision that is no longer the latest (edited since)."""
+
+
 class AlreadySent(RuntimeError):
     """A send for this key, revision or request list exists. `attempt` is that send when
     it is visible to the caller's workspace, else None."""
@@ -382,10 +386,12 @@ async def begin_send(
 ) -> SendAttempt:
     """Reserve the send and commit it *before* calling the email provider.
 
-    Raises `AlreadySent` if the key was used before, the revision was already sent, or
-    the request list has a send that left or may have left (pending/sent/unknown), so
-    a message leaves at most once. Build `send_key` server-side from ids the caller
-    owns (e.g. `f"request-list:{id}"`). Commits the session.
+    Raises `StaleApproval` if the approved revision is no longer the request list's
+    latest revision (checked under the same request-list row lock that edits take), and
+    `AlreadySent` if the key was used before, the revision was already sent, or the
+    request list has a send that left or may have left (pending/sent/unknown), so a
+    message leaves at most once. Build `send_key` server-side from ids the caller owns
+    (e.g. `f"request-list:{id}"`). Commits the session.
     """
     found = (
         await session.execute(
@@ -399,6 +405,22 @@ async def begin_send(
         raise NotFound("approval")
     approval, request_list_id = found
     revision_id = approval.message_revision_id  # plain value: survives a rollback
+    # Same lock as `add_message_revision`: no edit can land between this check and the
+    # insert below, and an approval of an older revision is refused.
+    await session.execute(
+        select(RequestList.id).where(RequestList.id == request_list_id).with_for_update()
+    )
+    latest = (
+        await session.execute(
+            select(MessageRevision.id)
+            .where(MessageRevision.request_list_id == request_list_id)
+            .order_by(MessageRevision.revision.desc())
+            .limit(1)
+        )
+    ).scalar_one()
+    if latest != revision_id:
+        await session.rollback()
+        raise StaleApproval("the message was edited after this approval; approve it again")
     attempt = SendAttempt(
         request_list_id=request_list_id,
         message_revision_id=approval.message_revision_id,

@@ -5,19 +5,26 @@ and `authorize_case` checks the case is in that user's workspace (404 otherwise)
 every approval records a real, named user. Tests may still replace them with
 `app.dependency_overrides`.
 
-`get_act_service` still uses in-memory storage until the Postgres repository is wired.
+`get_act_service` stores messages in Postgres (`PostgresActRepository`) whenever
+`DATABASE_URL` is set; the in-memory repository is only a local-development fallback
+and is never durable.
 """
 
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 
 from app.act.models import Actor
-from app.act.repository import InMemoryActRepository
+from app.act.pg_repository import PostgresActRepository
+from app.act.repository import ActRepository, InMemoryActRepository
 from app.act.resend import ResendClient
 from app.act.service import ActService, SendConfig
 from app.auth.deps import CurrentUser, check_case_access
+from app.db.session import database_configured, get_sessionmaker
 from app.settings import get_settings
+
+log = logging.getLogger(__name__)
 
 
 async def get_actor(user: CurrentUser) -> Actor:
@@ -31,13 +38,22 @@ async def authorize_case(case_id: str, user: CurrentUser) -> str:
     return case_id
 
 
+def default_act_repository() -> ActRepository:
+    if database_configured():
+        return PostgresActRepository(get_sessionmaker())
+    if get_settings().email_send_enabled:
+        # A real send must leave a durable record; refuse rather than forget it.
+        raise RuntimeError("EMAIL_SEND_ENABLED=true needs DATABASE_URL (Postgres).")
+    log.warning("act: DATABASE_URL is not set; messages are kept in memory only")
+    return InMemoryActRepository()
+
+
 @lru_cache
 def get_act_service() -> ActService:
-    """Default service: in-memory storage (swap for the Postgres repository once
-    `app/db/` lands) and Resend from settings. Sending stays off unless
-    `EMAIL_SEND_ENABLED=true`."""
+    """Default service: Postgres storage and Resend from settings. Sending stays off
+    unless `EMAIL_SEND_ENABLED=true`."""
     settings = get_settings()
     api_key = settings.resend_api_key.get_secret_value()
     provider = ResendClient(api_key) if api_key else None
     config = SendConfig(enabled=settings.email_send_enabled, sender=settings.email_from)
-    return ActService(InMemoryActRepository(), config, provider)
+    return ActService(default_act_repository(), config, provider)

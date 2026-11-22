@@ -8,8 +8,9 @@ State machine for one message (what `MessageState.status` reports):
     sending ──provider rejected──────────▶ failed               (definitely not sent)
     sending ──timeout / lost response────▶ unknown              (may have been sent)
     unknown ──reconcile: found───────────▶ sent
-    unknown ──reconcile: absent, on send─▶ sending (same send key)
-    failed  ──send again─────────────────▶ sending (same send key)
+    unknown ──reconcile: absent, on send─▶ sending (same send key, same payload)
+    unknown ──confirm_outcome (a person)─▶ sent | failed
+    failed  ──send again─────────────────▶ sending (same send key, same payload)
     suppressed_test_mode ──send, real sending now enabled──▶ sending
 
 Rules:
@@ -18,9 +19,16 @@ Rules:
   while a send is `sending`, `sent` or `unknown`.
 * The send record, with its unique send key, is persisted before the provider call.
   The key is the provider idempotency key and is reused by every retry of that send.
+* The exact provider payload is persisted with the send and re-sent byte for byte on
+  every retry, so the provider's idempotency check never sees a different payload.
 * `unknown` is never retried blindly: the provider is searched first for an email
   tagged with the send key. Only a complete search that finds nothing allows a retry,
-  and even then Resend's 24-hour idempotency window deduplicates.
+  and only while Resend's 24-hour idempotency window still deduplicates
+  (`idempotency_window`, 23 h by default). After that, or while sending is disabled,
+  the send stays `unknown` until a person confirms the outcome (`confirm_outcome`).
+* A retry re-checks, under the message lock, that its revision is still current and
+  approved, and every transition compares the generation it read, so a stale caller
+  can neither send a superseded body nor overwrite a newer attempt.
 * A send stuck in `sending` (process died mid-call) becomes `unknown` once it is older
   than `stale_sending_after`, then follows the same reconcile path.
 """
@@ -64,6 +72,8 @@ class SendConfig:
     reconcile_lookback: timedelta = timedelta(minutes=10)
     reconcile_max_pages: int = 10
     reconcile_page_size: int = 100
+    # Resend keeps idempotency keys for 24 hours; stop automatic retries an hour early.
+    idempotency_window: timedelta = timedelta(hours=23)
 
 
 @dataclass(frozen=True, slots=True)
@@ -175,6 +185,15 @@ class ActService:
         message = await self._require_message(case_id, message_id)
         if revision_id != message.current_revision_id:
             raise StaleRevisionError("Only the current revision can be approved.")
+        revision = await self._repo.get_revision(revision_id)
+        if revision is None:  # pragma: no cover - revisions are never deleted
+            raise NotFoundError("Revision not found.")
+        # A drafted revision has no recipient yet; it must be typed in (an edit) first.
+        try:
+            normalise_recipient(revision.recipient)
+        except ValidationError as exc:
+            raise ValidationError("Enter the recipient's email address before approving.") from exc
+        validate_content(revision.subject, revision.body)
         latest = await self._repo.get_latest_send(message_id)
         if latest is not None and latest.status in ACTIVE_SEND_STATUSES:
             raise SendExistsError(f"Message is already {latest.status}.", latest)
@@ -211,8 +230,12 @@ class ActService:
         if approval is None:
             raise NotApprovedError("The current revision has not been approved.")
         self._require_configured()
+        revision = await self._repo.get_revision(revision_id)
+        if revision is None:  # pragma: no cover - revisions are never deleted
+            raise NotFoundError("Revision not found.")
 
         now = self._clock()
+        send_key = _new_send_key()
         claimed = await self._repo.create_send(
             SendRecord(
                 id=_new_id(),
@@ -220,13 +243,14 @@ class ActService:
                 case_id=case_id,
                 revision_id=revision_id,
                 approval_id=approval.id,
-                send_key=_new_send_key(),
+                send_key=send_key,
                 status=SendStatus.SENDING,
                 test_mode=not self._config.enabled,
                 attempts=1,
                 created_at=now,
                 dispatched_at=now,
                 last_attempt_at=now,
+                payload=self._payload(revision, send_key),
             )
         )
         return await self._dispatch(claimed)
@@ -245,6 +269,40 @@ class ActService:
             return send
         resolved, _ = await self._reconcile_unknown(send)
         return resolved
+
+    async def confirm_outcome(
+        self, case_id: str, message_id: str, actor: Actor, *, delivered: bool, note: str = ""
+    ) -> SendRecord:
+        """A named person settles an `unknown` send after checking outside DealProof
+        (e.g. in the Resend dashboard or with the recipient). Never dispatches.
+
+        `delivered=True` records `sent`; `False` records `failed`, after which a normal
+        send retries with the same key and payload.
+        """
+        if not actor.user_id.strip() or not actor.display_name.strip():
+            raise ValidationError("Confirming an outcome needs a named, signed-in user.")
+        await self._require_message(case_id, message_id)
+        send = await self._repo.get_latest_send(message_id)
+        if send is None:
+            raise NotFoundError("This message has no send to confirm.")
+        send = await self._expire_if_stale(send)
+        if send.status is not SendStatus.UNKNOWN:
+            raise SendExistsError(f"Only an unknown send can be confirmed ({send.status}).", send)
+        who = actor.display_name.strip()
+        detail = f": {note.strip()[:500]}" if note.strip() else ""
+        verdict = "delivered" if delivered else "not delivered"
+        updated = await self._repo.transition_send(
+            send.id,
+            [SendStatus.UNKNOWN],
+            expected_generation=send.generation,
+            status=SendStatus.SENT if delivered else SendStatus.FAILED,
+            error=f"confirmed {verdict} by {who}{detail}",
+            completed_at=self._clock(),
+        )
+        if updated is None:
+            current = await self._reload(send)
+            raise SendExistsError(f"Send moved to {current.status} concurrently.", current)
+        return updated
 
     async def send_summary(self, case_id: str) -> dict[SendStatus, int]:
         """Counts per send status. `sent` is real provider acceptance;
@@ -306,6 +364,16 @@ class ActService:
                 resolved, lookup = await self._reconcile_unknown(send)
                 if lookup.outcome != "absent":
                     return resolved
+                if not self._config.enabled:
+                    # Never turn a possibly-sent email into "suppressed": keep it unknown.
+                    return await self._annotate(
+                        resolved, "sending is disabled; the earlier attempt is still unknown"
+                    )
+                if self._past_idempotency_window(resolved):
+                    return await self._annotate(
+                        resolved,
+                        "provider idempotency window has passed; confirm the outcome manually",
+                    )
                 return await self._retry(resolved, from_status=SendStatus.UNKNOWN)
             case SendStatus.FAILED | SendStatus.SUPPRESSED_TEST_MODE:
                 self._require_configured()
@@ -314,9 +382,18 @@ class ActService:
 
     async def _retry(self, send: SendRecord, *, from_status: SendStatus) -> SendRecord:
         now = self._clock()
-        claimed = await self._repo.transition_send(
+        payload = send.payload
+        if from_status is SendStatus.SUPPRESSED_TEST_MODE or payload is None:
+            # Nothing reached the provider under this key yet, so the payload may be
+            # rebuilt (e.g. the sender address was only configured afterwards).
+            revision = await self._repo.get_revision(send.revision_id)
+            if revision is None:  # pragma: no cover - revisions are never deleted
+                raise NotFoundError("Revision not found.")
+            payload = self._payload(revision, send.send_key)
+        claimed = await self._repo.claim_retry(
             send.id,
-            [from_status],
+            from_status,
+            send.generation,
             status=SendStatus.SENDING,
             test_mode=not self._config.enabled,
             attempts=send.attempts + 1,
@@ -324,6 +401,7 @@ class ActService:
             dispatched_at=send.dispatched_at or now,
             completed_at=None,
             error=None,
+            payload=payload,
         )
         if claimed is None:
             current = await self._reload(send)
@@ -334,17 +412,17 @@ class ActService:
         """Hand a claimed (`sending`) send to the provider and record the outcome."""
         if send.test_mode:
             return await self._finish(send, SendStatus.SUPPRESSED_TEST_MODE)
-        revision = await self._repo.get_revision(send.revision_id)
-        if revision is None or self._provider is None:  # pragma: no cover - guarded earlier
+        payload = send.payload
+        if payload is None or self._provider is None:  # pragma: no cover - guarded earlier
             return await self._finish(send, SendStatus.FAILED, error="internal: not dispatchable")
         try:
             result = await self._provider.send_email(
                 idempotency_key=send.send_key,
-                sender=self._config.sender,
-                to=revision.recipient,
-                subject=revision.subject,
-                text=revision.body,
-                tags={SEND_KEY_TAG: send.send_key},
+                sender=payload["from"],
+                to=payload["to"],
+                subject=payload["subject"],
+                text=payload["text"],
+                tags=dict(payload["tags"]),
             )
         except Exception as exc:  # outcome unknown: it must never be retried blindly
             return await self._finish(send, SendStatus.UNKNOWN, error=f"dispatch error: {exc!r}")
@@ -372,9 +450,12 @@ class ActService:
         from_statuses = [SendStatus.SENDING]
         if status is SendStatus.SENT:
             from_statuses.append(SendStatus.UNKNOWN)
+        # Fenced on the attempt number: a newer attempt (after an expiry and retry) owns
+        # the record now, and this older attempt's outcome must not overwrite it.
         updated = await self._repo.transition_send(
             send.id,
             from_statuses,
+            expected_attempts=send.attempts,
             status=status,
             provider_message_id=provider_message_id or send.provider_message_id,
             error=error,
@@ -391,6 +472,7 @@ class ActService:
         updated = await self._repo.transition_send(
             send.id,
             [SendStatus.SENDING],
+            expected_generation=send.generation,
             status=SendStatus.UNKNOWN,
             error="send did not finish; outcome unknown",
         )
@@ -402,6 +484,7 @@ class ActService:
             updated = await self._repo.transition_send(
                 send.id,
                 [SendStatus.UNKNOWN],
+                expected_generation=send.generation,
                 status=SendStatus.SENT,
                 provider_message_id=lookup.provider_message_id,
                 error=None,
@@ -409,7 +492,10 @@ class ActService:
             )
         else:
             updated = await self._repo.transition_send(
-                send.id, [SendStatus.UNKNOWN], error=f"reconcile: {lookup.note}"
+                send.id,
+                [SendStatus.UNKNOWN],
+                expected_generation=send.generation,
+                error=f"reconcile: {lookup.note}",
             )
         if updated is None:
             # Someone else resolved or retried it meanwhile; never act on stale state.
@@ -421,12 +507,16 @@ class ActService:
         """Search the provider for an email tagged with this send key."""
         if self._provider is None:
             return Lookup("inconclusive", note="no email provider configured")
-        revision = await self._repo.get_revision(send.revision_id)
-        if revision is None:  # pragma: no cover - revisions are never deleted
-            return Lookup("inconclusive", note="revision missing")
+        if send.payload is not None:
+            subject, recipient = send.payload["subject"], send.payload["to"]
+        else:
+            revision = await self._repo.get_revision(send.revision_id)
+            if revision is None:  # pragma: no cover - revisions are never deleted
+                return Lookup("inconclusive", note="revision missing")
+            subject, recipient = revision.subject, revision.recipient
         anchor = send.dispatched_at or send.created_at
         cutoff = anchor - self._config.reconcile_lookback
-        recipient = revision.recipient.lower()
+        recipient = recipient.lower()
         after: str | None = None
         try:
             for _ in range(self._config.reconcile_max_pages):
@@ -436,7 +526,7 @@ class ActService:
                 for item in page.data:
                     if item.created_at is not None and item.created_at < cutoff:
                         return Lookup("absent", note="no email with this send key")
-                    if item.subject != revision.subject:
+                    if item.subject != subject:
                         continue
                     if not any(recipient in to.lower() for to in item.to):
                         continue
@@ -449,6 +539,26 @@ class ActService:
         except EmailProviderError as exc:
             return Lookup("inconclusive", note=f"provider lookup failed: {exc}")
         return Lookup("inconclusive", note="search window exceeded the page limit")
+
+    def _payload(self, revision: MessageRevision, send_key: str) -> dict[str, object]:
+        return {
+            "from": self._config.sender,
+            "to": revision.recipient,
+            "subject": revision.subject,
+            "text": revision.body,
+            "tags": {SEND_KEY_TAG: send_key},
+        }
+
+    def _past_idempotency_window(self, send: SendRecord) -> bool:
+        anchor = send.dispatched_at or send.created_at
+        return self._clock() - anchor >= self._config.idempotency_window
+
+    async def _annotate(self, send: SendRecord, note: str) -> SendRecord:
+        """Record why an `unknown` send was left alone; never changes its status."""
+        updated = await self._repo.transition_send(
+            send.id, [SendStatus.UNKNOWN], expected_generation=send.generation, error=note
+        )
+        return updated if updated is not None else await self._reload(send)
 
     async def _reload(self, send: SendRecord) -> SendRecord:
         current = await self._repo.get_send_for_revision(send.revision_id)
