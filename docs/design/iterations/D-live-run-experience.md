@@ -1002,7 +1002,7 @@ Where the pieces are, and where the build differs from the sections above.
 | --- | --- |
 | Event types, store, pacing, feed, replay | `apps/web/lib/run/` (`types.ts` aliases `schema.ts`; `activity-store.ts`; `reveal-queue.ts`; `use-run-activity.ts`) |
 | Run view and its parts, run log, replay | `apps/web/components/run/` |
-| Favicon proxy and its host rules | `apps/web/app/api/favicon/route.ts`, `apps/web/lib/run/favicon-rules.ts` |
+| Favicon proxy and its host rules | `apps/web/app/api/favicon/route.ts`, `apps/web/lib/run/favicon-proxy.ts` |
 | Discover findings | `components/discover/candidate-stream.tsx`, `LiveRun` in `run-panel.tsx` |
 | Investor findings | `components/investors/investor-stream.tsx`, `search-view.tsx` |
 | Case: run band, right rail, live ledger rows, recheck rows | `components/case/case-run.tsx`, `claim-live.tsx`, `claim-live-state.ts`, `claim-stream.tsx`, `recheck-stream.tsx` |

@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { appendActivities, deriveView, visibleEvents } from "./activity-store.ts";
-import { faviconProxyEnabled, isPublicAddress, publicHost } from "./favicon-rules.ts";
 import { RevealQueue } from "./reveal-queue.ts";
 
 function fakeClock() {
@@ -140,27 +139,6 @@ test("paced regions are cut at their watermark; the rest is shown in full", () =
     { ...base, seq: 3, kind: "status", label: "B" },
   ];
   assert.deepEqual(visibleEvents(events, { sources: 0, findings: 0 }).map((e) => e.seq), [1, 3]);
-});
-
-test("the favicon proxy only asks public hosts", () => {
-  assert.equal(publicHost("Example.COM."), "example.com");
-  for (const bad of ["localhost", "10.0.0.1", "[::1]", "intranet", "site.local", "foo.example", "a..b.com", "evil.com/path", "evil.com:8080", "metadata.google.internal", ""]) {
-    assert.equal(publicHost(bad), null, bad);
-  }
-  for (const address of ["127.0.0.1", "10.1.2.3", "172.16.0.1", "192.168.1.1", "169.254.169.254", "100.64.0.1", "::1", "fd00::1", "fe80::1", "::ffff:10.0.0.1"]) {
-    assert.equal(isPublicAddress(address), false, address);
-  }
-  assert.equal(isPublicAddress("93.184.216.34"), true);
-  assert.equal(isPublicAddress("2606:2800:220:1:248:1893:25c8:1946"), true);
-});
-
-test("the favicon proxy is off unless FAVICON_PROXY_ENABLED is true", () => {
-  assert.equal(faviconProxyEnabled({}), false);
-  for (const value of ["", "false", "0", "1", "yes", "on"]) {
-    assert.equal(faviconProxyEnabled({ FAVICON_PROXY_ENABLED: value }), false, value);
-  }
-  assert.equal(faviconProxyEnabled({ FAVICON_PROXY_ENABLED: "true" }), true);
-  assert.equal(faviconProxyEnabled({ FAVICON_PROXY_ENABLED: " TRUE " }), true);
 });
 
 /* The API's own recorded fixture streams, replayed through the store. */
