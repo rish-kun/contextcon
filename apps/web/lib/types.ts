@@ -42,6 +42,10 @@ export interface Source {
   /** Date of the underlying fact, not the retrieval. Null when unknown. */
   as_of: string | null;
   reliability: ReliabilityClass;
+  /** The source's own class in words, when it is finer than `reliability`: "Funding database". */
+  class_label?: string | null;
+  /** What that class can and cannot settle. Replaces the default note for `reliability`. */
+  class_note?: string | null;
 }
 
 /** One piece of evidence: a source plus exactly what was taken from it. */

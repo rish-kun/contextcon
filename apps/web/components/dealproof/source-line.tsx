@@ -64,9 +64,9 @@ export function EvidenceDetail({ evidence }: { evidence: Evidence }) {
       <div className="flex flex-col gap-1">
         <p className="flex items-center gap-2 text-sm font-medium text-ink">
           <SourceClassGlyph reliability={source.reliability} size={16} className="text-ink-muted" />
-          {RELIABILITY_LABEL[source.reliability]}
+          {source.class_label ?? RELIABILITY_LABEL[source.reliability]}
         </p>
-        <p className="text-xs text-ink-secondary">{RELIABILITY_NOTE[source.reliability]}</p>
+        <p className="text-xs text-ink-secondary">{source.class_note ?? RELIABILITY_NOTE[source.reliability]}</p>
       </div>
 
       {evidence.quote ? (

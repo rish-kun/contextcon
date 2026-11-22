@@ -49,6 +49,33 @@ export function FitText({ fit, className }: { fit: FitResult; className?: string
   );
 }
 
+/** What the cells mean. Shown under a strip, or once above a list of strips. */
+export function CriteriaStripLegend({ className }: { className?: string }) {
+  return (
+    <ul
+      className={cn("flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted", className)}
+      aria-label="Strip legend"
+    >
+      <li className="inline-flex items-center gap-1">
+        <span className="size-2.5 rounded-xs border border-ink bg-ink" aria-hidden /> Met
+      </li>
+      <li className="inline-flex items-center gap-1">
+        <span className="size-2.5 rounded-xs border border-ink bg-surface" aria-hidden /> Not met
+      </li>
+      <li className="inline-flex items-center gap-1">
+        <span
+          className="hatch-dense size-2.5 rounded-xs border border-dashed border-not-checked-line"
+          aria-hidden
+        />{" "}
+        Unknown · could not assess
+      </li>
+      <li className="inline-flex items-center gap-1">
+        <span className="h-2.5 w-0.5 bg-ink" aria-hidden /> Must-have
+      </li>
+    </ul>
+  );
+}
+
 /**
  * The fit readout: one track whose full width is all criteria, weighted. Met is an ink
  * cell, not met is an empty cell with a solid border, unknown is hatched with a dashed
@@ -60,12 +87,15 @@ export function CriteriaStrip({
   fit,
   size = "default",
   caption = false,
+  legend = true,
   className,
 }: {
   fit: FitResult;
   size?: "default" | "compact";
   /** Adds "Fit measures match to your criteria. It says nothing about returns". */
   caption?: boolean;
+  /** Set to false when a list of strips shares one legend, shown once above the list. */
+  legend?: boolean;
   className?: string;
 }) {
   const unavailable = isUnavailable(fit);
@@ -154,24 +184,7 @@ export function CriteriaStrip({
           </>
         )}
       </p>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted" aria-label="Strip legend">
-        <li className="inline-flex items-center gap-1">
-          <span className="size-2.5 rounded-xs border border-ink bg-ink" aria-hidden /> Met
-        </li>
-        <li className="inline-flex items-center gap-1">
-          <span className="size-2.5 rounded-xs border border-ink bg-surface" aria-hidden /> Not met
-        </li>
-        <li className="inline-flex items-center gap-1">
-          <span
-            className="hatch-dense size-2.5 rounded-xs border border-dashed border-not-checked-line"
-            aria-hidden
-          />{" "}
-          Unknown · could not assess
-        </li>
-        <li className="inline-flex items-center gap-1">
-          <span className="h-2.5 w-0.5 bg-ink" aria-hidden /> Must-have
-        </li>
-      </ul>
+      {legend ? <CriteriaStripLegend /> : null}
       {caption ? (
         <p className="text-xs text-ink-muted">
           Fit measures match to your criteria. It says nothing about returns
