@@ -21,11 +21,14 @@ import {
 export function CostReadout({
   cost,
   variant = "full",
+  title = "This case cost",
   notCheckedHref,
   className,
 }: {
   cost: CaseCost;
   variant?: "full" | "compact";
+  /** Heading of the full readout, for costs that are not a case: "This search cost". */
+  title?: string;
   /** Link to the Not checked claims, shown when the budget is reached. */
   notCheckedHref?: string;
   className?: string;
@@ -50,7 +53,7 @@ export function CostReadout({
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       <div className="flex flex-col gap-2">
-        <h3 className="text-sm font-medium text-ink">This case cost</h3>
+        <h3 className="text-sm font-medium text-ink">{title}</h3>
         <p className="font-mono text-xl font-medium text-ink">
           {formatCredits(cost.credits_used)} of {formatCredits(cost.credit_budget)} credits
           <span className="text-ink-muted"> · </span>
