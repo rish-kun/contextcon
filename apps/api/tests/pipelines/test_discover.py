@@ -149,16 +149,16 @@ async def test_shortlist_gate_rerank_and_dedupe(session, sm) -> None:
     assert all("[" not in r["text"] for r in reasons)
 
 
-async def test_single_enrich_call_for_top_15(session, sm) -> None:
-    fake = fakes.FakeCrustdata(fakes.make_world(fillers=20))
+async def test_single_enrich_call_for_top_25(session, sm) -> None:
+    fake = fakes.FakeCrustdata(fakes.make_world(fillers=30))
     _, _, run = await _run(session, sm, fake)
     assert len(fake.enrich_bodies) == 1
     ids = fake.enrich_bodies[0]["crustdata_company_ids"]
-    assert len(ids) == ENRICH_TOP == 15 and len(set(ids)) == 15
+    assert len(ids) == ENRICH_TOP == 25 and len(set(ids)) == 25
     # Hiring postings: one bounded job search per enriched company.
-    assert len(fake.job_bodies) <= 15 and all(b["limit"] == 5 for b in fake.job_bodies)
-    # Survivors past the top 15 are not on the shortlist.
-    assert sum(1 for c in (await _candidates(sm, run)).values() if c.rank) <= 15
+    assert len(fake.job_bodies) <= 25 and all(b["limit"] == 5 for b in fake.job_bodies)
+    # Survivors past the top 25 are not on the shortlist.
+    assert sum(1 for c in (await _candidates(sm, run)).values() if c.rank) <= 25
 
 
 async def test_every_card_fact_has_source_and_evidence(session, sm) -> None:
@@ -436,7 +436,7 @@ async def test_theses_routes_end_to_end(session, sm, monkeypatch) -> None:
         started = await http.post(f"/theses/{body['id']}/search")
         assert started.status_code == 202, started.text
         run = started.json()
-        assert run["kind"] == "discover" and run["budget_credits"] == 60
+        assert run["kind"] == "discover" and run["budget_credits"] == 100
         assert [s["key"] for s in run["steps"]] == ["search", "gate", "enrich", "score", "explain"]
         assert (await http.post(f"/theses/{body['id']}/search")).status_code == 409
 

@@ -5,7 +5,7 @@
   run, which the first search then uses (costs never go to a case).
 - `replace_criteria`: save the user's edits (kept ids stay, new rows are `edited`).
 - `start_search`: freeze the criteria into the discovery run and enqueue the run with
-  the discover credit budget (`DISCOVER_CREDIT_BUDGET`, default 60).
+  the discover credit budget (`DISCOVER_CREDIT_BUDGET`, default 100).
 """
 
 from __future__ import annotations

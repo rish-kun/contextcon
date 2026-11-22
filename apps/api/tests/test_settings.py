@@ -69,5 +69,5 @@ def test_credit_budget_defaults(monkeypatch) -> None:
         monkeypatch.delenv(name, raising=False)
     settings = Settings(_env_file=None)
     assert settings.case_credit_budget == 150
-    assert settings.discover_credit_budget == 60
+    assert settings.discover_credit_budget == 100
     assert settings.investor_credit_budget == 60

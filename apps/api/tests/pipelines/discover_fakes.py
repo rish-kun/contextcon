@@ -109,6 +109,12 @@ FILLER_NAMES = [
     "Linnet",
     "Dunlin",
     "Avocet",
+    "Godwit",
+    "Curlew",
+    "Petrel",
+    "Gannet",
+    "Puffin",
+    "Merlin",
 ]
 
 

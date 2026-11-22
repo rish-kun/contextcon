@@ -24,7 +24,7 @@ class JobSettings(BaseSettings):
     worker_retry_max_seconds: float = Field(default=120.0, ge=0)
     purge_interval_seconds: float = Field(default=3600.0, gt=0)
     # Credit budgets for runs not tied to a case (case runs use CASE_CREDIT_BUDGET).
-    discover_credit_budget: float = Field(default=60, ge=0)
+    discover_credit_budget: float = Field(default=100, ge=0)
     investor_credit_budget: float = Field(default=60, ge=0)
 
 

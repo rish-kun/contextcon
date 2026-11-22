@@ -88,7 +88,7 @@ class Settings(BaseSettings):
 
     # Crustdata credit budgets: per case, per discover run, per investor search
     case_credit_budget: int = Field(default=150, ge=0)
-    discover_credit_budget: int = Field(default=60, ge=0)
+    discover_credit_budget: int = Field(default=100, ge=0)
     investor_credit_budget: int = Field(default=60, ge=0)
 
     # Web origin(s) allowed by CORS; comma-separated for more than one.
