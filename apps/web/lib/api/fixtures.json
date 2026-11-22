@@ -2982,8 +2982,13 @@
             "evidence": []
           }
         ],
-        "trigger_document_ids": [],
-        "document_ids": [],
+        "trigger_document_ids": [
+          "fx-doc-payroll"
+        ],
+        "document_ids": [
+          "fx-doc-deck",
+          "fx-doc-payroll"
+        ],
         "evidence_ids": [],
         "confidential_removed_on": null
       },
@@ -4624,8 +4629,13 @@
             "evidence": []
           }
         ],
-        "trigger_document_ids": [],
-        "document_ids": [],
+        "trigger_document_ids": [
+          "fx-doc-payroll"
+        ],
+        "document_ids": [
+          "fx-doc-deck",
+          "fx-doc-payroll"
+        ],
         "evidence_ids": [],
         "confidential_removed_on": null
       }
