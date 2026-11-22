@@ -125,6 +125,14 @@ def test_register_entry_rejects_near_misses():
         f"Trademark: {MARK}\nProprietor: Someone Else Ltd\n{tail}"
     )
     assert ok(listing, MARK, NAME) is not None
+    # An inline co-proprietor makes the entry not the company's alone.
+    co = f"{TM_SPAN_MARK}\nProprietor: {NAME}. Co-owner: Someone Else Ltd\n{tail}"
+    assert ok(co, MARK, NAME) is not None
+    # A page with no labelled mark is not read as an entry at all.
+    assert "no labelled mark" in ok(f"{MARK}\n{TM_SPAN_OWNER}\n{tail}", MARK, NAME)
+    # "Registered" elsewhere on the page is not the entry's status.
+    unlabelled = f"{TM_SPAN_MARK}\n{TM_SPAN_OWNER}\nClass: 9\nRegistered office: Pune"
+    assert "not a registered entry" in ok(unlabelled, MARK, NAME)
     # A field value followed by the next label on the same line still matches.
     inline = f"{TM_SPAN_MARK}\nProprietor: {NAME}. Class: 9\nStatus: Registered"
     assert ok(inline, MARK, NAME) is None
