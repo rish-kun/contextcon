@@ -161,7 +161,7 @@ async def test_each_round_has_its_own_source(session, sm, monkeypatch) -> None:
     rounds = out.entries[0].comparable_rounds
     assert len(rounds) == 2
     assert len({r.source.source_id for r in rounds}) == 2
-    assert all(r.evidence_id and r.source.source_class == "funding_database" for r in rounds)
+    assert all(r.evidence_id and r.source.source_class == "data_provider" for r in rounds)
     async with sm() as s:
         ev = await s.get(Evidence, uuid.UUID(rounds[0].evidence_id))
         assert ev.as_of == rounds[0].date

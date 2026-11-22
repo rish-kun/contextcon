@@ -73,7 +73,7 @@ async def test_create_list_and_get(session, sm, monkeypatch) -> None:
         assert got["status"] == "ready"
         assert [e["investor_name"] for e in got["entries"]] == ["Kite"]
         entry = got["entries"][0]
-        assert entry["comparable_rounds"][0]["source"]["source_class"] == "funding_database"
+        assert entry["comparable_rounds"][0]["source"]["source_class"] == "data_provider"
         assert entry["latest_sector_investment_scope"].startswith("searched ")
         assert entry["compatibility"] == "incompatible"
         assert "does not predict" in got["ranking_basis"]

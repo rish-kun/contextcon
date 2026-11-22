@@ -57,7 +57,7 @@ SEARCH_CREDITS_PER_RESULT = Decimal("0.23")
 ENRICH_CREDITS_PER_MATCH = Decimal("2")
 SEARCH_FIELDS = ("crustdata_company_id", "basic_info", "locations")
 ENRICH_FIELDS = ("basic_info", "funding", "locations", "taxonomy")
-SOURCE_CLASS = "funding_database"
+SOURCE_CLASS = "data_provider"
 
 _NS = uuid.UUID("5b0c8f4e-6f1d-4a57-9d43-2f1b8e7c9a10")
 
