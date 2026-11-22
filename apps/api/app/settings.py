@@ -7,6 +7,7 @@ Every field has a safe default so the app boots without any secrets.
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -39,11 +40,27 @@ class Settings(BaseSettings):
 
     # Crustdata (company / people / funding / web data)
     crustdata_api_key: SecretStr = SecretStr("")
+    crustdata_base_url: str = "https://api.crustdata.com"
+    # Crustdata requires this header value on every request (docs: x-api-version).
+    crustdata_api_version: str = "2025-11-01"
+    crustdata_timeout_seconds: float = Field(default=60.0, gt=0)
+    # Retries on 429 / 5xx / network errors, on top of the first attempt.
+    crustdata_max_retries: int = Field(default=3, ge=0)
 
     # Anthropic (direct Messages API)
     anthropic_api_key: SecretStr = SecretStr("")
     anthropic_model: str = "claude-haiku-5-5"
     anthropic_max_tokens: int = Field(default=4096, gt=0)
+    # Unset by default: Haiku 5.5 rejects non-default sampling values, and the API
+    # version the SDK sends (2026-10-21) rejects `temperature` on every model.
+    anthropic_temperature: float | None = Field(default=None, ge=0, le=1)
+    # Thinking depth / token spend. Unset means the model's default (medium on Haiku 5.5).
+    anthropic_effort: Literal["low", "medium", "high", "xhigh", "max"] | None = "low"
+    anthropic_timeout_seconds: float = Field(default=120.0, gt=0)
+    anthropic_max_retries: int = Field(default=2, ge=0)
+    # Optional per-model price overrides (USD per million tokens), as JSON, e.g.
+    # {"claude-haiku-5-5": {"input_per_mtok": 0.10, "output_per_mtok": 0.50}}
+    anthropic_prices: dict[str, dict[str, float]] = Field(default_factory=dict)
 
     # Email (Resend). Sending stays off unless explicitly enabled.
     resend_api_key: SecretStr = SecretStr("")
