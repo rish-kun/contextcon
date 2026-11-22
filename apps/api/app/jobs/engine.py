@@ -3,8 +3,10 @@
 A Run is a set of Steps. A step is `pending → running → done | failed | skipped_budget`.
 Workers claim one ready step at a time with `SELECT … FOR UPDATE SKIP LOCKED`, hold a
 lease they renew while the handler runs, and lose the step back to the queue if the
-lease expires. Every state change is fenced on `lease_owner`, so a worker that lost its
-lease cannot overwrite the result of the worker that took over.
+lease expires. Each claim gets a fresh `lease_token`. Renewal, completion and failure
+require that token *and* an unexpired lease, and the recorder checks the same before
+every paid dispatch, so a worker that lost its lease can neither overwrite the result
+of the worker that took over nor start new paid calls.
 """
 
 import logging
@@ -20,22 +22,15 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.adapters import DbCache, DbCallRecorder
 from app.db.enums import TERMINAL_STEP_STATES, RunState, StepState
-from app.db.ledger import CostContext, spent_credits
-from app.db.models import Case, Run, Step
+from app.db.errors import BUDGET_REACHED, BudgetExceeded, LeaseLost
+from app.db.ledger import CostContext, budget_used
+from app.db.models import Case, DiscoveryRun, InvestorRun, Run, Step
 from app.jobs.config import get_job_settings
 from app.settings import get_settings
 
 log = logging.getLogger(__name__)
 
-BUDGET_REACHED = "budget reached"
-
-
-class BudgetExceeded(Exception):
-    """Raise from a handler (or `ctx.require_budget`) when a call would overspend."""
-
-    def __init__(self, reason: str = BUDGET_REACHED) -> None:
-        super().__init__(reason)
-        self.reason = reason
+__all__ = ["BUDGET_REACHED", "BudgetExceeded", "LeaseLost"]  # re-exported for handlers
 
 
 def public_error(exc: BaseException) -> str:
@@ -45,10 +40,6 @@ def public_error(exc: BaseException) -> str:
     they go to the server log (`log.exception` in the worker), never to the database.
     """
     return type(exc).__name__
-
-
-class LeaseLost(Exception):
-    """Another worker owns this step now; this worker's result is discarded."""
 
 
 @dataclass(frozen=True)
@@ -86,21 +77,31 @@ async def create_run(
 ) -> Run:
     """Insert a run and its steps (flushes, does not commit).
 
+    The owner (case, discovery run or investor run) must belong to `workspace_id`;
+    this is checked whether or not a budget is given (and enforced again by composite
+    foreign keys). Raises `LookupError` otherwise.
+
     Case runs get the case's `credit_budget`, else `CASE_CREDIT_BUDGET`; the budget is
     per case, so every run of the case draws on the same credits. Discovery and
     investor runs default to `DISCOVER_CREDIT_BUDGET` / `INVESTOR_CREDIT_BUDGET`.
     """
-    if budget_credits is None and discovery_run_id is not None:
-        budget_credits = get_job_settings().discover_credit_budget
-    if budget_credits is None and investor_run_id is not None:
-        budget_credits = get_job_settings().investor_credit_budget
-    if budget_credits is None and case_id is not None:
-        case_row = await session.get(Case, case_id)
-        if case_row is None or case_row.workspace_id != workspace_id:
-            raise LookupError("case not found in this workspace")
-        budget_credits = case_row.credit_budget
+    owners = [o for o in (case_id, discovery_run_id, investor_run_id) if o is not None]
+    if len(owners) > 1:
+        raise ValueError("a run has at most one owner")
+    if case_id is not None:
+        case_row = await _owned(session, Case, case_id, workspace_id, "case")
+        if budget_credits is None:
+            budget_credits = case_row.credit_budget
         if budget_credits is None:
             budget_credits = get_settings().case_credit_budget
+    if discovery_run_id is not None:
+        await _owned(session, DiscoveryRun, discovery_run_id, workspace_id, "discovery run")
+        if budget_credits is None:
+            budget_credits = get_job_settings().discover_credit_budget
+    if investor_run_id is not None:
+        await _owned(session, InvestorRun, investor_run_id, workspace_id, "investor run")
+        if budget_credits is None:
+            budget_credits = get_job_settings().investor_credit_budget
     run = Run(
         workspace_id=workspace_id,
         kind=kind,
@@ -115,6 +116,15 @@ async def create_run(
     await session.flush()
     await append_steps(session, run.id, steps, max_attempts=max_attempts)
     return run
+
+
+async def _owned(
+    session: AsyncSession, model: type, owner_id: uuid.UUID, workspace_id: uuid.UUID, label: str
+) -> Any:
+    row = await session.get(model, owner_id)
+    if row is None or row.workspace_id != workspace_id:
+        raise LookupError(f"{label} not found in this workspace")
+    return row
 
 
 async def append_steps(
@@ -206,17 +216,14 @@ class RunInfo:
 
 
 async def budget_remaining(session: AsyncSession, run: Run | RunInfo) -> Decimal | None:
-    """Credits left for this run's owner, or None when the run has no budget."""
-    if run.budget_credits is None:
+    """Credits left for this run's owner, or None when the run has no budget.
+
+    Counts settled spend, unknown-cost dispatches at their reserved estimate, and
+    reservations still held by in-flight (or crashed) dispatches (`budget_used`)."""
+    ctx = cost_context(run)
+    if run.budget_credits is None or ctx is None:
         return None
-    spent = await spent_credits(
-        session,
-        case_id=run.case_id,
-        discovery_run_id=run.discovery_run_id,
-        investor_run_id=run.investor_run_id,
-        run_id=run.id,
-    )
-    return Decimal(run.budget_credits) - spent
+    return Decimal(run.budget_credits) - await budget_used(session, ctx)
 
 
 def cost_context(run: Run | RunInfo, step_id: uuid.UUID | None = None) -> CostContext | None:
@@ -253,6 +260,8 @@ class StepContext:
     logs: list[str] = field(default_factory=list)
     # One-line result shown when the step is done ("3 matches; identity confirmed").
     result: str | None = None
+    # This claim's fencing token (the recorder checks it before every paid dispatch).
+    lease_token: uuid.UUID | None = None
 
     async def set_detail(self, detail: str) -> None:
         """Live sub-line while the step runs; visible to the SSE stream at once."""
@@ -306,14 +315,38 @@ _CLAIM_SQL = text(
 )
 
 
+@dataclass(frozen=True)
+class StepClaim:
+    """A claimed step and the fencing token every later state change must present."""
+
+    id: uuid.UUID
+    token: uuid.UUID
+
+
+def _live(token: uuid.UUID) -> Any:
+    """Fence: this claim's token, still running, lease not yet expired (wall clock, not
+    transaction start, so a long handler transaction cannot use a stale `now()`)."""
+    return (
+        (Step.lease_token == token)
+        & (Step.state == StepState.RUNNING)
+        & (Step.lease_until > func.clock_timestamp())
+    )
+
+
+async def lease_is_live(session: AsyncSession, step_id: uuid.UUID, token: uuid.UUID) -> bool:
+    found = await session.execute(select(Step.id).where(Step.id == step_id, _live(token)))
+    return found.first() is not None
+
+
 async def claim_step(
     session: AsyncSession, worker_id: str, lease_seconds: float
-) -> uuid.UUID | None:
-    """Claim one ready step and lease it to `worker_id`. Commits."""
+) -> StepClaim | None:
+    """Claim one ready step and lease it to `worker_id` under a new token. Commits."""
     step_id = (await session.execute(_CLAIM_SQL)).scalar_one_or_none()
     if step_id is None:
         await session.rollback()
         return None
+    token = uuid.uuid4()
     lease = timedelta(seconds=lease_seconds)
     run_id = (
         await session.execute(
@@ -323,7 +356,8 @@ async def claim_step(
                 state=StepState.RUNNING,
                 attempts=Step.attempts + 1,
                 lease_owner=worker_id,
-                lease_until=func.now() + lease,
+                lease_token=token,
+                lease_until=func.clock_timestamp() + lease,
                 started_at=func.coalesce(Step.started_at, func.now()),
                 next_attempt_at=None,
             )
@@ -336,15 +370,16 @@ async def claim_step(
         .values(state=RunState.RUNNING)
     )
     await session.commit()
-    return step_id
+    return StepClaim(step_id, token)
 
 
 async def renew_lease(
-    session: AsyncSession, step_id: uuid.UUID, worker_id: str, lease_seconds: float
+    session: AsyncSession, step_id: uuid.UUID, token: uuid.UUID, lease_seconds: float
 ) -> bool:
+    """Extend a live lease. False once the lease expired or the step was re-claimed."""
     result = await session.execute(
         update(Step)
-        .where(Step.id == step_id, Step.lease_owner == worker_id, Step.state == StepState.RUNNING)
+        .where(Step.id == step_id, _live(token))
         .values(lease_until=func.clock_timestamp() + timedelta(seconds=lease_seconds))
     )
     await session.commit()
@@ -370,6 +405,7 @@ async def reclaim_expired_leases(session: AsyncSession) -> list[uuid.UUID]:
     for step in rows:
         log.warning("step %s: lease of %s expired; reclaiming", step.id, step.lease_owner)
         step.lease_owner = None
+        step.lease_token = None
         step.lease_until = None
         if step.attempts >= step.max_attempts:
             step.state = StepState.FAILED
@@ -396,21 +432,25 @@ async def reclaim_expired_leases(session: AsyncSession) -> list[uuid.UUID]:
 async def mark_done(
     session: AsyncSession,
     step_id: uuid.UUID,
-    worker_id: str,
+    token: uuid.UUID,
     output: dict[str, Any] | None,
     result: str | None = None,
+    *,
+    confidential_output_id: uuid.UUID | None = None,
 ) -> None:
     """Fenced completion, in the handler's own transaction. Raises `LeaseLost`."""
     result = await session.execute(
         update(Step)
-        .where(Step.id == step_id, Step.lease_owner == worker_id, Step.state == StepState.RUNNING)
+        .where(Step.id == step_id, _live(token))
         .values(
             state=StepState.DONE,
             output=output or {},
+            confidential_output_id=confidential_output_id,
             result=None if result is None else result[:500],
             detail=None,
             error=None,
             lease_owner=None,
+            lease_token=None,
             lease_until=None,
             finished_at=func.now(),
         )
@@ -425,7 +465,7 @@ async def mark_done(
 async def mark_retry_or_failed(
     session: AsyncSession,
     step_id: uuid.UUID,
-    worker_id: str,
+    token: uuid.UUID,
     error: str,
     *,
     retry_base: float,
@@ -435,13 +475,7 @@ async def mark_retry_or_failed(
     """After a handler error: back off and retry, or fail when out of attempts."""
     step = (
         await session.execute(
-            select(Step)
-            .where(
-                Step.id == step_id,
-                Step.lease_owner == worker_id,
-                Step.state == StepState.RUNNING,
-            )
-            .with_for_update()
+            select(Step).where(Step.id == step_id, _live(token)).with_for_update()
         )
     ).scalar_one_or_none()
     if step is None:
@@ -449,6 +483,7 @@ async def mark_retry_or_failed(
         return None
     step.error = error[:4000]
     step.lease_owner = None
+    step.lease_token = None
     step.lease_until = None
     if retryable and step.attempts < step.max_attempts:
         delay = min(retry_base * (2 ** (step.attempts - 1)), retry_max)
@@ -464,15 +499,16 @@ async def mark_retry_or_failed(
 
 
 async def mark_skipped_budget(
-    session: AsyncSession, step_id: uuid.UUID, worker_id: str, reason: str = BUDGET_REACHED
+    session: AsyncSession, step_id: uuid.UUID, token: uuid.UUID, reason: str = BUDGET_REACHED
 ) -> bool:
     result = await session.execute(
         update(Step)
-        .where(Step.id == step_id, Step.lease_owner == worker_id, Step.state == StepState.RUNNING)
+        .where(Step.id == step_id, _live(token))
         .values(
             state=StepState.SKIPPED_BUDGET,
             skip_reason=reason,
             lease_owner=None,
+            lease_token=None,
             lease_until=None,
             finished_at=func.now(),
         )

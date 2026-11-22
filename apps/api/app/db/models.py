@@ -22,6 +22,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     Numeric,
@@ -62,6 +63,23 @@ def _fk(target: str, *, ondelete: str = "CASCADE") -> ForeignKey:
 
 def _ts(*, nullable: bool = True) -> Any:
     return mapped_column(DateTime(timezone=True), nullable=nullable)
+
+
+def _owner_fks() -> tuple[ForeignKeyConstraint, ...]:
+    """(owner_id, workspace_id) → owner(id, workspace_id) for the three owner kinds.
+
+    A NULL owner column skips its check (MATCH SIMPLE), so each row is held only to the
+    owner it names, and that owner must be in the row's workspace."""
+    return tuple(
+        ForeignKeyConstraint(
+            [column, "workspace_id"], [f"{table}.id", f"{table}.workspace_id"], ondelete="CASCADE"
+        )
+        for column, table in (
+            ("case_id", "cases"),
+            ("discovery_run_id", "discovery_runs"),
+            ("investor_run_id", "investor_runs"),
+        )
+    )
 
 
 # --- Tenancy -----------------------------------------------------------------
@@ -143,6 +161,9 @@ class DiscoveryRun(IdMixin, Base):
     status: Mapped[str] = mapped_column(String(32), default="pending")
     criteria_snapshot: Mapped[list | None] = mapped_column(JSONB)
 
+    # Target of the composite (owner, workspace) foreign keys on runs and the ledger.
+    __table_args__ = (UniqueConstraint("id", "workspace_id"),)
+
 
 class Candidate(IdMixin, Base):
     """One company returned by a discovery run, with its fit and assessable share."""
@@ -197,6 +218,8 @@ class InvestorRun(IdMixin, Base):
     profile: Mapped[dict] = mapped_column(JSONB, default=dict)
     status: Mapped[str] = mapped_column(String(32), default="pending")
 
+    __table_args__ = (UniqueConstraint("id", "workspace_id"),)
+
 
 class InvestorEntry(IdMixin, Base):
     __tablename__ = "investor_entries"
@@ -243,6 +266,7 @@ class Case(IdMixin, Base):
 
     __table_args__ = (
         CheckConstraint(check_in("identity_status", IdentityStatus), name="identity_status"),
+        UniqueConstraint("id", "workspace_id"),
     )
 
 
@@ -583,9 +607,11 @@ class Run(IdMixin, Base):
     workspace_id: Mapped[uuid.UUID] = mapped_column(_fk("workspaces.id"), index=True)
     kind: Mapped[str] = mapped_column(String(64))
     state: Mapped[str] = mapped_column(String(16), default=RunState.PENDING)
-    case_id: Mapped[uuid.UUID | None] = mapped_column(_fk("cases.id"), index=True)
-    discovery_run_id: Mapped[uuid.UUID | None] = mapped_column(_fk("discovery_runs.id"), index=True)
-    investor_run_id: Mapped[uuid.UUID | None] = mapped_column(_fk("investor_runs.id"), index=True)
+    # Owner columns reference (id, workspace_id) together, so an owner from another
+    # workspace cannot be attached (see `_owner_fks`).
+    case_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, index=True)
+    discovery_run_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, index=True)
+    investor_run_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, index=True)
     budget_credits: Mapped[Decimal | None] = mapped_column(Credits)
     created_by: Mapped[uuid.UUID | None] = mapped_column(_fk("users.id", ondelete="SET NULL"))
     error: Mapped[str | None] = mapped_column(Text)
@@ -606,6 +632,7 @@ class Run(IdMixin, Base):
         CheckConstraint(
             "num_nonnulls(case_id, discovery_run_id, investor_run_id) <= 1", name="one_owner"
         ),
+        *_owner_fks(),
     )
 
 
@@ -632,7 +659,16 @@ class Step(IdMixin, Base):
     max_attempts: Mapped[int] = mapped_column(Integer, default=3)
     next_attempt_at: Mapped[datetime | None] = _ts()
     lease_owner: Mapped[str | None] = mapped_column(String(200))
+    # A fresh token per claim. Renewal, completion and every paid dispatch require it
+    # and an unexpired lease, so a worker that lost the step can neither finish it
+    # nor start new paid calls.
+    lease_token: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     lease_until: Mapped[datetime | None] = _ts()
+    # Set when the output carries confidential text: the output itself lives in this
+    # expiring payload and `output` keeps only a marker (see `app.jobs.retention`).
+    confidential_output_id: Mapped[uuid.UUID | None] = mapped_column(
+        _fk("confidential_payloads.id", ondelete="SET NULL")
+    )
     started_at: Mapped[datetime | None] = _ts()
     finished_at: Mapped[datetime | None] = _ts()
     updated_at: Mapped[datetime] = mapped_column(
@@ -664,9 +700,9 @@ class CallAttempt(IdMixin, Base):
 
     call_id: Mapped[str] = mapped_column(String(64), unique=True)
     workspace_id: Mapped[uuid.UUID] = mapped_column(_fk("workspaces.id"), index=True)
-    case_id: Mapped[uuid.UUID | None] = mapped_column(_fk("cases.id"), index=True)
-    discovery_run_id: Mapped[uuid.UUID | None] = mapped_column(_fk("discovery_runs.id"))
-    investor_run_id: Mapped[uuid.UUID | None] = mapped_column(_fk("investor_runs.id"))
+    case_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, index=True)
+    discovery_run_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
+    investor_run_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     run_id: Mapped[uuid.UUID | None] = mapped_column(_fk("runs.id", ondelete="SET NULL"))
     step_id: Mapped[uuid.UUID | None] = mapped_column(
         _fk("steps.id", ondelete="SET NULL"), index=True
@@ -680,12 +716,21 @@ class CallAttempt(IdMixin, Base):
     http_status: Mapped[int | None] = mapped_column(Integer)
     http_attempts: Mapped[int] = mapped_column(Integer, default=0)
     provider_request_id: Mapped[str | None] = mapped_column(String(200))
+    # An allowlisted error code (`app.clients.base.safe_error_code`), never provider text.
     error: Mapped[str | None] = mapped_column(Text)
     started_at: Mapped[datetime | None] = _ts()
     finished_at: Mapped[datetime | None] = _ts()
+    # Stable key of the logical call within its step (step, call index, params), shared
+    # by its dispatches, so a resumed step finds what a crashed worker left `started`.
+    operation_key: Mapped[str | None] = mapped_column(String(64), index=True)
+    dispatch_index: Mapped[int] = mapped_column(Integer, default=0)
+    # Credits reserved against the owner's budget for this dispatch. Held while the row
+    # is `started`, and as a floor on spend when the final cost is unknown.
+    reserved_credits: Mapped[Decimal] = mapped_column(Credits, default=Decimal(0))
 
     __table_args__ = (
         CheckConstraint(check_in("status", CallStatus), name="status"),
+        *_owner_fks(),
         # The run status / SSE poll groups a run's calls by step on every tick.
         Index("ix_call_attempts_run_step", "run_id", "step_id"),
     )
@@ -699,9 +744,9 @@ class CostEntry(IdMixin, Base):
     __tablename__ = "cost_entries"
 
     workspace_id: Mapped[uuid.UUID] = mapped_column(_fk("workspaces.id"), index=True)
-    case_id: Mapped[uuid.UUID | None] = mapped_column(_fk("cases.id"), index=True)
-    discovery_run_id: Mapped[uuid.UUID | None] = mapped_column(_fk("discovery_runs.id"), index=True)
-    investor_run_id: Mapped[uuid.UUID | None] = mapped_column(_fk("investor_runs.id"), index=True)
+    case_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, index=True)
+    discovery_run_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, index=True)
+    investor_run_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, index=True)
     run_id: Mapped[uuid.UUID | None] = mapped_column(
         _fk("runs.id", ondelete="SET NULL"), index=True
     )
@@ -728,7 +773,58 @@ class CostEntry(IdMixin, Base):
         CheckConstraint(
             "shared_from_run_id IS NULL OR (credits = 0 AND usd = 0)", name="shared_is_free"
         ),
+        *_owner_fks(),
     )
+
+
+class CreditBudget(IdMixin, Base):
+    """Lock target for credit reservations: one row per budget owner (a case, a
+    discovery run or an investor run).
+
+    Before each metered dispatch the recorder locks this row (`SELECT … FOR UPDATE`),
+    checks the run's budget against settled spend plus open reservations
+    (`app.db.ledger.budget_used`), and inserts the `started` attempt holding its
+    reservation, all in one transaction. Concurrent steps of one owner therefore
+    reserve one after another and cannot overspend. Handlers never write this row,
+    so the lock cannot wait on a handler's own open transaction."""
+
+    __tablename__ = "credit_budgets"
+
+    workspace_id: Mapped[uuid.UUID] = mapped_column(_fk("workspaces.id"), index=True)
+    case_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, unique=True)
+    discovery_run_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, unique=True)
+    investor_run_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, unique=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "num_nonnulls(case_id, discovery_run_id, investor_run_id) = 1", name="one_owner"
+        ),
+        *_owner_fks(),
+    )
+
+
+class ConfidentialPayload(IdMixin, Base):
+    """Confidential JSON (document text copied into a step output or an assessment
+    snapshot), kept apart from the record that refers to it so it can expire.
+
+    The purge job deletes rows once `delete_after` passes and writes a deletion record;
+    the referring step or assessment version stays and resolves to "deleted under the
+    retention schedule". Assessment versions are immutable, so the link points from
+    here to the version (`assessment_version_id`), never the other way."""
+
+    __tablename__ = "confidential_payloads"
+
+    workspace_id: Mapped[uuid.UUID] = mapped_column(_fk("workspaces.id"), index=True)
+    case_id: Mapped[uuid.UUID] = mapped_column(_fk("cases.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(64))
+    payload: Mapped[Any] = mapped_column(JSONB, nullable=True)
+    run_id: Mapped[uuid.UUID | None] = mapped_column(_fk("runs.id", ondelete="SET NULL"))
+    assessment_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        _fk("assessment_versions.id"), index=True
+    )
+    delete_after: Mapped[datetime] = _ts(nullable=False)
+
+    __table_args__ = (Index("ix_confidential_payloads_delete_after", "delete_after"),)
 
 
 class ApiCache(IdMixin, Base):

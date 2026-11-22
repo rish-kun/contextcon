@@ -14,7 +14,8 @@ from decimal import Decimal
 from sqlalchemy import Select, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Case, CostEntry
+from app.db.enums import CallStatus
+from app.db.models import CallAttempt, Case, CostEntry
 
 
 @dataclass(frozen=True)
@@ -46,6 +47,11 @@ class CostContext:
 
     def for_step(self, run_id: uuid.UUID, step_id: uuid.UUID | None) -> "CostContext":
         return replace(self, run_id=run_id, step_id=step_id)
+
+    @property
+    def owner_filter(self) -> dict[str, uuid.UUID]:
+        kind, owner_id = self.owner
+        return {f"{kind}_id": owner_id}
 
 
 def _dec(value: object) -> Decimal:
@@ -100,7 +106,9 @@ class CostTotals:
     output_tokens: int = 0
     calls: int = 0
     cached_calls: int = 0
-    # Calls whose cost the provider did not report; totals are then a lower bound.
+    # Calls whose cost the provider did not report, plus attempts still `started`
+    # (in flight, or left by a crash and not yet reconciled); totals are then a
+    # lower bound.
     unknown_calls: int = 0
     shared_from_run_ids: list[uuid.UUID] = field(default_factory=list)
 
@@ -109,7 +117,9 @@ class CostTotals:
         return self.unknown_calls > 0
 
 
-async def _totals(session: AsyncSession, stmt_filter: Select) -> CostTotals:
+async def _totals(
+    session: AsyncSession, stmt_filter: Select, unresolved: Select | None = None
+) -> CostTotals:
     stmt = stmt_filter.with_only_columns(
         func.coalesce(func.sum(CostEntry.credits), 0),
         func.coalesce(func.sum(CostEntry.usd), 0),
@@ -121,6 +131,9 @@ async def _totals(session: AsyncSession, stmt_filter: Select) -> CostTotals:
         func.array_remove(func.array_agg(CostEntry.shared_from_run_id.distinct()), None),
     )
     row = (await session.execute(stmt)).one()
+    pending = 0
+    if unresolved is not None:
+        pending = int((await session.execute(unresolved)).scalar_one())
     return CostTotals(
         credits=_dec(row[0]),
         usd=_dec(row[1]),
@@ -128,7 +141,7 @@ async def _totals(session: AsyncSession, stmt_filter: Select) -> CostTotals:
         output_tokens=int(row[3]),
         calls=int(row[4]),
         cached_calls=int(row[5]),
-        unknown_calls=int(row[6]),
+        unknown_calls=int(row[6]) + pending,
         shared_from_run_ids=list(row[7] or []),
     )
 
@@ -142,7 +155,7 @@ async def case_totals(
         .join(Case, Case.id == CostEntry.case_id)
         .where(CostEntry.case_id == case_id, Case.workspace_id == workspace_id)
     )
-    return await _totals(session, stmt)
+    return await _totals(session, stmt, _unresolved(workspace_id, CallAttempt.case_id == case_id))
 
 
 async def discovery_run_totals(
@@ -151,7 +164,11 @@ async def discovery_run_totals(
     stmt = select(CostEntry).where(
         CostEntry.discovery_run_id == discovery_run_id, CostEntry.workspace_id == workspace_id
     )
-    return await _totals(session, stmt)
+    return await _totals(
+        session,
+        stmt,
+        _unresolved(workspace_id, CallAttempt.discovery_run_id == discovery_run_id),
+    )
 
 
 async def investor_run_totals(
@@ -160,12 +177,69 @@ async def investor_run_totals(
     stmt = select(CostEntry).where(
         CostEntry.investor_run_id == investor_run_id, CostEntry.workspace_id == workspace_id
     )
-    return await _totals(session, stmt)
+    return await _totals(
+        session,
+        stmt,
+        _unresolved(workspace_id, CallAttempt.investor_run_id == investor_run_id),
+    )
 
 
 async def workspace_totals(session: AsyncSession, workspace_id: uuid.UUID) -> CostTotals:
     stmt = select(CostEntry).where(CostEntry.workspace_id == workspace_id)
-    return await _totals(session, stmt)
+    return await _totals(session, stmt, _unresolved(workspace_id))
+
+
+def _unresolved(workspace_id: uuid.UUID, *where: object) -> Select:
+    """Attempts still `started`: no final usage yet, so their cost is unknown."""
+    return select(func.count(CallAttempt.id)).where(
+        CallAttempt.workspace_id == workspace_id,
+        CallAttempt.status == CallStatus.STARTED,
+        *where,  # type: ignore[arg-type]
+    )
+
+
+async def budget_used(session: AsyncSession, ctx: CostContext) -> Decimal:
+    """Credits counted against `ctx`'s owner budget. Conservative by design:
+
+    - settled spend (each final dispatch's known credits),
+    - for a dispatch whose cost is unknown, at least the credits it reserved,
+    - plus reservations still held by `started` attempts (in flight, or left by a
+      crash until reconciled).
+    """
+    ((column, owner_id),) = ctx.owner_filter.items()
+    settled = (
+        await session.execute(
+            select(
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (
+                                CostEntry.unknown,
+                                func.greatest(
+                                    CostEntry.credits,
+                                    func.coalesce(CallAttempt.reserved_credits, 0),
+                                ),
+                            ),
+                            else_=CostEntry.credits,
+                        )
+                    ),
+                    0,
+                )
+            )
+            .select_from(CostEntry)
+            .outerjoin(CallAttempt, CallAttempt.id == CostEntry.call_attempt_id)
+            .where(getattr(CostEntry, column) == owner_id)
+        )
+    ).scalar_one()
+    held = (
+        await session.execute(
+            select(func.coalesce(func.sum(CallAttempt.reserved_credits), 0)).where(
+                getattr(CallAttempt, column) == owner_id,
+                CallAttempt.status == CallStatus.STARTED,
+            )
+        )
+    ).scalar_one()
+    return _dec(settled) + _dec(held)
 
 
 async def spent_credits(

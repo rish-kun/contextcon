@@ -84,6 +84,9 @@ class CallStatus(StrEnum):
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     CACHE_HIT = "cache_hit"
+    # Left `started` by a crashed or expired worker and settled on resume: the
+    # provider may or may not have processed (and billed) it.
+    UNKNOWN = "unknown"
 
 
 def check_in(column: str, enum: type[StrEnum]) -> str:

@@ -8,7 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import ledger
 from app.db.models import Step
 from app.jobs import BUDGET_REACHED, BudgetExceeded, StepContext, StepRegistry, StepSpec, create_run
-from app.jobs.engine import LeaseLost, claim_step, mark_done
+from app.jobs.engine import (
+    LeaseLost,
+    claim_step,
+    mark_done,
+    mark_retry_or_failed,
+    reclaim_expired_leases,
+    renew_lease,
+)
 from tests.db.factories import FakeCrustdataApi, tenant
 from tests.jobs.helpers import Calls, make_worker, run_state, states, step
 
@@ -155,18 +162,84 @@ async def test_worker_that_lost_its_lease_cannot_complete(session, sm) -> None:
     t = await tenant(session)
     run = await _run(session, t, [StepSpec("a", "noop")])
     async with sm() as s:
-        step_id = await claim_step(s, "slow-worker", 30)
+        old = await claim_step(s, "slow-worker", 30)
     await _crash_mid_step(sm, run.id, "a", owner="slow-worker")  # lease expires
     async with sm() as s:
-        from app.jobs.engine import reclaim_expired_leases
-
         await reclaim_expired_leases(s)
     async with sm() as s:
-        assert await claim_step(s, "new-worker", 30) == step_id
+        new = await claim_step(s, "new-worker", 30)
+    assert new.id == old.id and new.token != old.token
     async with sm() as s:
         with pytest.raises(LeaseLost):
-            await mark_done(s, step_id, "slow-worker", {"stale": True})
+            await mark_done(s, old.id, old.token, {"stale": True})
+    async with sm() as s:
+        assert not await renew_lease(s, old.id, old.token, 30)
+    async with sm() as s:
+        assert (
+            await mark_retry_or_failed(s, old.id, old.token, "x", retry_base=0, retry_max=0) is None
+        )
     assert (await step(sm, run.id, "a")).lease_owner == "new-worker"
+
+
+async def test_expired_lease_cannot_complete_even_before_reclaim(session, sm) -> None:
+    """Same token, but the lease ran out: no renewal, completion or failure."""
+    t = await tenant(session)
+    run = await _run(session, t, [StepSpec("a", "noop")])
+    async with sm() as s:
+        claim = await claim_step(s, "w", 30)
+    async with sm() as s:
+        await s.execute(
+            update(Step)
+            .where(Step.id == claim.id)
+            .values(lease_until=func.now() - func.make_interval(0, 0, 0, 0, 0, 0, 1))
+        )
+        await s.commit()
+    async with sm() as s:
+        assert not await renew_lease(s, claim.id, claim.token, 30)
+    async with sm() as s:
+        with pytest.raises(LeaseLost):
+            await mark_done(s, claim.id, claim.token, {})
+    async with sm() as s:
+        assert (
+            await mark_retry_or_failed(s, claim.id, claim.token, "x", retry_base=0, retry_max=0)
+            is None
+        )
+    assert (await step(sm, run.id, "a")).state == "running"  # left for reclaim
+
+
+async def test_expired_worker_cannot_start_a_new_paid_call(session, sm) -> None:
+    t = await tenant(session)
+    reg = StepRegistry()
+    api = FakeCrustdataApi()
+    raised: list[type] = []
+
+    @reg.handler("identify")
+    async def identify(ctx: StepContext) -> dict:
+        # Simulate the lease running out mid-handler (e.g. a long stall).
+        async with ctx.sessionmaker() as s:
+            await s.execute(
+                update(Step)
+                .where(Step.id == ctx.step_id)
+                .values(lease_until=func.now() - func.make_interval(0, 0, 0, 0, 0, 0, 1))
+            )
+            await s.commit()
+        client = api.client(recorder=ctx.recorder, cache=ctx.cache)
+        try:
+            await client.identify_company(domains=["example-logistics.test"])
+        except LeaseLost:
+            raised.append(LeaseLost)
+            raise
+        return {}
+
+    run = await _run(session, t, [StepSpec("identity", "identify")])
+    assert await make_worker(sm, reg).run_once()
+    assert raised == [LeaseLost]
+    assert api.http_calls == 0
+    async with sm() as db:
+        totals = await ledger.case_totals(db, t.workspace.id, t.case.id)
+    assert totals.calls == 0 and totals.unknown_calls == 0
+    # The step was not completed by the expired worker; it is left for reclaim.
+    assert (await step(sm, run.id, "identity")).state == "running"
 
 
 async def test_heartbeat_keeps_long_steps_leased(session, sm) -> None:

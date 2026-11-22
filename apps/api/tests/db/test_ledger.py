@@ -156,5 +156,7 @@ async def test_confidential_cache_is_scoped_to_its_case(
     assert await mine.get("llm:claims:deck-hash") == {"claims": ["250 staff"]}
     assert await theirs.get("llm:claims:deck-hash") is None
     assert await public.get("llm:claims:deck-hash") is None
+    dr = await discovery_run(session, t)
     with pytest.raises(ValueError):
-        DbCache(sm, CostContext(t.workspace.id, case_id=t.case.id), confidential=True)
+        DbCache(sm, CostContext(t.workspace.id, discovery_run_id=dr.id), confidential=True)
+    assert DbCache(sm, CostContext(t.workspace.id, discovery_run_id=dr.id)).confidential() is None

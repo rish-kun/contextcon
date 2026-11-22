@@ -40,15 +40,17 @@ KEEPALIVE_EVERY = 15  # polls
 _NOT_RUN = {StepState.skipped_budget, StepState.failed}
 
 
-def _totals(row) -> CostTotalsOut:  # type: ignore[no-untyped-def]
+def _totals(row, unresolved: int = 0) -> CostTotalsOut:  # type: ignore[no-untyped-def]
+    """`unresolved`: attempts still `started` (no final usage yet), counted as calls of
+    unknown cost."""
     if row is None:
-        return CostTotalsOut()
+        return CostTotalsOut(unknown_cost_calls=unresolved)
     return CostTotalsOut(
         crustdata_credits=float(row.credits or 0),
         llm_usd=float(row.usd or 0),
         input_tokens=int(row.input_tokens or 0),
         output_tokens=int(row.output_tokens or 0),
-        unknown_cost_calls=int(row.unknown or 0),
+        unknown_cost_calls=int(row.unknown or 0) + unresolved,
     )
 
 
@@ -63,19 +65,29 @@ def _cost_columns():  # type: ignore[no-untyped-def]
 
 
 async def _subject(session: AsyncSession, run: Run) -> str:
+    # Every lookup is pinned to the run's workspace as well as its owner id.
+    ws = run.workspace_id
     if run.case_id is not None:
-        name = await session.scalar(select(Case.company_name).where(Case.id == run.case_id))
+        name = await session.scalar(
+            select(Case.company_name).where(Case.id == run.case_id, Case.workspace_id == ws)
+        )
         return name or ""
     if run.discovery_run_id is not None:
         text = await session.scalar(
             select(Thesis.text)
             .join(DiscoveryRun, DiscoveryRun.thesis_id == Thesis.id)
-            .where(DiscoveryRun.id == run.discovery_run_id)
+            .where(
+                DiscoveryRun.id == run.discovery_run_id,
+                DiscoveryRun.workspace_id == ws,
+                Thesis.workspace_id == ws,
+            )
         )
         return text or ""
     if run.investor_run_id is not None:
         profile = await session.scalar(
-            select(InvestorRun.profile).where(InvestorRun.id == run.investor_run_id)
+            select(InvestorRun.profile).where(
+                InvestorRun.id == run.investor_run_id, InvestorRun.workspace_id == ws
+            )
         )
         if isinstance(profile, dict):
             parts = [str(profile[k]) for k in ("sector", "location", "stage") if profile.get(k)]
@@ -84,20 +96,27 @@ async def _subject(session: AsyncSession, run: Run) -> str:
 
 
 async def load_run_out(session: AsyncSession, workspace_id: uuid.UUID, run_id: uuid.UUID) -> RunOut:
-    """The run with every step, in the contract's shape. Raises `repo.NotFound`."""
+    """The run with every step, in the contract's shape. Raises `repo.NotFound` for a
+    run outside `workspace_id`; every joined lookup is scoped to the workspace too."""
     run = await repo.get_run(session, workspace_id, run_id)
+    if run.workspace_id != workspace_id:  # defence in depth over the scoped query
+        raise repo.NotFound("run")
     step_costs = {
         r.step_id: r
         for r in (
             await session.execute(
                 select(CostEntry.step_id, *_cost_columns())
-                .where(CostEntry.run_id == run.id)
+                .where(CostEntry.run_id == run.id, CostEntry.workspace_id == workspace_id)
                 .group_by(CostEntry.step_id)
             )
         ).all()
     }
     run_cost = (
-        await session.execute(select(*_cost_columns()).where(CostEntry.run_id == run.id))
+        await session.execute(
+            select(*_cost_columns()).where(
+                CostEntry.run_id == run.id, CostEntry.workspace_id == workspace_id
+            )
+        )
     ).one()
     calls = {
         r.step_id: r
@@ -107,8 +126,11 @@ async def load_run_out(session: AsyncSession, workspace_id: uuid.UUID, run_id: u
                     CallAttempt.step_id,
                     func.count().label("total"),
                     func.count(case((CallAttempt.status == CallStatus.CACHE_HIT, 1))).label("hits"),
+                    func.count(case((CallAttempt.status == CallStatus.STARTED, 1))).label(
+                        "unresolved"
+                    ),
                 )
-                .where(CallAttempt.run_id == run.id)
+                .where(CallAttempt.run_id == run.id, CallAttempt.workspace_id == workspace_id)
                 .group_by(CallAttempt.step_id)
             )
         ).all()
@@ -134,7 +156,7 @@ async def load_run_out(session: AsyncSession, workspace_id: uuid.UUID, run_id: u
                 ),
                 error=step.error if step.state != "done" else None,
                 from_cache=bool(c and c.total and c.hits == c.total),
-                cost=_totals(step_costs.get(step.id)),
+                cost=_totals(step_costs.get(step.id), c.unresolved if c else 0),
                 started_at=step.started_at,
                 finished_at=step.finished_at,
             )
@@ -147,14 +169,17 @@ async def load_run_out(session: AsyncSession, workspace_id: uuid.UUID, run_id: u
         case_id=str(run.case_id) if run.case_id else None,
         thesis_id=str(
             await session.scalar(
-                select(DiscoveryRun.thesis_id).where(DiscoveryRun.id == run.discovery_run_id)
+                select(DiscoveryRun.thesis_id).where(
+                    DiscoveryRun.id == run.discovery_run_id,
+                    DiscoveryRun.workspace_id == workspace_id,
+                )
             )
         )
         if run.discovery_run_id
         else None,
         investor_search_id=str(run.investor_run_id) if run.investor_run_id else None,
         budget_credits=float(run.budget_credits or Decimal(0)),
-        cost=_totals(run_cost),
+        cost=_totals(run_cost, sum(c.unresolved for c in calls.values())),
         checks_not_run=sum(1 for s in steps if s.state in _NOT_RUN),
         created_at=run.created_at,
         finished_at=run.finished_at,

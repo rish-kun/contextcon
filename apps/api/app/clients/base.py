@@ -48,7 +48,7 @@ from typing import Any, Literal, Protocol
 from pydantic import BaseModel, Field
 
 Provider = Literal["crustdata", "anthropic"]
-CallStatus = Literal["started", "succeeded", "failed", "cache_hit"]
+CallStatus = Literal["started", "succeeded", "failed", "cache_hit", "unknown"]
 
 # Error codes that may be stored or shown. Anything else becomes "other".
 ERROR_CODES: frozenset[str] = frozenset(

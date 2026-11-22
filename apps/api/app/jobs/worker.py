@@ -24,6 +24,7 @@ from app.jobs.engine import (
     BudgetExceeded,
     LeaseLost,
     RunInfo,
+    StepClaim,
     StepContext,
     budget_remaining,
     claim_step,
@@ -90,10 +91,10 @@ class Worker:
         """Reclaim expired leases, then claim and execute one step. True if it ran one."""
         await self.reclaim()
         async with self.sessionmaker() as session:
-            step_id = await claim_step(session, self.worker_id, self.lease_seconds)
-        if step_id is None:
+            claim = await claim_step(session, self.worker_id, self.lease_seconds)
+        if claim is None:
             return False
-        await self.execute(step_id)
+        await self.execute(claim)
         return True
 
     async def drain(self, max_steps: int = 10_000) -> int:
@@ -103,7 +104,8 @@ class Worker:
             count += 1
         return count
 
-    async def execute(self, step_id: uuid.UUID) -> None:
+    async def execute(self, claim: StepClaim) -> None:
+        step_id, token = claim.id, claim.token
         async with self.sessionmaker() as session:
             step = await session.get(Step, step_id)
             assert step is not None
@@ -116,14 +118,14 @@ class Worker:
             handler = self.registry.get(handler_name)
             if handler is None:
                 await session.rollback()
-                await self._fail(step_id, f"no handler registered for {handler_name!r}", False)
+                await self._fail(claim, f"no handler registered for {handler_name!r}", False)
                 return
 
             if uses_budget:
                 remaining = await budget_remaining(session, run)
                 if remaining is not None and remaining <= 0:
                     await session.rollback()
-                    await self._skip_for_budget(step_id, run.id, remaining)
+                    await self._skip_for_budget(claim, run.id, remaining)
                     return
 
             cost = cost_context(run, step_id)
@@ -137,25 +139,32 @@ class Worker:
                 sessionmaker=self.sessionmaker,
                 dependencies=await dependency_outputs(session, run.id, depends_on),
                 cost=cost,
-                recorder=DbCallRecorder(self.sessionmaker, cost) if cost else None,
+                recorder=DbCallRecorder(self.sessionmaker, cost, lease_token=token)
+                if cost
+                else None,
+                # Workspace scope, for public lookups. LLM clients take the case-scoped,
+                # expiring view (`ctx.cache.confidential()`) unless told the prompt is
+                # public.
                 cache=DbCache(self.sessionmaker, cost) if cost else None,
+                lease_token=token,
             )
 
             task = asyncio.create_task(handler(ctx))
             lease_lost = asyncio.Event()
-            heartbeat = asyncio.create_task(self._heartbeat(step_id, task, lease_lost))
+            heartbeat = asyncio.create_task(self._heartbeat(claim, task, lease_lost))
             try:
                 output = await task
                 if ctx.logs:
                     output = {**(output or {}), "_log": ctx.logs}
-                await mark_done(session, step_id, self.worker_id, output, ctx.result)
+                await mark_done(session, step_id, token, output, ctx.result)
                 await session.commit()
             except BudgetExceeded as exc:
                 await session.rollback()
                 async with self.sessionmaker() as s:
                     remaining = await budget_remaining(s, run)
-                await self._skip_for_budget(step_id, run.id, remaining, exc.reason)
+                await self._skip_for_budget(claim, run.id, remaining, exc.reason)
             except LeaseLost:
+                # From mark_done, or from the recorder refusing a new paid dispatch.
                 await session.rollback()
                 log.warning("step %s: lease lost before completion; result discarded", step_id)
             except asyncio.CancelledError:
@@ -163,27 +172,28 @@ class Worker:
                 if lease_lost.is_set():
                     log.warning("step %s: lease lost mid-run; handler cancelled", step_id)
                     return
-                await asyncio.shield(self._release(step_id))
+                await asyncio.shield(self._release(claim))
                 raise
             except Exception as exc:  # noqa: BLE001 - any handler error is retried
                 await session.rollback()
                 log.exception("step %s (%s) failed", step_id, handler_name)
-                await self._fail(step_id, public_error(exc), True)
+                await self._fail(claim, public_error(exc), True)
             finally:
                 heartbeat.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
                     await heartbeat
 
     async def _heartbeat(
-        self, step_id: uuid.UUID, task: asyncio.Task, lease_lost: asyncio.Event
+        self, claim: StepClaim, task: asyncio.Task, lease_lost: asyncio.Event
     ) -> None:
+        step_id = claim.id
         while not task.done():
             await asyncio.sleep(self.heartbeat_seconds)
             if task.done():
                 return
             try:
                 async with self.sessionmaker() as session:
-                    held = await renew_lease(session, step_id, self.worker_id, self.lease_seconds)
+                    held = await renew_lease(session, step_id, claim.token, self.lease_seconds)
             except Exception:  # noqa: BLE001 - a transient DB error must not kill the step
                 log.exception("step %s: lease renewal failed", step_id)
                 continue
@@ -192,12 +202,12 @@ class Worker:
                 task.cancel()
                 return
 
-    async def _fail(self, step_id: uuid.UUID, error: str, retryable: bool) -> None:
+    async def _fail(self, claim: StepClaim, error: str, retryable: bool) -> None:
         async with self.sessionmaker() as session:
             await mark_retry_or_failed(
                 session,
-                step_id,
-                self.worker_id,
+                claim.id,
+                claim.token,
                 error,
                 retry_base=self.retry_base,
                 retry_max=self.retry_max,
@@ -206,32 +216,38 @@ class Worker:
 
     async def _skip_for_budget(
         self,
-        step_id: uuid.UUID,
+        claim: StepClaim,
         run_id: uuid.UUID,
         remaining: Decimal | None,
         reason: str | None = None,
     ) -> None:
         async with self.sessionmaker() as session:
             if reason:
-                await mark_skipped_budget(session, step_id, self.worker_id, reason)
+                await mark_skipped_budget(session, claim.id, claim.token, reason)
             else:
-                await mark_skipped_budget(session, step_id, self.worker_id)
+                await mark_skipped_budget(session, claim.id, claim.token)
         if remaining is not None and remaining <= 0:
             async with self.sessionmaker() as session:
                 await skip_remaining_budgeted(session, run_id)
                 await session.commit()
 
-    async def _release(self, step_id: uuid.UUID) -> None:
+    async def _release(self, claim: StepClaim) -> None:
         """Shutdown mid-step: hand the step straight back instead of waiting for the
         lease to expire."""
+        step_id = claim.id
         try:
             async with self.sessionmaker() as session:
                 await session.execute(
                     update(Step)
-                    .where(Step.id == step_id, Step.lease_owner == self.worker_id)
+                    .where(
+                        Step.id == step_id,
+                        Step.lease_token == claim.token,
+                        Step.state == StepState.RUNNING,
+                    )
                     .values(
                         state=StepState.PENDING,
                         lease_owner=None,
+                        lease_token=None,
                         lease_until=None,
                         # An interrupted attempt is not a failed one.
                         attempts=func.greatest(Step.attempts - 1, 0),
