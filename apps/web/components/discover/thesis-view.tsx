@@ -287,7 +287,7 @@ export function ThesisView({ thesisId, live }: { thesisId: string; live: boolean
             onEditCriteria={() => setEditing(true)}
           />
         </div>
-        <aside className="flex flex-col gap-4 xl:sticky xl:top-6">
+        <aside className="flex flex-col gap-4 xl:sticky xl:top-20">
           {run ? <RunSummary run={run} /> : null}
           <CriteriaSummary criteria={thesis.criteria} onEdit={() => setEditing(true)} />
         </aside>

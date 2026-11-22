@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ThesisView } from "@/components/discover/thesis-view";
 
-export const metadata: Metadata = { title: "Shortlist · DealProof" };
+export const metadata: Metadata = { title: "Shortlist" };
 
 /**
  * `?live=1` is set by the criteria step when it has just started the run, so the page

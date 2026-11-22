@@ -65,9 +65,16 @@ function FactRow({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-function signed(value: number): string {
-  const rounded = Math.round(value * 10) / 10;
-  return `${rounded > 0 ? "+" : ""}${rounded}%`;
+/** "18.5% more people…" in words, so an estimate's tilde reads cleanly before the figure. */
+function HeadcountChange({ value }: { value: number }) {
+  const rounded = Math.round(Math.abs(value) * 10) / 10;
+  if (rounded === 0) return <>Headcount unchanged from 12 months earlier</>;
+  return (
+    <>
+      <span className="font-mono">{rounded}%</span> {value > 0 ? "more" : "fewer"} people than 12
+      months earlier
+    </>
+  );
 }
 
 function Profile({ item }: { item: ShortlistItemOut }) {
@@ -157,8 +164,7 @@ function OperatingSignals({ item }: { item: ShortlistItemOut }) {
             evidence={factEvidence(card.headcount_growth_yoy_pct)}
             estimate={factEstimate(card.headcount_growth_yoy_pct)}
           >
-            <span className="font-mono">{signed(card.headcount_growth_yoy_pct.value)}</span>{" "}
-            headcount vs 12 months earlier
+            <HeadcountChange value={card.headcount_growth_yoy_pct.value} />
           </Fact>
         ) : (
           <Missing>No headcount history returned</Missing>
@@ -368,7 +374,7 @@ export function ShortlistCard({
             <Marker kind="unknown" />
             <span>
               {plural(unknownMusts.length, "must-have")} could not be assessed:{" "}
-              {unknownMusts.map((result) => result.label.toLowerCase()).join(", ")}. An unknown
+              {unknownMusts.map((result) => result.label).join("; ")}. An unknown
               must-have does not remove a company; it stays here until evidence settles it.
             </span>
           </p>
