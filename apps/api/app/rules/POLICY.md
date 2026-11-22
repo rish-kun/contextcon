@@ -152,11 +152,11 @@ A seller document counts only when it is one of the document types listed; "date
 | `relationship` | customer partnership | audited_statement, counterparty_confirmation, seller_document | customer_confirmation, customer_contract | Customer confirmation or signed contract |
 | `since_year` | customer partnership | audited_statement, counterparty_confirmation, seller_document | customer_confirmation, customer_contract | Customer confirmation or signed contract |
 | `contract_value` | customer partnership | audited_statement, counterparty_confirmation, seller_document | customer_confirmation, customer_contract | Customer confirmation or signed contract |
-| `revenue` | financials | audited_statement, registry | none | Audited financial statements |
-| `profit` | financials | audited_statement, registry | none | Audited financial statements |
-| `ebitda` | financials | audited_statement, registry | none | Audited financial statements |
-| `revenue_growth_pct` | financials | audited_statement, registry | none | Audited financial statements |
-| `fiscal_year` | financials | audited_statement, registry | none | Audited financial statements |
+| `revenue` | financials | audited_statement, registry, registry_mirror | none | Audited financial statements |
+| `profit` | financials | audited_statement, registry, registry_mirror | none | Audited financial statements |
+| `ebitda` | financials | audited_statement, registry, registry_mirror | none | Audited financial statements |
+| `revenue_growth_pct` | financials | audited_statement, registry, registry_mirror | none | Audited financial statements |
+| `fiscal_year` | financials | audited_statement, registry, registry_mirror | none | Audited financial statements |
 | `has_debt` | debt security | audited_statement, counterparty_confirmation, seller_document | lender_statement | Lender statements |
 | `debt_amount` | debt security | audited_statement, counterparty_confirmation, seller_document | lender_statement | Lender statements |
 | `security_registered` | debt security | registry, registry_mirror | none | Registry charge record (analyst) |

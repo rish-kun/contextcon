@@ -8,7 +8,8 @@
 | dated_event                      | stored news/articles + targeted web search + page fetch    |
 | identity_incorporation, location | stored registry evidence + enriched HQ / founded year      |
 | debt_security, litigation        | stored registry evidence only (no dedicated v1 check)      |
-| customer_partnership, financials | none in v1: the rules answer cannot_verify + what settles  |
+| financials                       | one public results search (confirmed name + fixed words)  |
+| customer_partnership             | none in v1: the rules answer cannot_verify + what settles  |
 
 Every record is attached to the confirmed company or person by an identifier, never
 by name alone: people by company id (and name, when the claim names them), web pages
@@ -309,6 +310,14 @@ class Attachment:
     ref_prefix: str | None = None  # `domain` or `hq_city`: `crustdata:<key>:<id>`
 
 
+EXCHANGE_HOSTS = ("nseindia.com", "bseindia.com")
+
+
+def is_exchange(url: str | None) -> bool:
+    host = (host_of(url) or "").casefold()
+    return any(host == h or host.endswith("." + h) for h in EXCHANGE_HOSTS)
+
+
 def attach_hit(
     hit: WebSearchHit, terms: PublicTerms, corroborators: dict[str, list[str]]
 ) -> Attachment:
@@ -316,6 +325,9 @@ def attach_hit(
     if same_site(hit.url, terms.domain):
         return Attachment(True, R.COMPANY_ANNOUNCEMENT, ["domain"], ref_prefix="domain")
     text = f"{hit.title or ''}\n{hit.snippet or ''}\n{hit.content or ''}"
+    if is_exchange(hit.url) and contains_phrase(text, terms.company_name):
+        # An exchange filing copy (unaudited results are not audited statements).
+        return Attachment(True, R.REGISTRY_MIRROR, ["name", "exchange"], ref_prefix="domain")
     if terms.domain and terms.domain.casefold() in text.casefold():
         return Attachment(True, R.NEWS, ["domain"], ref_prefix="domain")
     if contains_phrase(text, terms.company_name):
@@ -799,6 +811,25 @@ async def gather_registry_only(env: CheckEnv, claim: Claim) -> Gathered:
     return out
 
 
+async def gather_financials(env: CheckEnv, claim: Claim) -> Gathered:
+    """One public results search for a listed company: the confirmed name plus fixed
+    words. The top 1-2 pages are read, the company's own site and the exchanges
+    first; facts come through the same verbatim-span extraction as every check."""
+    out = Gathered(entity_ids=[env.company_entity])
+    hits = await env.search("results")
+    terms = env.terms()
+
+    def rank(hit: WebSearchHit) -> int:
+        if same_site(hit.url, terms.domain):
+            return 0
+        return 1 if is_exchange(hit.url) else 2
+
+    hits = sorted(hits, key=rank)[:MAX_FETCH]
+    units = await _hit_units(env, hits, "results", fetch=True)
+    await _read_units(env, claim, units, out)
+    return out
+
+
 async def gather_nothing(env: CheckEnv, claim: Claim) -> Gathered:
     return Gathered(entity_ids=[env.company_entity])
 
@@ -813,6 +844,6 @@ GATHERERS: dict[ClaimCategory, Callable[[CheckEnv, Claim], Awaitable[Gathered]]]
     ClaimCategory.DEBT_SECURITY: gather_registry_only,
     ClaimCategory.LITIGATION: gather_registry_only,
     ClaimCategory.CUSTOMER_PARTNERSHIP: gather_nothing,
-    ClaimCategory.FINANCIALS: gather_nothing,
+    ClaimCategory.FINANCIALS: gather_financials,
     ClaimCategory.OTHER: gather_nothing,
 }

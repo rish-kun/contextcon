@@ -23,6 +23,8 @@ TOPICS: dict[str, str] = {
     "hub": "hub",
     "acquisition": "acquisition",
     "partnership": "partnership",
+    # Listed-company financials: fixed words only, never the claim's wording.
+    "results": "quarterly results revenue",
 }
 
 _CITY = re.compile(r"^[A-Za-z][A-Za-z .'-]{1,39}$")

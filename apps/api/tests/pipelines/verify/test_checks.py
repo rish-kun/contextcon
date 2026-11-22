@@ -799,3 +799,29 @@ async def test_iso_country_code_matches_a_claimed_country_name(sm, session):
     _, ledger, _ = await _verify(sm, session, case, sentences, pune_crustdata(enrich=enrich))
     assert ledger["We are headquartered in India"].status == "supported"
     assert ledger["We are headquartered in Singapore"].status == "contradicted"
+
+
+# --- Listed-company financials ---------------------------------------------------
+
+
+async def test_revenue_claim_gets_one_public_results_search(sm, session):
+    case = await _case(session)
+    sentence = "Q2 FY27 consolidated revenue was ₹2,095 crore, up 24% YoY"
+    sentences = [(sentence, "financials", [("revenue", "₹2,095 crore")])]
+    span = "Consolidated revenue for Q2 FY27 was ₹2,095 crore."
+    url = "https://www.nseindia.com/results/q2-fy27"
+    hits = [{"title": f"{NAME} quarterly results", "url": url, "snippet": span}]
+    crust = pune_crustdata(search_hits={"results": hits}, pages={url: f"<p>{NAME}. {span}</p>"})
+    llm = intake_llm(sentences)
+
+    def facts(system, user):
+        if span in evidence_block(user):
+            return {"speaks_to_claim": True, "facts": [_fact("revenue", "₹2,095 crore", span)]}
+        return {"speaks_to_claim": False, "facts": []}
+
+    llm.responders["EvidenceFactsDraft"] = facts
+    _, ledger, _ = await _verify(sm, session, case, sentences, crust, llm)
+    searches = [p["query"] for n, p in crust.calls if n == "web_search"]
+    assert searches == [f'"{NAME}" quarterly results revenue']
+    assert crust.names().count("fetch_pages") <= 1
+    assert ledger[sentence].status in {"supported", "partially_corroborated"}
