@@ -95,9 +95,13 @@ async def test_typed_claim_is_stored_with_origin_typed_and_queued(api, client, s
     row = (await session.execute(select(Claim).where(Claim.case_id == acct.case.id))).scalar_one()
     assert row.origin == "typed"
     assert row.delete_after is not None
-    steps = list((await session.execute(select(Step))).scalars())
-    assert [(s.handler, s.key) for s in steps] == [(CHECK_HANDLER, f"checks.claim:{row.id}")]
+    steps = list((await session.execute(select(Step).order_by(Step.position))).scalars())
+    assert [(s.handler, s.key) for s in steps] == [
+        (CHECK_HANDLER, f"checks.claim:{row.id}"),
+        ("evaluate.assess", "evaluate"),  # the check ends in an assessment version
+    ]
     assert steps[0].uses_budget is False and steps[0].tolerate_failed_deps is True
+    assert steps[1].depends_on == [steps[0].key]
 
 
 async def test_typed_claim_text_is_regex_redacted_before_the_model(api, client, session):

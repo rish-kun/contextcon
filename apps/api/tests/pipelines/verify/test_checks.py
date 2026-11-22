@@ -6,6 +6,7 @@ Provider clients are fakes; nothing leaves the process.
 
 from __future__ import annotations
 
+import uuid
 from datetime import date
 from decimal import Decimal
 
@@ -659,11 +660,50 @@ async def test_recheck_after_identity_pick_gets_new_steps(sm, session):
     assert ledger["We employ 250 people"].not_checked_reason == "identity_unresolved"
     case.identity_status = "confirmed"
     run = (await session.execute(select(Run))).scalar_one()
-    [step] = await schedule_case_checks(session, case=case, run_id=run.id)
+    [step, assess] = await schedule_case_checks(session, case=case, run_id=run.id)
     await session.commit()
     assert step.key == f"checks.claim:{claim.id}@2"
+    assert assess.key == "evaluate@2" and assess.depends_on == [step.key]
     await make_worker(sm, registry).drain()
     session.expire_all()
     await session.refresh(case)
     [out] = await build_claims_section(session, case)
     assert out.status == "cannot_verify" and len(out.history) == 2
+
+
+async def test_claim_checks_end_in_an_assessment_version(sm, session):
+    """Spec: `evaluate.assess` runs last in verify runs. Each batch of checks gets its own
+    assessment step, after the last check, recording the documents that caused it."""
+    from app.db.models import AssessmentVersion, Step
+
+    case = await _case(session)
+    sentences = [("We employ 250 people", "team_size", [("employee_count", "250")])]
+    await _verify(sm, session, case, sentences, pune_crustdata())
+    steps = {s.key: s for s in (await session.execute(select(Step))).scalars()}
+    assert steps["evaluate"].state == "done"
+    assert steps["evaluate"].tolerate_failed_deps is True
+    [v1] = (await session.execute(select(AssessmentVersion))).scalars().all()
+    assert v1.version == 1 and v1.trigger_document_ids == []
+
+    doc_id = uuid.uuid4()
+    llm = intake_llm([("We employ 300 people", "team_size", [("employee_count", "300")])])
+    run = (await session.execute(select(Run))).scalar_one()
+    claim = await add_typed_claim(
+        session, case=case, text="We employ 300 people", llm=llm, retention_days=30
+    )
+    created = await schedule_claim_checks(
+        session, run_id=run.id, claims=[claim], document_ids=[doc_id]
+    )
+    await session.commit()
+    assert [s.key for s in created] == [f"checks.claim:{claim.id}", "evaluate@2"]
+    assert created[1].input == {"document_ids": [str(doc_id)]}
+    await make_worker(sm, registry).drain()
+    session.expire_all()
+    versions = (
+        (await session.execute(select(AssessmentVersion).order_by(AssessmentVersion.version)))
+        .scalars()
+        .all()
+    )
+    assert [v.version for v in versions] == [1, 2]
+    assert versions[1].trigger_document_ids == [str(doc_id)]
+    assert versions[1].diff_from_previous is not None

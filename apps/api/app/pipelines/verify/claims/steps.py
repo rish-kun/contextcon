@@ -42,7 +42,9 @@ async def extract_claims_step(ctx: StepContext) -> dict[str, Any]:
         await close_quietly(llm)
     to_check = [c for c in intake.claims if str(c.id) not in intake.checked]
     if to_check:
-        await schedule_claim_checks(ctx.session, run_id=ctx.run.id, claims=to_check)
+        await schedule_claim_checks(
+            ctx.session, run_id=ctx.run.id, claims=to_check, document_ids=[document.id]
+        )
         # Ids and categories only: the client already has the claim text.
         await ctx.activity.findings(
             lambda _batch: render("finding.claims_queued", n=len(to_check)),

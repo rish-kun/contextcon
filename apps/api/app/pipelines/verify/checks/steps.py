@@ -22,7 +22,12 @@ from app.db.models import Case, Claim, Step
 from app.jobs import StepContext, StepSpec, step_handler
 from app.pipelines.verify.checks.clients import client_factory, close_quietly
 from app.pipelines.verify.checks.run import check_claim
-from app.pipelines.verify.claims.intake import CHECK_HANDLER, CHECK_PREFIX, OWN_HANDLERS
+from app.pipelines.verify.claims.intake import (
+    CHECK_HANDLER,
+    CHECK_PREFIX,
+    DOWNSTREAM_HANDLERS,
+    OWN_HANDLERS,
+)
 from app.rules.claim_status import status_label
 
 MAX_DEFERRALS = 3
@@ -35,7 +40,7 @@ async def _defer_behind_unfinished(ctx: StepContext, claim: Claim) -> str | None
             Step.run_id == ctx.run.id,
             Step.id != ctx.step_id,
             Step.state.in_([StepState.PENDING, StepState.RUNNING]),
-            Step.handler.notin_(OWN_HANDLERS),
+            Step.handler.notin_(OWN_HANDLERS | DOWNSTREAM_HANDLERS),
         )
     )
     waiting = sorted(rows.scalars())
