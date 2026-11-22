@@ -83,14 +83,16 @@ async def create_case(session: AsyncSession, actor: CaseActor, body: CaseCreate)
         # Linked so the discovery cost shows as "shared from run X", never re-counted.
         fields = {"candidate_id": candidate.id, "thesis_id": discovery.thesis_id}
     else:
-        assert body.name and body.website
+        assert body.name and (body.website or body.crustdata_id)
         name, website = body.name, body.website
+        if body.crustdata_id is not None:
+            expected["crustdata_company_id"] = body.crustdata_id
         if body.thesis_id is not None:
             thesis = await repo.get_thesis(
                 session, actor.workspace_id, _uuid(body.thesis_id, "Thesis")
             )
             fields["thesis_id"] = thesis.id
-    expected.update({"name": name, "domain": normalize_domain(website)})
+    expected.update({"name": name, "domain": normalize_domain(website) if website else None})
     case = await repo.create_case(
         session,
         actor.workspace_id,
