@@ -193,7 +193,7 @@ function StatusFilter({
               disabled={counts[status] === 0}
               onClick={() => onToggle(status)}
               className={cn(
-                "inline-flex h-8 items-center gap-1 rounded-md border px-2 text-xs transition-[background-color,border-color,color] disabled:opacity-50",
+                "inline-flex h-11 items-center gap-1 rounded-md border px-2 text-xs transition-[background-color,border-color,color] disabled:opacity-50 md:h-8",
                 pressed
                   ? "border-ink bg-surface font-medium text-ink"
                   : "border-line bg-surface text-ink-secondary hover:border-line-strong hover:bg-surface-raised",
@@ -268,7 +268,12 @@ function AddClaims() {
         </p>
       ) : null}
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" variant="primary" disabled={busy || lines.length === 0}>
+        <Button
+          type="submit"
+          variant="primary"
+          className="h-11 md:h-9"
+          disabled={busy || lines.length === 0}
+        >
           <Icon icon={Plus} />
           {busy ? "Adding" : lines.length > 1 ? `Add ${lines.length} claims` : "Add claim"}
         </Button>
@@ -427,7 +432,7 @@ export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
             : "Nothing has been claimed yet"
         }
       >
-        <Button asChild>
+        <Button asChild className="h-11 md:h-9">
           <a href="#add-to-ledger">
             <Icon icon={Plus} />
             Add claims or documents
@@ -435,6 +440,7 @@ export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
         </Button>
         <Button
           variant="primary"
+          className="h-11 md:h-9"
           onClick={() => void verify()}
           disabled={runActive || identityOpen || detail.claims.length === 0}
         >

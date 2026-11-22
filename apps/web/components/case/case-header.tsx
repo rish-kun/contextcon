@@ -195,6 +195,7 @@ export function CaseHeader({ detail }: { detail: CaseDetail }) {
         </div>
         <div className="flex flex-wrap items-center gap-2 print:hidden">
           <Button
+            className="h-11 md:h-9"
             onClick={() => void verify()}
             disabled={runActive || identityOpen}
             title={identityOpen ? "Resolve identity before running checks" : undefined}
@@ -202,7 +203,7 @@ export function CaseHeader({ detail }: { detail: CaseDetail }) {
             <Icon icon={hasRun ? RotateCw : Play} />
             {runActive ? "Verification running" : hasRun ? "Re-run verification" : "Run verification"}
           </Button>
-          <Button onClick={printMemo}>
+          <Button className="h-11 md:h-9" onClick={printMemo}>
             <Icon icon={Printer} />
             Print memo
           </Button>

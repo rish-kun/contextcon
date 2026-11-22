@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { type CaseDetail, getCase } from "@/lib/api/client";
 import { CaseProvider } from "@/components/case/case-context";
 import { CaseShell } from "@/components/case/case-shell";
@@ -7,16 +8,16 @@ import { CaseShell } from "@/components/case/case-shell";
 /**
  * Fetch the case on the server with the reader's session, so the first paint already has
  * it. If that fails for any reason the provider loads it again in the browser and shows
- * the reason there.
+ * the reason there. `cache` shares the one fetch between the metadata and the layout.
  */
-async function loadCase(id: string): Promise<CaseDetail | null> {
+const loadCase = cache(async (id: string): Promise<CaseDetail | null> => {
   try {
     const cookie = (await cookies()).toString();
     return await getCase(id, { headers: { cookie } });
   } catch {
     return null;
   }
-}
+});
 
 export async function generateMetadata({
   params,
@@ -25,7 +26,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const detail = await loadCase(id);
-  return { title: detail ? `${detail.case.name} · DealProof` : "Case · DealProof" };
+  // The app layout appends "· DealProof".
+  return { title: detail?.case.name ?? "Case" };
 }
 
 export default async function CaseLayout({

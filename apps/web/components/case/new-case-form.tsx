@@ -234,7 +234,7 @@ export function NewCaseForm() {
       ) : null}
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line pt-6">
-        <Button type="submit" variant="primary" disabled={busy}>
+        <Button type="submit" variant="primary" className="h-11 md:h-9" disabled={busy}>
           {busy ? progress : "Start verification"}
         </Button>
         <Button asChild variant="quiet">

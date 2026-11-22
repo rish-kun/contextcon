@@ -87,7 +87,7 @@ function Confirmed({ detail }: { detail: CaseDetail }) {
           </h3>
           <p className="max-w-(--layout-prose-max) text-dense text-ink-secondary">
             Every record in this case is attached using these identifiers, never on a
-            matching name alone.
+            matching name alone
           </p>
         </div>
 
@@ -288,7 +288,7 @@ function CandidateCard({
       <div className="border-t border-line p-4">
         <Button
           variant="primary"
-          className="w-full sm:w-auto"
+          className="h-11 w-full sm:w-auto md:h-9"
           onClick={onChoose}
           aria-label={`This is the company: ${candidate.name}`}
         >
