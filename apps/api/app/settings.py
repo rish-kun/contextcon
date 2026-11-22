@@ -60,7 +60,11 @@ class Settings(BaseSettings):
     # Where the app's LLM calls go. Deliberately not ANTHROPIC_BASE_URL, which agent
     # and developer shells set for their own proxies; the client never reads it.
     anthropic_base_url_override: str = "https://api.anthropic.com"
-    anthropic_max_tokens: int = Field(default=4096, gt=0)
+    # Output ceiling per call. Claim extraction reads a whole document in one call and
+    # returns every claim with its quote; a 7-page public website used ~3,000-4,100
+    # tokens and a reply cut at 4,096 failed to parse (decode_error). Only tokens
+    # actually generated are billed.
+    anthropic_max_tokens: int = Field(default=16000, gt=0)
     # There is deliberately no temperature / top_p / top_k setting: Haiku 5.5 rejects
     # non-default sampling values, and the client has no code path that sends them.
     # A stray ANTHROPIC_TEMPERATURE in the environment is ignored.

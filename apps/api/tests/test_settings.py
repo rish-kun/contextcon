@@ -71,3 +71,11 @@ def test_credit_budget_defaults(monkeypatch) -> None:
     assert settings.case_credit_budget == 150
     assert settings.discover_credit_budget == 100
     assert settings.investor_credit_budget == 60
+
+
+def test_llm_output_ceiling_fits_a_whole_document_of_claims() -> None:
+    """Claim extraction reads a document in one call; a 4,096-token ceiling cut a 7-page
+    public website's claims mid-JSON (decode_error). The default leaves headroom."""
+    from app.settings import Settings
+
+    assert Settings(_env_file=None).anthropic_max_tokens >= 16000
