@@ -247,8 +247,15 @@ def test_name_only_binding_never_counts():
 def test_company_results_page_counts_only_for_a_listed_company():
     ir = _source("ir", "https://acme.example/investors/results", R.COMPANY_ANNOUNCEMENT)
     fig = _reported("i1", ir, "revenue", "₹2,095 crore", "Q2 FY27 revenue ₹2,095 crore")
-    listed = financial_assessment([], [CO], FinancialInputs(listing="listed", figures=[fig]))
+    listed = financial_assessment(
+        [], [CO], FinancialInputs(listing="listed", listing_signal="cin", figures=[fig])
+    )
     assert listed.state == "assessed" and "results on acme.example" in listed.conclusion
+    # A provider's "Public Company" label alone is not a record of a listing.
+    labelled = financial_assessment(
+        [], [CO], FinancialInputs(listing="listed", listing_signal="company_type", figures=[fig])
+    )
+    assert labelled.state == "not_assessed"
     unlisted = financial_assessment([], [CO], FinancialInputs(listing="unlisted", figures=[fig]))
     assert unlisted.state == "not_assessed"
 

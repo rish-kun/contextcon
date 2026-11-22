@@ -86,22 +86,26 @@ TEXT_COMPONENTS = frozenset({"revenue_band"})
 # --- Listing ---------------------------------------------------------------------
 
 
-def listing_status(entity: dict[str, Any]) -> tuple[str, str]:
-    """(listed | unlisted | unknown, basis), free signals first (H-proofgate §5.2)."""
+def listing_status(entity: dict[str, Any]) -> tuple[str, str, str | None]:
+    """(listed | unlisted | unknown, basis in words, signal), free signals first
+    (H-proofgate §5.2). The signal says how strong "listed" is: `cin`, `stock_symbol`
+    and `ipo_date` are records of a listing; `company_type` is only a provider label,
+    enough to plan an exchange search but not to trust the company's own site."""
     cin = str(entity.get("cin") or "").strip().upper()
     if cin.startswith("L"):
-        return "listed", f"CIN {cin} begins with L (listed company)"
+        return "listed", f"CIN {cin} begins with L (listed company)", "cin"
     symbols = [s for s in entity.get("stock_symbols") or [] if s]
     if symbols:
-        return "listed", f"stock symbol {', '.join(map(str, symbols[:3]))} on the company record"
+        shown = ", ".join(map(str, symbols[:3]))
+        return "listed", f"stock symbol {shown} on the company record", "stock_symbol"
     if entity.get("ipo_date"):
-        return "listed", f"IPO date {entity['ipo_date']} on the company record"
+        return "listed", f"IPO date {entity['ipo_date']} on the company record", "ipo_date"
     ctype = str(entity.get("provider_company_type") or "")
     if "public" in ctype.casefold():
-        return "listed", f'company type "{ctype}" on the company record'
+        return "listed", f'company type "{ctype}" on the company record', "company_type"
     if cin.startswith("U"):
-        return "unlisted", f"CIN {cin} begins with U (unlisted company)"
-    return "unknown", "no CIN, stock symbol or public company type on record"
+        return "unlisted", f"CIN {cin} begins with U (unlisted company)", "cin"
+    return "unknown", "no CIN, stock symbol or public company type on record", None
 
 
 def is_indian(entity: dict[str, Any]) -> bool:
@@ -165,14 +169,29 @@ def is_exchange(url: str | None) -> bool:
     return any(host_matches(host, h) for h in EXCHANGE_HOSTS)
 
 
-def _symbols(entity: ConfirmedEntity, raw: dict[str, Any]) -> list[str]:
-    """`NSE:M&M` → `M&M`; at least two characters, matched as a whole token."""
+MIN_SYMBOL = 3
+
+
+def _symbols(raw: dict[str, Any]) -> list[str]:
+    """`NSE:ACMEFRT` → `ACMEFRT`; at least three characters, matched as a whole token
+    and only on an exchange's own pages."""
     out = []
     for s in raw.get("stock_symbols") or []:
         sym = str(s).split(":")[-1].strip()
-        if len(sym) >= 2:
+        if len(sym) >= MIN_SYMBOL:
             out.append(sym)
     return out
+
+
+def _own_site(url: str, entity: ConfirmedEntity) -> bool:
+    """The company's primary domain only, not every domain a record lists."""
+    return bool(entity.domain) and host_matches(host_of(url), entity.domain or "")
+
+
+def _mentions_domain(raw: str, domain: str) -> bool:
+    """The domain as a whole host name in the page, not inside a longer one."""
+    pattern = r"(?<![\w.-])(?:www\.)?" + re.escape(domain) + r"(?![\w-]|\.[a-z])"
+    return re.search(pattern, raw, re.IGNORECASE) is not None
 
 
 def page_class(url: str, entity: ConfirmedEntity, kind: str) -> str | None:
@@ -182,7 +201,7 @@ def page_class(url: str, entity: ConfirmedEntity, kind: str) -> str | None:
         return reliability_for(url)
     if is_exchange(url):
         return SourceReliability.REGISTRY_MIRROR  # filed results: reported, not audited
-    if any(host_matches(host_of(url), d) for d in entity.domains):
+    if _own_site(url, entity):
         return SourceReliability.COMPANY_ANNOUNCEMENT
     return None
 
@@ -201,17 +220,17 @@ def bind_page(
         not is_exchange(url)
     ):
         return corroborate(entity, raw, text, {})
-    if any(host_matches(host_of(url), d) for d in entity.domains):
+    if _own_site(url, entity):
         return ["domain"]
     if not contains_phrase(text, entity.public_name or entity.name):
         return []
     matched: list[str] = []
     if entity.cin and entity.cin.lower() in text.lower():
         matched.append("cin")
-    if any(d in raw.lower() for d in entity.domains):
+    if any(_mentions_domain(raw, d) for d in entity.domains):
         matched.append("domain")
     tokens = set(_TOKEN.findall(text))
-    if any(s in tokens for s in _symbols(entity, raw_entity)):
+    if is_exchange(url) and any(s in tokens for s in _symbols(raw_entity)):
         matched.append("stock_symbol")
     return matched
 
@@ -319,7 +338,7 @@ async def financials_evidence(ctx: StepContext) -> dict[str, Any]:
         return common.blocked_output(ctx)
 
     raw_entity = dict((case.identity_identifiers or {}).get("entity") or {})
-    listing, basis = listing_status(raw_entity)
+    listing, basis, signal = listing_status(raw_entity)
     registry_urls = await _known_registry_urls(ctx, case)
     today = datetime.now(UTC).date()
     plan = plan_lookups(listing, is_indian(raw_entity), bool(registry_urls))
@@ -373,6 +392,7 @@ async def financials_evidence(ctx: StepContext) -> dict[str, Any]:
         financials={
             "listing": listing,
             "listing_basis": basis,
+            "listing_signal": signal,
             "searched": [lk.describe() for lk in lookups],
             "searched_at": datetime.now(UTC).isoformat(),
         },

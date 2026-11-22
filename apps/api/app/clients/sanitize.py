@@ -225,6 +225,17 @@ NEWS = {
     "source": S,
 }
 
+# `revenue` group: a provider's revenue estimate and public-market identifiers.
+REVENUE = {
+    "estimated": {
+        "lower_bound_usd": S,
+        "upper_bound_usd": S,
+        "timeseries": KEEP,
+    },
+    "public_markets": {"stock_symbols": [S], "ipo_date": S, "fiscal_year_end": S},
+    "acquisition_status": S,
+}
+
 COMPANY_RECORD = {
     "crustdata_company_id": S,
     "updated_at": S,
@@ -237,6 +248,7 @@ COMPANY_RECORD = {
     "people": {"founders": [PERSON_REF], "cxos": [PERSON_REF], "decision_makers": [PERSON_REF]},
     "taxonomy": TAXONOMY,
     "news": [NEWS],
+    "revenue": REVENUE,
     "social_profiles": KEEP,
     "metadata": KEEP,
 }

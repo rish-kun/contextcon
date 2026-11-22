@@ -368,6 +368,9 @@ class FinancialInputs(Model):
     estimates: list[FinancialEstimate] = Field(default_factory=list)
     listing: ListingStatus = "unknown"
     listing_basis: str | None = None
+    # cin | stock_symbol | ipo_date | company_type: only the first three are records of
+    # a listing, so only they let a company's own results page count.
+    listing_signal: str | None = None
     # What `verify.financials` searched; None while it has not run.
     searched: list[str] | None = None
 

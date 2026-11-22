@@ -219,6 +219,7 @@ _FIGURE_ORDER = ("revenue", "ebitda", "profit", "net_worth", "revenue_band", "re
 # Preferred record when two sources state the same figure for the same period.
 _BASIS_RANK = {"audited": 0, "filing": 1, "registry": 2, "company_results": 3}
 _EXCHANGES = {"nseindia.com": "NSE", "bseindia.com": "BSE"}
+LISTING_RECORDS = frozenset({"cin", "stock_symbol", "ipo_date"})
 
 
 def _host(url: str | None) -> str:
@@ -419,12 +420,14 @@ def financial_assessment(
     fx = financials or FinancialInputs()
     ids = list(entity_ids or [])
     listed = fx.listing == "listed"
+    # A company's own results page counts only when the listing is on record.
+    listing_on_record = listed and fx.listing_signal in LISTING_RECORDS
     found: dict[tuple, tuple[FinancialFigure, str | None]] = {}
     candidates = [(f, None) for f in sorted(facts, key=lambda f: f.id)] + [
         (r.fact, r) for r in sorted(fx.figures, key=lambda r: r.fact.id)
     ]
     for fact, reported in candidates:
-        got = _figure(fact, reported, ids, listed)
+        got = _figure(fact, reported, ids, listing_on_record)
         if got is None:
             continue
         fig = got[0]

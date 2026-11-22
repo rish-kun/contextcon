@@ -535,6 +535,7 @@ def financial_inputs(case: Case, evidence: list[tuple[Evidence, Source]]) -> Fin
         estimates=estimates,
         listing=listing if listing in ("listed", "unlisted", "unknown") else "unknown",
         listing_basis=record.get("listing_basis"),
+        listing_signal=record.get("listing_signal"),
         searched=[str(x) for x in record["searched"]] if "searched" in record else None,
     )
 
