@@ -2397,8 +2397,10 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "claim_id",
           "label",
-          "reason"
+          "reason",
+          "estimated_credits"
         ],
         "title": "AnalystRetryOut",
         "description": "A check to re-run on our side (budget, provider error). Never sent to the seller."
@@ -2511,7 +2513,9 @@
           "policy_version",
           "inputs_hash",
           "trigger",
-          "judgments"
+          "company_type",
+          "judgments",
+          "diff_from_previous"
         ],
         "title": "AssessmentVersionOut"
       },
@@ -2567,7 +2571,9 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "assessed"
+          "assessed",
+          "reason",
+          "signals"
         ],
         "title": "BusinessAssessmentOut"
       },
@@ -2637,7 +2643,11 @@
         "required": [
           "crustdata_credits",
           "llm_usd",
-          "credit_budget"
+          "unknown_cost_calls",
+          "credit_budget",
+          "checks_not_run",
+          "by_step",
+          "shared_discovery"
         ],
         "title": "CaseCostOut"
       },
@@ -2831,8 +2841,19 @@
           "case",
           "opportunity",
           "identity",
+          "profile",
+          "claims",
+          "events",
           "comparables",
-          "cost"
+          "assessment",
+          "risks",
+          "request_list",
+          "message",
+          "documents",
+          "deletions",
+          "sources",
+          "cost",
+          "runs"
         ],
         "title": "CaseDetail",
         "description": "The memo aggregate, sections in the PRD's finished-case order."
@@ -2926,11 +2947,16 @@
         "required": [
           "id",
           "name",
+          "website",
           "status",
           "identity_state",
+          "crustdata_company_id",
+          "thesis_id",
+          "shortlist_item_id",
           "credit_budget",
           "created_at",
-          "owner"
+          "owner",
+          "run"
         ],
         "title": "CaseOut"
       },
@@ -3048,8 +3074,16 @@
         "required": [
           "id",
           "name",
+          "website",
           "status",
           "identity_state",
+          "disposition",
+          "fit_state",
+          "fit",
+          "assessable_pct",
+          "claim_count",
+          "cost",
+          "latest_run_state",
           "created_at",
           "updated_at"
         ],
@@ -3145,8 +3179,13 @@
         "type": "object",
         "required": [
           "id",
+          "run_id",
           "status",
           "reason",
+          "not_checked_reason",
+          "settle_with",
+          "evidence_ids",
+          "assessment_version",
           "created_at"
         ],
         "title": "ClaimCheckOut",
@@ -3302,10 +3341,19 @@
           "original_text",
           "normalised_text",
           "category",
+          "components",
+          "material",
           "origin",
           "stated_in",
           "status",
-          "reason"
+          "reason",
+          "not_checked_reason",
+          "adequate_source_reached",
+          "substantive_result",
+          "settle_with",
+          "evidence",
+          "history",
+          "changed_in_version"
         ],
         "title": "ClaimOut"
       },
@@ -3518,7 +3566,26 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "name"
+          "crustdata_company_id",
+          "name",
+          "legal_name",
+          "domain",
+          "description",
+          "industries",
+          "headquarters",
+          "country",
+          "year_founded",
+          "incorporation_date",
+          "registry_id",
+          "company_type",
+          "company_type_reason",
+          "headcount",
+          "headcount_growth_yoy_pct",
+          "headcount_series",
+          "total_funding_usd",
+          "funding_rounds",
+          "people",
+          "hiring"
         ],
         "title": "CompanyProfileOut"
       },
@@ -3610,8 +3677,11 @@
         "required": [
           "company_id",
           "company_name",
+          "round_type",
           "date",
-          "source"
+          "amount_usd",
+          "source",
+          "evidence_id"
         ],
         "title": "ComparableRoundOut"
       },
@@ -3643,7 +3713,9 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "basis"
+          "basis",
+          "companies",
+          "no_fair_comparison_reason"
         ],
         "title": "ComparablesOut"
       },
@@ -3685,6 +3757,11 @@
         },
         "additionalProperties": false,
         "type": "object",
+        "required": [
+          "industry",
+          "country",
+          "headcount_band"
+        ],
         "title": "ComparisonBasisOut"
       },
       "CostLineOut": {
@@ -3726,6 +3803,7 @@
           "step_key",
           "step_label",
           "cost",
+          "cached",
           "at"
         ],
         "title": "CostLineOut"
@@ -3761,6 +3839,13 @@
         },
         "additionalProperties": false,
         "type": "object",
+        "required": [
+          "crustdata_credits",
+          "llm_usd",
+          "input_tokens",
+          "output_tokens",
+          "unknown_cost_calls"
+        ],
         "title": "CostTotalsOut",
         "description": "Crustdata credits and model dollars are separate currencies and never added."
       },
@@ -3917,7 +4002,9 @@
           "dimension",
           "operator",
           "value",
-          "assessed_from_evidence"
+          "crustdata_filter",
+          "assessed_from_evidence",
+          "edited"
         ],
         "title": "CriterionOut"
       },
@@ -3962,7 +4049,8 @@
           "kind",
           "weight",
           "state",
-          "reason"
+          "reason",
+          "evidence"
         ],
         "title": "CriterionResultOut"
       },
@@ -4013,6 +4101,7 @@
         "required": [
           "artifact_kind",
           "artifact_id",
+          "original_filename",
           "deleted_at",
           "reason"
         ],
@@ -4078,8 +4167,11 @@
         "required": [
           "kind",
           "subject",
+          "subject_id",
+          "before",
           "after",
-          "because"
+          "because",
+          "evidence"
         ],
         "title": "DiffLineOut"
       },
@@ -4117,7 +4209,9 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "text"
+          "text",
+          "claim_ids",
+          "evidence_ids"
         ],
         "title": "DispositionReasonOut"
       },
@@ -4257,8 +4351,15 @@
           "filename",
           "mime",
           "size_bytes",
+          "pages",
           "uploaded_at",
-          "delete_after"
+          "uploaded_by_name",
+          "delete_after",
+          "purged",
+          "redaction_counts",
+          "answers_request_item_ids",
+          "claims_extracted",
+          "run"
         ],
         "title": "DocumentOut"
       },
@@ -4372,7 +4473,8 @@
         "type": "object",
         "required": [
           "entity_name",
-          "matched_on"
+          "matched_on",
+          "identity_confidence"
         ],
         "title": "EntityAttachment",
         "description": "Which entity a piece of evidence is attached to, and the identifiers that justify it."
@@ -4521,7 +4623,14 @@
         "type": "object",
         "required": [
           "evidence_id",
-          "source"
+          "source",
+          "quote",
+          "page",
+          "field_path",
+          "value",
+          "as_of",
+          "attached_to",
+          "deleted"
         ],
         "title": "EvidenceOut",
         "description": "One evidence row: a source plus exactly what was taken from it."
@@ -4559,7 +4668,9 @@
         "type": "object",
         "required": [
           "pct",
-          "required_categories"
+          "required_categories",
+          "settled",
+          "gaps"
         ],
         "title": "EvidenceSufficiencyOut"
       },
@@ -4629,7 +4740,12 @@
         "type": "object",
         "required": [
           "value",
-          "source"
+          "source",
+          "evidence_id",
+          "as_of",
+          "is_estimate",
+          "estimate_kind",
+          "estimate_basis"
         ],
         "title": "FactFloat"
       },
@@ -4699,7 +4815,12 @@
         "type": "object",
         "required": [
           "value",
-          "source"
+          "source",
+          "evidence_id",
+          "as_of",
+          "is_estimate",
+          "estimate_kind",
+          "estimate_basis"
         ],
         "title": "FactInt"
       },
@@ -4769,7 +4890,12 @@
         "type": "object",
         "required": [
           "value",
-          "source"
+          "source",
+          "evidence_id",
+          "as_of",
+          "is_estimate",
+          "estimate_kind",
+          "estimate_basis"
         ],
         "title": "FactStr"
       },
@@ -4842,7 +4968,12 @@
         "type": "object",
         "required": [
           "value",
-          "source"
+          "source",
+          "evidence_id",
+          "as_of",
+          "is_estimate",
+          "estimate_kind",
+          "estimate_basis"
         ],
         "title": "FactStrList"
       },
@@ -4905,7 +5036,12 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "assessed"
+          "assessed",
+          "reason",
+          "would_need",
+          "period",
+          "figures",
+          "conclusion"
         ],
         "title": "FinancialAssessmentOut"
       },
@@ -4934,7 +5070,8 @@
         "type": "object",
         "required": [
           "label",
-          "fact"
+          "fact",
+          "assumption"
         ],
         "title": "FinancialFigureOut"
       },
@@ -5009,7 +5146,12 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "source"
+          "round_type",
+          "date",
+          "amount_usd",
+          "investors",
+          "source",
+          "evidence_id"
         ],
         "title": "FundingRoundOut",
         "description": "One dated funding round. Rounds without a date are never shown as dated."
@@ -5069,7 +5211,8 @@
         "type": "object",
         "required": [
           "points",
-          "source"
+          "source",
+          "estimate_basis"
         ],
         "title": "HeadcountSeriesOut",
         "description": "Profile-based headcount over time. Always an estimate, never a payroll count."
@@ -5106,6 +5249,11 @@
         },
         "additionalProperties": false,
         "type": "object",
+        "required": [
+          "openings",
+          "recent_titles",
+          "postings"
+        ],
         "title": "HiringOut",
         "description": "Hiring activity is a signal. It never feeds revenue or the financial assessment."
       },
@@ -5149,7 +5297,10 @@
         "type": "object",
         "required": [
           "crustdata_company_id",
-          "name"
+          "name",
+          "confidence_score",
+          "matching",
+          "differing"
         ],
         "title": "IdentityCandidateOut"
       },
@@ -5181,7 +5332,8 @@
         "required": [
           "key",
           "label",
-          "value"
+          "value",
+          "evidence"
         ],
         "title": "IdentityKeyOut"
       },
@@ -5253,7 +5405,13 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "state"
+          "state",
+          "entity_name",
+          "crustdata_company_id",
+          "keys",
+          "candidates",
+          "pick",
+          "note"
         ],
         "title": "IdentityOut"
       },
@@ -5401,10 +5559,14 @@
           "rank",
           "investor_name",
           "investor_key",
+          "investor_uuid",
           "score",
           "comparable_rounds",
+          "latest_sector_investment_found",
           "why",
-          "funding_kind_compatibility"
+          "funding_kind_compatibility",
+          "unknowns",
+          "possible_duplicate_of"
         ],
         "title": "InvestorEntryOut"
       },
@@ -5525,7 +5687,12 @@
           "id",
           "profile",
           "status",
-          "created_at"
+          "created_at",
+          "searched_at",
+          "scope_note",
+          "comparables_considered",
+          "run",
+          "entries"
         ],
         "title": "InvestorSearchOut"
       },
@@ -5621,6 +5788,9 @@
         "type": "object",
         "required": [
           "title",
+          "date_added",
+          "url",
+          "location",
           "source"
         ],
         "title": "JobPostingOut"
@@ -5820,7 +5990,11 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "state"
+          "state",
+          "fit",
+          "assessable_pct",
+          "note",
+          "criterion_results"
         ],
         "title": "OpportunityFitOut"
       },
@@ -5893,7 +6067,14 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "fit_state"
+          "thesis_id",
+          "thesis_text",
+          "criteria",
+          "fit_state",
+          "fit",
+          "assessable_pct",
+          "criterion_results",
+          "relevance"
         ],
         "title": "OpportunityOut"
       },
@@ -5947,7 +6128,11 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "name"
+          "person_id",
+          "name",
+          "title",
+          "history",
+          "profile_url"
         ],
         "title": "PersonOut",
         "description": "A leadership record attached by company id plus name, never by name alone."
@@ -6112,7 +6297,9 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "text"
+          "text",
+          "criterion_id",
+          "evidence_ids"
         ],
         "title": "ReasonOut"
       },
@@ -6158,7 +6345,10 @@
         "required": [
           "id",
           "document",
-          "reason"
+          "reason",
+          "categories",
+          "claim_ids",
+          "questions"
         ],
         "title": "RequestItemOut",
         "description": "One requested document, linked to every question it resolves (deduplicated)."
@@ -6225,7 +6415,9 @@
           "case_id",
           "assessment_version",
           "items",
+          "analyst_retries",
           "draft",
+          "message_id",
           "email_send_enabled",
           "created_at"
         ],
@@ -6350,7 +6542,8 @@
         "type": "object",
         "required": [
           "kind",
-          "text"
+          "text",
+          "claim_ids"
         ],
         "title": "RiskItemOut"
       },
@@ -6369,6 +6562,7 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "event",
           "data"
         ],
         "title": "RunEvent",
@@ -6504,8 +6698,17 @@
           "kind",
           "state",
           "subject",
+          "case_id",
+          "thesis_id",
+          "investor_search_id",
           "budget_credits",
-          "created_at"
+          "cost",
+          "checks_not_run",
+          "created_at",
+          "finished_at",
+          "resumed_at",
+          "error",
+          "steps"
         ],
         "title": "RunOut"
       },
@@ -6558,7 +6761,9 @@
           "id",
           "kind",
           "state",
-          "created_at"
+          "created_at",
+          "finished_at",
+          "cost"
         ],
         "title": "RunSummaryOut"
       },
@@ -6855,6 +7060,15 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "business",
+          "location",
+          "headcount",
+          "headcount_growth_yoy_pct",
+          "total_funding_usd",
+          "funding_rounds",
+          "hiring",
+          "reasons",
+          "unknowns",
           "last_updated"
         ],
         "title": "ShortlistCardOut"
@@ -6967,11 +7181,18 @@
         "type": "object",
         "required": [
           "id",
+          "rank",
           "crustdata_company_id",
           "name",
+          "domain",
           "fit",
+          "fit_unavailable_reason",
           "assessable_pct",
-          "card"
+          "excluded",
+          "exclusion_reason",
+          "criterion_results",
+          "card",
+          "case_id"
         ],
         "title": "ShortlistItemOut"
       },
@@ -7102,8 +7323,15 @@
           "provider",
           "label",
           "url_or_endpoint",
+          "request",
           "retrieved_at",
-          "source_class"
+          "source_class",
+          "origin_id",
+          "title",
+          "publisher",
+          "run_id",
+          "attached",
+          "unattached_reason"
         ],
         "title": "SourceRecordOut",
         "description": "A full, reproducible source row for the Sources tab."
@@ -7158,7 +7386,8 @@
           "label",
           "url_or_endpoint",
           "retrieved_at",
-          "source_class"
+          "source_class",
+          "origin_id"
         ],
         "title": "SourceRef",
         "description": "Where a fact came from. Every displayed fact carries one."
@@ -7235,6 +7464,14 @@
         },
         "additionalProperties": false,
         "type": "object",
+        "required": [
+          "document_id",
+          "filename",
+          "page",
+          "quote",
+          "typed_by_name",
+          "typed_at"
+        ],
         "title": "StatedInOut",
         "description": "Where the claim was made: a document page, or typed by a named person."
       },
@@ -7253,6 +7490,7 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "event",
           "data"
         ],
         "title": "StepEvent",
@@ -7367,7 +7605,15 @@
           "key",
           "label",
           "position",
-          "state"
+          "state",
+          "attempts",
+          "detail",
+          "result",
+          "error",
+          "from_cache",
+          "cost",
+          "started_at",
+          "finished_at"
         ],
         "title": "StepOut"
       },
@@ -7441,7 +7687,11 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "category"
+          "category",
+          "status",
+          "claim_ids",
+          "settle_with",
+          "note"
         ],
         "title": "SufficiencyItemOut"
       },
@@ -7513,7 +7763,9 @@
           "text",
           "status",
           "created_at",
-          "criteria"
+          "criteria",
+          "run",
+          "shortlist"
         ],
         "title": "ThesisOut"
       },
@@ -7573,7 +7825,8 @@
           "status",
           "created_at",
           "criteria_count",
-          "shortlist_count"
+          "shortlist_count",
+          "latest_run_id"
         ],
         "title": "ThesisSummary"
       },

@@ -14,9 +14,13 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class ApiModel(BaseModel):
-    """Base for every request/response schema. Unknown request keys are rejected."""
+    """Base for every request/response schema. Unknown request keys are rejected.
 
-    model_config = ConfigDict(extra="forbid")
+    In responses every field is always present (defaults are serialised), so the
+    generated TypeScript marks response fields as required, not optional.
+    """
+
+    model_config = ConfigDict(extra="forbid", json_schema_serialization_defaults_required=True)
 
 
 # ---------------------------------------------------------------- shared enums (§5.0)
