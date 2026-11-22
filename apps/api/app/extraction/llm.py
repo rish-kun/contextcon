@@ -1,10 +1,10 @@
 """The narrow LLM surface that extraction and drafting depend on.
 
-The real client lives in `app/clients/llm.py` (built separately). It exposes
+The real client is `app.clients.llm.LLMClient` (async), whose
 `extract_structured(system, user, schema) -> (instance, CallRecord)` and
-`draft_text(system, user) -> (text, CallRecord)`. These modules code against
-the Protocols below so they work with that client, with a test double, or
-with a sync or async implementation.
+`draft_text(system, user) -> (text, CallRecord)` satisfy the Protocols below.
+Coding against the Protocols keeps these modules testable with a scripted
+double, sync or async.
 
 No sampling parameters are sent from here. Claude Haiku 5.5 rejects a
 non-default `temperature` with a 400. Repeatability comes from the client's

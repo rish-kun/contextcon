@@ -2,16 +2,24 @@
 
 Two passes, regex first:
 
-1. Deterministic regex redaction of emails, phone numbers, PAN, Aadhaar, IFSC
-   and bank account numbers. This runs before the text is stored and before
-   any LLM call, so the model never sees what the regex catches.
-2. An optional LLM pass over the regex-redacted text that flags personal
-   details regex cannot recognise (home addresses, salaries of named people,
-   dates of birth, other ID numbers). Each flagged span is removed only where
-   it is found in the text.
+1. Deterministic regex redaction: `app.documents.redact.regex_redactor`
+   (emails, phone numbers, PAN, Aadhaar, IFSC, bank accounts) plus Indian
+   landline numbers. It runs before the text is stored and before any LLM
+   call, so the model never sees what the regex catches.
+2. An LLM pass over the regex-redacted text that flags personal details
+   regex cannot recognise (home addresses, salaries of named people, dates of
+   birth, other ID numbers). Each flagged span is removed only where it is
+   found in the text.
 
-Redacted spans become "[redacted:<kind>]". The redaction log holds counts by
-kind only, never the values.
+Redacted spans become "[redacted:<kind>]". Logs hold counts by kind only,
+never values.
+
+Two ways to use it:
+- `await redact_document(pages, llm)` does both passes and returns the pages.
+- For `app.documents.service`, which takes a sync `RedactorFn`: run
+  `items, calls = await find_personal_details(llm, pages)` on the
+  regex-cleaned pages, then pass
+  `chain_redactors(regex_redact_fn, span_redactor(items))` as the redactor.
 """
 
 from __future__ import annotations
@@ -22,36 +30,22 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from app.documents.redact import RedactorFn, chain_redactors, regex_redactor
 from app.extraction.claims import DEFAULT_MAX_CHARS, PageText, as_pages, batch_pages, render_batch
 from app.extraction.llm import StructuredLlm, run_structured
 from app.extraction.prompts import PII, PROMPT_VERSION
 
-# Order matters: more specific patterns run first so a PAN is not eaten by a
-# looser pattern, and account numbers are matched only next to an account cue.
-_REGEXES: list[tuple[str, re.Pattern[str]]] = [
-    ("email", re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b")),
-    ("pan", re.compile(r"\b[A-Z]{5}[0-9]{4}[A-Z]\b")),
-    ("ifsc", re.compile(r"\b[A-Z]{4}0[A-Z0-9]{6}\b")),
-    (
-        "bank_account",
-        re.compile(
-            r"(?i)\b(?:a/c|acct|account)(?:\s*(?:no\.?|number|#))?\s*[:\-]?\s*\d[\d\s\-]{7,20}\d\b"
-        ),
-    ),
-    ("aadhaar", re.compile(r"(?<![\d+])[2-9]\d{3}[\s\-]?\d{4}[\s\-]?\d{4}(?![\d])")),
-    (
-        "phone",
-        re.compile(r"(?<![\w+])(?:\+91[\s\-]?|0091[\s\-]?|0)?[6-9]\d{4}[\s\-]?\d{5}(?!\d)"),
-    ),
-    (
-        "phone",
-        re.compile(
-            r"(?<![\w])\+\d{1,3}[\s\-]?(?:\(\d{1,4}\)[\s\-]?)?\d{2,4}(?:[\s\-]?\d{2,4}){2,4}"
-        ),
-    ),
-    # Indian landlines such as 020-2765 4321 or (022) 2345 6789.
-    ("phone", re.compile(r"(?<![\w\d])\(?0\d{2,4}\)?[\s\-]\d{3,4}[\s\-]?\d{4}(?![\d])")),
-]
+# Indian landlines such as 020-2765 4321 or (022) 2345 6789; the shared regex
+# redactor covers mobiles and +country numbers but not these.
+_LANDLINE = re.compile(r"(?<![\w\d])\(?0\d{2,4}\)?[\s\-]\d{3,4}[\s\-]?\d{4}(?!\d)")
+
+
+def _landline_redactor(text: str) -> tuple[str, dict[str, int]]:
+    text, n = _LANDLINE.subn("[redacted:phone]", text)
+    return text, ({"phone": n} if n else {})
+
+
+regex_redact_fn: RedactorFn = chain_redactors(regex_redactor, _landline_redactor)
 
 LlmPiiKind = Literal[
     "personal_phone",
@@ -92,15 +86,8 @@ class DocumentRedaction(BaseModel):
 
 
 def regex_redact(text: str) -> RedactionResult:
-    counts: Counter[str] = Counter()
-    for kind, pattern in _REGEXES:
-
-        def _sub(_m: re.Match[str], kind: str = kind) -> str:
-            counts[kind] += 1
-            return f"[redacted:{kind}]"
-
-        text = pattern.sub(_sub, text)
-    return RedactionResult(text=text, counts=dict(counts))
+    text, counts = regex_redact_fn(text)
+    return RedactionResult(text=text, counts=counts)
 
 
 def _flexible_pattern(span: str) -> re.Pattern[str]:
@@ -114,24 +101,54 @@ def _usable(item: PiiSpanDraft) -> bool:
     return MIN_LLM_SPAN <= len(span) <= MAX_LLM_SPAN and "[redacted:" not in span
 
 
-def apply_spans(
-    pages: list[PageText], items: list[PiiSpanDraft]
-) -> tuple[list[PageText], Counter[str]]:
-    """Remove each flagged span wherever it occurs; count hits by kind, and misses."""
-    counts: Counter[str] = Counter()
+def span_redactor(items: list[PiiSpanDraft]) -> RedactorFn:
+    """A sync redactor that removes the LLM-flagged spans (for `chain_redactors`).
+
+    Its log counts hits only, as "llm:<kind>". Spans too short or too long to
+    act on safely are ignored.
+    """
     # Longest first, so a full address is removed before a fragment of it.
     ordered = sorted((i for i in items if _usable(i)), key=lambda i: len(i.span), reverse=True)
-    counts["llm:unmatched"] += len(items) - len(ordered)
-    texts = [p.text for p in pages]
-    for item in ordered:
-        pattern = _flexible_pattern(item.span.strip())
-        hits = 0
-        for n, text in enumerate(texts):
-            texts[n], found = pattern.subn(f"[redacted:{item.kind}]", text)
-            hits += found
-        counts[f"llm:{item.kind}" if hits else "llm:unmatched"] += hits or 1
-    out = [PageText(page=p.page, text=t) for p, t in zip(pages, texts, strict=True)]
-    return out, counts
+    patterns = [(i.kind, _flexible_pattern(i.span.strip())) for i in ordered]
+
+    def redact(text: str) -> tuple[str, dict[str, int]]:
+        counts: Counter[str] = Counter()
+        for kind, pattern in patterns:
+            text, n = pattern.subn(f"[redacted:{kind}]", text)
+            counts[f"llm:{kind}"] += n
+        return text, {k: v for k, v in counts.items() if v}
+
+    return redact
+
+
+async def find_personal_details(
+    llm: StructuredLlm,
+    document: str | list[PageText] | list[dict],
+    *,
+    max_chars: int = DEFAULT_MAX_CHARS,
+) -> tuple[list[PiiSpanDraft], list[Any]]:
+    """Ask the model for personal details in ALREADY regex-redacted text."""
+    flagged: list[PiiSpanDraft] = []
+    calls: list[Any] = []
+    pages = [p for p in as_pages(document) if p.text.strip()]
+    for batch in batch_pages(pages, max_chars):
+        draft, record = await run_structured(
+            llm, PII.system, f"<text>\n{render_batch(batch)}\n</text>", PiiDraft
+        )
+        if record is not None:
+            calls.append(record)
+        flagged.extend(draft.items)
+    return flagged, calls
+
+
+def _unmatched(items: list[PiiSpanDraft], pages: list[PageText]) -> int:
+    """Flagged spans that were unusable or found on no page (so nothing was removed)."""
+    return sum(
+        1
+        for i in items
+        if not _usable(i)
+        or not any(_flexible_pattern(i.span.strip()).search(p.text) for p in pages)
+    )
 
 
 async def redact_document(
@@ -144,23 +161,22 @@ async def redact_document(
     counts: Counter[str] = Counter()
     pages: list[PageText] = []
     for page in as_pages(document):
-        result = regex_redact(page.text)
-        counts.update(result.counts)
-        pages.append(PageText(page=page.page, text=result.text))
+        text, log = regex_redact_fn(page.text)
+        counts.update(log)
+        pages.append(PageText(page=page.page, text=text))
 
     calls: list[Any] = []
     if llm is not None:
-        flagged: list[PiiSpanDraft] = []
-        for batch in batch_pages([p for p in pages if p.text.strip()], max_chars):
-            draft, record = await run_structured(
-                llm, PII.system, f"<text>\n{render_batch(batch)}\n</text>", PiiDraft
-            )
-            if record is not None:
-                calls.append(record)
-            flagged.extend(draft.items)
+        flagged, calls = await find_personal_details(llm, pages, max_chars=max_chars)
         if flagged:
-            pages, llm_counts = apply_spans(pages, flagged)
-            counts.update(llm_counts)
+            counts["llm:unmatched"] += _unmatched(flagged, pages)
+            redact = span_redactor(flagged)
+            redacted: list[PageText] = []
+            for page in pages:
+                text, log = redact(page.text)
+                counts.update(log)
+                redacted.append(PageText(page=page.page, text=text))
+            pages = redacted
 
     return DocumentRedaction(
         pages=pages, counts={k: v for k, v in counts.items() if v}, calls=calls

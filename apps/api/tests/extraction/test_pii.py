@@ -103,3 +103,24 @@ def test_regex_only_when_no_llm():
     out = asyncio.run(redact_document("Call 9876543210"))
     assert out.pages[0].text == "Call [redacted:phone]"
     assert out.calls == []
+
+
+def test_span_redactor_plugs_into_documents_chain():
+    from app.documents.redact import chain_redactors
+    from app.extraction.pii import (
+        PiiSpanDraft,
+        find_personal_details,
+        regex_redact_fn,
+        span_redactor,
+    )
+
+    page = "Director: Meena Iyer, home: 7 Palm Grove, Baner. Email meena@yahoo.com."
+    cleaned, _ = regex_redact_fn(page)
+    llm = PiiLlm([{"kind": "home_address", "span": "7 Palm Grove, Baner"}])
+    items, _calls = asyncio.run(find_personal_details(llm, cleaned))
+    assert items == [PiiSpanDraft(kind="home_address", span="7 Palm Grove, Baner")]
+
+    redactor = chain_redactors(regex_redact_fn, span_redactor(items))
+    text, log = redactor(page)
+    assert text == ("Director: Meena Iyer, home: [redacted:home_address]. Email [redacted:email].")
+    assert log == {"email": 1, "llm:home_address": 1}
