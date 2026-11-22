@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DealProof Report</title>
+<style>
+  @page { size: A4 portrait; margin: 15mm 16mm 14mm 16mm; }
+  @page wide { size: A4 landscape; margin: 9mm 10mm; }
+  :root { --ink:#0f172a; --muted:#475569; --rule:#e2e8f0; --accent:#4f46e5; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Inter, Arial, sans-serif; color: var(--ink); font-size: 9.6pt; line-height: 1.42; margin: 0; background:#fff; }
+  h1 { font-size: 21pt; margin: 0 0 2mm; letter-spacing: -0.3px; }
+  h2 { font-size: 12pt; margin: 4.5mm 0 1.5mm; padding-bottom: 1mm; border-bottom: 1.5px solid var(--accent); }
+  h3 { font-size: 10pt; margin: 3mm 0 1mm; }
+  p { margin: 0 0 2mm; }
+  ul, ol { margin: 0 0 2mm; padding-left: 5mm; }
+  li { margin-bottom: 0.8mm; }
+  .eyebrow { color: var(--accent); font-weight: 700; font-size: 8.5pt; letter-spacing: 1.2px; text-transform: uppercase; }
+  .lede { font-size: 10.6pt; color: #1e293b; margin-bottom: 3mm; }
+  .meta { color: var(--muted); font-size: 8.6pt; margin-bottom: 3mm; }
+  table { width: 100%; border-collapse: collapse; margin: 1mm 0 2.5mm; font-size: 8.8pt; }
+  th, td { text-align: left; vertical-align: top; padding: 1.1mm 1.6mm; border-bottom: 1px solid var(--rule); }
+  th { background: #eef2ff; font-weight: 700; }
+  code { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 8.4pt; background: #f1f5f9; padding: 0 1px; border-radius: 2px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .wide { page: wide; break-before: page; }
+  .wide img { max-width: 100%; max-height: 176mm; width: auto; height: auto; display: block; margin: 0 auto; }
+  h2, h3 { break-after: avoid; }
+  li, tr { break-inside: avoid; }
+  .wide .cap { font-size: 8.6pt; color: var(--muted); margin-top: 1.5mm; }
+  .figno { font-weight: 700; color: var(--ink); }
+  .after-wide { break-before: page; }
+  .box { border: 1px solid var(--rule); border-left: 3px solid var(--accent); padding: 2mm 3mm; background: #f8fafc; margin: 2mm 0; }
+</style>
+</head>
+<body>
+
+<div class="eyebrow">ContextCon 05 · BITS Pilani · Services, Replaced · Investing track</div>
+<h1>DealProof: first-pass deal screening, done as a service</h1>
+<p class="meta">Technical report · 22 November 2026 · Repository: github.com/rish-kun/contextcon · Live: dealproof-web-527967664479.asia-south1.run.app</p>
+
+<p class="lede">DealProof does the job a diligence analyst is paid for before the second meeting with a seller. It turns a buyer's thesis into a shortlist of real companies, confirms which legal entity each one is, checks every claim in the seller's deck against independent dated records, and reaches a disposition by published rules. It then drafts the one request to the seller that would settle the open questions, which a named person approves before it is sent, once.</p>
+
+<h2>1. The job and who pays for it today (Figure 1, page 4)</h2>
+<p>The client is a mid-size Indian 3PL whose CFO office is looking at buying or investing in regional logistics, warehousing and supply-chain technology companies. Today that office pays an M&amp;A advisory firm, a buy-side diligence team or a venture scout, on a retainer or per target, to do the first pass. An analyst searches company databases, works out which legal entity is meant, reads the seller's deck, checks what can be checked and writes a memo. This takes days per target. Deck claims go unchecked, lookalike names get mixed up, and missing facts get filled in by guesswork. DealProof does that whole first pass. Formal financial, legal and tax diligence still comes afterwards.</p>
+
+<table>
+  <tr><th style="width:18%">Input</th><td>A thesis in plain words; <i>or</i> a company name and website with optional seller documents (PDF) or typed claims; <i>or</i> a business profile, to find investors whose dated funding record fits it.</td></tr>
+  <tr><th>Finished result</th><td>A screening case with confirmed identity, a claim ledger (six statuses, each with source link, exact passage or field, and record date), five separate judgments, one of four dispositions with the rule that decided it, an approved seller request sent once, and the cost of every call.</td></tr>
+  <tr><th>Pass mark</th><td>Correct identity, or <code>cannot_assess</code> for a lookalike name; every claim status as expected, with <code>cannot_verify</code> (naming the missing document) where no source settles it; every fact sourced and dated; duplicates neither merged nor double-counted; disposition per policy; no email without approval and never twice; within budget, and correct after a kill and restart.</td></tr>
+</table>
+
+<h2>2. Design principles that drive the architecture</h2>
+<ol>
+  <li><b>Rules decide; the model only extracts and drafts.</b> Claude Haiku 5.5 turns a thesis into criteria, a deck into atomic claims, and evidence text into structured facts. Each decisive extracted value must appear in its source span, or follow from it by a deterministic transform, or it is rejected. Statuses, fit, sufficiency and disposition come from pure functions in <code>app/rules</code> with no I/O, no LLM and no clock, so the same records under the same policy version always give the same result.</li>
+  <li><b>Every fact has a source and a date.</b> Each displayed fact is an <i>Evidence</i> row (exact span or field path, effective date, entity and the identity basis for attaching it) pointing to a <i>Source</i> row (provider, request or URL, retrieval time, reliability class, origin id). Syndicated copies of one announcement share an origin and count once.</li>
+  <li><b>Identity first.</b> No record attaches to a company, person or investor on a name alone; it needs a corroborating identifier such as a domain, profile URL, Crustdata id, HQ, founded year or CIN. While identity is not <code>confirmed</code>, identity-dependent checks stay <code>not_checked</code> and the disposition is <code>cannot_assess</code>.</li>
+  <li><b>Gaps are stated, not filled.</b> Silence in a source is never contradiction. Missing evidence lowers the "% assessable" figure, never the fit score, and never leads to deprioritise on its own.</li>
+  <li><b>Exactly-once side effects.</b> Every paid call and the one irreversible action (email) are recorded before they happen, so a crash at any point can be reconciled rather than repeated.</li>
+</ol>
+
+<h2>3. How a request becomes a result</h2>
+<p><b>Discover.</b> The thesis is extracted into criteria (must-have or preference, by dimension) that the user can edit. Crustdata <code>/company/search</code> runs with hard filters only on fields that are reliably populated, plus an unknown-inclusive or supplemental query for the rest. A tri-state must-have gate (<code>pass</code>/<code>fail</code>/<code>unknown</code>) removes only verified failures. The top N are enriched (<code>/company/enrich</code>, <code>/job/search</code>), gated again, and ranked by <code>fit = Σ weight(met) / Σ weight(assessable)</code>, always shown with the share of criteria that could be assessed.</p>
+<p><b>Verify.</b> A run of dependent steps: identity (blocking) → profile → registry evidence, dated events and comparables → claim intake → evidence per claim category (headcount series, leadership at the confirmed company id through <code>/person/search</code>, funding rounds, dated news through <code>/web/search/live</code> and <code>/web/enrich/live</code>) → fact extraction with span validation → status by a per-category rule table. The precedence is <code>not_checked</code> › <code>conflicting_evidence</code> › <code>contradicted</code> › <code>supported</code> › <code>partially_corroborated</code> › <code>cannot_verify</code>.</p>
+<p><b>Evaluate.</b> Five judgments are kept apart. The disposition follows the first matching predicate: identity uncertain or under 30% assessable → <code>cannot_assess</code>; a verified must-have failure, or fit under 40 on at least 60% verified criteria → <code>deprioritise</code>; fit of at least 70 with every required check supported and no contradiction → <code>prioritise</code>; otherwise <code>investigate_further</code>. Each evaluation is an immutable <i>AssessmentVersion</i> with an input-snapshot hash and a computed diff. <i>DecisionFlip</i> re-runs the same rules with open items set to hypothetical states, to show which documents would change the outcome.</p>
+<p><b>Act.</b> Open questions map to the documents that would settle them (team size → dated payroll summary; debt → lender statements), deduplicated. One email is drafted and approved, then sent once. When the seller's documents arrive, the affected claims are re-checked and a new assessment version shows exactly what moved and why.</p>
+
+<div>
+<h2>4. Components (Figure 2, page 5)</h2>
+<table>
+  <tr><th style="width:22%">Component</th><th>Responsibility</th></tr>
+  <tr><td>Web app (<code>apps/web</code>)</td><td>Next.js App Router. Discover, investors, case pages (identity, claims, sources, assessment and history, request, cost), approvals queue. Calls the API through a same-origin <code>/api</code> proxy, and run progress streams over SSE.</td></tr>
+  <tr><td>API (<code>apps/api</code>)</td><td>FastAPI routers, named-user sessions, origin checks, rate limits, and case-scoped authorisation on every read path, including files, evidence, cache and exports.</td></tr>
+  <tr><td>Document intake</td><td>Validates uploads, extracts text in a sandbox, strips personal details (regex, then LLM-assisted), and stores files in a private GCS bucket under <code>cases/&lt;id&gt;/</code> with a 30-day lifecycle delete. A deletion record keeps older versions explainable.</td></tr>
+  <tr><td>Job engine (<code>app/jobs</code>)</td><td>Runs and Steps (<code>pending → running → done | failed | skipped_budget</code>). Claims use <code>SELECT … FOR UPDATE SKIP LOCKED</code> with a 60 s lease, renewed while the step runs, and a fresh <code>lease_token</code> per claim. A periodic sweep and every claim query reclaim expired leases.</td></tr>
+  <tr><td>Call layer (<code>app/clients</code>)</td><td>One <code>CallOperation</code> for Crustdata and Anthropic: request-hash cache (case-scoped when the request holds private text) → fence check, budget reservation and a <code>call_attempt</code> row in state <code>started</code> → HTTP dispatch with retry → one transaction writing usage, the cost entry and the cache. Provider error text is never stored, only allowlisted error codes.</td></tr>
+  <tr><td>Rules (<code>app/rules</code>)</td><td>Pure, versioned policy (<code>POLICY.md</code>): claim status tables, fit, sufficiency, company type, disposition precedence, request mapping, DecisionFlip.</td></tr>
+  <tr><td>Act (<code>app/act</code>)</td><td>Revision-bound approval and a send-once state machine on Resend (state diagram in <code>docs/architecture</code>).</td></tr>
+</table>
+
+<div class="cols">
+<div>
+<h2>5. Retries, restart and exactly-once</h2>
+<ul>
+  <li><b>HTTP retries:</b> on 429, 5xx, network errors and timeouts, with exponential backoff and jitter capped at a maximum, honouring <code>Retry-After</code>. Crustdata gets up to 3 retries and Anthropic up to 2. Each retry is a separately recorded attempt, so no spend is hidden.</li>
+  <li><b>Step retries:</b> up to 3 attempts, with 2 s to 120 s backoff. After that the step fails visibly and its checks are <code>not_checked</code>, never a clean result.</li>
+  <li><b>Kill and restart:</b> a dead worker's lease expires and the step returns to the queue. The new claim gets a new token, so the old worker can neither write results nor start paid calls. Leftover <code>started</code> attempts are reconciled to <i>unknown</i> cost. Completed calls replay from cache at zero cost.</li>
+  <li><b>Email once:</b> approval binds to an immutable revision hash. A unique send key is persisted before dispatch and sent as the provider's <code>Idempotency-Key</code>, with the exact payload stored and replayed byte for byte. An <code>unknown</code> outcome is reconciled with the provider before any retry. Concurrent sends resolve to one dispatch, and this is tested.</li>
+</ul>
+</div>
+<div>
+<h2>6. Cost ledger and limits</h2>
+<ul>
+  <li>Every dispatch has a <code>call_attempts</code> row (before) and a <code>cost_entries</code> row (after): Crustdata <code>credits_used</code>, Anthropic input and output tokens, and USD from a price table. A lost usage figure is stored as <i>unknown</i>, never as zero.</li>
+  <li>Each entry has exactly one owner (a case, a discovery run or an investor run). A cache reuse costs zero and links to the run that paid, so totals count each credit once.</li>
+  <li>Budgets: case 150 credits, discovery 100 and investors 60 by default. Budget is reserved before the call, and checks past the budget show as <code>not_checked</code> ("budget reached").</li>
+  <li><b>Measured</b> on the live showcase (22 Nov 2026): one case with 9 claims cost 8.7 credits; discovery of 25 enriched companies cost 50.1 credits, shared; an investor search cost 59.2 credits; all LLM calls cost $0.018.</li>
+</ul>
+</div>
+</div>
+
+<div class="cols">
+<div>
+<h2>7. Personal data, approvals and explanations</h2>
+<ul>
+  <li>Uploads are used only for their case, never for training. Personal details not needed for a claim are stripped before storage. Files and every derivative (extracted text, quotes, cached LLM requests, input snapshots) are deleted on schedule.</li>
+  <li>Web search queries are built from an allowlist of public lookup terms. Confidential claim text never leaves in a query, and a test enforces this.</li>
+  <li>Investor discovery drops personal contact fields at ingestion. DealProof never scrapes a seller's email address; the user enters it.</li>
+  <li>Every disposition names the rule that fired, and every version change explains itself ("Partially corroborated → Supported because &lt;document, page&gt;").</li>
+</ul>
+</div>
+<div>
+<h2>8. Scaling and a second client</h2>
+<ul>
+  <li><b>100× volume:</b> the API and the workers scale horizontally on Cloud Run. <code>SKIP LOCKED</code> lets many workers share one queue without double work, and the shared public-lookup cache stops repeat lookups from being paid twice. Provider rate limits are handled per client with backoff.</li>
+  <li><b>Second client:</b> every row is workspace-scoped; private-text cache entries are case-scoped; the ledger owner is per workspace. Thresholds live in a versioned policy, so a client-specific policy is a new version, not a code fork.</li>
+</ul>
+<h2>9. Limits we state openly</h2>
+<p>v1 has no dedicated checks for registered charges or litigation. Those claims appear in the ledger as <code>cannot_verify</code> with the document that would settle them. Private Indian financials are rarely public, so the financial judgment usually reads "not assessed". There is no wall-clock cap per run; time is bounded by per-call timeouts, bounded fan-out and step attempts.</p>
+</div>
+</div>
+</div>
+
+<!-- Figure 1: business -->
+<section class="wide">
+  <img src="../architecture/business-architecture.svg" alt="Business architecture diagram">
+  <p class="cap"><span class="figno">Figure 1. Business architecture.</span> The job the buyer pays a firm for today, the same job done by DealProof from request to finished case, the people in the loop (analyst, named approver, seller, decision-maker), the cost measured on the live showcase run, and the controls a firm relies on before it accepts the output.</p>
+</section>
+
+<!-- Figure 2: technical -->
+<section class="wide">
+  <img src="../architecture/technical-architecture.svg" alt="Technical architecture diagram">
+  <p class="cap"><span class="figno">Figure 2. Technical architecture.</span> A Next.js web app and a FastAPI service on Cloud Run (asia-south1), with the step worker running in the same image. Pipelines are Runs of idempotent Steps in Neon Postgres. Every paid call goes through one CallOperation (cache, pre-dispatch with fencing and budget, dispatch with retry, finish with cost entry). Badges mark data calls (D), approvals (A), retries (R) and cost-ledger writes ($).</p>
+</section>
+
+
+</body>
+</html>
