@@ -40,7 +40,7 @@ SENTENCE = "We are a Microsoft partner"
 CLAIM = [
     (SENTENCE, "customer_partnership", [("counterparty", "Microsoft"), ("relationship", "partner")])
 ]
-DIRECTORY_URL = "https://appsource.microsoft.com/partners/pune-warehousing"
+DIRECTORY_URL = "https://partner.microsoft.com/find/pune-warehousing"
 DIRECTORY_HIT = {
     "title": f"{NAME} | Microsoft partner directory",
     "url": DIRECTORY_URL,
@@ -283,21 +283,27 @@ async def test_every_lookup_refused_is_not_checked_budget(session):
     assert "web_search" not in crust.names()
 
 
-async def test_only_the_partys_own_hosts_count_as_its_record():
-    from app.pipelines.verify.checks.gather import on_party_site
+async def test_only_the_partys_own_curated_hosts_count_as_its_record():
+    from app.clients.crustdata_models import WebSearchHit
+    from app.pipelines.verify.checks.gather import classify_hit, on_party_site
 
     terms = PublicTerms(company_name=NAME, domain=DOMAIN)
     ms = plan(domain_claim_like("customer_partnership", {"counterparty": "Microsoft"}))[0]
-    assert on_party_site("https://appsource.microsoft.com/x", ms, terms)
+    assert on_party_site("https://partner.microsoft.com/x", ms, terms)
     # Community and forum subdomains carry user content.
     assert not on_party_site("https://techcommunity.microsoft.com/t/post", ms, terms)
+    # A marketplace listing is written by the company: its own statement.
+    listing = WebSearchHit(
+        url="https://appsource.microsoft.com/product/pune",
+        title=f"{NAME} WMS",
+        snippet=f"Published by {NAME} ({DOMAIN}).",
+    )
+    att = classify_hit(listing, terms, {}, ms)
+    assert att.attached and att.reliability.value == "company_announcement"
+    # No host is trusted by name alone: a lookalike domain is cheap.
     tata = plan(domain_claim_like("customer_partnership", {"counterparty": "Tata Steel"}))[0]
-    assert on_party_site("https://www.tatasteel.com/newsroom/x", tata, terms)
-    assert on_party_site("https://tatasteel.co.in/x", tata, terms)
-    assert not on_party_site("https://tatasteel.blog.example/x", tata, terms)
-    assert not on_party_site("https://tatasteel-news.com/x", tata, terms)
-    # The company's own site is never the other party, even under the party's name.
-    own = Lookup(label="x", words="partner", party_hosts=(DOMAIN,), party_names=("Pune",))
+    assert tata.party_hosts == ()
+    assert not on_party_site("https://www.tatasteel.com/newsroom/x", tata, terms)
+    # The company's own site is never the other party.
+    own = Lookup(label="x", words="partner", party_hosts=(DOMAIN,))
     assert not on_party_site(f"https://{DOMAIN}/partners", own, terms)
-    named = Lookup(label="x", words="partner", party_names=("Pune Warehousing",))
-    assert not on_party_site("https://punewarehousing.com/x", named, terms)

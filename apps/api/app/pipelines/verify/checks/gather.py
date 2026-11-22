@@ -885,10 +885,10 @@ class Lookup:
     entity: str | None = None
     site: str | None = None
     party_hosts: tuple[str, ...] = ()
-    # Names of the other party: a page whose host is that name ("tatasteel.com" for
-    # "Tata Steel") is also its own site.
-    party_names: tuple[str, ...] = ()
     party_class: SourceReliability = R.COUNTERPARTY_CONFIRMATION
+    # Exact hosts where the company publishes about itself on another party's site
+    # (marketplace listings): bound like any page, classed company_announcement.
+    listing_hosts: tuple[str, ...] = ()
     focus: tuple[str, ...] = ()  # words that pick the relevant passages of a fetched page
 
 
@@ -905,59 +905,34 @@ def classify_hit(
     is checked first: it is never the other party, whatever the lookup says."""
     if same_site(hit.url, terms.domain):
         return attach_hit(hit, terms, corroborators)
-    if on_party_site(hit.url, lookup, terms):
+    on_party = on_party_site(hit.url, lookup, terms)
+    listing = _on_hosts(hit.url, lookup.listing_hosts)
+    if on_party or listing:
+        cls, how = (
+            (lookup.party_class, "party_site") if on_party else (R.COMPANY_ANNOUNCEMENT, "listing")
+        )
         probe = hit.model_copy(update={"url": "", "content": f"{hit.content or ''}\n{page_text}"})
         att = attach_hit(probe, terms, corroborators)
         if att.attached:
-            return Attachment(
-                True, lookup.party_class, ["party_site", *att.matched_on], None, att.ref_prefix
-            )
-        return Attachment(False, lookup.party_class, [], att.reason)
+            return Attachment(True, cls, [how, *att.matched_on], None, att.ref_prefix)
+        return Attachment(False, cls, [], att.reason)
     if page_text and not same_site(hit.url, terms.domain):
         hit = hit.model_copy(update={"content": f"{hit.content or ''}\n{page_text}"})
     return attach_hit(hit, terms, corroborators)
 
 
-def _compact(value: str) -> str:
-    return "".join(ch for ch in value.casefold() if ch.isalnum())
-
-
-# Suffixes under which a name-derived host may be the party's own site. A host is
-# matched on its registrable label only ("tatasteel" in tatasteel.com or
-# tatasteel.co.in), never on any other label ("tatasteel.blog.example" is not it).
-_PARTY_SUFFIXES = frozenset({"com", "in", "co.in", "net", "org", "co.uk", "com.au", "co"})
-
-
-def _registrable(host: str) -> tuple[str, str] | None:
-    """(registrable label, suffix) for hosts under `_PARTY_SUFFIXES`, else None."""
-    labels = host.split(".")
-    for n in (2, 1):
-        if len(labels) > n and ".".join(labels[-n:]) in _PARTY_SUFFIXES:
-            return labels[-n - 1], ".".join(labels[-n:])
-    return None
+def _on_hosts(url: str | None, hosts: tuple[str, ...]) -> bool:
+    host = host_of(url)
+    return bool(host) and host in {h.casefold().removeprefix("www.") for h in hosts}
 
 
 def on_party_site(url: str | None, lookup: Lookup, terms: PublicTerms | None = None) -> bool:
-    """Is this page on the other party's own site? Exact curated hosts, or a host
-    whose registrable label is the party's name. Never the company's own domain or a
-    host that carries the company's name."""
-    host = host_of(url) or ""
-    if not host or (terms is not None and same_site(url, terms.domain)):
+    """Is this page on the other party's own site? Curated exact hosts only (a host
+    that merely carries the party's name may be a lookalike), and never the
+    company's own domain."""
+    if terms is not None and same_site(url, terms.domain):
         return False
-    if host in {h.casefold().removeprefix("www.") for h in lookup.party_hosts}:
-        return True
-    reg = _registrable(host)
-    if reg is None:
-        return False
-    label = _compact(reg[0])
-    company = _compact(terms.company_name) if terms is not None else ""
-    names = {
-        _compact(n)
-        for n in lookup.party_names
-        if len(_compact(n)) >= 3
-        and not (company and (_compact(n) in company or company in _compact(n)))
-    }
-    return label in names
+    return _on_hosts(url, lookup.party_hosts)
 
 
 def _names_company(hit: WebSearchHit, terms: PublicTerms) -> bool:
