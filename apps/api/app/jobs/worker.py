@@ -32,11 +32,12 @@ from app.jobs.engine import (
     mark_done,
     mark_retry_or_failed,
     mark_skipped_budget,
+    public_error,
     reclaim_expired_leases,
     renew_lease,
     skip_remaining_budgeted,
 )
-from app.jobs.purge import ObjectDeleter, purge_expired
+from app.jobs.purge import ObjectDeleter, default_object_deleter, purge_expired
 from app.jobs.registry import StepRegistry
 from app.jobs.registry import registry as default_registry
 
@@ -147,7 +148,7 @@ class Worker:
                 output = await task
                 if ctx.logs:
                     output = {**(output or {}), "_log": ctx.logs}
-                await mark_done(session, step_id, self.worker_id, output)
+                await mark_done(session, step_id, self.worker_id, output, ctx.result)
                 await session.commit()
             except BudgetExceeded as exc:
                 await session.rollback()
@@ -167,7 +168,7 @@ class Worker:
             except Exception as exc:  # noqa: BLE001 - any handler error is retried
                 await session.rollback()
                 log.exception("step %s (%s) failed", step_id, handler_name)
-                await self._fail(step_id, f"{type(exc).__name__}: {exc}", True)
+                await self._fail(step_id, public_error(exc), True)
             finally:
                 heartbeat.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
@@ -289,7 +290,9 @@ async def _main(args: argparse.Namespace) -> None:
     from app.jobs.registry import load_handlers
 
     load_handlers()
-    worker = Worker(get_sessionmaker(), concurrency=args.concurrency)
+    worker = Worker(
+        get_sessionmaker(), concurrency=args.concurrency, object_deleter=default_object_deleter()
+    )
     try:
         if args.drain:
             ran = await worker.drain()

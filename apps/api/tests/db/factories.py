@@ -40,3 +40,58 @@ async def discovery_run(session: AsyncSession, t: Tenant) -> DiscoveryRun:
 
 def days(n: float) -> datetime:
     return datetime.now(UTC) + timedelta(days=n)
+
+
+IDENTIFY_BODY = [
+    {
+        "matched_on": "example-logistics.test",
+        "match_type": "domain",
+        "matches": [
+            {
+                "confidence_score": 1.0,
+                "company_data": {
+                    "crustdata_company_id": 4242,
+                    "basic_info": {
+                        "crustdata_company_id": 4242,
+                        "name": "Example Logistics (fixture)",
+                        "primary_domain": "example-logistics.test",
+                        "year_founded": 2014,
+                    },
+                },
+            }
+        ],
+    }
+]
+
+
+class FakeCrustdataApi:
+    """A real `CrustdataClient` over a mock transport that counts HTTP calls."""
+
+    def __init__(self, credits: str | None = "0.2") -> None:
+        self.http_calls = 0
+        self.credits = credits
+
+    def client(self, *, recorder, cache):  # type: ignore[no-untyped-def]
+        import httpx2
+
+        from app.clients import CrustdataClient, SlidingWindowRateLimiter
+
+        def handle(request: httpx2.Request) -> httpx2.Response:
+            self.http_calls += 1
+            headers = {"x-request-id": f"req-{self.http_calls}"}
+            if self.credits is not None:
+                headers["x-credits-used"] = self.credits
+            return httpx2.Response(200, json=IDENTIFY_BODY, headers=headers)
+
+        async def no_sleep(_: float) -> None:
+            return None
+
+        return CrustdataClient(
+            "test-key",
+            http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(handle)),
+            recorder=recorder,
+            cache=cache,
+            rate_limiter=SlidingWindowRateLimiter({}),
+            sleep=no_sleep,
+            max_retries=0,
+        )

@@ -42,8 +42,35 @@ SCRUBBED_CLAIM_TEXT = "[deleted: retention period ended]"
 
 
 class ObjectDeleter(Protocol):
-    async def delete(self, path: str) -> None:
+    async def delete(self, path: str) -> Any:
         """Delete one stored object. Must succeed if the object is already gone."""
+
+
+class StorageDeleter:
+    """Adapts `app.documents.storage.DocumentStorage` (GCS or local; sync) to
+    `ObjectDeleter`, keeping what the backend reported for the deletion record."""
+
+    def __init__(self, storage: Any) -> None:
+        self.storage = storage
+
+    async def delete(self, path: str) -> dict[str, Any]:
+        record = await asyncio.to_thread(self.storage.delete, path)
+        return {
+            "backend": getattr(record, "backend", None),
+            "existed": getattr(record, "existed", None),
+        }
+
+
+def default_object_deleter() -> ObjectDeleter | None:
+    """GCS when `GCS_BUCKET` is set, else local disk (see `storage_from_settings`)."""
+    try:
+        from app.documents.storage import storage_from_settings
+        from app.settings import get_settings
+
+        return StorageDeleter(storage_from_settings(get_settings()))
+    except Exception:  # noqa: BLE001 - purge still handles derived rows without it
+        log.exception("purge: no object storage available; documents will wait")
+        return None
 
 
 @dataclass
@@ -128,7 +155,7 @@ async def _purge_documents(
                 )
                 return
             try:
-                await deleter.delete(doc.gcs_path)
+                storage_result = await deleter.delete(doc.gcs_path)
             except Exception:  # noqa: BLE001 - retried on the next sweep
                 log.exception("purge: could not delete object for document %s", doc.id)
                 report.documents_failed += 1
@@ -155,6 +182,7 @@ async def _purge_documents(
                     "filename": doc.filename,
                     "delete_after": doc.delete_after.isoformat(),
                     "extracted_text_ids": text_ids,
+                    "storage": storage_result if isinstance(storage_result, dict) else None,
                 },
             )
             session.add(record)
@@ -241,7 +269,7 @@ async def _main() -> None:
     from app.db.session import dispose_engine, get_sessionmaker
 
     try:
-        report = await purge_expired(get_sessionmaker(), None)
+        report = await purge_expired(get_sessionmaker(), default_object_deleter())
         print(report)
     finally:
         await dispose_engine()

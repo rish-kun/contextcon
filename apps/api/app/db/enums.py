@@ -1,51 +1,51 @@
 """String values stored in the database.
 
-These match the shared vocabulary in `app.domain` (built in parallel). Columns store
-plain strings and the database enforces the allowed set with CHECK constraints, so
-the two modules only have to agree on values; `tests/db/test_enums.py` checks that
-they do whenever `app.domain` is importable.
+Claim statuses, dispositions, criterion kinds/results and identity states come from
+the shared vocabulary in `app.domain.enums`. The rest are persistence-level states.
+Columns store plain strings; CHECK constraints enforce the allowed sets.
 """
 
 from enum import StrEnum
 
+from app.domain.enums import (
+    ClaimStatus,
+    CriterionKind,
+    CriterionResult,
+    Disposition,
+    IdentityStatus,
+)
 
-class ClaimStatus(StrEnum):
-    SUPPORTED = "supported"
-    CONTRADICTED = "contradicted"
-    PARTIALLY_CORROBORATED = "partially_corroborated"
-    CONFLICTING_EVIDENCE = "conflicting_evidence"
-    CANNOT_VERIFY = "cannot_verify"
-    NOT_CHECKED = "not_checked"
-
-
-class Disposition(StrEnum):
-    PRIORITISE = "prioritise"
-    INVESTIGATE_FURTHER = "investigate_further"
-    DEPRIORITISE = "deprioritise"
-    CANNOT_ASSESS = "cannot_assess"
-
-
-class CriterionKind(StrEnum):
-    MUST = "must"
-    PREFERENCE = "preference"
-
-
-class CriterionResult(StrEnum):
-    PASS = "pass"
-    FAIL = "fail"
-    UNKNOWN = "unknown"
-
-
-class IdentityStatus(StrEnum):
-    CONFIRMED = "confirmed"
-    UNRESOLVED = "unresolved"
-    AMBIGUOUS = "ambiguous"
+__all__ = [
+    "CallStatus",
+    "ClaimOrigin",
+    "ClaimStatus",
+    "CriterionKind",
+    "CriterionResult",
+    "Disposition",
+    "IdentityStatus",
+    "RunKind",
+    "RunState",
+    "SendStatus",
+    "StepState",
+    "TERMINAL_STEP_STATES",
+    "check_in",
+]
 
 
 class ClaimOrigin(StrEnum):
     DECK = "deck"
     TYPED = "typed"
     PROFILE = "profile"
+
+
+class RunKind(StrEnum):
+    """Matches the API contract's RunKind."""
+
+    DISCOVER = "discover"
+    INVESTOR_DISCOVER = "investor_discover"
+    VERIFY = "verify"
+    EVALUATE = "evaluate"
+    RECHECK = "recheck"
 
 
 class RunState(StrEnum):
@@ -69,6 +69,7 @@ TERMINAL_STEP_STATES = frozenset(
 
 
 class SendStatus(StrEnum):
+    # `pending` is the reserved-before-calling-the-provider state (`sending` in app.act).
     PENDING = "pending"
     SENT = "sent"
     SUPPRESSED_TEST_MODE = "suppressed_test_mode"
@@ -77,9 +78,12 @@ class SendStatus(StrEnum):
 
 
 class CallStatus(StrEnum):
+    """Mirrors `app.clients.base.CallStatus`."""
+
     STARTED = "started"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
+    CACHE_HIT = "cache_hit"
 
 
 def check_in(column: str, enum: type[StrEnum]) -> str:

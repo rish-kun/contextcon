@@ -2,7 +2,7 @@
 
 Revision ID: 0001
 Revises:
-Create Date: 2026-11-22 15:05:10.704481
+Create Date: 2026-11-22 15:22:36.717772
 """
 
 from collections.abc import Sequence
@@ -427,12 +427,17 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("finished_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("resumed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
             server_default=sa.text("now()"),
             nullable=False,
+        ),
+        sa.CheckConstraint(
+            "kind IN ('discover', 'investor_discover', 'verify', 'evaluate', 'recheck')",
+            name=op.f("ck_runs_kind"),
         ),
         sa.CheckConstraint(
             "state IN ('pending', 'running', 'done', 'failed')", name=op.f("ck_runs_state")
@@ -618,6 +623,7 @@ def upgrade() -> None:
         "steps",
         sa.Column("run_id", sa.Uuid(), nullable=False),
         sa.Column("key", sa.String(length=200), nullable=False),
+        sa.Column("label", sa.String(length=300), nullable=False),
         sa.Column("handler", sa.String(length=200), nullable=False),
         sa.Column("position", sa.Integer(), nullable=False),
         sa.Column("state", sa.String(length=16), nullable=False),
@@ -626,6 +632,8 @@ def upgrade() -> None:
         sa.Column("output", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("error", sa.Text(), nullable=True),
         sa.Column("skip_reason", sa.Text(), nullable=True),
+        sa.Column("detail", sa.Text(), nullable=True),
+        sa.Column("result", sa.Text(), nullable=True),
         sa.Column("uses_budget", sa.Boolean(), nullable=False),
         sa.Column("tolerate_failed_deps", sa.Boolean(), nullable=False),
         sa.Column("attempts", sa.Integer(), nullable=False),
@@ -663,6 +671,7 @@ def upgrade() -> None:
     op.create_index(op.f("ix_steps_run_id"), "steps", ["run_id"], unique=False)
     op.create_table(
         "call_attempts",
+        sa.Column("call_id", sa.String(length=64), nullable=False),
         sa.Column("workspace_id", sa.Uuid(), nullable=False),
         sa.Column("case_id", sa.Uuid(), nullable=True),
         sa.Column("discovery_run_id", sa.Uuid(), nullable=True),
@@ -671,11 +680,15 @@ def upgrade() -> None:
         sa.Column("step_id", sa.Uuid(), nullable=True),
         sa.Column("provider", sa.String(length=64), nullable=False),
         sa.Column("endpoint", sa.String(length=500), nullable=False),
-        sa.Column("request_hash", sa.String(length=128), nullable=True),
-        sa.Column("request", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("params_hash", sa.String(length=128), nullable=True),
+        sa.Column("cache_key", sa.String(length=128), nullable=True),
+        sa.Column("model", sa.String(length=128), nullable=True),
         sa.Column("status", sa.String(length=16), nullable=False),
-        sa.Column("status_code", sa.Integer(), nullable=True),
+        sa.Column("http_status", sa.Integer(), nullable=True),
+        sa.Column("http_attempts", sa.Integer(), nullable=False),
+        sa.Column("provider_request_id", sa.String(length=200), nullable=True),
         sa.Column("error", sa.Text(), nullable=True),
+        sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("finished_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column(
@@ -685,7 +698,8 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.CheckConstraint(
-            "status IN ('started', 'succeeded', 'failed')", name=op.f("ck_call_attempts_status")
+            "status IN ('started', 'succeeded', 'failed', 'cache_hit')",
+            name=op.f("ck_call_attempts_status"),
         ),
         sa.ForeignKeyConstraint(
             ["case_id"],
@@ -721,11 +735,13 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_call_attempts")),
+        sa.UniqueConstraint("call_id", name=op.f("uq_call_attempts_call_id")),
+    )
+    op.create_index(
+        op.f("ix_call_attempts_cache_key"), "call_attempts", ["cache_key"], unique=False
     )
     op.create_index(op.f("ix_call_attempts_case_id"), "call_attempts", ["case_id"], unique=False)
-    op.create_index(
-        op.f("ix_call_attempts_request_hash"), "call_attempts", ["request_hash"], unique=False
-    )
+    op.create_index(op.f("ix_call_attempts_step_id"), "call_attempts", ["step_id"], unique=False)
     op.create_index(
         op.f("ix_call_attempts_workspace_id"), "call_attempts", ["workspace_id"], unique=False
     )
@@ -1264,6 +1280,7 @@ def upgrade() -> None:
     )
     op.create_table(
         "send_attempts",
+        sa.Column("request_list_id", sa.Uuid(), nullable=False),
         sa.Column("message_revision_id", sa.Uuid(), nullable=False),
         sa.Column("approval_id", sa.Uuid(), nullable=False),
         sa.Column("send_key", sa.String(length=200), nullable=False),
@@ -1300,14 +1317,27 @@ def upgrade() -> None:
             name=op.f("fk_send_attempts_message_revision_id_message_revisions"),
             ondelete="CASCADE",
         ),
+        sa.ForeignKeyConstraint(
+            ["request_list_id"],
+            ["request_lists.id"],
+            name=op.f("fk_send_attempts_request_list_id_request_lists"),
+            ondelete="CASCADE",
+        ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_send_attempts")),
+        sa.UniqueConstraint(
+            "message_revision_id", name=op.f("uq_send_attempts_message_revision_id")
+        ),
         sa.UniqueConstraint("send_key", name=op.f("uq_send_attempts_send_key")),
     )
     op.create_index(
-        op.f("ix_send_attempts_message_revision_id"),
+        op.f("ix_send_attempts_request_list_id"), "send_attempts", ["request_list_id"], unique=False
+    )
+    op.create_index(
+        "uq_send_attempts_active_per_list",
         "send_attempts",
-        ["message_revision_id"],
-        unique=False,
+        ["request_list_id"],
+        unique=True,
+        postgresql_where=sa.text("status IN ('pending', 'sent', 'unknown')"),
     )
     # ### end Alembic commands ###
     op.execute(FORBID_UPDATE_FN)
@@ -1323,7 +1353,12 @@ def downgrade() -> None:
         op.execute(f"DROP TRIGGER IF EXISTS {table}_immutable ON {table}")
     op.execute("DROP FUNCTION IF EXISTS dealproof_forbid_update()")
     # ### commands auto generated by Alembic - please adjust! ###
-    op.drop_index(op.f("ix_send_attempts_message_revision_id"), table_name="send_attempts")
+    op.drop_index(
+        "uq_send_attempts_active_per_list",
+        table_name="send_attempts",
+        postgresql_where=sa.text("status IN ('pending', 'sent', 'unknown')"),
+    )
+    op.drop_index(op.f("ix_send_attempts_request_list_id"), table_name="send_attempts")
     op.drop_table("send_attempts")
     op.drop_table("request_item_claims")
     op.drop_index(op.f("ix_events_evidence_id"), table_name="events")
@@ -1363,8 +1398,9 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_claims_case_id"), table_name="claims")
     op.drop_table("claims")
     op.drop_index(op.f("ix_call_attempts_workspace_id"), table_name="call_attempts")
-    op.drop_index(op.f("ix_call_attempts_request_hash"), table_name="call_attempts")
+    op.drop_index(op.f("ix_call_attempts_step_id"), table_name="call_attempts")
     op.drop_index(op.f("ix_call_attempts_case_id"), table_name="call_attempts")
+    op.drop_index(op.f("ix_call_attempts_cache_key"), table_name="call_attempts")
     op.drop_table("call_attempts")
     op.drop_index(op.f("ix_steps_run_id"), table_name="steps")
     op.drop_index("ix_steps_lease", table_name="steps")

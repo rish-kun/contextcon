@@ -41,10 +41,10 @@ async def test_send_key_unique_in_database(session: AsyncSession) -> None:
     t, rl, approval = await _approved(session)
     insert = text(
         "INSERT INTO send_attempts"
-        " (id, message_revision_id, approval_id, send_key, status, provider) "
-        "VALUES (:id, :rev, :ap, 'k1', 'pending', 'resend')"
+        " (id, request_list_id, message_revision_id, approval_id, send_key, status, provider) "
+        "VALUES (:id, :rl, :rev, :ap, 'k1', 'failed', 'resend')"
     )
-    params = {"rev": approval.message_revision_id, "ap": approval.id}
+    params = {"rl": rl.id, "rev": approval.message_revision_id, "ap": approval.id}
     await session.execute(insert, {**params, "id": uuid.uuid4()})
     with pytest.raises(IntegrityError):
         await session.execute(insert, {**params, "id": uuid.uuid4()})
@@ -64,3 +64,27 @@ async def test_send_needs_approval_in_same_workspace(session: AsyncSession) -> N
     other = await tenant(session, "other")
     with pytest.raises(repo.NotFound):
         await repo.begin_send(session, other.workspace.id, approval_id=approval.id, send_key="k")
+
+
+async def test_new_revision_cannot_send_while_a_send_is_active(session: AsyncSession) -> None:
+    t, rl, approval = await _approved(session)
+    first = await repo.begin_send(session, t.workspace.id, approval_id=approval.id, send_key="a")
+    rev2 = await repo.add_message_revision(
+        session, t.workspace.id, rl.id, subject="s", body="b2", recipient="cfo@seller.test"
+    )
+    approval2 = await repo.approve_revision(session, t.workspace.id, rev2.id, user_id=t.user.id)
+    await session.commit()
+    with pytest.raises(repo.AlreadySent) as info:
+        await repo.begin_send(session, t.workspace.id, approval_id=approval2.id, send_key="b")
+    assert info.value.attempt.id == first.id
+
+
+async def test_collision_does_not_reveal_another_workspaces_send(session: AsyncSession) -> None:
+    t, rl, approval = await _approved(session)
+    await repo.begin_send(session, t.workspace.id, approval_id=approval.id, send_key="same")
+    other, other_rl, other_approval = await _approved(session)
+    with pytest.raises(repo.AlreadySent) as info:
+        await repo.begin_send(
+            session, other.workspace.id, approval_id=other_approval.id, send_key="same"
+        )
+    assert info.value.attempt is None

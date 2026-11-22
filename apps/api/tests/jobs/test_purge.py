@@ -141,3 +141,21 @@ async def test_without_a_deleter_documents_wait(session, sm) -> None:
     report = await purge_expired(sm, None)
     assert report.documents == 0 and report.documents_waiting_for_deleter == 1
     assert report.extracted_texts == 1  # derivatives still go on schedule
+
+
+async def test_storage_deleter_adapts_document_storage(session, sm, tmp_path) -> None:
+    from app.documents.storage import LocalStorage
+    from app.jobs.purge import StorageDeleter
+
+    t = await tenant(session)
+    doc, *_ = await _seed(session, sm, t, expired=True)
+    storage = LocalStorage(tmp_path)
+    storage.put(doc.gcs_path, b"%PDF-1.7 fixture", "application/pdf", days(-1))
+    report = await purge_expired(sm, StorageDeleter(storage))
+    assert report.documents == 1
+    async with sm() as s:
+        record = (
+            await s.execute(select(DeletionRecord).where(DeletionRecord.object_type == "document"))
+        ).scalar_one()
+    assert record.detail["storage"] == {"backend": "local", "existed": True}
+    assert not (tmp_path / doc.gcs_path).exists()

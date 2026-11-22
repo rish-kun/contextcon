@@ -11,7 +11,7 @@ from collections.abc import Iterable
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -48,8 +48,12 @@ class Forbidden(PermissionError):
 
 
 class AlreadySent(RuntimeError):
-    def __init__(self, attempt: SendAttempt) -> None:
-        super().__init__(f"send key {attempt.send_key!r} already used ({attempt.status})")
+    """A send for this key, revision or request list exists. `attempt` is that send when
+    it is visible to the caller's workspace, else None."""
+
+    def __init__(self, attempt: SendAttempt | None) -> None:
+        detail = f" ({attempt.status})" if attempt is not None else ""
+        super().__init__(f"this message was already sent or is being sent{detail}")
         self.attempt = attempt
 
 
@@ -376,22 +380,27 @@ async def begin_send(
     send_key: str,
     provider: str = "resend",
 ) -> SendAttempt:
-    """Reserve the send key and commit it *before* calling the email provider.
+    """Reserve the send and commit it *before* calling the email provider.
 
-    Raises `AlreadySent` if the key was used before (whatever that attempt's status),
-    so a message can leave at most once. Commits the session.
+    Raises `AlreadySent` if the key was used before, the revision was already sent, or
+    the request list has a send that left or may have left (pending/sent/unknown), so
+    a message leaves at most once. Build `send_key` server-side from ids the caller
+    owns (e.g. `f"request-list:{id}"`). Commits the session.
     """
-    approval = (
+    found = (
         await session.execute(
-            select(Approval)
+            select(Approval, MessageRevision.request_list_id)
             .join(MessageRevision, MessageRevision.id == Approval.message_revision_id)
             .join(Case, Case.id == MessageRevision.case_id)
             .where(Approval.id == approval_id, Case.workspace_id == workspace_id)
         )
-    ).scalar_one_or_none()
-    if approval is None:
+    ).first()
+    if found is None:
         raise NotFound("approval")
+    approval, request_list_id = found
+    revision_id = approval.message_revision_id  # plain value: survives a rollback
     attempt = SendAttempt(
+        request_list_id=request_list_id,
         message_revision_id=approval.message_revision_id,
         approval_id=approval.id,
         send_key=send_key,
@@ -404,8 +413,22 @@ async def begin_send(
     except IntegrityError:
         await session.rollback()
         existing = (
-            await session.execute(select(SendAttempt).where(SendAttempt.send_key == send_key))
-        ).scalar_one()
+            await session.execute(
+                select(SendAttempt)
+                .join(RequestList, RequestList.id == SendAttempt.request_list_id)
+                .join(Case, Case.id == RequestList.case_id)
+                .where(
+                    Case.workspace_id == workspace_id,
+                    or_(
+                        SendAttempt.send_key == send_key,
+                        SendAttempt.message_revision_id == revision_id,
+                        SendAttempt.request_list_id == request_list_id,
+                    ),
+                )
+                .order_by(SendAttempt.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
         raise AlreadySent(existing) from None
     return attempt
 

@@ -1,198 +1,217 @@
-"""Run status endpoints: `GET /runs/{id}`, `GET /runs/{id}/events` (SSE), `POST /runs/{id}/resume`.
+"""Run status for the API contract (`app.api.schemas.runs`): snapshot, resume and SSE.
 
-SSE works by polling the steps table (default every second), which behaves the same
-on every instance and through Neon's pooled endpoint, where LISTEN/NOTIFY is not
-available. Events:
+These are the implementations behind the CP-03 stubs in `app/api/runs.py`
+(`GET /runs/{id}`, `GET /runs/{id}/events`, `POST /runs/{id}/resume`). They take the
+caller's `workspace_id` from whoever wires auth; nothing here trusts request headers.
+A run in another workspace raises `repo.NotFound` (map it to 404).
 
-    event: run    data: RunOut   (first, on every run state change, and last)
-    event: step   data: StepOut  (each step whose state, attempts or error changed)
+Wiring, once auth provides the workspace (outside fixture mode):
 
-The stream ends after the run reaches `done` or `failed`.
+    run = await events.load_run_out(session, workspace_id, run_id)
+    stream = events.run_event_stream(get_sessionmaker(), workspace_id, run_id,
+                                     is_disconnected=request.is_disconnected)
+    return EventStreamResponse(stream, headers={"Cache-Control": "no-cache"})
+
+SSE polls the steps table (default every second), which works on every instance and
+through Neon's pooled endpoint, where LISTEN/NOTIFY is unavailable. The stream sends
+`event: run` (run without steps), then `event: step` for every step, then one
+`event: step` per change, and a final `event: run` once the run is `done`/`failed`.
 """
 
 import asyncio
-import json
 import uuid
-from collections.abc import AsyncIterator
-from datetime import datetime
+from collections.abc import AsyncIterator, Awaitable, Callable
 from decimal import Decimal
-from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.api.schemas.common import CostTotalsOut, RunKind, StepState
+from app.api.schemas.common import RunState as ContractRunState
+from app.api.schemas.runs import RunEvent, RunOut, StepEvent, StepOut
 from app.db import repo
-from app.db.enums import RunState
-from app.db.models import Run, Step
-from app.db.session import get_session, get_sessionmaker
-from app.jobs.engine import BUDGET_REACHED, resume_run
-
-router = APIRouter(prefix="/runs", tags=["runs"])
+from app.db.enums import CallStatus, RunState
+from app.db.models import CallAttempt, Case, CostEntry, DiscoveryRun, InvestorRun, Run, Thesis
+from app.jobs.engine import resume_run
 
 POLL_SECONDS = 1.0
 KEEPALIVE_EVERY = 15  # polls
 
-
-async def current_workspace_id(request: Request) -> uuid.UUID:
-    """The caller's workspace.
-
-    Placeholder until auth lands: auth middleware should set
-    `request.state.workspace_id` from the signed-in session (or override this
-    dependency). Until then a `X-Workspace-Id` header is accepted, which is NOT a
-    security boundary.
-    """
-    value = getattr(request.state, "workspace_id", None) or request.headers.get("x-workspace-id")
-    if not value:
-        raise HTTPException(status_code=401, detail="no workspace")
-    try:
-        return uuid.UUID(str(value))
-    except ValueError as exc:
-        raise HTTPException(status_code=401, detail="bad workspace id") from exc
+_NOT_RUN = {StepState.skipped_budget, StepState.failed}
 
 
-def sessionmaker_dep() -> async_sessionmaker[AsyncSession]:
-    return get_sessionmaker()
+def _totals(row) -> CostTotalsOut:  # type: ignore[no-untyped-def]
+    if row is None:
+        return CostTotalsOut()
+    return CostTotalsOut(
+        crustdata_credits=float(row.credits or 0),
+        llm_usd=float(row.usd or 0),
+        input_tokens=int(row.input_tokens or 0),
+        output_tokens=int(row.output_tokens or 0),
+        unknown_cost_calls=int(row.unknown or 0),
+    )
 
 
-WorkspaceId = Annotated[uuid.UUID, Depends(current_workspace_id)]
-DbSession = Annotated[AsyncSession, Depends(get_session)]
-SessionMaker = Annotated[async_sessionmaker[AsyncSession], Depends(sessionmaker_dep)]
+def _cost_columns():  # type: ignore[no-untyped-def]
+    return (
+        func.sum(CostEntry.credits).label("credits"),
+        func.sum(CostEntry.usd).label("usd"),
+        func.sum(CostEntry.input_tokens).label("input_tokens"),
+        func.sum(CostEntry.output_tokens).label("output_tokens"),
+        func.count(case((CostEntry.unknown, 1))).label("unknown"),
+    )
 
 
-class StepOut(BaseModel):
-    id: uuid.UUID
-    key: str
-    handler: str
-    position: int
-    state: str
-    attempts: int
-    max_attempts: int
-    depends_on: list[str]
-    error: str | None
-    skip_reason: str | None
-    # What the UI shows for a step that did not run: "Not checked: budget reached".
-    not_checked_reason: str | None
-    started_at: datetime | None
-    finished_at: datetime | None
-    updated_at: datetime
-
-    @classmethod
-    def of(cls, step: Step) -> "StepOut":
-        not_checked = None
-        if step.state == "skipped_budget":
-            not_checked = f"Not checked: {step.skip_reason or BUDGET_REACHED}"
-        elif step.state == "failed":
-            not_checked = "Not checked: the check could not be run"
-        return cls(
-            id=step.id,
-            key=step.key,
-            handler=step.handler,
-            position=step.position,
-            state=step.state,
-            attempts=step.attempts,
-            max_attempts=step.max_attempts,
-            depends_on=list(step.depends_on or []),
-            error=step.error,
-            skip_reason=step.skip_reason,
-            not_checked_reason=not_checked,
-            started_at=step.started_at,
-            finished_at=step.finished_at,
-            updated_at=step.updated_at,
+async def _subject(session: AsyncSession, run: Run) -> str:
+    if run.case_id is not None:
+        name = await session.scalar(select(Case.company_name).where(Case.id == run.case_id))
+        return name or ""
+    if run.discovery_run_id is not None:
+        text = await session.scalar(
+            select(Thesis.text)
+            .join(DiscoveryRun, DiscoveryRun.thesis_id == Thesis.id)
+            .where(DiscoveryRun.id == run.discovery_run_id)
         )
-
-
-class RunOut(BaseModel):
-    id: uuid.UUID
-    kind: str
-    state: str
-    case_id: uuid.UUID | None
-    discovery_run_id: uuid.UUID | None
-    investor_run_id: uuid.UUID | None
-    budget_credits: Decimal | None
-    error: str | None
-    created_at: datetime
-    finished_at: datetime | None
-    steps: list[StepOut]
-
-    @classmethod
-    def of(cls, run: Run) -> "RunOut":
-        return cls(
-            id=run.id,
-            kind=run.kind,
-            state=run.state,
-            case_id=run.case_id,
-            discovery_run_id=run.discovery_run_id,
-            investor_run_id=run.investor_run_id,
-            budget_credits=run.budget_credits,
-            error=run.error,
-            created_at=run.created_at,
-            finished_at=run.finished_at,
-            steps=[StepOut.of(s) for s in run.steps],
+        return text or ""
+    if run.investor_run_id is not None:
+        profile = await session.scalar(
+            select(InvestorRun.profile).where(InvestorRun.id == run.investor_run_id)
         )
+        if isinstance(profile, dict):
+            parts = [str(profile[k]) for k in ("sector", "location", "stage") if profile.get(k)]
+            return ", ".join(parts)
+    return ""
 
 
-async def _load(session: AsyncSession, workspace_id: uuid.UUID, run_id: uuid.UUID) -> Run:
-    try:
-        return await repo.get_run(session, workspace_id, run_id)
-    except repo.NotFound as exc:
-        raise HTTPException(status_code=404, detail="run not found") from exc
+async def load_run_out(session: AsyncSession, workspace_id: uuid.UUID, run_id: uuid.UUID) -> RunOut:
+    """The run with every step, in the contract's shape. Raises `repo.NotFound`."""
+    run = await repo.get_run(session, workspace_id, run_id)
+    step_costs = {
+        r.step_id: r
+        for r in (
+            await session.execute(
+                select(CostEntry.step_id, *_cost_columns())
+                .where(CostEntry.run_id == run.id)
+                .group_by(CostEntry.step_id)
+            )
+        ).all()
+    }
+    run_cost = (
+        await session.execute(select(*_cost_columns()).where(CostEntry.run_id == run.id))
+    ).one()
+    calls = {
+        r.step_id: r
+        for r in (
+            await session.execute(
+                select(
+                    CallAttempt.step_id,
+                    func.count().label("total"),
+                    func.count(case((CallAttempt.status == CallStatus.CACHE_HIT, 1))).label("hits"),
+                )
+                .where(CallAttempt.run_id == run.id)
+                .group_by(CallAttempt.step_id)
+            )
+        ).all()
+    }
+    steps = []
+    for step in run.steps:
+        c = calls.get(step.id)
+        steps.append(
+            StepOut(
+                id=str(step.id),
+                run_id=str(run.id),
+                key=step.key,
+                label=step.label,
+                position=step.position,
+                state=StepState(step.state),
+                attempts=step.attempts,
+                detail=step.detail if step.state == "running" else None,
+                result=step.result
+                or (
+                    f"Not checked: {step.skip_reason}"
+                    if step.state == "skipped_budget" and step.skip_reason
+                    else None
+                ),
+                error=step.error if step.state != "done" else None,
+                from_cache=bool(c and c.total and c.hits == c.total),
+                cost=_totals(step_costs.get(step.id)),
+                started_at=step.started_at,
+                finished_at=step.finished_at,
+            )
+        )
+    return RunOut(
+        id=str(run.id),
+        kind=RunKind(run.kind),
+        state=ContractRunState(run.state),
+        subject=await _subject(session, run),
+        case_id=str(run.case_id) if run.case_id else None,
+        thesis_id=str(
+            await session.scalar(
+                select(DiscoveryRun.thesis_id).where(DiscoveryRun.id == run.discovery_run_id)
+            )
+        )
+        if run.discovery_run_id
+        else None,
+        investor_search_id=str(run.investor_run_id) if run.investor_run_id else None,
+        budget_credits=float(run.budget_credits or Decimal(0)),
+        cost=_totals(run_cost),
+        checks_not_run=sum(1 for s in steps if s.state in _NOT_RUN),
+        created_at=run.created_at,
+        finished_at=run.finished_at,
+        resumed_at=run.resumed_at,
+        error=run.error,
+        steps=steps,
+    )
 
 
-@router.get("/{run_id}", response_model=RunOut)
-async def get_run(
-    run_id: uuid.UUID,
-    workspace_id: WorkspaceId,
-    session: DbSession,
+async def resume_run_out(
+    session: AsyncSession, workspace_id: uuid.UUID, run_id: uuid.UUID
 ) -> RunOut:
-    return RunOut.of(await _load(session, workspace_id, run_id))
-
-
-@router.post("/{run_id}/resume", response_model=RunOut)
-async def resume(
-    run_id: uuid.UUID,
-    workspace_id: WorkspaceId,
-    session: DbSession,
-) -> RunOut:
-    run = await _load(session, workspace_id, run_id)
+    """Re-queue failed and budget-skipped steps (after a fix or a budget increase).
+    Done steps stay done and their paid calls replay from the cache. Commits."""
+    run = await repo.get_run(session, workspace_id, run_id, with_steps=False)
     await resume_run(session, run.id)
     await session.commit()
     session.expunge_all()
-    return RunOut.of(await _load(session, workspace_id, run_id))
+    return await load_run_out(session, workspace_id, run_id)
 
 
-def _sse(event: str, data: BaseModel | dict[str, Any]) -> str:
-    payload = data.model_dump_json() if isinstance(data, BaseModel) else json.dumps(data)
-    return f"event: {event}\ndata: {payload}\n\n"
+def _sse(event: StepEvent | RunEvent) -> str:
+    return f"event: {event.event}\ndata: {event.data.model_dump_json()}\n\n"
 
 
-async def stream_run_events(
+async def run_event_stream(
     sessionmaker: async_sessionmaker[AsyncSession],
     workspace_id: uuid.UUID,
     run_id: uuid.UUID,
     *,
     poll_seconds: float | None = None,
-    is_disconnected: Any = None,
+    is_disconnected: Callable[[], Awaitable[bool]] | None = None,
 ) -> AsyncIterator[str]:
-    poll = poll_seconds if poll_seconds is not None else POLL_SECONDS
-    seen: dict[uuid.UUID, tuple] = {}
-    last_run_state: str | None = None
+    """SSE frames for one run until it is done or failed. Check access (call
+    `load_run_out`) before starting the response, so a 404 is not sent mid-stream."""
+    poll = POLL_SECONDS if poll_seconds is None else poll_seconds
+    seen: dict[str, tuple] = {}
+    last_state: str | None = None
     polls = 0
     while True:
         async with sessionmaker() as session:
-            run = await repo.get_run(session, workspace_id, run_id)
-            out = RunOut.of(run)
+            out = await load_run_out(session, workspace_id, run_id)
+        first = last_state is None
+        terminal = out.state in (RunState.DONE, RunState.FAILED)
+        run_event = _sse(RunEvent(data=out.model_copy(update={"steps": []})))
+        if first:
+            yield run_event
         for step in out.steps:
-            signature = (step.state, step.attempts, step.error, step.skip_reason)
+            signature = (step.state, step.attempts, step.detail, step.result, step.error)
             if seen.get(step.id) != signature:
                 seen[step.id] = signature
-                if last_run_state is not None:
-                    yield _sse("step", step)
-        if out.state != last_run_state:
-            last_run_state = out.state
-            yield _sse("run", out)
-        if out.state in (RunState.DONE, RunState.FAILED):
+                yield _sse(StepEvent(data=step))
+        # Every run state change is announced; the stream always ends on a run event.
+        if (not first and out.state != last_state) or (first and terminal):
+            yield run_event
+        last_state = out.state
+        if terminal:
             return
         polls += 1
         if polls % KEEPALIVE_EVERY == 0:
@@ -200,21 +219,3 @@ async def stream_run_events(
         if is_disconnected is not None and await is_disconnected():
             return
         await asyncio.sleep(poll)
-
-
-@router.get("/{run_id}/events")
-async def run_events(
-    run_id: uuid.UUID,
-    request: Request,
-    workspace_id: WorkspaceId,
-    sessionmaker: SessionMaker,
-) -> StreamingResponse:
-    async with sessionmaker() as session:
-        await _load(session, workspace_id, run_id)  # 404 before the stream starts
-    return StreamingResponse(
-        stream_run_events(
-            sessionmaker, workspace_id, run_id, is_disconnected=request.is_disconnected
-        ),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )

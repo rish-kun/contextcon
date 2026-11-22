@@ -31,6 +31,7 @@ from sqlalchemy import (
     Uuid,
     event,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -44,6 +45,7 @@ from app.db.enums import (
     CriterionResult,
     Disposition,
     IdentityStatus,
+    RunKind,
     RunState,
     SendStatus,
     StepState,
@@ -502,7 +504,8 @@ class SendAttempt(IdMixin, Base):
 
     __tablename__ = "send_attempts"
 
-    message_revision_id: Mapped[uuid.UUID] = mapped_column(_fk("message_revisions.id"), index=True)
+    request_list_id: Mapped[uuid.UUID] = mapped_column(_fk("request_lists.id"), index=True)
+    message_revision_id: Mapped[uuid.UUID] = mapped_column(_fk("message_revisions.id"), unique=True)
     approval_id: Mapped[uuid.UUID] = mapped_column(_fk("approvals.id", ondelete="RESTRICT"))
     send_key: Mapped[str] = mapped_column(String(200), unique=True)
     status: Mapped[str] = mapped_column(String(32), default=SendStatus.PENDING)
@@ -513,7 +516,17 @@ class SendAttempt(IdMixin, Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    __table_args__ = (CheckConstraint(check_in("status", SendStatus), name="status"),)
+    __table_args__ = (
+        CheckConstraint(check_in("status", SendStatus), name="status"),
+        # While a send has left or may have left, no other send for the same request
+        # list can start (two concurrent inserts: the loser gets an IntegrityError).
+        Index(
+            "uq_send_attempts_active_per_list",
+            "request_list_id",
+            unique=True,
+            postgresql_where=text("status IN ('pending', 'sent', 'unknown')"),
+        ),
+    )
 
 
 # --- Jobs --------------------------------------------------------------------
@@ -535,6 +548,8 @@ class Run(IdMixin, Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     finished_at: Mapped[datetime | None] = _ts()
+    # Set when the run picked up again after an interruption (expired lease or resume).
+    resumed_at: Mapped[datetime | None] = _ts()
 
     steps: Mapped[list["Step"]] = relationship(
         back_populates="run", order_by="Step.position", cascade="all, delete-orphan"
@@ -542,6 +557,7 @@ class Run(IdMixin, Base):
 
     __table_args__ = (
         CheckConstraint(check_in("state", RunState), name="state"),
+        CheckConstraint(check_in("kind", RunKind), name="kind"),
         CheckConstraint(
             "num_nonnulls(case_id, discovery_run_id, investor_run_id) <= 1", name="one_owner"
         ),
@@ -553,6 +569,7 @@ class Step(IdMixin, Base):
 
     run_id: Mapped[uuid.UUID] = mapped_column(_fk("runs.id"), index=True)
     key: Mapped[str] = mapped_column(String(200))
+    label: Mapped[str] = mapped_column(String(300))
     handler: Mapped[str] = mapped_column(String(200))
     position: Mapped[int] = mapped_column(Integer)
     state: Mapped[str] = mapped_column(String(16), default=StepState.PENDING)
@@ -561,6 +578,9 @@ class Step(IdMixin, Base):
     output: Mapped[dict | None] = mapped_column(JSONB)
     error: Mapped[str | None] = mapped_column(Text)
     skip_reason: Mapped[str | None] = mapped_column(Text)
+    # Live sub-line while running, and a one-line result when done (shown in the UI).
+    detail: Mapped[str | None] = mapped_column(Text)
+    result: Mapped[str | None] = mapped_column(Text)
     uses_budget: Mapped[bool] = mapped_column(Boolean, default=True)
     tolerate_failed_deps: Mapped[bool] = mapped_column(Boolean, default=False)
     attempts: Mapped[int] = mapped_column(Integer, default=0)
@@ -588,23 +608,35 @@ class Step(IdMixin, Base):
 
 
 class CallAttempt(IdMixin, Base):
-    """Written (and committed) before every external call, so a crash leaves a trace."""
+    """One external call, upserted from the clients' `CallRecord` reports.
+
+    The `started` report is committed before the request goes out, so a crash leaves a
+    trace. Only hashes of the request are kept (`params_hash`, `cache_key`), never the
+    request itself, so nothing confidential lands here.
+    """
 
     __tablename__ = "call_attempts"
 
+    call_id: Mapped[str] = mapped_column(String(64), unique=True)
     workspace_id: Mapped[uuid.UUID] = mapped_column(_fk("workspaces.id"), index=True)
     case_id: Mapped[uuid.UUID | None] = mapped_column(_fk("cases.id"), index=True)
     discovery_run_id: Mapped[uuid.UUID | None] = mapped_column(_fk("discovery_runs.id"))
     investor_run_id: Mapped[uuid.UUID | None] = mapped_column(_fk("investor_runs.id"))
     run_id: Mapped[uuid.UUID | None] = mapped_column(_fk("runs.id", ondelete="SET NULL"))
-    step_id: Mapped[uuid.UUID | None] = mapped_column(_fk("steps.id", ondelete="SET NULL"))
+    step_id: Mapped[uuid.UUID | None] = mapped_column(
+        _fk("steps.id", ondelete="SET NULL"), index=True
+    )
     provider: Mapped[str] = mapped_column(String(64))
     endpoint: Mapped[str] = mapped_column(String(500))
-    request_hash: Mapped[str | None] = mapped_column(String(128), index=True)
-    request: Mapped[dict] = mapped_column(JSONB, default=dict)
+    params_hash: Mapped[str | None] = mapped_column(String(128))
+    cache_key: Mapped[str | None] = mapped_column(String(128), index=True)
+    model: Mapped[str | None] = mapped_column(String(128))
     status: Mapped[str] = mapped_column(String(16), default=CallStatus.STARTED)
-    status_code: Mapped[int | None] = mapped_column(Integer)
+    http_status: Mapped[int | None] = mapped_column(Integer)
+    http_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    provider_request_id: Mapped[str | None] = mapped_column(String(200))
     error: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime | None] = _ts()
     finished_at: Mapped[datetime | None] = _ts()
 
     __table_args__ = (CheckConstraint(check_in("status", CallStatus), name="status"),)

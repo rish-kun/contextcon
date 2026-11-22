@@ -6,11 +6,15 @@ Register a handler and enqueue a run:
 
     @step_handler("verify.identity")
     async def identify(ctx: StepContext) -> dict:
-        return {...}
+        await ctx.set_detail("Matching the domain")       # live sub-line (SSE)
+        client = CrustdataClient(key, recorder=ctx.recorder, cache=ctx.cache)
+        ...                                               # paid calls: cached + metered
+        ctx.result = "Identity confirmed"                 # one-line result
+        return {...}                                      # step output (JSON)
 
     run = await create_run(
         session, workspace_id=ws, kind="verify", case_id=case.id,
-        steps=[StepSpec("identity", "verify.identity"),
+        steps=[StepSpec("identity", "verify.identity", label="Confirm identity"),
                StepSpec("profile", "verify.profile", depends_on=["identity"])],
     )
     await session.commit()

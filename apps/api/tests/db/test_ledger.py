@@ -5,44 +5,22 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.clients.base import CallRecord
 from app.db import ledger
 from app.db.adapters import DbCache, DbCallRecorder
 from app.db.enums import CallStatus
 from app.db.ledger import CostContext
 from app.db.models import CallAttempt, CostEntry
 from app.jobs import StepSpec, create_run
-from tests.db.factories import days, discovery_run, tenant
+from tests.db.factories import FakeCrustdataApi, days, discovery_run, tenant
 
 pytestmark = pytest.mark.asyncio
 
 
-class FakeCrustdata:
-    """Stands in for app.clients: checks the cache, records the attempt, pays, caches."""
-
-    def __init__(self) -> None:
-        self.calls = 0
-
-    async def enrich(self, company_id: str, *, cache: DbCache, recorder: DbCallRecorder) -> dict:
-        key = f"crustdata:/company/enrich:{company_id}"
-        hit = await cache.get(key)
-        if hit is not None:
-            return hit
-        attempt = {
-            "provider": "crustdata",
-            "endpoint": "/company/enrich",
-            "request_hash": key,
-            "request": {"ids": [company_id]},
-        }
-        await recorder.before(attempt)
-        self.calls += 1
-        response = {"id": company_id, "headcount": 120}
-        await recorder.after(attempt, {"credits_used": 2, "status_code": 200})
-        await cache.set(key, response, provider="crustdata", endpoint="/company/enrich")
-        return response
-
-
-def adapters(sm: async_sessionmaker[AsyncSession], ctx: CostContext) -> dict:
-    return {"cache": DbCache(sm, ctx), "recorder": DbCallRecorder(sm, ctx)}
+async def identify(api: FakeCrustdataApi, sm, ctx: CostContext):  # type: ignore[no-untyped-def]
+    client = api.client(recorder=DbCallRecorder(sm, ctx), cache=DbCache(sm, ctx))
+    results, record = await client.identify_company(domains=["example-logistics.test"])
+    return results, record
 
 
 async def test_case_reusing_discovery_data_is_not_double_counted(
@@ -58,23 +36,38 @@ async def test_case_reusing_discovery_data_is_not_double_counted(
         steps=[StepSpec("enrich", "noop")],
     )
     await session.commit()
-    api = FakeCrustdata()
+    api = FakeCrustdataApi(credits="0.2")
 
     disc_ctx = CostContext(t.workspace.id, discovery_run_id=dr.id, run_id=disc_run.id)
-    await api.enrich("42", **adapters(sm, disc_ctx))
+    await identify(api, sm, disc_ctx)
     case_ctx = CostContext(t.workspace.id, case_id=t.case.id)
-    await api.enrich("42", **adapters(sm, case_ctx))
-    await api.enrich("42", **adapters(sm, case_ctx))
+    _, record = await identify(api, sm, case_ctx)
+    await identify(api, sm, case_ctx)
 
-    assert api.calls == 1
+    assert api.http_calls == 1 and record.status == "cache_hit"
     disc = await ledger.discovery_run_totals(session, t.workspace.id, dr.id)
     case = await ledger.case_totals(session, t.workspace.id, t.case.id)
     total = await ledger.workspace_totals(session, t.workspace.id)
-    assert disc.credits == Decimal("2")
+    assert disc.credits == Decimal("0.2")
     assert case.credits == Decimal("0")
     assert case.cached_calls == 2
     assert case.shared_from_run_ids == [disc_run.id]
-    assert total.credits == Decimal("2")
+    assert total.credits == Decimal("0.2")
+    statuses = (await session.execute(select(CallAttempt.status))).scalars().all()
+    assert sorted(statuses) == ["cache_hit", "cache_hit", "succeeded"]
+
+
+async def test_cache_is_not_shared_across_workspaces(
+    session: AsyncSession, sm: async_sessionmaker[AsyncSession]
+) -> None:
+    a = await tenant(session, "a")
+    b = await tenant(session, "b")
+    api = FakeCrustdataApi()
+    await identify(api, sm, CostContext(a.workspace.id, case_id=a.case.id))
+    await identify(api, sm, CostContext(b.workspace.id, case_id=b.case.id))
+    assert api.http_calls == 2
+    totals = await ledger.case_totals(session, b.workspace.id, b.case.id)
+    assert totals.shared_from_run_ids == [] and totals.credits == Decimal("0.2")
 
 
 async def test_replay_within_the_same_owner_records_nothing(
@@ -82,11 +75,11 @@ async def test_replay_within_the_same_owner_records_nothing(
 ) -> None:
     t = await tenant(session)
     ctx = CostContext(t.workspace.id, case_id=t.case.id)
-    api = FakeCrustdata()
-    await api.enrich("7", **adapters(sm, ctx))
-    await api.enrich("7", **adapters(sm, ctx))
+    api = FakeCrustdataApi()
+    await identify(api, sm, ctx)
+    await identify(api, sm, ctx)
     totals = await ledger.case_totals(session, t.workspace.id, t.case.id)
-    assert (api.calls, totals.calls, totals.credits) == (1, 1, Decimal("2"))
+    assert (api.http_calls, totals.calls, totals.credits) == (1, 1, Decimal("0.2"))
 
 
 async def test_unknown_cost_is_flagged_and_tokens_and_usd_summed(
@@ -94,13 +87,16 @@ async def test_unknown_cost_is_flagged_and_tokens_and_usd_summed(
 ) -> None:
     t = await tenant(session)
     rec = DbCallRecorder(sm, CostContext(t.workspace.id, case_id=t.case.id))
-    llm = {"provider": "anthropic", "endpoint": "messages"}
-    await rec("before", llm)
-    await rec("after", llm, {"input_tokens": 1000, "output_tokens": 200, "usd": "0.0002"})
-    web = {"provider": "crustdata", "endpoint": "/web/search/live"}
-    await rec(web)
-    await rec(web, {"unknown": True})
+    llm = CallRecord(provider="anthropic", endpoint="messages", params_hash="p", cache_key="k1")
+    await rec(llm)
+    llm.status, llm.input_tokens, llm.output_tokens = "succeeded", 1000, 200
+    llm.cost_usd, llm.usage_known = 0.0002, True
+    await rec(llm)
+    await rec(llm)  # a repeated final report is not counted twice
+    api = FakeCrustdataApi(credits=None)  # no X-Credits-Used header: cost unknown
+    await identify(api, sm, CostContext(t.workspace.id, case_id=t.case.id))
     totals = await ledger.case_totals(session, t.workspace.id, t.case.id)
+    assert totals.calls == 2
     assert totals.input_tokens == 1000 and totals.output_tokens == 200
     assert totals.usd == Decimal("0.0002")
     assert totals.unknown_calls == 1 and totals.is_lower_bound
@@ -111,10 +107,15 @@ async def test_attempt_is_persisted_before_the_call(
 ) -> None:
     t = await tenant(session)
     rec = DbCallRecorder(sm, CostContext(t.workspace.id, case_id=t.case.id))
-    attempt_id = await rec.before({"provider": "crustdata", "endpoint": "/company/identify"})
-    # The process "crashes" here: no after(). The attempt is already committed.
-    row = await session.get(CallAttempt, attempt_id)
-    assert row is not None and row.status == CallStatus.STARTED
+    started = CallRecord(
+        provider="crustdata", endpoint="/company/identify", params_hash="p", cache_key="k"
+    )
+    await rec(started)
+    # The process "crashes" here: no final report. The attempt is already committed.
+    row = (
+        await session.execute(select(CallAttempt).where(CallAttempt.call_id == started.call_id))
+    ).scalar_one()
+    assert row.status == CallStatus.STARTED
     assert (await session.execute(select(CostEntry))).first() is None
 
 

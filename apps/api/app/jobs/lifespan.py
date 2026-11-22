@@ -9,7 +9,7 @@ from fastapi import FastAPI
 
 from app.db.session import database_configured, dispose_engine, get_sessionmaker
 from app.jobs.config import get_job_settings
-from app.jobs.purge import ObjectDeleter
+from app.jobs.purge import ObjectDeleter, default_object_deleter
 
 log = logging.getLogger(__name__)
 
@@ -28,7 +28,9 @@ async def jobs_lifespan(
         from app.jobs.worker import Worker
 
         load_handlers()
-        deleter = object_deleter or getattr(app.state, "object_deleter", None)
+        deleter = (
+            object_deleter or getattr(app.state, "object_deleter", None) or default_object_deleter()
+        )
         worker = Worker(get_sessionmaker(), settings=cfg, object_deleter=deleter)
         task = asyncio.create_task(worker.run(stop), name="dealproof-worker")
         app.state.worker = worker

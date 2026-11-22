@@ -9,7 +9,7 @@ from app.db import ledger
 from app.db.models import Step
 from app.jobs import BUDGET_REACHED, BudgetExceeded, StepContext, StepRegistry, StepSpec, create_run
 from app.jobs.engine import LeaseLost, claim_step, mark_done
-from tests.db.factories import tenant
+from tests.db.factories import FakeCrustdataApi, tenant
 from tests.jobs.helpers import Calls, make_worker, run_state, states, step
 
 pytestmark = pytest.mark.asyncio
@@ -320,33 +320,28 @@ async def test_handler_budget_exceeded_marks_only_that_step(session, sm) -> None
 async def test_idempotent_resume_does_not_repeat_a_paid_call(session, sm) -> None:
     t = await tenant(session)
     reg = StepRegistry()
-    api_calls = Calls()
+    api = FakeCrustdataApi(credits="0.2")
     crash = {"armed": True}
 
-    @reg.handler("enrich")
-    async def enrich(ctx: StepContext) -> dict:
-        key = "crustdata:/company/enrich:42"
-        data = await ctx.cache.get(key)
-        if data is None:
-            attempt = {"provider": "crustdata", "endpoint": "/company/enrich"}
-            await ctx.recorder.before(attempt)
-            api_calls["enrich"] += 1
-            data = {"headcount": 120}
-            await ctx.recorder.after(attempt, {"credits_used": 2})
-            await ctx.cache.set(key, data, provider="crustdata", endpoint="/company/enrich")
+    @reg.handler("identify")
+    async def identify(ctx: StepContext) -> dict:
+        client = api.client(recorder=ctx.recorder, cache=ctx.cache)
+        results, record = await client.identify_company(domains=["example-logistics.test"])
         if crash["armed"]:
             crash["armed"] = False
-            raise ConnectionResetError("worker died after the call")
-        return data
+            raise ConnectionResetError("worker died after the paid call")
+        ctx.result = f"{len(results)} match"
+        return {"from_cache": record.from_cache}
 
-    run = await _run(session, t, [StepSpec("enrich", "enrich")])
+    run = await _run(session, t, [StepSpec("identity", "identify", label="Confirm identity")])
     await make_worker(sm, reg).drain()
-    s = await step(sm, run.id, "enrich")
-    assert (s.state, s.attempts, s.output) == ("done", 2, {"headcount": 120})
-    assert api_calls["enrich"] == 1
+    s = await step(sm, run.id, "identity")
+    assert (s.state, s.attempts, s.output) == ("done", 2, {"from_cache": True})
+    assert s.result == "1 match" and s.label == "Confirm identity"
+    assert api.http_calls == 1
     async with sm() as db:
         totals = await ledger.case_totals(db, t.workspace.id, t.case.id)
-    assert (totals.calls, totals.credits) == (1, Decimal(2))
+    assert (totals.calls, totals.credits) == (1, Decimal("0.2"))
     # A done step is never run again.
     assert await make_worker(sm, reg).drain() == 0
 

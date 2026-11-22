@@ -8,6 +8,7 @@ lease cannot overwrite the result of the worker that took over.
 """
 
 import logging
+import re
 import uuid
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
@@ -38,6 +39,20 @@ class BudgetExceeded(Exception):
         self.reason = reason
 
 
+_URL = re.compile(r"\b[a-z][a-z0-9+.-]*://\S+", re.IGNORECASE)
+_SECRETISH = re.compile(
+    r"(?i)\b(api[_-]?key|token|secret|password|authorization|bearer)\b\s*[:=]?\s*\S+"
+)
+
+
+def public_error(exc: BaseException) -> str:
+    """What a step stores and the API shows for a handler error: the error type and a
+    short message with URLs and anything key-like removed. Full details go to logs."""
+    message = _SECRETISH.sub(r"\1=[redacted]", _URL.sub("[url]", str(exc)))
+    message = " ".join(message.split())[:200]
+    return f"{type(exc).__name__}: {message}" if message else type(exc).__name__
+
+
 class LeaseLost(Exception):
     """Another worker owns this step now; this worker's result is discarded."""
 
@@ -46,6 +61,8 @@ class LeaseLost(Exception):
 class StepSpec:
     key: str
     handler: str
+    # Human label for the progress list; defaults to the key.
+    label: str | None = None
     input: dict[str, Any] = field(default_factory=dict)
     depends_on: Sequence[str] = ()
     # False for steps that cost no credits (e.g. evaluate): they still run after the
@@ -75,9 +92,14 @@ async def create_run(
 ) -> Run:
     """Insert a run and its steps (flushes, does not commit).
 
-    Case runs get the case's `credit_budget`, else `CASE_CREDIT_BUDGET`. The budget is
-    per case: every run of the case draws on the same credits.
+    Case runs get the case's `credit_budget`, else `CASE_CREDIT_BUDGET`; the budget is
+    per case, so every run of the case draws on the same credits. Discovery and
+    investor runs default to `DISCOVER_CREDIT_BUDGET` / `INVESTOR_CREDIT_BUDGET`.
     """
+    if budget_credits is None and discovery_run_id is not None:
+        budget_credits = get_job_settings().discover_credit_budget
+    if budget_credits is None and investor_run_id is not None:
+        budget_credits = get_job_settings().investor_credit_budget
     if budget_credits is None and case_id is not None:
         case_row = await session.get(Case, case_id)
         if case_row is None or case_row.workspace_id != workspace_id:
@@ -137,6 +159,7 @@ async def append_steps(
         step = Step(
             run_id=run_id,
             key=spec.key,
+            label=spec.label or spec.key,
             handler=spec.handler,
             position=position,
             input=spec.input,
@@ -234,6 +257,16 @@ class StepContext:
     recorder: DbCallRecorder | None
     cache: DbCache | None
     logs: list[str] = field(default_factory=list)
+    # One-line result shown when the step is done ("3 matches; identity confirmed").
+    result: str | None = None
+
+    async def set_detail(self, detail: str) -> None:
+        """Live sub-line while the step runs; visible to the SSE stream at once."""
+        async with self.sessionmaker() as session:
+            await session.execute(
+                update(Step).where(Step.id == self.step_id).values(detail=detail[:500])
+            )
+            await session.commit()
 
     def log(self, message: str) -> None:
         self.logs.append(message)
@@ -339,21 +372,27 @@ async def reclaim_expired_leases(session: AsyncSession) -> list[uuid.UUID]:
     ).scalars()
     reclaimed: list[uuid.UUID] = []
     failed_runs: set[uuid.UUID] = set()
+    resumed_runs: set[uuid.UUID] = set()
     for step in rows:
-        expired_owner = step.lease_owner
+        log.warning("step %s: lease of %s expired; reclaiming", step.id, step.lease_owner)
         step.lease_owner = None
         step.lease_until = None
         if step.attempts >= step.max_attempts:
             step.state = StepState.FAILED
-            step.error = f"lease expired (worker {expired_owner}) after {step.attempts} attempts"
+            step.error = f"interrupted {step.attempts} times; giving up"
             step.finished_at = func.now()
             failed_runs.add(step.run_id)
         else:
             step.state = StepState.PENDING
             step.next_attempt_at = None
-            step.error = f"lease expired (worker {expired_owner}); retrying"
+            step.error = "interrupted; retrying"
+            resumed_runs.add(step.run_id)
         reclaimed.append(step.id)
     await session.flush()
+    if resumed_runs:
+        await session.execute(
+            update(Run).where(Run.id.in_(resumed_runs)).values(resumed_at=func.now())
+        )
     for run_id in failed_runs:
         await propagate_and_complete(session, run_id)
     await session.commit()
@@ -361,7 +400,11 @@ async def reclaim_expired_leases(session: AsyncSession) -> list[uuid.UUID]:
 
 
 async def mark_done(
-    session: AsyncSession, step_id: uuid.UUID, worker_id: str, output: dict[str, Any] | None
+    session: AsyncSession,
+    step_id: uuid.UUID,
+    worker_id: str,
+    output: dict[str, Any] | None,
+    result: str | None = None,
 ) -> None:
     """Fenced completion, in the handler's own transaction. Raises `LeaseLost`."""
     result = await session.execute(
@@ -370,6 +413,8 @@ async def mark_done(
         .values(
             state=StepState.DONE,
             output=output or {},
+            result=None if result is None else result[:500],
+            detail=None,
             error=None,
             lease_owner=None,
             lease_until=None,
@@ -533,7 +578,7 @@ async def resume_run(session: AsyncSession, run_id: uuid.UUID) -> int:
         await session.execute(
             update(Run)
             .where(Run.id == run_id)
-            .values(state=RunState.RUNNING, finished_at=None, error=None)
+            .values(state=RunState.RUNNING, finished_at=None, error=None, resumed_at=func.now())
         )
     return count  # type: ignore[no-any-return]
 
