@@ -1347,6 +1347,9 @@
               }
             }
           },
+          "503": {
+            "description": "The claim could not be categorised; nothing was stored."
+          },
           "422": {
             "description": "Validation Error",
             "content": {
