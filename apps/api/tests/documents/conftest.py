@@ -6,6 +6,8 @@ import io
 
 import pytest
 
+from tests.db.fixtures import db_url, pg_server, session, sm  # noqa: F401
+
 
 def _escape_pdf(text: str) -> str:
     return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")

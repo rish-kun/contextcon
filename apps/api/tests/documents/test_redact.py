@@ -72,3 +72,46 @@ def test_chain_requires_a_redactor() -> None:
 
 def test_merge_counts() -> None:
     assert merge_counts({"email": 1}, {}, {"email": 2, "pan": 1}) == {"email": 3, "pan": 1}
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Revenue INR 9876543210",
+        "Revenue: Rs. 98765 43210 in FY25",
+        "ARR ₹9876543210",
+        "Raised USD 415 555 0134 (sic)",
+        "Total $415-555-0134",
+    ],
+)
+def test_amounts_after_a_currency_are_not_phone_numbers(text: str) -> None:
+    redacted, counts = regex_redactor(text)
+    assert redacted == text
+    assert "phone" not in counts
+
+
+@pytest.mark.parametrize(
+    "number",
+    [
+        "(415) 555-0134",
+        "(415)555-0134",
+        "415-555-0134",
+        "415.555.0134",
+        "020 7946 0958",
+        "07700 900123",
+        "022-2345 6789",
+        "080 4123 4567",
+    ],
+)
+def test_common_national_phone_formats_are_redacted(number: str) -> None:
+    redacted, counts = regex_redactor(f"Call our office on {number} today.")
+    assert redacted == "Call our office on [redacted:phone] today."
+    assert counts == {"phone": 1}
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["Founded 2014-2019, 250 staff", "FY2024-25 revenue", "Order 2,500,000 units", "ISO 9001:2015"],
+)
+def test_dates_and_plain_figures_survive(text: str) -> None:
+    assert regex_redactor(text) == (text, {})

@@ -195,3 +195,128 @@ def test_functional_ingest_and_from_settings(tmp_path: Path) -> None:
     svc = IngestionService.from_settings(settings, repo, storage=LocalStorage(tmp_path))
     assert svc.retention_days == 14
     assert svc.max_upload_bytes == 25 * 1024 * 1024
+
+
+# --- review regressions --------------------------------------------------------------
+
+
+def test_download_url_refused_past_delete_after_and_capped_before_it(service, clock: Clock) -> None:
+    from urllib.parse import parse_qs, urlsplit
+
+    doc = service.ingest("case1", IncomingFile("notes.txt", b"hello"))
+    allow = lambda *_: True  # noqa: E731
+
+    # Two minutes of retention left: a 5-minute link is cut to 2 minutes.
+    clock.now = doc.delete_after - timedelta(minutes=2)
+    url = service.download_url(doc.document_id, caller="a", authorize=allow)
+    expires = int(parse_qs(urlsplit(url).query)["expires"][0])
+    assert expires == int(doc.delete_after.timestamp())
+
+    # Past delete_after, before the sweep ran: no link at all.
+    clock.now = doc.delete_after
+    with pytest.raises(DocumentNotFound):
+        service.download_url(doc.document_id, caller="a", authorize=allow)
+
+
+def test_purge_continues_past_a_failing_document_and_retries_it(
+    tmp_path: Path, clock: Clock
+) -> None:
+    class FlakyStorage(LocalStorage):
+        fail: set[str] = set()
+
+        def delete(self, path: str):
+            if path in self.fail:
+                raise OSError("storage unavailable")
+            return super().delete(path)
+
+    storage = FlakyStorage(tmp_path / "uploads", clock=clock)
+    svc = IngestionService(
+        storage=storage, repository=InMemoryDocumentRepository(), retention_days=1, clock=clock
+    )
+    a = svc.ingest("case1", IncomingFile("a.txt", b"a"))
+    b = svc.ingest("case1", IncomingFile("b.txt", b"b"))
+    c = svc.ingest("case1", IncomingFile("c.txt", b"c"))
+    storage.fail = {b.storage_path}
+    clock.now = NOW + timedelta(days=2)
+
+    first = svc.purge_expired()
+    assert sorted(r.path for r in first) == sorted([a.storage_path, c.storage_path])
+    assert first.failed == [b.document_id]
+    assert svc.repository.get(b.document_id).purged is False
+
+    storage.fail = set()
+    second = svc.purge_expired()
+    assert [r.path for r in second] == [b.storage_path] and second.failed == []
+
+
+def test_page_cap_rejects_oversized_documents(tmp_path: Path) -> None:
+    from app.documents import ExtractionLimits
+
+    svc = IngestionService(
+        storage=LocalStorage(tmp_path),
+        repository=InMemoryDocumentRepository(),
+        limits=ExtractionLimits(max_pages=2),
+    )
+    with pytest.raises(UploadRejected) as info:
+        svc.ingest("case1", IncomingFile("deck.pdf", make_pdf(["a", "b", "c"])))
+    assert info.value.status_code == 422 and "more than 2 pages" in str(info.value)
+    assert not (tmp_path / "cases").exists()
+
+
+def test_output_cap_rejects_too_much_text(tmp_path: Path) -> None:
+    from app.documents import ExtractionLimits
+
+    svc = IngestionService(
+        storage=LocalStorage(tmp_path),
+        repository=InMemoryDocumentRepository(),
+        limits=ExtractionLimits(max_chars=100),
+    )
+    with pytest.raises(UploadRejected) as info:
+        svc.ingest("case1", IncomingFile("notes.txt", b"x" * 101))
+    assert "characters" in str(info.value)
+
+
+def test_extraction_is_killed_after_its_time_limit(tmp_path: Path) -> None:
+    from app.documents import ExtractionLimits
+
+    svc = IngestionService(
+        storage=LocalStorage(tmp_path),
+        repository=InMemoryDocumentRepository(),
+        limits=ExtractionLimits(timeout_seconds=0.01),
+    )
+    with pytest.raises(UploadRejected) as info:
+        svc.ingest("case1", IncomingFile("deck.pdf", make_pdf(["a"])))
+    assert "took too long" in str(info.value)
+
+
+def test_extraction_runs_in_a_separate_process(monkeypatch, tmp_path: Path) -> None:
+    import app.documents.extract as extract_module
+
+    def fail_in_parent(*args, **kwargs):
+        raise AssertionError("parsed in the API process")
+
+    monkeypatch.setattr(extract_module, "_extract_pdf", fail_in_parent)
+    svc = IngestionService(storage=LocalStorage(tmp_path), repository=InMemoryDocumentRepository())
+    result = svc.ingest("case1", IncomingFile("deck.pdf", make_pdf(["Pune office"])))
+    assert result.pages[0].text == "Pune office"
+
+
+def test_async_methods_accept_a_sync_repository(service, clock: Clock) -> None:
+    import asyncio
+
+    async def scenario():
+        doc = await service.ingest_async(
+            "case1", IncomingFile("notes.txt", b"hello"), category="seller_response"
+        )
+        stored = service.repository.get(doc.document_id)
+        assert stored.category == "seller_response"
+        url = await service.download_url_async(
+            doc.document_id, caller="a", authorize=lambda *_: True
+        )
+        clock.now = doc.delete_after
+        purged = await service.purge_expired_async()
+        return url, purged, doc
+
+    url, purged, doc = asyncio.run(scenario())
+    assert doc.storage_path in url
+    assert [r.path for r in purged] == [doc.storage_path]

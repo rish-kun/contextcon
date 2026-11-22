@@ -1,17 +1,23 @@
 """Persistence seam for documents.
 
-The Postgres layer (``app/db/``) is being written separately and was not on main
-when this module was built, so ingestion talks to this small Protocol. The DB
-agent can implement ``DocumentRepository`` over the ``documents`` table; the
-in-memory version serves dev and tests.
+Two shapes of the same interface:
+
+- ``DocumentRepository`` (sync), with ``InMemoryDocumentRepository`` for dev and tests;
+- ``AsyncDocumentRepository`` (async), implemented over Postgres by
+  ``app.documents.pg_repository.PostgresDocumentRepository`` (the ``documents``,
+  ``extracted_texts`` and ``deletion_records`` tables).
+
+``as_async(repo)`` turns a sync repository into an async one, so the ingestion
+service's async methods accept either.
 """
 
 from __future__ import annotations
 
+import inspect
 import threading
 from dataclasses import dataclass, field, replace
 from datetime import datetime
-from typing import Protocol
+from typing import Any, Protocol
 
 from app.documents.extract import ExtractionStatus, PageText
 
@@ -35,6 +41,8 @@ class DocumentRecord:
     page_count: int | None = None
     purged: bool = False
     purged_at: datetime | None = None
+    category: str = "seller_deck"  # what the uploader said it is (API DocumentKind)
+    uploaded_by: str | None = None  # user id
 
 
 class DocumentRepository(Protocol):
@@ -46,9 +54,61 @@ class DocumentRepository(Protocol):
 
     def list_expired(self, now: datetime) -> list[DocumentRecord]: ...
 
-    def mark_purged(self, document_id: str, at: datetime) -> None:
-        """Drop the stored text and flag the document purged; keep the metadata row."""
+    def mark_purged(
+        self, document_id: str, at: datetime, *, storage: dict[str, Any] | None = None
+    ) -> None:
+        """Drop the stored text and flag the document purged; keep the metadata row.
+        ``storage`` is what the storage backend reported for the deleted object."""
         ...
+
+
+class AsyncDocumentRepository(Protocol):
+    async def add(self, record: DocumentRecord) -> None: ...
+
+    async def get(self, document_id: str) -> DocumentRecord | None: ...
+
+    async def list_for_case(self, case_id: str) -> list[DocumentRecord]: ...
+
+    async def list_expired(self, now: datetime) -> list[DocumentRecord]: ...
+
+    async def mark_purged(
+        self, document_id: str, at: datetime, *, storage: dict[str, Any] | None = None
+    ) -> None: ...
+
+
+def is_async_repository(repo: object) -> bool:
+    return inspect.iscoroutinefunction(getattr(repo, "add", None))
+
+
+class AsyncRepositoryAdapter:
+    """Async face of a sync repository (the in-memory one is fast and thread-safe, so
+    its methods are called inline)."""
+
+    def __init__(self, inner: DocumentRepository) -> None:
+        self.inner = inner
+
+    async def add(self, record: DocumentRecord) -> None:
+        self.inner.add(record)
+
+    async def get(self, document_id: str) -> DocumentRecord | None:
+        return self.inner.get(document_id)
+
+    async def list_for_case(self, case_id: str) -> list[DocumentRecord]:
+        return self.inner.list_for_case(case_id)
+
+    async def list_expired(self, now: datetime) -> list[DocumentRecord]:
+        return self.inner.list_expired(now)
+
+    async def mark_purged(
+        self, document_id: str, at: datetime, *, storage: dict[str, Any] | None = None
+    ) -> None:
+        self.inner.mark_purged(document_id, at, storage=storage)
+
+
+def as_async(repo: DocumentRepository | AsyncDocumentRepository) -> AsyncDocumentRepository:
+    if is_async_repository(repo):
+        return repo  # type: ignore[return-value]
+    return AsyncRepositoryAdapter(repo)  # type: ignore[arg-type]
 
 
 class InMemoryDocumentRepository:
@@ -73,7 +133,9 @@ class InMemoryDocumentRepository:
     def list_expired(self, now: datetime) -> list[DocumentRecord]:
         return [r for r in self._rows.values() if not r.purged and r.delete_after <= now]
 
-    def mark_purged(self, document_id: str, at: datetime) -> None:
+    def mark_purged(
+        self, document_id: str, at: datetime, *, storage: dict[str, Any] | None = None
+    ) -> None:
         with self._lock:
             row = self._rows[document_id]
             self._rows[document_id] = replace(row, pages=[], purged=True, purged_at=at)

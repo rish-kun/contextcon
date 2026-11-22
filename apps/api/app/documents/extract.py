@@ -55,23 +55,67 @@ class ExtractionError(ValueError):
     """The file passed validation but could not be parsed."""
 
 
-def extract_text(data: bytes, kind: FileKind | str) -> ExtractionResult:
+@dataclass(frozen=True)
+class ExtractionLimits:
+    """Bounds on what one upload may cost to parse.
+
+    ``max_pages`` caps PDF pages / PPTX slides / DOCX paragraphs plus table rows, and
+    ``max_chars`` caps the extracted text, both checked while parsing. ``timeout_seconds``
+    and ``memory_mb`` apply when extraction runs in the sandbox subprocess
+    (``app.documents.sandbox.extract_text_isolated``).
+    """
+
+    max_pages: int = 500
+    max_chars: int = 2_000_000
+    timeout_seconds: float = 60.0
+    memory_mb: int = 1024
+
+
+DEFAULT_LIMITS = ExtractionLimits()
+
+
+class _Budget:
+    def __init__(self, limits: ExtractionLimits) -> None:
+        self.limits = limits
+        self.chars = 0
+
+    def check_pages(self, n: int, unit: str) -> None:
+        if n > self.limits.max_pages:
+            raise ExtractionError(
+                f"The file has more than {self.limits.max_pages} {unit}; split it and upload "
+                "the parts separately."
+            )
+
+    def take(self, text: str) -> str:
+        self.chars += len(text)
+        if self.chars > self.limits.max_chars:
+            raise ExtractionError(
+                f"The file holds more than {self.limits.max_chars:,} characters of text; "
+                "upload a shorter document."
+            )
+        return text
+
+
+def extract_text(
+    data: bytes, kind: FileKind | str, *, limits: ExtractionLimits = DEFAULT_LIMITS
+) -> ExtractionResult:
     kind = FileKind(kind)
+    budget = _Budget(limits)
     try:
         if kind is FileKind.PDF:
-            return _extract_pdf(data)
+            return _extract_pdf(data, budget)
         if kind is FileKind.PPTX:
-            return _extract_pptx(data)
+            return _extract_pptx(data, budget)
         if kind is FileKind.DOCX:
-            return _extract_docx(data)
-        return _extract_plain(data)
+            return _extract_docx(data, budget)
+        return _extract_plain(data, budget)
     except ExtractionError:
         raise
     except Exception as exc:  # parser libraries raise many types on malformed files
         raise ExtractionError(f"Could not read the {kind.value.upper()} file.") from exc
 
 
-def _extract_pdf(data: bytes) -> ExtractionResult:
+def _extract_pdf(data: bytes, budget: _Budget) -> ExtractionResult:
     from pypdf import PdfReader
 
     reader = PdfReader(io.BytesIO(data))
@@ -82,10 +126,11 @@ def _extract_pdf(data: bytes) -> ExtractionResult:
             reason="The PDF is password-protected, so its text could not be read.",
         )
 
+    budget.check_pages(len(reader.pages), "pages")
     pages: list[PageText] = []
     empty: list[int] = []
     for number, page in enumerate(reader.pages, start=1):
-        text = _clean(page.extract_text() or "")
+        text = budget.take(_clean(page.extract_text() or ""))
         has_text = bool(text.strip())
         if not has_text:
             empty.append(number)
@@ -119,14 +164,15 @@ def _shape_texts(shapes: Any) -> Iterator[str]:
                     yield " | ".join(cells)
 
 
-def _extract_pptx(data: bytes) -> ExtractionResult:
+def _extract_pptx(data: bytes, budget: _Budget) -> ExtractionResult:
     from pptx import Presentation
 
     deck = Presentation(io.BytesIO(data))
+    budget.check_pages(len(deck.slides), "slides")
     pages: list[PageText] = []
     empty: list[int] = []
     for number, slide in enumerate(deck.slides, start=1):
-        text = _clean("\n".join(_shape_texts(slide.shapes)))
+        text = budget.take(_clean("\n".join(_shape_texts(slide.shapes))))
         has_text = bool(text.strip())
         if not has_text:
             empty.append(number)
@@ -141,17 +187,27 @@ def _extract_pptx(data: bytes) -> ExtractionResult:
     return ExtractionResult(pages=pages, pages_without_text=empty)
 
 
-def _extract_docx(data: bytes) -> ExtractionResult:
+def _extract_docx(data: bytes, budget: _Budget) -> ExtractionResult:
     from docx import Document
 
     doc = Document(io.BytesIO(data))
     texts = [p.text for p in doc.paragraphs]
+    # Paragraphs and table rows are the DOCX "pages": cap them like pages, at 50x.
+    unit_cap = budget.limits.max_pages * 50
     for table in doc.tables:
         for row in table.rows:
+            if len(texts) > unit_cap:
+                break
             cells = [c.text.strip() for c in row.cells if c.text.strip()]
             texts.append(" | ".join(dict.fromkeys(cells)))  # merged cells repeat
+    if len(texts) > unit_cap:
+        raise ExtractionError(
+            f"The document has more than {unit_cap:,} paragraphs; upload a shorter document."
+        )
     pages = [
-        PageText(page=None, paragraph=i, text=_clean(t)) for i, t in enumerate(texts) if t.strip()
+        PageText(page=None, paragraph=i, text=budget.take(_clean(t)))
+        for i, t in enumerate(texts)
+        if t.strip()
     ]
     if not pages:
         return ExtractionResult(
@@ -162,8 +218,8 @@ def _extract_docx(data: bytes) -> ExtractionResult:
     return ExtractionResult(pages=pages)
 
 
-def _extract_plain(data: bytes) -> ExtractionResult:
-    text = _clean(data.decode("utf-8-sig"))
+def _extract_plain(data: bytes, budget: _Budget) -> ExtractionResult:
+    text = budget.take(_clean(data.decode("utf-8-sig")))
     if not text.strip():
         return ExtractionResult(
             pages=[], status="no_text_layer", reason="The file contains no text."

@@ -3,10 +3,18 @@
 Only redacted text leaves this module. The original file goes to private storage
 under ``cases/<case_id>/<doc_id>/<filename>`` and is deleted on schedule
 (``delete_after = upload time + UPLOAD_RETENTION_DAYS``).
+
+Extraction runs in a sandboxed subprocess (``app.documents.sandbox``) with page, output,
+time and memory limits. The service works with a sync repository (``ingest``,
+``download_url``, ``delete``, ``purge_expired``) or with an async one such as
+``PostgresDocumentRepository`` (the ``*_async`` methods, which also accept a sync
+repository).
 """
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -14,13 +22,23 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, BinaryIO
 
 from app.documents.extract import (
+    DEFAULT_LIMITS,
     ExtractionError,
+    ExtractionLimits,
+    ExtractionResult,
     ExtractionStatus,
     PageText,
     extract_text,
 )
 from app.documents.redact import RedactorFn, merge_counts, regex_redactor
-from app.documents.repository import DocumentRecord, DocumentRepository
+from app.documents.repository import (
+    AsyncDocumentRepository,
+    DocumentRecord,
+    DocumentRepository,
+    as_async,
+    is_async_repository,
+)
+from app.documents.sandbox import extract_text_isolated
 from app.documents.storage import (
     DEFAULT_URL_TTL,
     DeletionRecord,
@@ -30,7 +48,14 @@ from app.documents.storage import (
     object_path,
     storage_from_settings,
 )
-from app.documents.validation import DEFAULT_MAX_UPLOAD_MB, UploadRejected, validate_upload
+from app.documents.validation import (
+    DEFAULT_MAX_UPLOAD_MB,
+    FileKind,
+    UploadRejected,
+    validate_upload,
+)
+
+log = logging.getLogger(__name__)
 
 # authorize(caller, case_id) -> True only if the caller may read that case.
 CaseAuthorizer = Callable[[Any, str], bool]
@@ -68,6 +93,19 @@ class IngestResult:
         return [p.as_dict() for p in self.pages]
 
 
+class PurgeResult(list[DeletionRecord]):
+    """Deletions done by a purge sweep. ``failed`` holds the ids of documents whose
+    deletion raised; they stay unpurged and the next sweep tries them again."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.failed: list[str] = []
+
+
+def _storage_detail(deletion: DeletionRecord) -> dict[str, Any]:
+    return {"backend": deletion.backend, "existed": deletion.existed}
+
+
 def read_limited(stream: BinaryIO, max_bytes: int) -> bytes:
     """Read a stream but stop (413) as soon as it exceeds ``max_bytes``."""
     data = stream.read(max_bytes + 1)
@@ -81,11 +119,13 @@ class IngestionService:
         self,
         *,
         storage: DocumentStorage,
-        repository: DocumentRepository,
+        repository: DocumentRepository | AsyncDocumentRepository,
         redactor: RedactorFn = regex_redactor,
         retention_days: int = 30,
         max_upload_mb: int = DEFAULT_MAX_UPLOAD_MB,
         clock: Callable[[], datetime] | None = None,
+        limits: ExtractionLimits = DEFAULT_LIMITS,
+        isolate_extraction: bool = True,
     ) -> None:
         if retention_days <= 0:
             raise ValueError("retention_days must be positive")
@@ -94,13 +134,15 @@ class IngestionService:
         self.redactor = redactor
         self.retention_days = retention_days
         self.max_upload_bytes = max_upload_mb * 1024 * 1024
+        self.limits = limits
+        self.isolate_extraction = isolate_extraction
         self._clock = clock or (lambda: datetime.now(UTC))
 
     @classmethod
     def from_settings(
         cls,
         settings: Any,
-        repository: DocumentRepository,
+        repository: DocumentRepository | AsyncDocumentRepository,
         *,
         redactor: RedactorFn = regex_redactor,
         storage: DocumentStorage | None = None,
@@ -113,18 +155,63 @@ class IngestionService:
             max_upload_mb=getattr(settings, "max_upload_mb", DEFAULT_MAX_UPLOAD_MB),
         )
 
-    def ingest(self, case_id: str, file: IncomingFile) -> IngestResult:
+    # --- ingestion --------------------------------------------------------------------
+
+    def ingest(
+        self,
+        case_id: str,
+        file: IncomingFile,
+        *,
+        category: str = "seller_deck",
+        uploaded_by: str | None = None,
+    ) -> IngestResult:
+        repo = self._sync_repo()
+        record, result = self._prepare(case_id, file, category, uploaded_by)
+        try:
+            repo.add(record)
+        except Exception:
+            self.storage.delete(record.storage_path)  # don't leave an orphaned upload behind
+            raise
+        return result
+
+    async def ingest_async(
+        self,
+        case_id: str,
+        file: IncomingFile,
+        *,
+        category: str = "seller_deck",
+        uploaded_by: str | None = None,
+    ) -> IngestResult:
+        """`ingest` for async repositories. Parsing and storage run off the event loop."""
+        record, result = await asyncio.to_thread(
+            self._prepare, case_id, file, category, uploaded_by
+        )
+        try:
+            await as_async(self.repository).add(record)
+        except Exception:
+            await asyncio.to_thread(self.storage.delete, record.storage_path)
+            raise
+        return result
+
+    def _extract(self, data: bytes, kind: FileKind) -> ExtractionResult:
+        if self.isolate_extraction:
+            return extract_text_isolated(data, kind, limits=self.limits)
+        return extract_text(data, kind, limits=self.limits)
+
+    def _prepare(
+        self, case_id: str, file: IncomingFile, category: str, uploaded_by: str | None
+    ) -> tuple[DocumentRecord, IngestResult]:
         upload = validate_upload(file.filename, file.data, max_bytes=self.max_upload_bytes)
         try:
-            extraction = extract_text(file.data, upload.kind)
+            extraction = self._extract(file.data, upload.kind)
         except ExtractionError as exc:
             raise UploadRejected(str(exc), 422) from exc
 
         redacted: list[PageText] = []
         logs: list[dict[str, int]] = []
         for page in extraction.pages:
-            text, log = self.redactor(page.text)
-            logs.append(log)
+            text, log_ = self.redactor(page.text)
+            logs.append(log_)
             redacted.append(
                 PageText(
                     page=page.page,
@@ -157,14 +244,10 @@ class IngestionService:
             text_status_reason=extraction.reason,
             redaction_counts=redaction_log,
             page_count=extraction.page_count,
+            category=category,
+            uploaded_by=uploaded_by,
         )
-        try:
-            self.repository.add(record)
-        except Exception:
-            self.storage.delete(path)  # don't leave an orphaned upload behind
-            raise
-
-        return IngestResult(
+        result = IngestResult(
             document_id=document_id,
             pages=redacted,
             redaction_log=redaction_log,
@@ -176,12 +259,9 @@ class IngestionService:
             text_status_reason=extraction.reason,
             pages_without_text=list(extraction.pages_without_text),
         )
+        return record, result
 
-    def _live_record(self, document_id: str) -> DocumentRecord:
-        record = self.repository.get(document_id)
-        if record is None or record.purged:
-            raise DocumentNotFound(document_id)
-        return record
+    # --- downloads ----------------------------------------------------------------------
 
     def download_url(
         self,
@@ -192,25 +272,89 @@ class IngestionService:
         ttl: timedelta = DEFAULT_URL_TTL,
     ) -> str:
         """Short-lived signed URL, issued only if ``authorize(caller, case_id)`` is True."""
-        record = self._live_record(document_id)
+        record = self._sync_repo().get(document_id)
+        return self._sign(record, document_id, caller, authorize, ttl)
+
+    async def download_url_async(
+        self,
+        document_id: str,
+        *,
+        caller: Any,
+        authorize: CaseAuthorizer,
+        ttl: timedelta = DEFAULT_URL_TTL,
+    ) -> str:
+        record = await as_async(self.repository).get(document_id)
+        return await asyncio.to_thread(self._sign, record, document_id, caller, authorize, ttl)
+
+    def _sign(
+        self,
+        record: DocumentRecord | None,
+        document_id: str,
+        caller: Any,
+        authorize: CaseAuthorizer,
+        ttl: timedelta,
+    ) -> str:
+        if record is None or record.purged:
+            raise DocumentNotFound(document_id)
+        # Past its retention date the file is as good as deleted, even before the sweep.
+        remaining = record.delete_after - self._clock()
+        if remaining < timedelta(seconds=1):
+            raise DocumentNotFound(document_id)
         if caller is None or not authorize(caller, record.case_id):
             raise DocumentAccessDenied(document_id)
         if not record.storage_path.startswith(case_prefix(record.case_id)):
             raise DocumentAccessDenied(document_id)
-        return self.storage.signed_url(record.storage_path, ttl)
+        # A link never outlives the document's retention date.
+        return self.storage.signed_url(record.storage_path, min(ttl, remaining))
+
+    # --- deletion and retention ---------------------------------------------------------
 
     def delete(self, document_id: str) -> DeletionRecord:
-        record = self.repository.get(document_id)
+        repo = self._sync_repo()
+        record = repo.get(document_id)
         if record is None:
             raise DocumentNotFound(document_id)
         deletion = self.storage.delete(record.storage_path)
-        self.repository.mark_purged(document_id, deletion.deleted_at)
+        repo.mark_purged(document_id, deletion.deleted_at, storage=_storage_detail(deletion))
         return deletion
 
-    def purge_expired(self) -> list[DeletionRecord]:
-        """Delete every document past ``delete_after``. Safe to run on a schedule."""
-        now = self._clock()
-        return [self.delete(r.id) for r in self.repository.list_expired(now)]
+    async def delete_async(self, document_id: str) -> DeletionRecord:
+        repo = as_async(self.repository)
+        record = await repo.get(document_id)
+        if record is None:
+            raise DocumentNotFound(document_id)
+        deletion = await asyncio.to_thread(self.storage.delete, record.storage_path)
+        await repo.mark_purged(document_id, deletion.deleted_at, storage=_storage_detail(deletion))
+        return deletion
+
+    def purge_expired(self) -> PurgeResult:
+        """Delete every document past ``delete_after``. Safe to run on a schedule.
+
+        One failing document never stops the sweep: it is logged, left unpurged and
+        listed in ``result.failed`` so the next run retries it."""
+        result = PurgeResult()
+        for record in self._sync_repo().list_expired(self._clock()):
+            try:
+                result.append(self.delete(record.id))
+            except Exception:  # noqa: BLE001 - retried on the next sweep
+                log.exception("purge: could not delete document %s", record.id)
+                result.failed.append(record.id)
+        return result
+
+    async def purge_expired_async(self) -> PurgeResult:
+        result = PurgeResult()
+        for record in await as_async(self.repository).list_expired(self._clock()):
+            try:
+                result.append(await self.delete_async(record.id))
+            except Exception:  # noqa: BLE001 - retried on the next sweep
+                log.exception("purge: could not delete document %s", record.id)
+                result.failed.append(record.id)
+        return result
+
+    def _sync_repo(self) -> DocumentRepository:
+        if is_async_repository(self.repository):
+            raise TypeError("this repository is async; use the *_async methods")
+        return self.repository  # type: ignore[return-value]
 
 
 def ingest(

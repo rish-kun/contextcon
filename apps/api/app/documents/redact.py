@@ -41,11 +41,45 @@ _PHONE_IN = re.compile(r"(?<![\w+])(?:\+91[\s-]?|0)?[6-9]\d{4}[\s-]?\d{5}(?!\d)"
 # Other international numbers: + country code, then 7-14 more digits in groups.
 _PHONE_INTL = re.compile(r"(?<![\w+])\+\d{1,3}(?:[\s-]?\(?\d{1,5}\)?){2,5}(?!\d)")
 
+# North American national format: (415) 555-0134, 415-555-0134, 415.555.0134,
+# 415 555 0134 (one consistent separator).
+_PHONE_NANP = re.compile(
+    r"(?<![\w+(])(?:\(\d{3}\)[ ]?\d{3}[\s.-]\d{4}|\d{3}([.\s-])\d{3}\1\d{4})(?![\w-])"
+)
+
+# National numbers with a trunk 0: 020 7946 0958, 07700 900123, 022-2345 6789,
+# 080 4123 4567.
+_PHONE_TRUNK = re.compile(r"(?<![\w+])0\d{2,4}[\s-]\d{3,4}[\s-]?\d{3,4}(?![\w-])")
+
+# A number right after a currency word or symbol is an amount, never a phone number
+# ("Revenue INR 9876543210", "Rs. 98765 43210", "$415 555 0134").
+_CURRENCY_BEFORE = re.compile(
+    r"(?i)(?:\b(?:inr|rs|rupees?|usd|eur|gbp|sgd|aed|cr|crores?|lakhs?|lacs?|mn|bn)\.?"
+    r"|[₹$€£¥])\s*$"
+)
+
 # Aadhaar: 12 digits, first 2-9, contiguous or 4-4-4 with one consistent separator.
 _AADHAAR = re.compile(r"(?<![\d-])[2-9]\d{3}([ -]?)\d{4}\1\d{4}(?![\d-])")
 
 _PAN = re.compile(r"\b[A-Z]{5}[0-9]{4}[A-Z]\b")
 _IFSC = re.compile(r"\b[A-Z]{4}0[A-Z0-9]{6}\b")
+
+
+def _is_amount(m: re.Match[str]) -> bool:
+    return bool(_CURRENCY_BEFORE.search(m.string[max(0, m.start() - 12) : m.start()]))
+
+
+def _sub_phone(pattern: re.Pattern[str], text: str) -> tuple[str, int]:
+    count = 0
+
+    def repl(m: re.Match[str]) -> str:
+        nonlocal count
+        if _is_amount(m):
+            return m.group(0)
+        count += 1
+        return _tag("phone")
+
+    return pattern.sub(repl, text), count
 
 
 def _sub(pattern: re.Pattern[str], kind: str, text: str, group: int = 0) -> tuple[str, int]:
@@ -70,7 +104,7 @@ def _sub_intl_phone(text: str) -> tuple[str, int]:
     def repl(m: re.Match[str]) -> str:
         nonlocal count
         digits = sum(ch.isdigit() for ch in m.group(0))
-        if not 8 <= digits <= 15:
+        if not 8 <= digits <= 15 or _is_amount(m):
             return m.group(0)
         count += 1
         return _tag("phone")
@@ -90,9 +124,13 @@ def regex_redactor(text: str) -> tuple[str, dict[str, int]]:
     record("email", n)
     text, n = _sub(_BANK_ACCOUNT, "bank_account", text, group=1)
     record("bank_account", n)
-    text, n = _sub(_PHONE_IN, "phone", text)
+    text, n = _sub_phone(_PHONE_IN, text)
     record("phone", n)
     text, n = _sub_intl_phone(text)
+    record("phone", n)
+    text, n = _sub_phone(_PHONE_NANP, text)
+    record("phone", n)
+    text, n = _sub_phone(_PHONE_TRUNK, text)
     record("phone", n)
     text, n = _sub(_AADHAAR, "aadhaar", text)
     record("aadhaar", n)

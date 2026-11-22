@@ -8,22 +8,29 @@ Public API:
 - ``extract_text(data, kind)`` → ``ExtractionResult{pages, status, reason}``
 - ``regex_redactor``, ``chain_redactors`` (plug an LLM redactor in after the regex pass)
 - ``DocumentStorage`` with ``GCSStorage`` and ``LocalStorage``; ``storage_from_settings``
-- ``DocumentRepository`` Protocol with ``InMemoryDocumentRepository``
+- ``DocumentRepository`` Protocol with ``InMemoryDocumentRepository``;
+  ``AsyncDocumentRepository`` with ``as_async`` and, over Postgres,
+  ``app.documents.pg_repository.PostgresDocumentRepository``
+- ``ExtractionLimits`` and ``extract_text_isolated`` (sandboxed parsing)
 """
 
 from app.documents.extract import (
     NO_TEXT_LAYER_REASON,
     ExtractionError,
+    ExtractionLimits,
     ExtractionResult,
     PageText,
     extract_text,
 )
 from app.documents.redact import Redactor, RedactorFn, chain_redactors, regex_redactor
 from app.documents.repository import (
+    AsyncDocumentRepository,
     DocumentRecord,
     DocumentRepository,
     InMemoryDocumentRepository,
+    as_async,
 )
+from app.documents.sandbox import extract_text_isolated
 from app.documents.service import (
     CaseAuthorizer,
     DocumentAccessDenied,
@@ -31,6 +38,7 @@ from app.documents.service import (
     IncomingFile,
     IngestionService,
     IngestResult,
+    PurgeResult,
     ingest,
     read_limited,
 )
@@ -54,6 +62,11 @@ from app.documents.validation import (
 
 __all__ = [
     "NO_TEXT_LAYER_REASON",
+    "AsyncDocumentRepository",
+    "ExtractionLimits",
+    "PurgeResult",
+    "as_async",
+    "extract_text_isolated",
     "CaseAuthorizer",
     "DeletionRecord",
     "DocumentAccessDenied",
