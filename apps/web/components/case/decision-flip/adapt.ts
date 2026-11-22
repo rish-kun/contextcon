@@ -103,34 +103,20 @@ export function stateLine(flip: DecisionFlip): string {
 }
 
 /**
- * How a requested document ranks against the analysis. The API sets `priority` on each
- * item once the list is built on an analysed version; until it does, the rank is read
- * off the analysis the same way (F §3): the chosen set first, then another set, then a
- * disqualifier risk.
+ * Which group a requested document falls in. The API sets `group` on each item when the
+ * list is built on an analysed version: the documents the screening cannot be completed
+ * without, and the rest.
  */
-export function requestPriority(item: RequestItem, flip: DecisionFlip | null): RequestPriority {
-  const served = (item as { priority?: RequestPriority | null }).priority;
-  if (served) return served;
-  if (!flip) return "other";
-  const ids = new Set(item.claim_ids.map((id) => `claim:${id}`));
-  const settles = (itemIds: string[], documents: { document: string; item_ids: string[] }[]) =>
-    itemIds.some((id) => ids.has(id)) || documents.some((doc) => doc.document === item.document);
-  if (flip.minimum_evidence && settles(flip.minimum_evidence.item_ids, flip.minimum_evidence.documents)) {
-    return "blocker";
-  }
-  if (flip.minimal_sets.some((set) => settles(set.item_ids, set.documents))) return "blocker_alt";
-  if (flip.items.some((entry) => entry.disqualifier_risk && (ids.has(entry.id) || entry.settle_with.includes(item.document)))) {
-    return "risk";
-  }
-  return "other";
+export function requestPriority(item: RequestItem): RequestPriority {
+  return item.group === "needed" ? "blocker" : "other";
 }
 
 /** The seller sees two groups: what the screening cannot finish without, and the rest. */
 export const isNeeded = (priority: RequestPriority): boolean => priority !== "other";
 
-export const PRIORITY_REASON: Record<RequestPriority, string> = {
-  blocker: "Settles a decision blocker",
-  blocker_alt: "Settles a blocker by another route",
-  risk: "Settles a disqualifier risk",
-  other: "Open question, does not change the outcome",
+export const PRIORITY_REASON: Record<RequestItem["priority_reason"], string> = {
+  decision_blocker: "Settles a decision blocker",
+  disqualifier_risk: "Settles a disqualifier risk",
+  non_blocking: "Does not change the outcome",
+  analyst_retry: "A check to re-run",
 };

@@ -48,7 +48,7 @@ export function RequestLink({
   const blockers =
     flip.request?.blocker_items ??
     (list && list.assessment_version === flip.assessment_version
-      ? list.items.filter((item) => requestPriority(item, flip) === "blocker").length
+      ? list.items.filter((item) => requestPriority(item) === "blocker").length
       : 0);
   if (!list || blockers === 0) return null;
 

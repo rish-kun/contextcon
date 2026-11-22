@@ -11,12 +11,13 @@ type Item = RequestListOut["items"][number];
 function Documents({
   items,
   claims,
-  flip,
+  grouped,
   start,
 }: {
   items: Item[];
   claims: ClaimOut[];
-  flip: DecisionFlip | null;
+  /** True when the list is split by priority, so each row says why it is in its group. */
+  grouped: boolean;
   /** The number of the first item, so the two groups count on as one list. */
   start: number;
 }) {
@@ -24,9 +25,7 @@ function Documents({
     <ol start={start} className="flex flex-col divide-y divide-line text-dense">
       {items.map((item, index) => {
         const numbers = claimNumbers(item.claim_ids, claims);
-        const reason =
-          (item as { priority_reason?: string | null }).priority_reason ??
-          (flip ? PRIORITY_REASON[requestPriority(item, flip)] : null);
+        const reason = grouped ? PRIORITY_REASON[item.priority_reason] : null;
         return (
           <li key={item.id} className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-2 px-4 py-3">
             <span className="font-mono text-xs leading-5 text-ink-muted">{start + index}</span>
@@ -78,10 +77,10 @@ export function RequestList({
   /** The analysis for the version the list was built on, if there is one. */
   flip?: DecisionFlip | null;
 }) {
-  const analysed = flip && flip.assessment_version === list.assessment_version ? flip : null;
-  const needed = list.items.filter((item) => isNeeded(requestPriority(item, analysed)));
-  const helpful = list.items.filter((item) => !isNeeded(requestPriority(item, analysed)));
-  const grouped = needed.length > 0;
+  const needed = list.items.filter((item) => isNeeded(requestPriority(item)));
+  const helpful = list.items.filter((item) => !isNeeded(requestPriority(item)));
+  // Without an analysis every document is "also helpful" and the split says nothing.
+  const grouped = needed.length > 0 && Boolean(flip);
 
   return (
     <TabStack>
@@ -91,22 +90,22 @@ export function RequestList({
         ) : grouped ? (
           <>
             <h3 className={groupHead}>
-              Needed to complete our screening
+              {needed[0].group_label}
               <span className="font-mono font-normal text-ink-muted">{needed.length}</span>
             </h3>
-            <Documents items={needed} claims={claims} flip={analysed} start={1} />
+            <Documents items={needed} claims={claims} grouped start={1} />
             {helpful.length > 0 ? (
               <>
                 <h3 className={`${groupHead} border-t`}>
-                  Also helpful
+                  {helpful[0].group_label}
                   <span className="font-mono font-normal text-ink-muted">{helpful.length}</span>
                 </h3>
-                <Documents items={helpful} claims={claims} flip={analysed} start={needed.length + 1} />
+                <Documents items={helpful} claims={claims} grouped start={needed.length + 1} />
               </>
             ) : null}
           </>
         ) : (
-          <Documents items={list.items} claims={claims} flip={null} start={1} />
+          <Documents items={list.items} claims={claims} grouped={false} start={1} />
         )}
       </TabSection>
 
