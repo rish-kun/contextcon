@@ -11,11 +11,12 @@ import { Section, TextLink } from "./parts";
 export function RequestList({
   list,
   claims,
-  caseId,
+  basePath,
 }: {
   list: RequestListOut;
   claims: ClaimOut[];
-  caseId: string;
+  /** `/app/cases/{id}` */
+  basePath: string;
 }) {
   return (
     <div className="flex flex-col gap-6">
@@ -104,7 +105,7 @@ export function RequestList({
           </ul>
           <p className="text-xs text-ink-secondary">
             Run a check from the{" "}
-            <TextLink href={`/app/cases/${caseId}/claims?status=not_checked`}>claims ledger</TextLink>.
+            <TextLink href={`${basePath}/claims?status=not_checked`}>claims ledger</TextLink>.
             Each run spends credits and says so first.
           </p>
         </Section>

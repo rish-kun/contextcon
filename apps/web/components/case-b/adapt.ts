@@ -1,6 +1,11 @@
 /**
- * Turns API responses (lib/api/schema.ts) into the shapes the shared DealProof components
- * draw (lib/types.ts). Nothing is invented here: a field the API did not send stays empty.
+ * Adapters for the Assessment, Request, Sources, Documents and Cost tabs, beside the
+ * shared ones in components/case/adapt.ts. Nothing is invented here: a field the API did
+ * not send stays empty.
+ *
+ * `toAssessment` here differs from the shared one on purpose. It counts the statuses of
+ * the required checks as that version recorded them, so an old version opened from the
+ * history shows what was true then, not the claims' statuses today.
  */
 import type {
   AssessmentVersionOut,
@@ -9,12 +14,11 @@ import type {
   DiffLineOut,
   EvidenceOut,
   FactStr,
-  MessageOut,
-  RequestListOut,
   Schemas,
   SourceRef,
 } from "@/lib/api/client";
 import { CLAIM_STATUS_LABEL, DISPOSITION_LABEL } from "@/lib/labels";
+import { CATEGORY_LABEL } from "@/components/case/adapt";
 import {
   CLAIM_STATUSES,
   DISPOSITIONS,
@@ -26,29 +30,13 @@ import {
   type ClaimStatusCounts,
   type Disposition,
   type Evidence,
-  type SellerRequest,
   type Source,
 } from "@/lib/types";
 
 export type SourceClass = Schemas["SourceClass"];
-export type ClaimCategory = Schemas["ClaimCategory"];
 export type CompanyType = Schemas["CompanyType"];
 
 /* ───────────────────────── Wording ───────────────────────── */
-
-export const CATEGORY_LABEL: Record<ClaimCategory, string> = {
-  identity_incorporation: "Identity and incorporation",
-  location: "Location",
-  team_size: "Team size",
-  leadership_history: "Leadership history",
-  funding: "Funding",
-  dated_event: "Dated events",
-  customer_partnership: "Customers and partnerships",
-  financials: "Financials",
-  debt_security: "Debt and security",
-  litigation: "Litigation",
-  other: "Other",
-};
 
 export const COMPANY_TYPE_LABEL: Record<CompanyType, string> = {
   startup: "Startup",
@@ -264,38 +252,6 @@ export function toDiff(version: AssessmentVersionOut, claims: ClaimOut[]): Asses
     to_version: version.version,
     changes: version.diff_from_previous.map((line) => toChange(line, claims)),
     unchanged_claims: Math.max(0, claims.length - changedClaims.size),
-  };
-}
-
-/* ───────────────────────── Request ───────────────────────── */
-
-/** The message in the shape the shared receipt draws. Only settled outcomes use it. */
-export function toSellerRequest(
-  message: MessageOut,
-  list: RequestListOut,
-  claims: ClaimOut[],
-): SellerRequest {
-  const status = message.send?.status ?? message.status;
-  return {
-    id: message.id,
-    status:
-      status === "sent" || status === "suppressed_test_mode" || status === "failed"
-        ? status
-        : status === "draft"
-          ? "draft"
-          : "approved",
-    documents: list.items.map((item) => ({
-      id: item.id,
-      name: item.document,
-      claim_number: claimNumbers(item.claim_ids, claims)[0] ?? 0,
-    })),
-    recipient: message.current_revision.recipient || null,
-    subject: message.current_revision.subject,
-    body: message.current_revision.body,
-    approver: message.approval ? { name: message.approval.approver_display_name } : null,
-    approved_at: message.approval?.approved_at ?? null,
-    sent_at: message.send?.completed_at ?? null,
-    failure_reason: message.send?.error ?? null,
   };
 }
 

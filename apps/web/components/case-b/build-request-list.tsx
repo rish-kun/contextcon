@@ -1,20 +1,26 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createRequestList } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 
 /** Builds the request list and the drafted email from the latest assessment. Sends nothing. */
-export function BuildRequestList({ caseId }: { caseId: string }) {
-  const router = useRouter();
+export function BuildRequestList({
+  caseId,
+  onBuilt,
+}: {
+  caseId: string;
+  /** Reload the case, so the tab shows the new list. */
+  onBuilt: () => Promise<void> | void;
+}) {
   const [state, setState] = useState<"idle" | "building" | "failed">("idle");
 
   const build = async () => {
     setState("building");
     try {
       await createRequestList(caseId);
-      router.refresh();
+      await onBuilt();
+      setState("idle");
     } catch {
       setState("failed");
     }

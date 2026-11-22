@@ -20,8 +20,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CATEGORY_LABEL } from "@/components/case/adapt";
 import {
-  CATEGORY_LABEL,
   COMPANY_TYPE_LABEL,
   claimNumbers,
   toAssessment,
@@ -123,14 +123,15 @@ function ProfileChecks({
  * the history. Any version opens read-only; the page says so while an old one is open.
  */
 export function AssessmentView({
-  caseId,
+  basePath: base,
   versions,
   claims,
   viewing,
   typeReason,
   policy,
 }: {
-  caseId: string;
+  /** `/app/cases/{id}/assessment` */
+  basePath: string;
   /** Oldest first. */
   versions: AssessmentVersionOut[];
   claims: ClaimOut[];
@@ -150,7 +151,6 @@ export function AssessmentView({
     (version.diff_from_previous ?? []).filter((l) => l.kind === "claim").map((l) => l.subject_id),
   );
   const unchanged = claims.filter((claim) => !changedIds.has(claim.id));
-  const base = `/app/cases/${caseId}/assessment`;
 
   return (
     <div className="flex flex-col gap-8">

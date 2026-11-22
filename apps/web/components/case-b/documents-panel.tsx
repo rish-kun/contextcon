@@ -60,13 +60,14 @@ function deletedLine(date: string): string {
  * older assessment that cites it can say where the attachment went.
  */
 export function DocumentsPanel({
-  caseId,
+  basePath,
   documents,
   deletions,
   requestList,
   versions,
 }: {
-  caseId: string;
+  /** `/app/cases/{id}` */
+  basePath: string;
   documents: DocumentOut[];
   deletions: DeletionRecord[];
   requestList: RequestListOut | null;
@@ -144,7 +145,7 @@ export function DocumentsPanel({
                       ) : null}
                       {version ? (
                         <TextLink
-                          href={`/app/cases/${caseId}/assessment?v=${version}`}
+                          href={`${basePath}/assessment?v=${version}`}
                           className="text-xs"
                         >
                           View v{version} diff

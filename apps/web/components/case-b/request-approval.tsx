@@ -95,6 +95,7 @@ export function RequestApproval({
   documents,
   initialMessage,
   testMode,
+  onChange,
 }: {
   caseId: string;
   list: RequestListOut;
@@ -103,11 +104,17 @@ export function RequestApproval({
   initialMessage: MessageOut | null;
   /** True while email sending is switched off. */
   testMode: boolean;
+  /** Told about every saved, approved or sent state, so the rest of the case can follow. */
+  onChange?: (message: MessageOut) => void;
 }) {
   const { playCue } = useSound();
   /** The named person an approval is recorded against. The shell renders only when signed in. */
   const user = useSessionUser();
-  const [message, setMessage] = useState(initialMessage);
+  const [message, setMessageState] = useState(initialMessage);
+  const setMessage = (next: MessageOut) => {
+    setMessageState(next);
+    onChange?.(next);
+  };
   const [draft, setDraft] = useState<Draft>(() => revisionOf(initialMessage, list));
   const [busy, setBusy] = useState<Busy>(null);
   const [error, setError] = useState<string | null>(null);
@@ -194,7 +201,7 @@ export function RequestApproval({
     );
 
   const settle = (send: SendOut) => {
-    setMessage((current) => (current ? { ...current, status: send.status, send } : current));
+    if (message) setMessage({ ...message, status: send.status, send });
     // Sound is opt-in and never the only signal: the receipt below is the record.
     if (send.status === "sent") playCue("request_sent");
     else if (send.status === "suppressed_test_mode") playCue("run_finished");

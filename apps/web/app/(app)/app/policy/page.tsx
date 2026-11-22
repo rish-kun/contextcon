@@ -7,7 +7,8 @@ import {
   RELIABILITY_LABEL,
 } from "@/lib/labels";
 import { CLAIM_STATUSES } from "@/lib/types";
-import { CATEGORY_LABEL, COMPANY_TYPE_LABEL } from "@/components/case-b/adapt";
+import { CATEGORY_LABEL } from "@/components/case/adapt";
+import { COMPANY_TYPE_LABEL } from "@/components/case-b/adapt";
 import { load } from "@/components/case-b/load";
 import { LoadError } from "@/components/case-b/parts";
 import { DispositionStamp } from "@/components/dealproof/disposition-stamp";

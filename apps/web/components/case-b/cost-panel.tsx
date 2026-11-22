@@ -33,11 +33,11 @@ function unknownCalls(count: number): string {
  * A call whose cost the provider did not report is shown as unknown, never as zero.
  * Reaching the budget is a stated limit, not an error, so nothing turns red.
  */
-export function CostPanel({ cost, caseId }: { cost: CaseCostOut; caseId: string }) {
+export function CostPanel({ cost, basePath }: { cost: CaseCostOut; basePath: string }) {
   const share = cost.credit_budget > 0 ? Math.min(1, cost.crustdata_credits / cost.credit_budget) : 0;
   const reached = cost.credit_budget > 0 && cost.crustdata_credits >= cost.credit_budget;
   const lines = [...cost.by_step].sort((a, b) => a.at.localeCompare(b.at));
-  const claimsHref = `/app/cases/${caseId}/claims?status=not_checked`;
+  const claimsHref = `${basePath}/claims?status=not_checked`;
 
   return (
     <div className="flex flex-col gap-8">

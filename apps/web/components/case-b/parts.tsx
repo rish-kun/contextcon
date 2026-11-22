@@ -1,29 +1,5 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-
-/** The heading of a tab: what it holds, one line on why, and at most one action. */
-export function TabHeader({
-  title,
-  lead,
-  action,
-  className,
-}: {
-  title: string;
-  lead?: React.ReactNode;
-  action?: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <header className={cn("flex flex-wrap items-end justify-between gap-x-6 gap-y-3", className)}>
-      <div className="flex max-w-2xl flex-col gap-1">
-        <h2 className="text-xl font-medium text-ink">{title}</h2>
-        {lead ? <p className="text-sm text-ink-secondary">{lead}</p> : null}
-      </div>
-      {action}
-    </header>
-  );
-}
 
 /** A section inside a tab. */
 export function Section({
@@ -55,29 +31,6 @@ export function Section({
       </div>
       {children}
     </section>
-  );
-}
-
-/** Nothing here yet: one heading, one sentence, at most one way forward. */
-export function EmptyState({
-  heading,
-  body,
-  action,
-}: {
-  heading: string;
-  body: string;
-  action?: { href: string; label: string };
-}) {
-  return (
-    <div className="flex flex-col items-start gap-2 rounded-lg border border-line bg-surface px-5 py-8">
-      <h3 className="text-sm font-medium text-ink">{heading}</h3>
-      <p className="max-w-xl text-dense text-ink-secondary">{body}</p>
-      {action ? (
-        <Button asChild size="sm" className="mt-2">
-          <Link href={action.href}>{action.label}</Link>
-        </Button>
-      ) : null}
-    </div>
   );
 }
 
