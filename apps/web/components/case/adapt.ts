@@ -53,36 +53,30 @@ export interface AnyFact {
 }
 
 const RELIABILITY: Record<SourceClass, ReliabilityClass> = {
-  registry_official: "registry",
+  registry: "registry",
   registry_mirror: "registry",
   audited_statement: "audited_statement",
   counterparty_confirmation: "counterparty_confirmation",
   company_announcement: "company_announcement",
-  funding_database: "data_provider",
-  data_provider_profile: "data_provider",
-  professional_profile: "professional_profile_signal",
-  headcount_estimate: "professional_profile_signal",
   news: "news",
+  professional_profile_signal: "professional_profile_signal",
+  data_provider: "data_provider",
   seller_document: "seller_document",
   seller_statement: "seller_statement",
-  user_typed: "seller_statement",
 };
 
-/** The source class in the product's words, at full precision (mirror is not official). */
+/** The source class in the product's words, at full precision (a mirror is not the registry). */
 export const SOURCE_CLASS_LABEL: Record<SourceClass, string> = {
-  registry_official: "Official registry",
+  registry: "Official registry",
   registry_mirror: "Registry mirror",
   audited_statement: "Audited statement",
   counterparty_confirmation: "Counterparty confirmation",
   company_announcement: "Company announcement",
-  funding_database: "Funding database",
-  data_provider_profile: "Data provider profile",
-  professional_profile: "Professional profile",
-  headcount_estimate: "Headcount estimate",
   news: "News report",
+  professional_profile_signal: "Professional-profile signal",
+  data_provider: "Data provider record",
   seller_document: "Seller document",
   seller_statement: "Seller statement",
-  user_typed: "Typed by a user",
 };
 
 export const CATEGORY_LABEL: Record<ClaimCategory, string> = {
@@ -435,7 +429,6 @@ export function eventNature(event: CaseDetail["events"][number]): EventNature {
   switch (event.evidence.source.source_class) {
     case "company_announcement":
     case "seller_statement":
-    case "user_typed":
       return "Announced";
     case "news":
       return "Reported";

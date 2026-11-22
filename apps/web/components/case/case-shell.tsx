@@ -106,7 +106,7 @@ function AssessmentRail({ detail }: { detail: CaseDetail }) {
   if (!detail.assessment) return null;
   return (
     <aside className="hidden w-(--layout-rail) shrink-0 xl:block print:hidden">
-      <div className="sticky top-6 flex flex-col gap-3">
+      <div className="sticky top-20 flex flex-col gap-3">
         <JudgmentPanel
           assessment={toAssessment(detail.assessment, detail.claims)}
           variant="rail"
@@ -147,7 +147,7 @@ function CaseProblem({ notFound }: { notFound: boolean }) {
           </Button>
         )}
         <Button asChild>
-          <Link href="/app/cases">All cases</Link>
+          <Link href="/app">All cases</Link>
         </Button>
       </div>
     </div>
@@ -166,7 +166,7 @@ export function CaseShell({ children }: { children: React.ReactNode }) {
   return (
     <div
       data-case-shell=""
-      className="mx-auto flex w-full max-w-(--layout-content-max) flex-col gap-6 px-4 py-6 md:px-6 lg:px-8"
+      className="flex w-full flex-col gap-6"
     >
       {state === "loading" ? <CaseLoading /> : null}
       {state === "error" || state === "not_found" ? (
