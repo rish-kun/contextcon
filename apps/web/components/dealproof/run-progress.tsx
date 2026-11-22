@@ -18,13 +18,10 @@ import { PendingGlyph, StatusGlyph } from "./glyphs";
 export function WorkingIndicator({ className }: { className?: string }) {
   return (
     <span className={cn("inline-flex shrink-0 items-center", className)}>
-      <ThinkingOrb
-        state="searching"
-        size={20}
-        theme="light"
-        aria-hidden
-        className="motion-reduce:hidden"
-      />
+      {/* The canvas sets its own display inline, so the wrapper is what hides it. */}
+      <span className="inline-flex motion-reduce:hidden">
+        <ThinkingOrb state="searching" size={20} theme="light" aria-hidden />
+      </span>
       <span className="hidden rounded-xs border border-line-strong px-1 font-mono text-2xs text-ink-secondary motion-reduce:inline">
         Working
       </span>
