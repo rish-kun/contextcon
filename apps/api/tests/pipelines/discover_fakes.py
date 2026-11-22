@@ -121,6 +121,7 @@ def _search_row(
     ctype: str,
     hq: str | None = "Pune, Maharashtra",
 ) -> dict[str, Any]:
+    # Live search filters on "India" but returns ISO alpha-3 codes ("IND").
     locations: dict[str, Any] = {}
     if country:
         locations["country"] = country
@@ -204,15 +205,15 @@ class World:
 
 def make_world(fillers: int = 10) -> World:
     a = _search_row(
-        101, "Alpha Warehouse Tech", "alpha.example", country="India", ctype="Privately Held"
+        101, "Alpha Warehouse Tech", "alpha.example", country="IND", ctype="Privately Held"
     )
-    b = _search_row(102, "Beta Supply Systems", "beta.example", country="India", ctype="")
-    c = _search_row(103, "Gamma Logistics Cloud", "gamma.example", country="India", ctype="")
+    b = _search_row(102, "Beta Supply Systems", "beta.example", country="IND", ctype="")
+    c = _search_row(103, "Gamma Logistics Cloud", "gamma.example", country="IND", ctype="")
     d = _search_row(
         104,
         "Delta Freight Labs",
         "delta.example",
-        country="Singapore",
+        country="SGP",
         ctype="Privately Held",
         hq="Singapore",
     )
@@ -221,7 +222,7 @@ def make_world(fillers: int = 10) -> World:
         106,
         "Alpha Warehouse Tech India",
         "www.alpha.example",
-        country="India",
+        country="IND",
         ctype="Privately Held",
     )  # same domain as A
     g = _search_row(107, "Omega Stores", "omega.example", country=None, ctype="", hq=None)
@@ -236,7 +237,7 @@ def make_world(fillers: int = 10) -> World:
         cid = 200 + i
         name = f"{FILLER_NAMES[i]} Logistics Software"
         row = _search_row(
-            cid, name, f"{FILLER_NAMES[i].lower()}.example", country="India", ctype="Privately Held"
+            cid, name, f"{FILLER_NAMES[i].lower()}.example", country="IND", ctype="Privately Held"
         )
         rows.append(row)
         enriched[cid] = _enrich(row, ctype="Privately Held", growth=5.0)

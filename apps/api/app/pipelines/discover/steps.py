@@ -159,7 +159,25 @@ async def _fmt_credits(ctx: StepContext) -> str:
 # --- 1. Search ---------------------------------------------------------------------------
 
 
-async def resolve_values(client: Any, criteria: list[dict[str, Any]]) -> dict[str, Resolution]:
+# Autocomplete is free but rate-limited; user-edited criteria must not fan it out.
+MAX_AUTOCOMPLETE_CALLS = 30
+
+
+class _Calls:
+    def __init__(self, limit: int = MAX_AUTOCOMPLETE_CALLS) -> None:
+        self.left = limit
+
+    def take(self) -> bool:
+        if self.left <= 0:
+            return False
+        self.left -= 1
+        return True
+
+
+async def resolve_values(
+    client: Any, criteria: list[dict[str, Any]], calls: _Calls | None = None
+) -> dict[str, Resolution]:
+    calls = calls or _Calls()
     out: dict[str, Resolution] = {}
     for c in criteria:
         if not needs_resolution(c):
@@ -173,6 +191,8 @@ async def resolve_values(client: Any, criteria: list[dict[str, Any]]) -> dict[st
             queries = [value] + ([value[:5]] if len(value) > 5 else [])
             found: list[str] = []
             for q in queries:
+                if not calls.take():
+                    break
                 found = match_suggestions(
                     value, await autocomplete(client, field, q), prefix_only=prefix_only
                 )
@@ -190,7 +210,7 @@ async def resolve_values(client: Any, criteria: list[dict[str, Any]]) -> dict[st
 
 
 async def industries_from_activity(
-    client: Any, activity: str, criteria: list[dict[str, Any]]
+    client: Any, activity: str, criteria: list[dict[str, Any]], calls: _Calls | None = None
 ) -> dict[str, Any] | None:
     """Filter-only fallback: industry values for the activity words (free autocomplete)."""
     text = " ".join(
@@ -204,8 +224,11 @@ async def industries_from_activity(
         + [activity]
     )
     words = activity_keywords(text, limit=6)
+    calls = calls or _Calls()
     values: list[str] = []
     for w in words:
+        if not calls.take():
+            break
         for s in match_suggestions(
             w, await autocomplete(client, "basic_info.industries", w), prefix_only=False
         ):

@@ -99,6 +99,15 @@ async def test_shortlist_gate_rerank_and_dedupe(session, sm) -> None:
     assert not c.excluded and c.rank is not None, c.exclusion_reason
     assert c.fit == a.fit == 100 and c.assessable_pct < a.assessable_pct
     assert any("Privately held: not known" in u for u in c.unknowns)
+    # The provider's "IND" is read as India (evidence keeps the provider's value).
+    async with sm() as s:
+        ev = (
+            (await s.execute(select(Evidence).where(Evidence.field_path == "locations.country")))
+            .scalars()
+            .first()
+        )
+    assert ev.value in ("IND", "SGP")
+    assert a.card["location"]["value"].endswith("India")
     # Zero assessable criteria: fit unavailable, ranked last.
     g = cands[107]
     assert not g.excluded and g.fit is None and g.assessable_pct == 0
@@ -455,3 +464,15 @@ async def test_theses_routes_end_to_end(session, sm, monkeypatch) -> None:
     async with _client(sm, other.workspace.id, other.user.id) as http:
         assert (await http.get(f"/theses/{body['id']}")).status_code == 404
         assert (await http.get(f"/runs/{run['id']}")).status_code == 404
+
+
+def test_country_codes_map_to_names_and_unknown_codes_stay_unknown() -> None:
+    from app.pipelines.discover.records import search_values
+
+    def country(value: str) -> list[str]:
+        row = {"crustdata_company_id": 1, "locations": {"country": value}}
+        return [f.value for f in search_values(row) if f.key == "locations.country"]
+
+    assert country("IND") == ["India"]
+    assert country("India") == ["India"]
+    assert country("XQZ") == []  # not a known code: unknown, never a verified fail

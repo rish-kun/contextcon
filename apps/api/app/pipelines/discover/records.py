@@ -20,6 +20,7 @@ from app.clients.base import CallRecord, utcnow
 from app.db.models import ApiCache, Evidence, Source
 from app.domain.enums import SourceReliability
 from app.domain.types import CompanyRecord, FieldFact
+from app.pipelines.discover.countries import country_name
 
 PROVIDER = "crustdata"
 RELIABILITY = SourceReliability.DATA_PROVIDER.value
@@ -44,6 +45,7 @@ class FieldValue:
     as_of: dt.date | None = None
     is_estimate: bool = False
     estimate_kind: str | None = None  # "estimate" | "signal"
+    raw: Any = None  # the provider's own value, when `value` is a normalised form
 
 
 def parse_date(raw: Any) -> dt.date | None:
@@ -106,14 +108,24 @@ _PROFILE_FIELDS: tuple[tuple[str, tuple[str, ...]], ...] = (
 _ESTIMATE_PROFILE_FIELDS = (("basic_info.employee_count_range", "basic_info.employee_count_range"),)
 
 
+_COUNTRY_KEYS = frozenset({"locations.country", "headcount.largest_headcount_country"})
+
+
 def _profile_values(company: dict[str, Any], as_of: dt.date | None) -> list[FieldValue]:
     out: list[FieldValue] = []
     for key, paths in _PROFILE_FIELDS:
         for path in paths:
             value = _get(company, path)
-            if _present(value):
+            if not _present(value):
+                continue
+            if key in _COUNTRY_KEYS:
+                name = country_name(value)
+                if name is None:
+                    break  # an unknown country code is unknown, never a mismatch
+                out.append(FieldValue(key, path, name, as_of, raw=value))
+            else:
                 out.append(FieldValue(key, path, value, as_of))
-                break
+            break
     for key, path in _ESTIMATE_PROFILE_FIELDS:
         value = _get(company, path)
         if _present(value):
@@ -324,7 +336,7 @@ def add_evidence(
             entity_ref=f"crustdata_company:{crustdata_company_id}",
             identity_confidence=1.0,
             field_path=fv.path,
-            value=fv.value,
+            value=fv.value if fv.raw is None else fv.raw,  # exactly what the provider sent
             as_of=fv.as_of,
             origin_key=f"crustdata:{source['url_or_endpoint']}:{crustdata_company_id}:{fv.path}",
         )

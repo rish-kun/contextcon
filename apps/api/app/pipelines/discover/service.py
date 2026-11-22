@@ -123,6 +123,10 @@ async def create_thesis(
     return thesis
 
 
+MAX_CRITERIA = 20
+MAX_VALUES = 25
+
+
 def _criterion_values(item: Any) -> dict[str, Any]:
     kind = getattr(item.kind, "value", item.kind)
     dimension = getattr(item.dimension, "value", item.dimension)
@@ -135,6 +139,8 @@ def _criterion_values(item: Any) -> dict[str, Any]:
             raise InvalidCriteria(f"unknown Crustdata field {field_name!r}")
         if dimension not in CRUSTDATA_FIELDS[field_name]:
             raise InvalidCriteria(f"{field_name} cannot test a {dimension} criterion")
+    if isinstance(item.value, list) and len(item.value) > MAX_VALUES:
+        raise InvalidCriteria(f"'{item.label}': at most {MAX_VALUES} values")
     if operator == "between" and not (isinstance(item.value, list) and len(item.value) == 2):
         raise InvalidCriteria(f"'{item.label}': between needs [low, high]")
     return {
@@ -160,6 +166,8 @@ async def replace_criteria(
     Items with a known `id` update that row (marked `edited` if anything changed);
     items without one are added as `edited`; rows not listed are deleted.
     """
+    if len(items) > MAX_CRITERIA:
+        raise InvalidCriteria(f"at most {MAX_CRITERIA} criteria")
     thesis = await repo.get_thesis(session, workspace_id, thesis_id)
     dr = await latest_discovery_run(session, thesis.id)
     if dr is not None:
