@@ -49,6 +49,8 @@ class SVG:
         self.p.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rx}" fill="{f}" stroke="{s}" stroke-width="{sw}"{d}/>')
 
     def text(self, x, y, s, cls="s", anchor="start", fill=None):
+        if anchor == "start" and s.startswith("   "):  # continuation of a bullet
+            x, s = x + 13, s.lstrip()
         f = f' style="fill:{fill}"' if fill else ""
         self.p.append(f'<text x="{x}" y="{y}" class="{cls}" text-anchor="{anchor}"{f}>{escape(s)}</text>')
 
@@ -178,63 +180,101 @@ def technical():
 
 
 # --------------------------------------------------------------------- business
-def business():
-    s = SVG(1600, 960)
-    s.text(40, 52, "DealProof · business architecture", "title")
-    s.text(40, 82, "The paid job, who pays for it, and what the buyer gets back.", "sub")
+def panel(s, x, y, w, h, kind, heading):
+    s.text(x, y - 14, heading, "zone")
+    s.rect(x, y, w, h, kind, rx=16)
 
-    # Today
-    s.text(40, 128, "TODAY", "zone")
-    s.rect(40, 142, 1520, 120, "grey", rx=16)
-    today = [("Buyer", "CFO office of a 3PL"), ("pays an advisory firm", "retainer or per target"),
-             ("analysts screen by hand", "databases, deck, spreadsheet"), ("memo after days", "claims often unchecked")]
+
+def business():
+    s = SVG(1600, 1330)
+    s.text(40, 52, "DealProof · business architecture", "title")
+    s.text(40, 82, "The paid job, who pays for it today, what the service delivers, and what it costs.", "sub")
+
+    # ---- Today
+    panel(s, 40, 128, 1520, 140, "grey", "TODAY · THE JOB A FIRM IS PAID FOR")
+    today = [("Buyer", ["CFO office of a mid-size", "Indian 3PL"], "person"),
+             ("pays an advisory firm", ["M&A advisor or diligence team,", "retainer or fee per target"], "white"),
+             ("analysts screen by hand", ["databases, registry lookups,", "seller deck, spreadsheet"], "white"),
+             ("memo after days", ["claims unchecked, lookalike", "names mixed up, gaps guessed"], "white")]
     x = 64
-    for i, (t, ln) in enumerate(today):
-        s.card(x, 160, 330, 84, t, [ln], "person" if i == 0 else "white", center=True)
+    for i, (t, ls, k) in enumerate(today):
+        s.card(x, 146, 330, 104, t, ls, k, center=True)
         if i < 3:
-            s.arrow([(x + 332, 202), (x + 368, 202)], "#475569")
+            s.arrow([(x + 332, 198), (x + 368, 198)], "#475569")
         x += 370
 
-    # With DealProof
-    s.text(40, 306, "WITH DEALPROOF", "zone")
-    s.rect(40, 320, 1520, 300, "core", rx=16)
-    s.card(64, 344, 230, 150, "Request", ["a thesis, or a", "company + its deck"], "ui", center=True)
-    steps = [("Discover", ["shortlist of", "real companies"]), ("Verify", ["each claim checked", "against records"]),
-             ("Evaluate", ["rules give a", "clear next step"]), ("Act", ["request documents", "after approval"])]
-    x = 334
-    s.arrow([(296, 419), (x - 2, 419)], "#7c3aed")
+    # ---- With DealProof
+    panel(s, 40, 326, 1520, 360, "core", "WITH DEALPROOF · THE SAME JOB, DONE BY THE SERVICE")
+    s.card(64, 346, 200, 190, "Request", ["a thesis, or a", "company + website", "+ seller deck, or a", "business profile"], "ui", center=True)
+    steps = [("1  Discover", ["thesis → editable criteria", "live company search", "must-haves gate, rank fit", "→ ranked shortlist"]),
+             ("2  Verify", ["confirm legal entity first", "check each claim against", "dated records", "→ claim ledger"]),
+             ("3  Evaluate", ["5 separate judgments", "decided by fixed rules", "unknowns never penalised", "→ next step + reason"]),
+             ("4  Act", ["list docs that settle gaps", "draft one request email", "◆ named person approves", "→ sent exactly once"])]
+    x, w, g = 294, 240, 24
+    s.arrow([(266, 441), (x - 2, 441)], "#7c3aed")
     for i, (t, ls) in enumerate(steps):
-        s.card(x, 344, 220, 150, f"{i + 1}  {t}", ls, "gate" if t == "Act" else "step", badges=("A",) if t == "Act" else (), center=True)
+        act = t.endswith("Act")
+        s.card(x, 346, w, 190, t, ls, "gate" if act else "step", badges=("A",) if act else (), center=True)
         if i < 3:
-            s.arrow([(x + 222, 419), (x + 246, 419)], "#7c3aed")
-        x += 248
-    s.card(1326, 344, 210, 150, "Finished case", ["sourced, dated,", "ready to decide"], "db", center=True)
-    s.arrow([(x - 26, 419), (1324, 419)], "#059669")
-    s.card(334 + 3 * 248, 514, 220, 84, "Named approver", ["signs off first"], "gate", center=True)
-    s.arrow([(334 + 3 * 248 + 110, 512), (334 + 3 * 248 + 110, 496)], "#d97706")
-    s.card(334, 514, 714, 84, "Analyst stays in charge", ["edits criteria, picks identity when names are ambiguous"], "person", center=True)
-    s.card(1326, 514, 210, 84, "Decision-maker", ["second meeting: go?"], "person", center=True)
-    s.arrow([(1431, 496), (1431, 512)], "#059669")
+            s.arrow([(x + w + 2, 441), (x + w + g - 2, 441)], "#7c3aed")
+        x += w + g
+    s.arrow([(x - g + 2, 441), (1334, 441)], "#059669")
+    s.card(1336, 346, 200, 190, "Finished case", ["identity confirmed", "each claim: status,", "source and date", "disposition + request"], "db", center=True)
 
-    # Economics + trust
-    s.text(40, 664, "COST PER JOB  (measured, live run, 22 Nov 2026)", "zone")
-    s.rect(40, 678, 740, 250, "db", rx=16)
-    rows = [("Verify one company (9 claims)", "8.7 credits"), ("Shortlist of 25 companies", "50.1 credits"),
-            ("Find investors", "59.2 credits"), ("All AI model calls", "$0.018"), ("Budget cap per case", "150 credits")]
-    for i, (a, b) in enumerate(rows):
-        y = 724 + i * 44
+    s.card(294, 560, 240, 100, "Analyst", ["edits criteria, picks", "identity if ambiguous"], "person", center=True)
+    s.card(558, 560, 504, 100, "Seller / target company", ["sends documents back → affected claims", "re-checked, new assessment version"], "person", center=True)
+    s.card(1086, 560, 240, 100, "Named approver", ["approves the exact", "email; edits need re-approval"], "gate", center=True)
+    s.card(1336, 560, 200, 100, "Decision-maker", ["second meeting:", "go or no-go"], "person", center=True)
+    s.arrow([(1206, 558), (1206, 538)], "#d97706")
+    s.arrow([(1084, 610), (1064, 610)], "#d97706")
+    s.arrow([(690, 558), (690, 538)], "#7c3aed", dash=True)
+    s.arrow([(1436, 538), (1436, 558)], "#059669")
+
+    # ---- Who buys / example / model
+    cw, y3, h3 = 493, 744, 250
+    xs = [40, 40 + cw + 20, 40 + 2 * (cw + 20)]
+    panel(s, xs[0], y3, cw, h3, "white", "WHO BUYS IT")
+    for i, ln in enumerate(["• M&A advisory firms and corporate", "   development teams (first customers)",
+                            "• PE and VC funds, family offices,", "   search funds, business brokers",
+                            "• Businesses raising money: investors", "   matched by their dated deals"]):
+        s.text(xs[0] + 24, y3 + 40 + i * 34, ln, "s")
+
+    panel(s, xs[1], y3, cw, h3, "white", "A FINISHED CASE (ILLUSTRATION)")
+    rows = [("“Incorporated 2014, Pune”", "Supported", "#059669"),
+            ("“We employ 250 people”", "Cannot verify", "#64748b"),
+            ("“New facility, Oct 2026”", "Partly corroborated", "#d97706"),
+            ("“We have no debt”", "Cannot verify", "#64748b")]
+    for i, (c, st, col) in enumerate(rows):
+        y = y3 + 40 + i * 38
+        s.text(xs[1] + 24, y, c, "s")
+        s.text(xs[1] + cw - 24, y, st, "h", "end", fill=col)
+    s.text(xs[1] + 24, y3 + 212, "→ Investigate further; ask for 3 documents", "h")
+
+    panel(s, xs[2], y3, cw, h3, "white", "BUSINESS MODEL")
+    for i, ln in enumerate(["• Buyer pays per finished case, or a", "   monthly plan for a deal team",
+                            "• Our cost per job: data credits,", "   AI tokens, cloud hosting",
+                            "• Each run has a credit budget, so", "   cost per case is capped in advance"]):
+        s.text(xs[2] + 24, y3 + 40 + i * 34, ln, "s")
+
+    # ---- Cost + trust
+    y4, h4 = 1054, 256
+    panel(s, 40, y4, 740, h4, "db", "COST PER JOB · MEASURED ON THE LIVE RUN, 22 NOV 2026")
+    crow = [("Verify one company (9 claims)", "8.7 credits"), ("Shortlist of 25 companies (shared by its cases)", "50.1 credits"),
+            ("Find investors for a business", "59.2 credits"), ("All AI model calls in the run", "$0.018"),
+            ("Default budget cap per case", "150 credits")]
+    for i, (a, b) in enumerate(crow):
+        y = y4 + 42 + i * 46
         s.text(68, y, a, "s")
         s.text(752, y, b, "big", "end")
-        if i < len(rows) - 1:
-            s.p.append(f'<line x1="68" y1="{y + 16}" x2="752" y2="{y + 16}" stroke="#bbf7d0" stroke-width="1.5"/>')
+        if i < len(crow) - 1:
+            s.p.append(f'<line x1="68" y1="{y + 18}" x2="752" y2="{y + 18}" stroke="#bbf7d0" stroke-width="1.5"/>')
 
-    s.text(820, 664, "WHY A FIRM CAN TRUST IT", "zone")
-    s.rect(820, 678, 740, 250, "gate", rx=16)
-    trust = ["Every fact shows its source and date", "“Cannot verify” instead of a guess",
-             "Lookalike names are never merged", "Nothing is sent without a named approver",
-             "Uploaded files deleted after 30 days"]
+    panel(s, 820, y4, 740, h4, "gate", "WHY A FIRM CAN TRUST IT")
+    trust = ["Every fact shows its source link and date", "“Cannot verify” instead of a guess, naming what is missing",
+             "Lookalike names are never merged", "Same evidence + same rules → same result",
+             "Nothing is sent without a named approver, and only once", "Uploads stay in their case and are deleted after 30 days"]
     for i, t in enumerate(trust):
-        s.text(848, 724 + i * 44, "✓  " + t, "s")
+        s.text(848, y4 + 40 + i * 37, "\u2713  " + t, "s")
     return s.render()
 
 
