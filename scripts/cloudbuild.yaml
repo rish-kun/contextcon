@@ -1,0 +1,34 @@
+# Cloud Build config used by scripts/deploy.sh to build ONE image and push it to
+# Artifact Registry. The source is a `git archive` of a committed ref, so it never
+# contains `.env` or uncommitted work.
+#
+# Substitutions (all passed by deploy.sh):
+#   _IMAGE        full image path without tag
+#   _TAG          image tag (git short SHA)
+#   _DOCKERFILE   Dockerfile path inside the source
+#   _CONTEXT      build context inside the source
+#   _API_URL      NEXT_PUBLIC_API_URL for the web build (public URL, not a secret)
+steps:
+  - name: gcr.io/cloud-builders/docker
+    env:
+      # BuildKit honours apps/web/Dockerfile.dockerignore.
+      - DOCKER_BUILDKIT=1
+    args:
+      - build
+      - -f
+      - ${_DOCKERFILE}
+      - --build-arg
+      - NEXT_PUBLIC_API_URL=${_API_URL}
+      - -t
+      - ${_IMAGE}:${_TAG}
+      - -t
+      - ${_IMAGE}:latest
+      - ${_CONTEXT}
+images:
+  - ${_IMAGE}:${_TAG}
+  - ${_IMAGE}:latest
+substitutions:
+  _API_URL: unused
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1200s
