@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   approveMessage,
+  conflictCode,
   createMessage,
   editMessage,
   getMessage,
@@ -122,6 +123,8 @@ export function RequestApproval({
   /** After a failed send: the form opens again, and sending needs a new approval. */
   const [retrying, setRetrying] = useState(false);
   const [summary, setSummary] = useState<SendSummaryOut | null>(null);
+  /** The server's sending switch differed from what this screen showed when Send was pressed. */
+  const [modeChanged, setModeChanged] = useState(false);
 
   const sendStatus = message?.send?.status ?? null;
   // A saved or approved revision is the live state, even when an earlier send failed.
@@ -214,10 +217,31 @@ export function RequestApproval({
     setBusy("sending");
     setError(null);
     try {
-      settle(await sendMessage(caseId, message.id));
-    } catch {
+      settle(
+        await sendMessage(caseId, message.id, {
+          // Exactly what the dialog named: this revision, in this delivery mode.
+          revision_id: message.approval?.revision_id ?? message.current_revision.id,
+          expect_live: !testMode,
+        }),
+      );
+    } catch (caught) {
+      const code = conflictCode(caught);
+      if (code === "delivery_mode_changed") {
+        // The server's sending switch no longer matches what this screen said. Nothing left.
+        setModeChanged(true);
+        return;
+      }
       // The request may have been accepted before the answer was lost. Ask what is on record.
       try {
+        if (code === "stale_revision") {
+          const fresh = await getMessage(caseId, message.id);
+          setMessage(fresh);
+          setDraft(revisionOf(fresh, list));
+          setError(
+            "Nothing was sent. The message changed after you confirmed, so the revision you approved is no longer the current one. The current revision is shown above. Approve it to send.",
+          );
+          return;
+        }
         setMessage(await getMessage(caseId, message.id));
       } catch {
         setError(
@@ -403,6 +427,17 @@ export function RequestApproval({
                     <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-dense">
                       <dt className="text-ink-muted">Recipient</dt>
                       <dd className="break-all text-ink">{saved.recipient}</dd>
+                      <dt className="text-ink-muted">Revision</dt>
+                      <dd className="text-ink">
+                        <span className="font-mono text-xs">Revision {revisionNumber}</span>
+                        <span className="text-ink-secondary"> · “{saved.subject}”</span>
+                      </dd>
+                      <dt className="text-ink-muted">Delivery</dt>
+                      <dd className="text-ink">
+                        {testMode
+                          ? "Test mode · the outcome is recorded and no email leaves"
+                          : "Live · one real email leaves"}
+                      </dd>
                       <dt className="text-ink-muted">Documents</dt>
                       <dd className="text-ink">
                         <ul className="flex flex-col gap-1">
@@ -507,6 +542,23 @@ export function RequestApproval({
           ) : null}
         </div>
       )}
+
+      {modeChanged ? (
+        <div
+          role="alert"
+          className="flex flex-col items-start gap-2 rounded-md border border-line-strong bg-surface-raised px-4 py-3 text-dense text-ink"
+        >
+          <p className="text-sm font-medium">Nothing was sent · the delivery mode changed</p>
+          <p className="text-ink-secondary">
+            This page said {testMode ? "email sending was off" : "a real email would leave"}, and
+            the service is now set the other way. Reload to see the current mode, then confirm
+            the send again. Your approval is kept.
+          </p>
+          <Button size="sm" onClick={() => window.location.reload()}>
+            Reload
+          </Button>
+        </div>
+      ) : null}
 
       {error ? (
         <p role="alert" className="text-dense text-contradicted">

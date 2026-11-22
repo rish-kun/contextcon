@@ -325,9 +325,31 @@ export async function approveMessage(
 }
 
 /** Send the approved revision once. A 409 `send_exists` carries the existing send. */
-export async function sendMessage(caseId: string, messageId: string): Promise<SendOut> {
+export async function sendMessage(
+  caseId: string,
+  messageId: string,
+  /**
+   * What the person confirmed: the exact approved revision, and whether the screen told
+   * them a real email leaves. The API answers 409 `stale_revision` or
+   * `delivery_mode_changed` when either no longer holds, and sends nothing.
+   */
+  confirmed: Schemas["SendIn"],
+): Promise<SendOut> {
   if (isFixtureMode) return (await fx()).sendMessage();
-  return call("POST", `/cases/${enc(caseId)}/messages/${enc(messageId)}/send`);
+  return call("POST", `/cases/${enc(caseId)}/messages/${enc(messageId)}/send`, {
+    json: confirmed,
+  });
+}
+
+/** The `code` of a 409 from the API ("stale_revision", "send_exists"), or null. */
+export function conflictCode(error: unknown): string | null {
+  if (!(error instanceof ApiError) || error.status !== 409) return null;
+  const detail = error.detail;
+  if (detail && typeof detail === "object" && "code" in detail) {
+    const code = (detail as { code: unknown }).code;
+    return typeof code === "string" ? code : null;
+  }
+  return null;
 }
 
 /** Resolve an `unknown` send with the provider; never dispatches again. */
