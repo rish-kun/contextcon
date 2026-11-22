@@ -32,6 +32,7 @@ from app.db.models import Evidence, Source
 from app.domain.enums import ClaimStatus, CompanyType, CriterionResult, Disposition
 from app.domain.types import AssessmentDiff, AssessmentVersion
 from app.pipelines.evaluate.present import Lookups, evidence_out, fit_state, uuids
+from app.pipelines.evaluate.snapshot import Snapshot
 from app.pipelines.memo.records import Retention, deletion_out
 from app.rules.claim_status import status_label
 
@@ -515,11 +516,9 @@ async def citations_out(
     return out
 
 
-async def memo_out(
-    session: AsyncSession, row: VersionRow, a: AssessmentVersion, ctx: MemoContext
-) -> CaseMemoOut:
+async def memo_out(session: AsyncSession, snap: Snapshot, ctx: MemoContext) -> CaseMemoOut:
+    row, a, d = snap.row, snap.assessment, snap.diff
     stored = (row.judgments or {}).get("memo") or {}
-    d = AssessmentDiff.model_validate(row.diff_from_previous) if row.diff_from_previous else None
     sections = [_summary(a, ctx)]
     if d is not None:
         sections.append(_changes(row, d, ctx))

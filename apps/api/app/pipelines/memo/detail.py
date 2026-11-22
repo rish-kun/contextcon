@@ -33,7 +33,7 @@ from app.db.models import AssessmentVersion, Claim, Criterion, Thesis
 from app.domain.types import AssessmentVersion as Assessment
 from app.pipelines.evaluate.inputs import OPERATORS
 from app.pipelines.evaluate.present import Lookups, load_lookups, version_out
-from app.pipelines.evaluate.service import stored_assessment
+from app.pipelines.evaluate.snapshot import Snapshot, load_snapshot
 from app.pipelines.memo.cost import cost_line, unrecorded_calls
 from app.pipelines.memo.records import (
     Retention,
@@ -55,6 +55,7 @@ class _State:
     """Per-request material shared by the sections below (loaded once)."""
 
     latest: AssessmentVersion | None = None
+    snapshot: Snapshot | None = None
     assessment: Assessment | None = None
     lookups: Lookups = field(default_factory=Lookups)
     version: AssessmentVersionOut | None = None
@@ -75,9 +76,10 @@ async def _state(ctx: CaseContext) -> _State:
     case = ctx.case
     s.latest = await repo.latest_assessment(ctx.session, ctx.workspace_id, case.id)
     if s.latest is not None:
-        s.assessment = stored_assessment(s.latest)
-        s.lookups = await load_lookups(ctx.session, case.id, [s.latest])
-        s.version = version_out(s.latest, s.lookups)
+        s.snapshot = await load_snapshot(ctx.session, s.latest)
+        s.assessment = s.snapshot.assessment
+        s.lookups = await load_lookups(ctx.session, case.id, [s.snapshot])
+        s.version = version_out(s.snapshot, s.lookups)
     s.retention = await load_retention(ctx.session, case)
     s.documents = await documents_out(ctx.session, case)
     claims = (
@@ -181,10 +183,10 @@ async def _memo_context(ctx: CaseContext, s: _State) -> MemoContext:
 
 async def memo_section(ctx: CaseContext) -> CaseMemoOut | None:
     s = await _state(ctx)
-    if s.latest is None or s.assessment is None:
+    if s.snapshot is None:
         return None
     if s.memo is None:
-        s.memo = await memo_out(ctx.session, s.latest, s.assessment, await _memo_context(ctx, s))
+        s.memo = await memo_out(ctx.session, s.snapshot, await _memo_context(ctx, s))
     return s.memo
 
 

@@ -33,6 +33,7 @@ async def assess_case(ctx: StepContext) -> dict:
         today=today(),
         trigger=trigger,
         run_id=ctx.run.id,
+        trigger_document_ids=[str(d) for d in ctx.input.get("document_ids") or []],
         enrich=memo_section_builder(),
         enrich_arg=memo_llm(ctx),
     )

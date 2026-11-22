@@ -2981,7 +2981,11 @@
             "because": "Team size is now settled",
             "evidence": []
           }
-        ]
+        ],
+        "trigger_document_ids": [],
+        "document_ids": [],
+        "evidence_ids": [],
+        "confidential_removed_on": null
       },
       "memo": null,
       "risks": [
@@ -4314,7 +4318,11 @@
             ]
           }
         },
-        "diff_from_previous": null
+        "diff_from_previous": null,
+        "trigger_document_ids": [],
+        "document_ids": [],
+        "evidence_ids": [],
+        "confidential_removed_on": null
       },
       {
         "id": "fx-assessment-v2",
@@ -4615,7 +4623,11 @@
             "because": "Team size is now settled",
             "evidence": []
           }
-        ]
+        ],
+        "trigger_document_ids": [],
+        "document_ids": [],
+        "evidence_ids": [],
+        "confidential_removed_on": null
       }
     ],
     "fx-case-shree": []

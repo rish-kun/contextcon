@@ -471,6 +471,16 @@ class AssessmentVersion(IdMixin, Base):
     reasons: Mapped[list] = mapped_column(JSONB, default=list)
     diff_from_previous: Mapped[dict | None] = mapped_column(JSONB)
     trigger: Mapped[str] = mapped_column(String(64), default="evaluate")
+    # Documents that caused this version, and every document / evidence row it rests on.
+    trigger_document_ids: Mapped[list] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb")
+    )
+    document_ids: Mapped[list] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb")
+    )
+    evidence_ids: Mapped[list] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb")
+    )
     # RESTRICT, not SET NULL: nulling a column is an UPDATE, which the trigger rejects.
     run_id: Mapped[uuid.UUID | None] = mapped_column(_fk("runs.id", ondelete="RESTRICT"))
     created_by: Mapped[uuid.UUID | None] = mapped_column(_fk("users.id", ondelete="RESTRICT"))

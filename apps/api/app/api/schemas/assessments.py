@@ -1,6 +1,6 @@
 """Assessment versions (CP-22): five separate judgments, never one combined score."""
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Literal
 
@@ -114,4 +114,19 @@ class AssessmentVersionOut(ApiModel):
     judgments: JudgmentsOut
     diff_from_previous: list[DiffLineOut] | None = Field(
         default=None, description="Null for version 1."
+    )
+    trigger_document_ids: list[str] = Field(
+        default_factory=list, description="Uploaded documents that caused this version."
+    )
+    document_ids: list[str] = Field(
+        default_factory=list, description="Every uploaded document this version rests on."
+    )
+    evidence_ids: list[str] = Field(
+        default_factory=list, description="Every evidence row this version rests on."
+    )
+    confidential_removed_on: date | None = Field(
+        default=None,
+        description="Set once claim wording, quotes and seller-derived reasons of this "
+        'version were deleted under retention; they then read "Removed per retention on '
+        '<date>" while statuses, scores and ids remain.',
     )

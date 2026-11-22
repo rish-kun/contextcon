@@ -16,16 +16,19 @@ from app.pipelines.evaluate.service import (
     evaluate_step,
     stored_assessment,
 )
+from app.pipelines.evaluate.snapshot import Snapshot, load_snapshot
 
 __all__ = [
     "HANDLER",
     "STEP_KEY",
+    "Snapshot",
     "EvaluationOutcome",
     "case_out",
     "evaluate_case",
     "evaluate_step",
     "list_versions_out",
     "load_inputs",
+    "load_snapshot",
     "queue_evaluation",
     "set_case_criteria",
     "stored_assessment",

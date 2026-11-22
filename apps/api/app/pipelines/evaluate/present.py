@@ -37,7 +37,7 @@ from app.db.models import Claim, Criterion, Evidence, Source
 from app.domain.enums import CriterionKind
 from app.domain.types import AssessmentDiff, AssessmentVersion, CheckSufficiency
 from app.pipelines.evaluate.inputs import reliability_of
-from app.pipelines.evaluate.service import stored_assessment
+from app.pipelines.evaluate.snapshot import Snapshot, load_snapshots
 from app.rules import policy
 
 NO_CRITERIA_NOTE = (
@@ -124,17 +124,10 @@ def _evidence_ids(a: AssessmentVersion, d: AssessmentDiff | None) -> set[str]:
     return ids
 
 
-async def load_lookups(
-    session: AsyncSession, case_id: uuid.UUID, rows: list[VersionRow]
-) -> Lookups:
+async def load_lookups(session: AsyncSession, case_id: uuid.UUID, snaps: list[Snapshot]) -> Lookups:
     ev_ids: set[str] = set()
-    for row in rows:
-        d = (
-            AssessmentDiff.model_validate(row.diff_from_previous)
-            if row.diff_from_previous
-            else None
-        )
-        ev_ids |= _evidence_ids(stored_assessment(row), d)
+    for snap in snaps:
+        ev_ids |= _evidence_ids(snap.assessment, snap.diff)
     lk = Lookups()
     wanted = uuids(ev_ids)
     if wanted:
@@ -150,8 +143,8 @@ async def load_lookups(
     lk.claims = {str(i): t for i, t in claims.all()}
     crit_ids = uuids(
         e.criterion_id
-        for row in rows
-        for e in stored_assessment(row).judgments.opportunity_fit.evaluations
+        for snap in snaps
+        for e in snap.assessment.judgments.opportunity_fit.evaluations
     )
     if crit_ids:
         crit = await session.execute(
@@ -322,9 +315,8 @@ def diff_lines(d: AssessmentDiff, lk: Lookups) -> list[DiffLineOut]:
     return lines
 
 
-def version_out(row: VersionRow, lk: Lookups) -> AssessmentVersionOut:
-    a = stored_assessment(row)
-    d = AssessmentDiff.model_validate(row.diff_from_previous) if row.diff_from_previous else None
+def version_out(snap: Snapshot, lk: Lookups) -> AssessmentVersionOut:
+    row, a, d = snap.row, snap.assessment, snap.diff
     return AssessmentVersionOut(
         id=str(row.id),
         version=row.version,
@@ -335,11 +327,16 @@ def version_out(row: VersionRow, lk: Lookups) -> AssessmentVersionOut:
         company_type=a.company_type.company_type.value,
         judgments=judgments_out(a, lk),
         diff_from_previous=diff_lines(d, lk) if d is not None else None,
+        trigger_document_ids=list(row.trigger_document_ids or []),
+        document_ids=list(row.document_ids or []),
+        evidence_ids=list(row.evidence_ids or []),
+        confidential_removed_on=snap.removed_on,
     )
 
 
 async def list_versions_out(
     session: AsyncSession, case_id: uuid.UUID, rows: list[VersionRow]
 ) -> list[AssessmentVersionOut]:
-    lk = await load_lookups(session, case_id, rows)
-    return [version_out(r, lk) for r in rows]
+    snaps = await load_snapshots(session, rows)
+    lk = await load_lookups(session, case_id, snaps)
+    return [version_out(s, lk) for s in snaps]

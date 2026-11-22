@@ -685,6 +685,26 @@ export interface components {
              * @description Null for version 1.
              */
             diff_from_previous: components["schemas"]["DiffLineOut"][] | null;
+            /**
+             * Trigger Document Ids
+             * @description Uploaded documents that caused this version.
+             */
+            trigger_document_ids: string[];
+            /**
+             * Document Ids
+             * @description Every uploaded document this version rests on.
+             */
+            document_ids: string[];
+            /**
+             * Evidence Ids
+             * @description Every evidence row this version rests on.
+             */
+            evidence_ids: string[];
+            /**
+             * Confidential Removed On
+             * @description Set once claim wording, quotes and seller-derived reasons of this version were deleted under retention; they then read "Removed per retention on <date>" while statuses, scores and ids remain.
+             */
+            confidential_removed_on: string | null;
         };
         /** BudgetsOut */
         BudgetsOut: {

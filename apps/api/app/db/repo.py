@@ -291,6 +291,9 @@ async def add_assessment_version(
     reasons: list,
     diff_from_previous: dict | None = None,
     trigger: str = "evaluate",
+    trigger_document_ids: list[str] | None = None,
+    document_ids: list[str] | None = None,
+    evidence_ids: list[str] | None = None,
     run_id: uuid.UUID | None = None,
     created_by: uuid.UUID | None = None,
 ) -> AssessmentVersion:
@@ -310,6 +313,9 @@ async def add_assessment_version(
         reasons=reasons,
         diff_from_previous=diff_from_previous,
         trigger=trigger,
+        trigger_document_ids=list(trigger_document_ids or []),
+        document_ids=list(document_ids or []),
+        evidence_ids=list(evidence_ids or []),
         run_id=run_id,
         created_by=created_by,
     )

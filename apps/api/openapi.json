@@ -2534,6 +2534,43 @@
             ],
             "title": "Diff From Previous",
             "description": "Null for version 1."
+          },
+          "trigger_document_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Trigger Document Ids",
+            "description": "Uploaded documents that caused this version."
+          },
+          "document_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Document Ids",
+            "description": "Every uploaded document this version rests on."
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Ids",
+            "description": "Every evidence row this version rests on."
+          },
+          "confidential_removed_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidential Removed On",
+            "description": "Set once claim wording, quotes and seller-derived reasons of this version were deleted under retention; they then read \"Removed per retention on <date>\" while statuses, scores and ids remain."
           }
         },
         "additionalProperties": false,
@@ -2547,7 +2584,11 @@
           "trigger",
           "company_type",
           "judgments",
-          "diff_from_previous"
+          "diff_from_previous",
+          "trigger_document_ids",
+          "document_ids",
+          "evidence_ids",
+          "confidential_removed_on"
         ],
         "title": "AssessmentVersionOut"
       },
