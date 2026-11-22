@@ -579,3 +579,32 @@ async def test_record_news_links_are_read_as_dated_events(session, sm, api) -> N
     assert url in fetched and "https://news.google.com/rss/x" not in fetched
     [event] = list((await session.execute(select(Event).where(Event.case_id == case.id))).scalars())
     assert str(event.event_date) == "2026-08-14"  # the record's date when the page has none
+
+
+async def test_identity_outcome_is_streamed_with_candidates(session, sm, api) -> None:
+    from app.api.cases_service import create_case
+    from app.db.models import RunActivity
+
+    actor = await _actor(session)
+    group = "groupco.example"
+    api.identify[("domains", group)] = [
+        company(11, "GroupCo Logistics (fixture)", group),
+        company(12, "GroupCo Warehousing (fixture)", group),
+    ]
+    case = await create_case(
+        session, actor, CaseCreate(name="GroupCo Logistics (fixture)", website=f"https://{group}")
+    )
+    await _drain(sm)
+    rows = await session.execute(
+        select(RunActivity.payload)
+        .join(Run)
+        .where(Run.case_id == case.id)
+        .order_by(RunActivity.seq)
+    )
+    events = list(rows.scalars())
+    identity = next(e for e in events if e["subject"] == "identity")
+    assert identity["label"] == "Identity ambiguous: 2 close candidates"
+    assert identity["counts"] == {"candidates": 2}
+    assert {i["id"] for i in identity["items"]} == {"11", "12"}
+    assert all(i["stage"] == "ambiguous" and i["matched_keys"] for i in identity["items"])
+    assert any(e["kind"] == "notice" and e["code"] == "identity_blocked" for e in events)

@@ -38,7 +38,8 @@ from app.drafting.shortlist import CriterionResult as WhyCriterion
 from app.drafting.shortlist import draft_shortlist_why, fallback_why
 from app.extraction.llm import LlmOutputError
 from app.jobs import BudgetExceeded, StepContext, StepSpec, step_handler
-from app.pipelines.discover import cards, records
+from app.jobs.activity import NoticeCode, Subject, render
+from app.pipelines.discover import activity, cards, records
 from app.pipelines.discover.clients import autocomplete, factories
 from app.pipelines.discover.criteria import (
     PREFIX_ONLY_FIELDS,
@@ -312,6 +313,8 @@ class _Searcher:
                 cache=self.ctx.cache,
             )
             rows = [c.model_dump(mode="json", exclude_none=True) for c in result.companies]
+            seen = {records.company_id(i["company"]) for i in self.items}
+            new = [c for c in rows if records.company_id(c) not in seen]
             for i, company in enumerate(rows):
                 self.items.append(
                     {
@@ -331,6 +334,10 @@ class _Searcher:
                     "from_cache": record.from_cache,
                 }
             )
+            if self.ctx.run.discovery_run_id is not None:
+                await activity.found(
+                    self.ctx, self.ctx.run.discovery_run_id, new, label, self.unique_ids()
+                )
             return len(rows)
 
     def unique_ids(self) -> int:
@@ -366,6 +373,7 @@ async def search_step(ctx: StepContext) -> dict[str, Any]:
             except BudgetExceeded:
                 s.notes.append("Supplemental search not run: budget reached.")
         if s.unique_ids() < WIDEN_BELOW and filters.soft:
+            await ctx.activity.notice(NoticeCode.SEARCH_WIDENED, n=s.unique_ids())
             try:
                 await s.search("widened", filters.combine(soft="drop"), WIDEN_LIMIT)
             except BudgetExceeded:
@@ -399,6 +407,7 @@ def _prelim_key(c: dict[str, Any]) -> tuple:
 @step_handler("discover.gate")
 async def gate_step(ctx: StepContext) -> dict[str, Any]:
     dr = await _discovery_run(ctx)
+    await ctx.activity.status(render("status.removing_duplicates"))
     criteria, _ = _snapshot(dr)
     found = _dep_output(ctx, S_SEARCH) or {}
     rule_criteria = _rule_criteria(criteria, found.get("resolutions") or {})
@@ -458,6 +467,7 @@ async def gate_step(ctx: StepContext) -> dict[str, Any]:
         )
     survivors = sorted((c for c in candidates if not c["excluded"]), key=_prelim_key)
     excluded = [c for c in candidates if c["excluded"]]
+    await activity.dropped(ctx, dr.id, {"candidates": candidates, "duplicates": duplicates})
     ctx.result = (
         f"{len(candidates)} unique companies; {len(duplicates)} duplicates removed; "
         f"{len(excluded)} failed a must-have"
@@ -585,6 +595,12 @@ async def enrich_step(ctx: StepContext) -> dict[str, Any]:
             "listings": [j.model_dump(mode="json", exclude_none=True) for j in result.job_listings],
         }
 
+    if ctx.run.discovery_run_id is not None:
+        await activity.enriched(
+            ctx, ctx.run.discovery_run_id, gate, enriched, jobs, jobs_not_checked
+        )
+    if left_out:
+        await ctx.activity.notice(NoticeCode.BUDGET_REACHED)
     ctx.result = f"Enriched {len(enriched)} of {n} in one call; postings for {len(jobs)}" + (
         f"; {len(left_out)} not enriched (budget)" if left_out else ""
     )
@@ -624,6 +640,7 @@ async def score_step(ctx: StepContext) -> dict[str, Any]:
         return {"ranked": 0, "excluded": 0, "search_not_checked": reason}
 
     rule_criteria = _rule_criteria(criteria, found.get("resolutions") or {})
+    await ctx.activity.status(render("status.scoring", n=len(gate["survivors"][:ENRICH_TOP])))
     enrich, not_enriched_reason = _enrich_status(ctx)
     by_id = {c["crustdata_company_id"]: c for c in gate["candidates"]}
     pool = list(gate["survivors"])[:ENRICH_TOP]
@@ -705,7 +722,7 @@ async def score_step(ctx: StepContext) -> dict[str, Any]:
             unknown_items=unknown_items,
         )
         row = Candidate(
-            id=uuid.uuid4(),
+            id=activity.candidate_id(dr.id, cid),
             discovery_run_id=dr.id,
             crustdata_company_id=str(cid),
             name=cand["name"],
@@ -745,6 +762,8 @@ async def score_step(ctx: StepContext) -> dict[str, Any]:
 
     dr.status = "scored"
     later_fails = len(result.excluded)
+    found_n = len(gate["candidates"]) + len(gate.get("duplicates") or [])
+    await activity.scored(ctx, dr.id, result.ranked, found_n, found_n - len(result.ranked))
     ctx.result = (
         f"{len(result.ranked)} on the shortlist; {later_fails} removed after enrichment; "
         f"{len(gate_excluded)} removed at the gate"
@@ -850,6 +869,19 @@ async def explain_step(ctx: StepContext) -> dict[str, Any]:
         reasons = why_reasons(text, evidence)
         if reasons:
             row.card = {**row.card, "reasons": reasons}
+    await ctx.activity.findings(
+        lambda batch: (
+            render("finding.explained_company", name=batch[0]["name"])
+            if len(batch) == 1
+            else render("finding.ranked_companies", n=len(batch))
+        ),
+        subject=Subject.COMPANY,
+        items=[
+            {"id": str(row.id), "stage": "explained", "name": row.name}
+            for row, text, _f, _e in drafted
+            if text
+        ],
+    )
     dr.status = "done"
     ctx.result = f"Explained {len(rows)} companies" + (
         f" ({fallbacks} with the plain list)" if fallbacks else ""

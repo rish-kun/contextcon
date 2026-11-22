@@ -128,3 +128,20 @@ async def test_canary_never_reaches_the_activity_stream(sm, session) -> None:
     # ("raised growth funding" may appear: it is in the public news page's own text.)
     for word in (CANARY, "Zentrix", "anchor client", "We employ", 'investors"'):
         assert word not in stored, word
+
+
+async def test_the_run_ends_with_assessment_and_request_findings(sm, session) -> None:
+    case = await _case(session)
+    await _registry_evidence(session, case)
+    sentences = [(s, c, comps) for s, c, comps, _ in PUNE]
+    await _verify(sm, session, case, sentences, pune_crustdata())
+    events = await _activities(sm, case)
+    subjects = [e["subject"] for e in events if e["kind"] == "finding"]
+    assert "assessment" in subjects and "request_list" in subjects
+    assert subjects.index("assessment") < subjects.index("request_list")
+    assessment = next(e for e in events if e["subject"] == "assessment")["items"][0]
+    assert assessment["stage"] == "written" and assessment["version"] >= 1
+    assert assessment["disposition"]
+    request = next(e for e in events if e["subject"] == "request_list")
+    assert set(request["items"][0]) == {"id", "stage"}  # counts only, never item text
+    assert "request_items" in request["counts"]

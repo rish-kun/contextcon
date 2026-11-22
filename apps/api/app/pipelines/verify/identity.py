@@ -30,6 +30,7 @@ from app.db.enums import IdentityStatus
 from app.db.models import Case
 from app.domain.enums import SourceReliability
 from app.jobs import StepContext, StepSpec, step_handler
+from app.jobs.activity import NoticeCode, Subject, render
 from app.pipelines.verify import common
 from app.pipelines.verify.common import (
     COMPARABLES,
@@ -467,6 +468,32 @@ async def record_key_evidence(
     return keys
 
 
+async def _announce(ctx: StepContext, decision: IdentityDecision) -> None:
+    """Live activity: the identity outcome, with the candidates and the corroborating
+    keys each matched on (public Crustdata names and domains; the picker opens on it)."""
+    state = decision.state.value
+    shown = [decision.chosen] if decision.chosen is not None else decision.candidates[:5]
+    items = [
+        {
+            "id": str(c.crustdata_company_id),
+            "stage": state,
+            "name": c.name,
+            "domain": c.primary_domain,
+            "matched_keys": [k["key"] for k in c.matching if k["key"] in CORROBORATING_KEYS],
+        }
+        for c in shown
+        if c is not None
+    ]
+    await ctx.activity.finding(
+        render(f"finding.identity_{state}", n=len(decision.candidates)),
+        subject=Subject.IDENTITY,
+        items=items,
+        counts={"candidates": len(decision.candidates)},
+    )
+    if decision.state != IdentityStatus.CONFIRMED:
+        await ctx.activity.notice(NoticeCode.IDENTITY_BLOCKED)
+
+
 @step_handler(IDENTITY)
 async def identify(ctx: StepContext) -> dict[str, Any]:
     case = await common.load_case(ctx)
@@ -493,6 +520,7 @@ async def identify(ctx: StepContext) -> dict[str, Any]:
         await common.close_quietly(client)
 
     decision = decide_identity(expected, by_domain, by_name)
+    await _announce(ctx, decision)
     case.identity_candidates = [c.as_json() for c in decision.candidates]
     identifiers["note"] = decision.note
     identifiers["decided_at"] = datetime.now(UTC).isoformat()

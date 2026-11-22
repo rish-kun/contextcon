@@ -28,6 +28,8 @@ from app.domain.types import RankedInvestor, SearchScope
 from app.extraction.investors import BusinessProfile, extract_investor_spec
 from app.extraction.llm import StructuredLlm
 from app.jobs import BudgetExceeded, StepContext, StepSpec, step_handler
+from app.jobs.activity import NoticeCode
+from app.pipelines.investors import activity
 from app.pipelines.investors.ingest import (
     ScrubbingCache,
     compact_company,
@@ -277,6 +279,9 @@ async def comparables_step(ctx: StepContext) -> dict[str, Any]:
         if c["needs_enrich"]:
             c["rounds"] = []
     widened = len(searches) > 1
+    await activity.comparables_found(ctx, companies)
+    if widened:
+        await ctx.activity.notice(NoticeCode.SEARCH_WIDENED, n=searches[0]["kept"])
     ctx.result = f"{len(companies)} comparable companies found" + (
         " (widened beyond the size band)" if widened else ""
     )
@@ -406,6 +411,9 @@ async def enrich_step(ctx: StepContext) -> dict[str, Any]:
                 out.append(company)
 
     rounds = sum(len(c["rounds"]) for c in out)
+    await activity.rounds_read(ctx, out)
+    if budget_short:
+        await ctx.activity.notice(NoticeCode.BUDGET_REACHED)
     ctx.result = f"{rounds} funding rounds read from {len(out)} companies"
     if budget_short:
         ctx.result += f"; {budget_short} not read: budget reached"
@@ -472,6 +480,7 @@ async def rank_step(ctx: StepContext) -> dict[str, Any]:
     )
     records = funding_records(companies)
     ranking = rank_investors(records, scope, sought)
+    await activity.ranked(ctx, ranking)
     excluded = Counter(e.reason for e in ranking.excluded_records)
 
     scope_bits = [plan.describe()] if plan else []

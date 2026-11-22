@@ -340,6 +340,7 @@ TEMPLATES: dict[str, str] = {
     "finding.ranked_companies": "Ranked {n} companies",
     "finding.removed_after_enrichment": "Removed {n} companies after enrichment",
     "finding.explained_company": "Explained {name}",
+    "finding.explained_companies": "Explained {n} companies",
     "finding.identity_confirmed": "Identity confirmed",
     "finding.identity_ambiguous": "Identity ambiguous: {n} close candidates",
     "finding.identity_unresolved": "Identity not resolved",

@@ -324,3 +324,36 @@ async def test_lead_investors_as_comma_string(session, sm, monkeypatch) -> None:
     companies = [company(1, "Alpha Logistics", [r])]
     out, _, _ = await _search(session, sm, monkeypatch, companies)
     assert sorted(e.investor_name for e in out.entries) == ["Kite VC", "Maple Capital Advisors"]
+
+
+async def test_investor_search_streams_comparables_rounds_and_ranking(
+    session, sm, monkeypatch
+) -> None:
+    from app.api.schemas.runs import ActivityOut
+    from app.db.models import RunActivity
+
+    companies = [
+        company(1, "Alpha Logistics", [round_("series_a", ago(300), [investor("Kite", "k1")])]),
+        company(2, "Beta Warehousing", [round_("seed", ago(400), [investor("Ash Fund")])]),
+    ]
+    out, _, _ = await _search(session, sm, monkeypatch, companies)
+    async with sm() as s:
+        events = list(
+            (await s.execute(select(RunActivity.payload).order_by(RunActivity.seq))).scalars()
+        )
+    for e in events:
+        ActivityOut.model_validate(e)
+    findings = [(e["step_key"], e["subject"]) for e in events if e["kind"] == "finding"]
+    assert ("investors.comparables", "company") in findings
+    assert findings.count(("investors.enrich", "round")) == 2 or (
+        ("investors.enrich", "round") in findings
+    )
+    rounds = [e for e in events if e["subject"] == "round"]
+    assert rounds[-1]["counts"]["investors"] == 2 and rounds[-1]["progress"]["total"] >= 1
+    assert {i["company"] for e in rounds for i in e["items"]} == {
+        "Alpha Logistics",
+        "Beta Warehousing",
+    }
+    ranked = [i for e in events if e["subject"] == "investor" for i in e["items"]]
+    assert [i["name"] for i in ranked] == [e.investor_name for e in out.entries]
+    assert [i["rank"] for i in ranked] == list(range(1, len(ranked) + 1))
