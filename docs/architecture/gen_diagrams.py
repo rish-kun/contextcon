@@ -1,365 +1,245 @@
-"""Generate the DealProof architecture SVGs (technical + business)."""
+"""Generate the DealProof architecture diagrams (technical + business) as SVG.
+
+Usage: python docs/architecture/gen_diagrams.py docs/architecture
+"""
 import sys
 from html import escape
 from pathlib import Path
 
-OUT = Path(sys.argv[1])
-OUT.mkdir(parents=True, exist_ok=True)
-
-INK = "#0f172a"
-MUTED = "#475569"
-LINE = "#94a3b8"
+INK, MUTED, LINE = "#0f172a", "#64748b", "#94a3b8"
 BADGE = {
-    "D": ("#2563eb", "Data call to a live source"),
-    "A": ("#d97706", "Human approval gate"),
-    "R": ("#7c3aed", "Retry / resume point"),
-    "$": ("#059669", "Cost ledger write"),
+    "D": ("#2563eb", "Live data call"),
+    "A": ("#d97706", "Human approval"),
+    "R": ("#7c3aed", "Retry / resume"),
+    "$": ("#059669", "Cost ledger"),
 }
-FILL = {
-    "ui": ("#eef2ff", "#6366f1"),
-    "api": ("#f8fafc", "#64748b"),
-    "job": ("#f5f3ff", "#7c3aed"),
-    "pipe": ("#ffffff", "#7c3aed"),
-    "call": ("#eff6ff", "#2563eb"),
-    "db": ("#ecfdf5", "#059669"),
-    "ext": ("#fff7ed", "#ea580c"),
-    "gate": ("#fffbeb", "#d97706"),
+KIND = {  # fill, stroke
     "person": ("#fdf2f8", "#db2777"),
-    "plain": ("#ffffff", "#cbd5e1"),
-    "today": ("#f1f5f9", "#94a3b8"),
-    "out": ("#ecfdf5", "#059669"),
+    "ui": ("#eef2ff", "#6366f1"),
+    "core": ("#faf5ff", "#7c3aed"),
+    "step": ("#ffffff", "#7c3aed"),
+    "gw": ("#eff6ff", "#2563eb"),
+    "chip": ("#ffffff", "#2563eb"),
+    "ext": ("#fff7ed", "#ea580c"),
+    "db": ("#ecfdf5", "#059669"),
+    "gate": ("#fffbeb", "#d97706"),
+    "grey": ("#f8fafc", "#94a3b8"),
+    "white": ("#ffffff", "#cbd5e1"),
 }
-
-STYLE = f"""
-<style>
-  text {{ font-family: 'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif; fill: {INK}; }}
-  .title {{ font-size: 26px; font-weight: 700; }}
-  .sub {{ font-size: 15px; fill: {MUTED}; }}
-  .h {{ font-size: 16px; font-weight: 700; }}
-  .s {{ font-size: 14px; fill: #1e293b; }}
-  .m {{ font-family: Consolas, 'Cascadia Mono', 'Courier New', monospace; font-size: 13px; fill: #1e293b; }}
-  .lab {{ font-size: 13px; fill: {MUTED}; font-style: italic; }}
-  .lane {{ font-size: 13px; font-weight: 700; fill: {MUTED}; letter-spacing: 1.5px; }}
-  .badge {{ font-size: 13px; font-weight: 800; fill: #ffffff; }}
-  .gate {{ font-size: 14px; font-weight: 800; fill: #b45309; }}
-</style>
-"""
+STYLE = f"""<style>
+text {{ font-family: 'Segoe UI', Inter, 'Helvetica Neue', Arial, sans-serif; fill: {INK}; }}
+.title {{ font-size: 30px; font-weight: 700; }}
+.sub {{ font-size: 17px; fill: {MUTED}; }}
+.zone {{ font-size: 14px; font-weight: 700; fill: {MUTED}; letter-spacing: 1.6px; }}
+.h {{ font-size: 19px; font-weight: 700; }}
+.s {{ font-size: 16px; fill: #334155; }}
+.lab {{ font-size: 14px; fill: {MUTED}; }}
+.num {{ font-size: 14px; font-weight: 800; fill: #ffffff; }}
+.big {{ font-size: 20px; font-weight: 700; }}
+</style>"""
 
 
 class SVG:
     def __init__(self, w, h):
-        self.w, self.h = w, h
-        self.parts = []
+        self.w, self.h, self.p = w, h, []
 
-    def add(self, s):
-        self.parts.append(s)
+    def rect(self, x, y, w, h, kind, rx=12, dash=False, sw=2):
+        f, s = KIND[kind]
+        d = ' stroke-dasharray="8 6"' if dash else ""
+        self.p.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rx}" fill="{f}" stroke="{s}" stroke-width="{sw}"{d}/>')
 
-    def box(self, x, y, w, h, kind="plain", rx=10, dash=False, sw=1.6):
-        fill, stroke = FILL[kind]
-        d = ' stroke-dasharray="7 5"' if dash else ""
-        self.add(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rx}" fill="{fill}" stroke="{stroke}" stroke-width="{sw}"{d}/>')
+    def text(self, x, y, s, cls="s", anchor="start", fill=None):
+        f = f' style="fill:{fill}"' if fill else ""
+        self.p.append(f'<text x="{x}" y="{y}" class="{cls}" text-anchor="{anchor}"{f}>{escape(s)}</text>')
 
-    def text(self, x, y, s, cls="s", anchor="start", extra=""):
-        self.add(f'<text x="{x}" y="{y}" class="{cls}" text-anchor="{anchor}"{extra}>{escape(s)}</text>')
-
-    def card(self, x, y, w, h, title, lines, kind="plain", badges=(), mono=False, lh=19, dash=False):
-        self.box(x, y, w, h, kind, dash=dash)
-        self.text(x + 14, y + 25, title, "h")
-        cy = y + 25 + lh + 2
-        for ln in lines:
-            if ln.startswith("!GATE "):
-                self.text(x + 14, cy, ln[6:], "gate")
-            else:
-                self.text(x + 14, cy, ln, "m" if mono else "s")
-            cy += lh
-        bx = x + w - 18
+    def card(self, x, y, w, h, title, lines=(), kind="white", badges=(), center=False):
+        self.rect(x, y, w, h, kind)
+        n = 1 + len(lines)
+        top = y + h / 2 - (n - 1) * 12 + 6
+        if center:
+            self.text(x + w / 2, top, title, "h", "middle")
+            for i, ln in enumerate(lines):
+                self.text(x + w / 2, top + 25 + i * 22, ln, "s", "middle")
+        else:
+            self.text(x + 18, y + 32, title, "h")
+            for i, ln in enumerate(lines):
+                self.text(x + 18, y + 58 + i * 22, ln, "s")
+        bx = x + w - 20
         for b in badges:
-            self.badge(bx, y + 18, b)
+            self.badge(bx, y + 20, b)
             bx -= 30
 
-    def badge(self, cx, cy, b):
-        col = BADGE[b][0]
-        self.add(f'<circle cx="{cx}" cy="{cy}" r="12" fill="{col}"/>')
-        self.text(cx, cy + 4.5, b, "badge", "middle")
+    def badge(self, cx, cy, b, r=13):
+        self.p.append(f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{BADGE[b][0]}"/>')
+        self.text(cx, cy + 5, b, "num", "middle")
 
-    def arrow(self, pts, color=LINE, width=2, dash=False, label=None, lx=None, ly=None, head=True):
+    def arrow(self, pts, color=LINE, w=2.5, dash=False, head=True):
         d = "M " + " L ".join(f"{x} {y}" for x, y in pts)
-        mk = f' marker-end="url(#ah-{color[1:]})"' if head else ""
-        da = ' stroke-dasharray="6 5"' if dash else ""
-        self.add(f'<path d="{d}" fill="none" stroke="{color}" stroke-width="{width}"{da}{mk}/>')
-        if label:
-            self.text(lx, ly, label, "lab")
+        mk = f' marker-end="url(#a{color[1:]})"' if head else ""
+        da = ' stroke-dasharray="7 6"' if dash else ""
+        self.p.append(f'<path d="{d}" fill="none" stroke="{color}" stroke-width="{w}" stroke-linejoin="round"{da}{mk}/>')
 
     def render(self):
-        colors = {LINE, "#2563eb", "#d97706", "#7c3aed", "#059669", "#475569", "#db2777", "#ea580c"}
-        markers = "".join(
-            f'<marker id="ah-{c[1:]}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">'
-            f'<path d="M0 0 L10 5 L0 10 z" fill="{c}"/></marker>'
-            for c in colors
-        )
-        return (
-            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.w} {self.h}" width="{self.w}" height="{self.h}">'
-            f"{STYLE}<defs>{markers}</defs>"
-            f'<rect width="{self.w}" height="{self.h}" fill="#ffffff"/>'
-            + "".join(self.parts)
-            + "</svg>"
-        )
+        cols = {LINE, "#475569", "#2563eb", "#d97706", "#7c3aed", "#059669", "#db2777"}
+        mk = "".join(
+            f'<marker id="a{c[1:]}" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto">'
+            f'<path d="M0 0 L10 5 L0 10 z" fill="{c}"/></marker>' for c in sorted(cols))
+        return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.w} {self.h}" width="{self.w}" height="{self.h}">'
+                f'{STYLE}<defs>{mk}</defs><rect width="{self.w}" height="{self.h}" fill="#ffffff"/>' + "".join(self.p) + "</svg>")
 
 
 def legend(s, x, y):
-    s.text(x, y, "LEGEND", "lane")
-    cx = x + 90
-    for b, (col, label) in BADGE.items():
-        s.badge(cx, y - 5, b)
-        s.text(cx + 20, y, label, "s")
-        cx += 20 + len(label) * 7.6 + 40
+    for b, (_, label) in BADGE.items():
+        s.badge(x, y - 5, b, 12)
+        s.text(x + 20, y, label, "s")
+        x += 40 + len(label) * 8.5 + 30
 
 
-# ------------------------------------------------------------------ technical
+# --------------------------------------------------------------------- technical
 def technical():
-    s = SVG(1500, 1170)
-    s.text(20, 38, "DealProof — technical architecture", "title")
-    s.text(20, 60, "Components, data flow, and where data calls (D), approvals (A), retries (R) and the cost ledger ($) sit", "sub")
+    s = SVG(1600, 1010)
+    s.text(40, 52, "DealProof · technical architecture", "title")
+    s.text(40, 82, "One request flows top to bottom. Badges mark where live data calls, approvals, retries and the cost ledger sit.", "sub")
 
-    # Band A: people + web + seller
-    s.card(20, 76, 240, 46, "Analyst / associate", [], "person")
-    s.card(20, 130, 240, 46, "Named approver", [], "person", badges=("A",))
-    s.card(300, 76, 860, 100, "Web app — Next.js 16 (apps/web) on Cloud Run, asia-south1", [
-        "Discover · Investors · Case pages: identity, claims, sources, assessment, request, cost",
-        "Approvals queue · same-origin /api proxy · live run activity over SSE (polling fallback)",
-    ], "ui", badges=("$",))
-    s.card(1200, 76, 280, 100, "Seller / target company", [
-        "receives one approved email",
-        "returns documents → upload",
-    ], "person")
-    s.arrow([(260, 99), (298, 99)], "#db2777")
-    s.arrow([(260, 153), (298, 153)], "#d97706", label=None)
-    s.arrow([(730, 176), (730, 210)], "#475569")
-    s.text(740, 198, "HTTPS JSON + SSE", "lab")
+    # 1. people + web
+    s.text(40, 128, "1  PEOPLE AND WEB APP", "zone")
+    s.card(40, 142, 220, 70, "Analyst", ["asks, reads results"], "person")
+    s.card(40, 224, 220, 70, "Approver", ["signs off the email"], "person", badges=("A",))
+    s.card(320, 142, 1000, 152, "Web app", ["Next.js on Cloud Run", "Discover · case pages (claims, sources, assessment, cost) · approvals queue",
+                                           "Live progress of every run"], "ui")
+    s.arrow([(260, 177), (318, 177)], "#db2777")
+    s.arrow([(260, 259), (318, 259)], "#d97706")
+    s.card(1380, 142, 180, 152, "Seller", ["gets one", "approved email"], "person", center=True)
 
-    # API container
-    s.box(10, 212, 1470, 600, "api", rx=14, dash=True)
-    s.text(26, 236, "API service — FastAPI (apps/api), Python 3.12 · the same image runs the step worker · Cloud Run", "h")
-
-    s.card(30, 250, 450, 82, "HTTP routers", [
-        "theses · investors · cases · documents · requests (act)",
-        "runs + activity stream · policy · public showcase",
-    ])
-    s.card(496, 250, 450, 82, "Auth & access control", [
-        "named users, sessions, origin check, rate limits",
-        "case-scoped authorisation on every read path",
-    ])
-    s.card(962, 250, 500, 82, "Document intake (seller decks, claims)", [
-        "validate → sandboxed text extraction → PII redaction",
-        "→ private GCS bucket, case-scoped, 30-day retention",
-    ])
-
-    # Job engine
-    s.box(30, 346, 1432, 262, "job", rx=12)
-    s.text(46, 370, "Job engine — every pipeline is a Run of idempotent Steps, persisted in Postgres", "h")
-    s.card(46, 384, 430, 206, "Step worker (jobs/worker.py)", [
-        "claim: SELECT … FOR UPDATE SKIP LOCKED",
-        "60 s lease, renewed while the step runs",
-        "fresh lease_token per claim (fencing)",
-        "expired leases reclaimed by sweep + claim",
-        "step retried ≤ 3 attempts (2 s → 120 s)",
-        "budget spent → skipped_budget (Not checked)",
-        "pending → running → done|failed|skipped",
-    ], "pipe", badges=("R",), lh=20)
-
-    px, pw, gap = 494, 224, 16
-    pipes = [
-        ("1 · Discover", ["thesis → criteria (LLM)", "company search (live)", "must-have gate", "enrich top N + jobs", "re-gate → fit rank", "+ investor discovery"], ("D",)),
-        ("2 · Verify", ["identity guard (blocking)", "profile · registry · events", "comparables · claim intake", "evidence per claim", "facts (LLM), span-checked", "status by rule table"], ("D",)),
-        ("3 · Evaluate (rules only)", ["fit + % assessable", "evidence sufficiency", "business · financial", "disposition (4 values)", "AssessmentVersion + diff", "DecisionFlip what-if"], ()),
-        ("4 · Act", ["request list (rules)", "draft email (LLM)", "!GATE ◆ APPROVAL GATE", "approval bound to revision", "send once (send key)", "docs back → re-check"], ("A",)),
-    ]
-    for i, (t, ls, b) in enumerate(pipes):
-        x = px + i * (pw + gap)
-        s.card(x, 384, pw, 196, t, ls, "pipe", badges=b, lh=24)
-        if i < 3:
-            s.arrow([(x + pw, 420), (x + pw + gap - 1, 420)], "#7c3aed")
-    # recheck loop Act -> Verify
-    vx = px + (pw + gap) + pw / 2
-    ax = px + 3 * (pw + gap) + pw / 2
-    s.arrow([(ax, 580), (ax, 588), (vx, 588), (vx, 582)], "#7c3aed", dash=True)
-    s.text(vx + 14, 603, "seller documents arrive → affected claims re-checked → new assessment version", "lab")
-
-    # Worker <-> Postgres along the left gutter
-    s.arrow([(46, 470), (20, 470), (20, 852)], "#059669", width=2)
-    s.text(26, 838, "claim · lease · state", "lab", extra=' transform="rotate(0)"')
-
-    # Call layer
-    s.box(30, 652, 1432, 146, "call", rx=12)
-    s.text(46, 676, "External call layer — CallOperation (clients/base.py): the single path for every paid call", "h")
-    s.badge(1438, 670, "D")
-    s.arrow([(730, 608), (730, 650)], "#2563eb")
-    s.text(740, 636, "every data / model call", "lab")
+    # 2. API + job engine
+    s.arrow([(820, 294), (820, 344)], "#475569")
+    s.text(832, 324, "HTTPS + live updates", "lab")
+    s.text(40, 336, "2  API AND JOB ENGINE  (FastAPI on Cloud Run)", "zone")
+    s.rect(40, 350, 1280, 250, "core", rx=16)
+    s.text(64, 386, "Job engine", "h")
+    s.text(176, 386, "Every request is a Run of small Steps saved in Postgres. A worker holds a 60 s lease per step;", "s")
+    s.text(176, 410, "if the process is killed, another worker resumes the step. A failed step is retried up to 3 times.", "s")
+    s.badge(1290, 378, "R")
     steps = [
-        ("① Cache lookup", ["request-hash cache", "case-scoped if private text", "hit → replay, zero cost"], ()),
-        ("② Pre-dispatch", ["check lease (fencing)", "reserve case credit budget", "call_attempt = started"], ()),
-        ("③ Dispatch + retry", ["429 · 5xx · network · timeout", "exp. backoff + jitter", "Crustdata ≤3, Claude ≤2"], ("R",)),
-        ("④ Finish (one txn)", ["usage → cost_entries", "cache write + attempt status", "lost usage = unknown, not 0"], ("$",)),
+        ("Discover", ["thesis →", "ranked shortlist"], ()),
+        ("Verify", ["identity first, then", "each claim vs. evidence"], ()),
+        ("Evaluate", ["fixed rules →", "disposition"], ()),
+        ("Act", ["◆ approval, then", "send email once"], ("A",)),
     ]
-    sx, sw2, sg = 46, 262, 14
+    x, w, gap = 64, 290, 21
     for i, (t, ls, b) in enumerate(steps):
-        x = sx + i * (sw2 + sg)
-        s.card(x, 688, sw2, 98, t, ls, "plain", badges=b, lh=20)
+        s.card(x, 440, w, 136, t, ls, "gate" if t == "Act" else "step", badges=b, center=True)
         if i < 3:
-            s.arrow([(x + sw2, 736), (x + sw2 + sg - 1, 736)], "#2563eb")
-    ex = sx + 4 * (sw2 + sg)
-    s.card(ex, 688, 1446 - ex, 98, "Email sender (Resend)", [
-        "send key stored before the call",
-        "= provider idempotency key",
-        "unknown → reconcile, never resend",
-    ], "gate", badges=("A",), lh=20)
-    s.arrow([(1404, 580), (1404, 686)], "#d97706")
+            s.arrow([(x + w + 2, 508), (x + w + gap - 2, 508)], "#7c3aed")
+        x += w + gap
+    act_cx = 64 + 3 * (w + gap) + w / 2
 
-    # Band E: stores + externals
-    s.card(30, 852, 780, 214, "Neon Postgres — system of record", [], "db")
-    col1 = ["runs, steps (state, lease_token, attempts)", "call_attempts: started → succeeded|failed|unknown",
-            "cost_entries — THE COST LEDGER (credits, tokens, USD)", "api cache (request hash, case scope)", "run_activities (live log shown in the UI)"]
-    col2 = ["sources, evidence (span, date, origin)", "claims (original + normalised)", "assessment_versions (immutable)",
-            "messages, revisions, approvals", "sends (unique send key), deletion log"]
-    for i, ln in enumerate(col1):
-        s.text(44, 902 + i * 30, ln, "m")
-    for i, ln in enumerate(col2):
-        s.text(476, 902 + i * 30, ln, "m")
-    s.badge(32, 958, "$")
+    # 3. call gateway
+    s.arrow([(500, 600), (500, 650)], "#2563eb")
+    s.text(512, 630, "every paid call goes through one gateway", "lab")
+    s.text(40, 642, "3  CALL GATEWAY", "zone")
+    s.rect(40, 656, 1280, 128, "gw", rx=16)
+    chips = [
+        ("1 · Cache", "already paid? replay free", ()),
+        ("2 · Budget + log", "reserve credits, log the attempt", ()),
+        ("3 · Call + retry", "back off on 429 / 5xx", ("R", "D")),
+        ("4 · Record cost", "credits + tokens → ledger", ("$",)),
+    ]
+    x, cw, cg = 60, 296, 16
+    chip_x = []
+    for i, (t, ln, b) in enumerate(chips):
+        s.card(x, 674, cw, 92, t, [ln], "chip", badges=b)
+        chip_x.append(x)
+        if i < 3:
+            s.arrow([(x + cw + 1, 720), (x + cw + cg - 1, 720)], "#2563eb")
+        x += cw + cg
 
-    s.card(826, 852, 190, 214, "GCS bucket", ["cases/<id>/ uploads", "private, signed URLs", "lifecycle delete", "after 30 days"], "db", lh=24)
+    # email path: Act -> Resend -> Seller (right column)
+    s.arrow([(act_cx + 145, 508), (1470, 508), (1470, 672)], "#d97706")
+    s.card(1380, 674, 180, 92, "Resend", ["email, idempotent"], "ext", badges=("A",), center=True)
+    s.arrow([(1545, 674), (1545, 296)], "#d97706")
+    s.text(1480, 600, "sent once", "lab")
 
-    s.card(1032, 852, 392, 124, "Crustdata API — live data", [
-        "/company/identify  /company/search",
-        "/company/enrich    /person/search",
-        "/job/search        /web/search/live",
-        "/web/enrich/live   (page fetch)",
-    ], "ext", badges=("D",), mono=True, lh=21)
-    s.card(1032, 988, 210, 78, "Anthropic Claude", ["Haiku 5.5 · extract", "and draft only"], "ext", badges=("D",), lh=20)
-    s.card(1254, 988, 208, 78, "Resend email", ["idempotent send", "test mode by flag"], "ext", badges=("A",), lh=20)
+    # 4. data + providers
+    s.text(40, 826, "4  LIVE SOURCES AND STORAGE", "zone")
+    c3 = chip_x[2] + cw / 2
+    s.card(chip_x[1] - 10, 840, 300, 100, "Crustdata", ["companies, people, jobs, web"], "ext", badges=("D",))
+    s.card(chip_x[2] + 20, 840, 260, 100, "Claude (Haiku)", ["extract + draft only"], "ext", badges=("D",))
+    s.arrow([(c3 - 40, 766), (c3 - 40, 800), (chip_x[1] + 140, 800), (chip_x[1] + 140, 838)], "#2563eb")
+    s.arrow([(c3 + 20, 766), (c3 + 20, 838)], "#2563eb")
+    c4 = chip_x[3] + cw / 2
+    s.card(chip_x[3] + 10, 840, 290, 100, "Postgres", ["runs, evidence, cost ledger"], "db", badges=("$",))
+    s.arrow([(c4 + 10, 766), (c4 + 10, 838)], "#059669")
+    s.card(40, 840, 270, 100, "Cloud Storage", ["seller decks, deleted", "after 30 days"], "db")
+    s.card(1380, 840, 180, 100, "Rules", ["decide every", "status, not AI"], "grey", center=True)
 
-    # call layer -> externals (data)
-    s.arrow([(730, 786), (730, 826), (1200, 826), (1200, 850)], "#2563eb", width=2.2)
-    s.arrow([(1024, 826), (1024, 1027), (1030, 1027)], "#2563eb", width=2.2)
-    s.text(1210, 846, "D  live HTTP calls", "lab")
-    # finish -> ledger
-    s.arrow([(1005, 786), (1005, 838), (330, 838), (330, 850)], "#059669", width=2.2)
-    s.text(340, 832, "$ usage + cost per call", "lab")
-    # email -> resend -> seller
-    s.arrow([(1440, 786), (1440, 986)], "#d97706", width=2)
-    s.arrow([(1462, 1027), (1490, 1027), (1490, 160), (1482, 160)], "#d97706", width=2)
-    s.text(1300, 205, "approved email, sent once", "lab")
-
-    legend(s, 30, 1110)
-    s.text(30, 1148, "Deterministic rules (app/rules, POLICY.md) decide every status, score and disposition; the LLM only extracts and drafts, and each extracted value is checked against its source span.", "s")
+    legend(s, 52, 982)
     return s.render()
 
 
-# ------------------------------------------------------------------ business
+# --------------------------------------------------------------------- business
 def business():
-    s = SVG(1500, 1060)
-    s.text(20, 38, "DealProof — business architecture", "title")
-    s.text(20, 60, "The paid job, who pays for it today, and how a request becomes a finished, sourced screening case", "sub")
+    s = SVG(1600, 960)
+    s.text(40, 52, "DealProof · business architecture", "title")
+    s.text(40, 82, "The paid job, who pays for it, and what the buyer gets back.", "sub")
 
-    # Lane 1: today
-    s.box(10, 78, 1480, 170, "today", rx=14)
-    s.text(26, 102, "TODAY — THE JOB A FIRM IS PAID FOR", "lane")
-    s.card(26, 114, 290, 120, "Buyer: CFO office / corp-dev", ["mid-size Indian 3PL looking at", "logistics, warehousing and", "supply-chain tech targets"], "person", lh=20)
-    s.card(380, 114, 290, 120, "Paid firm", ["M&A advisory, diligence team", "or venture scout; paid a", "retainer or per-target fee"], "plain", lh=20)
-    s.card(734, 114, 340, 120, "Manual first-pass screening", ["databases + registry lookups,", "reading the seller deck,", "an analyst's spreadsheet"], "plain", lh=20)
-    s.card(1138, 114, 336, 120, "What goes wrong", ["days per target · deck claims", "unchecked · lookalike names", "mixed up · gaps filled by guesses"], "plain", lh=20)
-    s.arrow([(316, 174), (378, 174)], "#475569")
-    s.text(322, 166, "pays fee", "lab")
-    s.arrow([(670, 174), (732, 174)], "#475569")
-    s.arrow([(1074, 174), (1136, 174)], "#475569")
+    # Today
+    s.text(40, 128, "TODAY", "zone")
+    s.rect(40, 142, 1520, 120, "grey", rx=16)
+    today = [("Buyer", "CFO office of a 3PL"), ("pays an advisory firm", "retainer or per target"),
+             ("analysts screen by hand", "databases, deck, spreadsheet"), ("memo after days", "claims often unchecked")]
+    x = 64
+    for i, (t, ln) in enumerate(today):
+        s.card(x, 160, 330, 84, t, [ln], "person" if i == 0 else "white", center=True)
+        if i < 3:
+            s.arrow([(x + 332, 202), (x + 368, 202)], "#475569")
+        x += 370
 
-    # Lane 2: with DealProof
-    s.box(10, 266, 1480, 446, "api", rx=14)
-    s.text(26, 290, "WITH DEALPROOF — THE SAME JOB, DONE BY THE SERVICE", "lane")
-    s.card(26, 304, 230, 290, "Request (input)", [
-        "• an investment thesis",
-        "  in plain words, or",
-        "• a company name +",
-        "  website, and",
-        "• optional seller deck",
-        "  or typed claims",
-        "• or a business profile",
-        "  (to find investors)",
-    ], "ui", lh=22)
-    stages = [
-        ("Discover", ["criteria you can edit", "live company search", "must-haves gate, then", "rank by fit", "", "→ sourced shortlist"]),
-        ("Verify", ["confirm legal identity", "first (no name-only", "matches), check each", "claim vs evidence", "", "→ claim ledger"]),
-        ("Evaluate", ["5 separate judgments,", "rules not AI opinion;", "unknowns stated,", "never penalised", "", "→ disposition"]),
-        ("Act", ["list the documents that", "settle open questions,", "draft one request,", "!GATE ◆ person approves", "", "→ sent exactly once"]),
-    ]
-    x0, w, g = 290, 210, 22
-    for i, (t, ls) in enumerate(stages):
-        x = x0 + i * (w + g)
-        s.card(x, 304, w, 200, f"{i + 1} · {t}", ls, "pipe", badges=("A",) if t == "Act" else (), lh=24)
-        s.arrow([(x - g + 1 if i else 256, 400), (x - 1, 400)], "#7c3aed")
-    last = x0 + 3 * (w + g) + w
-    s.card(1236, 304, 238, 290, "Finished result", [
-        "a screening case that",
-        "reads in minutes and",
-        "audits in full:",
-        "• identity + profile",
-        "• each claim: status,",
-        "  quote/field, date",
-        "• Prioritise / Investigate",
-        "  / Deprioritise / Cannot",
-        "  assess, with reasons",
-        "• request list + email",
-    ], "out", lh=22)
-    s.arrow([(last, 400), (1234, 400)], "#059669")
+    # With DealProof
+    s.text(40, 306, "WITH DEALPROOF", "zone")
+    s.rect(40, 320, 1520, 300, "core", rx=16)
+    s.card(64, 344, 230, 150, "Request", ["a thesis, or a", "company + its deck"], "ui", center=True)
+    steps = [("Discover", ["shortlist of", "real companies"]), ("Verify", ["each claim checked", "against records"]),
+             ("Evaluate", ["rules give a", "clear next step"]), ("Act", ["request documents", "after approval"])]
+    x = 334
+    s.arrow([(296, 419), (x - 2, 419)], "#7c3aed")
+    for i, (t, ls) in enumerate(steps):
+        s.card(x, 344, 220, 150, f"{i + 1}  {t}", ls, "gate" if t == "Act" else "step", badges=("A",) if t == "Act" else (), center=True)
+        if i < 3:
+            s.arrow([(x + 222, 419), (x + 246, 419)], "#7c3aed")
+        x += 248
+    s.card(1326, 344, 210, 150, "Finished case", ["sourced, dated,", "ready to decide"], "db", center=True)
+    s.arrow([(x - 26, 419), (1324, 419)], "#059669")
+    s.card(334 + 3 * 248, 514, 220, 84, "Named approver", ["signs off first"], "gate", center=True)
+    s.arrow([(334 + 3 * 248 + 110, 512), (334 + 3 * 248 + 110, 496)], "#d97706")
+    s.card(334, 514, 714, 84, "Analyst stays in charge", ["edits criteria, picks identity when names are ambiguous"], "person", center=True)
+    s.card(1326, 514, 210, 84, "Decision-maker", ["second meeting: go?"], "person", center=True)
+    s.arrow([(1431, 496), (1431, 512)], "#059669")
 
-    # humans row
-    s.card(290, 524, 450, 70, "Analyst (user)", ["edits criteria, picks identity when ambiguous, reads the case"], "person")
-    s.card(756, 524, 462, 70, "Named approver", ["approves the exact email revision; any edit needs a new approval"], "gate", badges=("A",))
-    s.card(26, 610, 520, 86, "Seller / target company", ["gets one consolidated document request;", "documents it returns re-check the affected claims"], "person")
-    s.card(562, 610, 912, 86, "Decision-maker (buyer's CFO office)", [
-        "goes into the second meeting with claims checked and unknowns named; earlier assessment kept,",
-        "and every change between versions explained (e.g. 'Partially corroborated → Supported because …')",
-    ], "out")
-    s.arrow([(1110, 504), (1110, 522)], "#d97706")
-    s.arrow([(1355, 594), (1355, 608)], "#059669")
-    s.arrow([(800, 594), (800, 602), (520, 602), (520, 608)], "#d97706")
-
-    # Lane 3: economics + trust
-    s.box(10, 730, 735, 312, "db", rx=14)
-    s.text(26, 754, "ECONOMICS — MEASURED ON THE LIVE SHOWCASE RUN (22 NOV 2026)", "lane")
-    rows = [
-        ("Verify + evaluate one case (Palms WMS, 9 claims)", "8.7 Crustdata credits"),
-        ("Discover: thesis → 25 enriched companies", "50.1 credits, shared"),
-        ("Investor search for the same profile", "59.2 credits"),
-        ("All LLM calls for the whole showcase", "$0.018 (≈ ₹1.5)"),
-        ("Budget caps (configurable)", "case 150 · discover 100"),
-        ("Who pays (proposed)", "per finished case, or"),
-        ("", "monthly plan for a deal team"),
-    ]
+    # Economics + trust
+    s.text(40, 664, "COST PER JOB  (measured, live run, 22 Nov 2026)", "zone")
+    s.rect(40, 678, 740, 250, "db", rx=16)
+    rows = [("Verify one company (9 claims)", "8.7 credits"), ("Shortlist of 25 companies", "50.1 credits"),
+            ("Find investors", "59.2 credits"), ("All AI model calls", "$0.018"), ("Budget cap per case", "150 credits")]
     for i, (a, b) in enumerate(rows):
-        y = 790 + i * 34
-        s.text(30, y, a, "s")
-        s.text(720, y, b, "h", "end")
-        if i < len(rows) - 1 and a:
-            s.add(f'<line x1="30" y1="{y + 12}" x2="720" y2="{y + 12}" stroke="#bbf7d0"/>')
-    s.badge(712, 748, "$")
+        y = 724 + i * 44
+        s.text(68, y, a, "s")
+        s.text(752, y, b, "big", "end")
+        if i < len(rows) - 1:
+            s.p.append(f'<line x1="68" y1="{y + 16}" x2="752" y2="{y + 16}" stroke="#bbf7d0" stroke-width="1.5"/>')
 
-    s.box(760, 730, 730, 312, "gate", rx=14)
-    s.text(776, 754, "TRUST — WHY A FIRM CAN SIGN OFF ON IT", "lane")
-    trust = [
-        "Every fact links to its record: URL or API field, exact passage, and date",
-        "'Cannot verify' is a real answer and names the document that would settle it",
-        "Identity first: lookalike names stay separate; nothing attaches on a name alone",
-        "Rules decide; same records + same policy version → same assessment",
-        "Nothing leaves without a named approver, and it leaves once",
-        "Uploads: case-only, personal details stripped, deleted after 30 days",
-        "Web searches use public lookup terms only, never confidential claim text",
-    ]
+    s.text(820, 664, "WHY A FIRM CAN TRUST IT", "zone")
+    s.rect(820, 678, 740, 250, "gate", rx=16)
+    trust = ["Every fact shows its source and date", "“Cannot verify” instead of a guess",
+             "Lookalike names are never merged", "Nothing is sent without a named approver",
+             "Uploaded files deleted after 30 days"]
     for i, t in enumerate(trust):
-        s.text(780, 790 + i * 34, "✓  " + t, "s")
+        s.text(848, 724 + i * 44, "✓  " + t, "s")
     return s.render()
 
 
-(OUT / "technical-architecture.svg").write_text(technical(), encoding="utf-8")
-(OUT / "business-architecture.svg").write_text(business(), encoding="utf-8")
-print("ok")
+if __name__ == "__main__":
+    out = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
+    (out / "technical-architecture.svg").write_text(technical(), encoding="utf-8")
+    (out / "business-architecture.svg").write_text(business(), encoding="utf-8")
+    print("ok")
