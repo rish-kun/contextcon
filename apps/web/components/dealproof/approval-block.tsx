@@ -50,14 +50,18 @@ export function TestModeBanner({ className }: { className?: string }) {
 export function ApprovalSteps({
   status,
   testMode,
+  lastLabel,
   className,
 }: {
   status: RequestStatus;
   testMode: boolean;
+  /** Names the last step when it is neither settled nor failed: "Sending", "Unknown". */
+  lastLabel?: string;
   className?: string;
 }) {
-  const last =
-    status === "failed"
+  const last = lastLabel
+    ? lastLabel
+    : status === "failed"
       ? "Failed"
       : status === "suppressed_test_mode" || (testMode && status !== "sent")
         ? "Suppressed"
