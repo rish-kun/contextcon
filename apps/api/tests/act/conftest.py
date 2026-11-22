@@ -24,7 +24,7 @@ from app.db.base import Base
 from app.db.models import Case, User, Workspace
 from app.db.session import make_engine, make_sessionmaker
 from tests.act.fakes import SENDER, FakeClock, FakeResend
-from tests.db.fixtures import db_url, pg_server  # noqa: F401
+from tests.db.fixtures import db_url, pg_server, session, sm  # noqa: F401
 
 
 @dataclass

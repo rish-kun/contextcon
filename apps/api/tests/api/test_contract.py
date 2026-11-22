@@ -108,6 +108,7 @@ SESSION_ROUTES = {
     "/theses/{thesis_id}/search",
     "/investor-searches",  # CP-18
     "/investor-searches/{search_id}",  # CP-18
+    "/cases/{case_id}/requests",  # CP-23
 }
 AUTH_ROUTES = SESSION_ROUTES | {"/auth/login", "/auth/logout"}
 STUB_ROUTES = [r for r in ROUTES if r[1] not in AUTH_ROUTES]
