@@ -5094,6 +5094,16 @@
         ],
         "title": "FitState"
       },
+      "FundingCompatibility": {
+        "type": "string",
+        "enum": [
+          "compatible",
+          "incompatible",
+          "unknown"
+        ],
+        "title": "FundingCompatibility",
+        "description": "Whether dated records show the investor making rounds of the kind sought."
+      },
       "FundingRoundOut": {
         "properties": {
           "round_type": {
@@ -5532,14 +5542,30 @@
             ],
             "title": "Latest Sector Investment Found"
           },
+          "latest_sector_investment_scope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Sector Investment Scope",
+            "description": "Search date and scope behind the latest date, e.g. \"searched 2026-11-22 across 18 comparable companies (India; …)\". Never an absolute \"last invested\"."
+          },
           "why": {
             "type": "string",
             "title": "Why"
           },
+          "compatibility": {
+            "$ref": "#/components/schemas/FundingCompatibility",
+            "default": "unknown"
+          },
           "funding_kind_compatibility": {
             "type": "string",
             "title": "Funding Kind Compatibility",
-            "description": "E.g. \"led 3 growth-equity rounds, latest 2025-08\" or \"unknown\"."
+            "description": "E.g. \"3 growth equity rounds in the record, latest 2025-08\" or \"Compatibility with debt unknown\"."
           },
           "unknowns": {
             "items": {
@@ -5559,6 +5585,14 @@
             ],
             "title": "Possible Duplicate Of",
             "description": "Entry id flagged as a possible duplicate; never merged."
+          },
+          "possible_duplicates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Possible Duplicates",
+            "description": "Every entry id this one may duplicate."
           }
         },
         "additionalProperties": false,
@@ -5572,10 +5606,13 @@
           "score",
           "comparable_rounds",
           "latest_sector_investment_found",
+          "latest_sector_investment_scope",
           "why",
+          "compatibility",
           "funding_kind_compatibility",
           "unknowns",
-          "possible_duplicate_of"
+          "possible_duplicate_of",
+          "possible_duplicates"
         ],
         "title": "InvestorEntryOut"
       },
@@ -5672,6 +5709,34 @@
             "title": "Comparables Considered",
             "default": 0
           },
+          "funding_kind_sought": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Funding Kind Sought",
+            "description": "\"venture_equity\", \"growth_equity\", \"debt\", \"grant\" or null."
+          },
+          "rounds_read": {
+            "type": "integer",
+            "title": "Rounds Read",
+            "default": 0
+          },
+          "rounds_excluded": {
+            "type": "integer",
+            "title": "Rounds Excluded",
+            "description": "Rounds left out because they had no date or no named investor.",
+            "default": 0
+          },
+          "ranking_basis": {
+            "type": "string",
+            "title": "Ranking Basis",
+            "default": "Ranked by comparable investments found in the record, weighted toward recent rounds. This describes past behaviour; it does not predict whether an investor will invest."
+          },
           "run": {
             "anyOf": [
               {
@@ -5700,6 +5765,10 @@
           "searched_at",
           "scope_note",
           "comparables_considered",
+          "funding_kind_sought",
+          "rounds_read",
+          "rounds_excluded",
+          "ranking_basis",
           "run",
           "entries"
         ],

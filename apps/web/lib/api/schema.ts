@@ -1567,6 +1567,12 @@ export interface components {
          */
         FitState: "scored" | "unavailable" | "awaiting_strategy_criteria" | "identity_unresolved";
         /**
+         * FundingCompatibility
+         * @description Whether dated records show the investor making rounds of the kind sought.
+         * @enum {string}
+         */
+        FundingCompatibility: "compatible" | "incompatible" | "unknown";
+        /**
          * FundingRoundOut
          * @description One dated funding round. Rounds without a date are never shown as dated.
          */
@@ -1714,11 +1720,18 @@ export interface components {
             comparable_rounds: components["schemas"]["ComparableRoundOut"][];
             /** Latest Sector Investment Found */
             latest_sector_investment_found: string | null;
+            /**
+             * Latest Sector Investment Scope
+             * @description Search date and scope behind the latest date, e.g. "searched 2026-11-22 across 18 comparable companies (India; …)". Never an absolute "last invested".
+             */
+            latest_sector_investment_scope: string | null;
             /** Why */
             why: string;
+            /** @default unknown */
+            compatibility: components["schemas"]["FundingCompatibility"];
             /**
              * Funding Kind Compatibility
-             * @description E.g. "led 3 growth-equity rounds, latest 2025-08" or "unknown".
+             * @description E.g. "3 growth equity rounds in the record, latest 2025-08" or "Compatibility with debt unknown".
              */
             funding_kind_compatibility: string;
             /** Unknowns */
@@ -1728,6 +1741,11 @@ export interface components {
              * @description Entry id flagged as a possible duplicate; never merged.
              */
             possible_duplicate_of: string | null;
+            /**
+             * Possible Duplicates
+             * @description Every entry id this one may duplicate.
+             */
+            possible_duplicates: string[];
         };
         /** InvestorSearchIn */
         InvestorSearchIn: {
@@ -1774,6 +1792,27 @@ export interface components {
              * @default 0
              */
             comparables_considered: number;
+            /**
+             * Funding Kind Sought
+             * @description "venture_equity", "growth_equity", "debt", "grant" or null.
+             */
+            funding_kind_sought: string | null;
+            /**
+             * Rounds Read
+             * @default 0
+             */
+            rounds_read: number;
+            /**
+             * Rounds Excluded
+             * @description Rounds left out because they had no date or no named investor.
+             * @default 0
+             */
+            rounds_excluded: number;
+            /**
+             * Ranking Basis
+             * @default Ranked by comparable investments found in the record, weighted toward recent rounds. This describes past behaviour; it does not predict whether an investor will invest.
+             */
+            ranking_basis: string;
             run: components["schemas"]["RunOut"] | null;
             /** Entries */
             entries: components["schemas"]["InvestorEntryOut"][];

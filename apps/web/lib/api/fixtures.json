@@ -963,6 +963,10 @@
     "searched_at": "2026-11-22T09:33:00Z",
     "scope_note": "searched 2026-11-22 across 40 comparable companies",
     "comparables_considered": 40,
+    "funding_kind_sought": null,
+    "rounds_read": 0,
+    "rounds_excluded": 0,
+    "ranking_basis": "Ranked by comparable investments found in the record, weighted toward recent rounds. This describes past behaviour; it does not predict whether an investor will invest.",
     "run": {
       "id": "fx-run-investors",
       "kind": "investor_discover",
@@ -1098,12 +1102,15 @@
           }
         ],
         "latest_sector_investment_found": "2025-04-02",
+        "latest_sector_investment_scope": null,
         "why": "2 comparable rounds in warehousing software, latest 2025-04",
+        "compatibility": "unknown",
         "funding_kind_compatibility": "led 1 venture round in this record, latest 2023-11",
         "unknowns": [
           "Cheque size unknown for 1 round"
         ],
-        "possible_duplicate_of": null
+        "possible_duplicate_of": null,
+        "possible_duplicates": []
       },
       {
         "id": "fx-inv-banyan",
@@ -1132,12 +1139,15 @@
           }
         ],
         "latest_sector_investment_found": "2024-09-01",
+        "latest_sector_investment_scope": null,
         "why": "1 comparable seed round in cold-chain logistics",
+        "compatibility": "unknown",
         "funding_kind_compatibility": "compatibility with equity venture unknown",
         "unknowns": [
           "No round larger than seed found"
         ],
-        "possible_duplicate_of": null
+        "possible_duplicate_of": null,
+        "possible_duplicates": []
       },
       {
         "id": "fx-inv-banyan-llp",
@@ -1166,12 +1176,15 @@
           }
         ],
         "latest_sector_investment_found": "2022-01-15",
+        "latest_sector_investment_scope": null,
         "why": "1 comparable pre-seed round",
+        "compatibility": "unknown",
         "funding_kind_compatibility": "compatibility with equity venture unknown",
         "unknowns": [
           "Cheque size unknown"
         ],
-        "possible_duplicate_of": "fx-inv-banyan"
+        "possible_duplicate_of": "fx-inv-banyan",
+        "possible_duplicates": []
       }
     ]
   },
