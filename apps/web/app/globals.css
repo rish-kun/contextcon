@@ -1,1 +1,325 @@
 @import "tailwindcss";
+
+/*
+ * DealProof design tokens, wired into Tailwind v4.
+ * Source of truth: docs/design/tokens.css (same values). Light theme only in v1.
+ * Token names are semantic (paper, ink, line, status roles), so a dark theme is a second
+ * set of values under a selector later, not a refactor.
+ *
+ * `static` keeps every variable in the output even when no utility uses it yet.
+ * Tailwind's default colour, radius and shadow scales are removed on purpose:
+ * if a value is missing, add a token here and in docs/design/tokens.css.
+ */
+@theme static {
+  --color-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+
+  /* Neutrals: paper and ink */
+  --color-paper: #f7f7f5;
+  --color-paper-warm: #f5f2ea;
+  --color-surface: #ffffff;
+  --color-surface-raised: #f0f0ed;
+  --color-surface-sunken: #ebebe7;
+  --color-ink: #16181d;
+  --color-ink-secondary: #454a54;
+  --color-ink-muted: #626771;
+  --color-ink-inverse: #ffffff;
+  --color-line: rgb(22 24 29 / 0.09);
+  --color-line-strong: rgb(22 24 29 / 0.18);
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  /* Accent: registrar ink blue. Links, selection, focus, one key figure. Never a status */
+  --color-accent: #24408e;
+  --color-accent-hover: #1b3273;
+  --color-accent-tint: #e9edf8;
+  --color-accent-line: #b8c4e6;
+  --color-focus: #24408e;
+
+  /* Claim statuses: ink, tint, line. Always paired with a glyph and the status name */
+  --color-supported: #17663a;
+  --color-supported-tint: #eaf5ee;
+  --color-supported-line: #b5d9c2;
+  --color-contradicted: #a3241c;
+  --color-contradicted-tint: #fbecea;
+  --color-contradicted-line: #edbdb8;
+  --color-partial: #7d4b00;
+  --color-partial-tint: #fbf1dc;
+  --color-partial-line: #e8ce94;
+  --color-conflicting: #7a2e86;
+  --color-conflicting-tint: #f6ebf7;
+  --color-conflicting-line: #ddbde2;
+  --color-cannot-verify: #3b4656;
+  --color-cannot-verify-tint: #edf0f4;
+  --color-cannot-verify-line: #b9c2cf;
+  --color-not-checked: #5c6068;
+  --color-not-checked-tint: #f4f4f1;
+  --color-not-checked-line: #8e929a;
+
+  /* Dispositions reuse status hues; the stamp shape marks them as dispositions */
+  --color-prioritise: #17663a;
+  --color-prioritise-tint: #eaf5ee;
+  --color-investigate: #7d4b00;
+  --color-investigate-tint: #fbf1dc;
+  --color-deprioritise: #3a3d44;
+  --color-deprioritise-tint: #ebebe7;
+  --color-cannot-assess: #3b4656;
+  --color-cannot-assess-tint: #edf0f4;
+
+  /* Other semantic roles */
+  --color-estimate: #454a54;
+  --color-test-mode: #7d4b00;
+  --color-test-mode-tint: #fbf1dc;
+  --color-diff-added: #eaf5ee;
+  --color-diff-removed: #f0f0ed;
+  --color-scrim: rgb(22 24 29 / 0.4);
+
+  /* shadcn/ui semantic names, mapped onto the tokens above */
+  --color-background: var(--color-paper);
+  --color-foreground: var(--color-ink);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-ink);
+  --color-popover: var(--color-surface);
+  --color-popover-foreground: var(--color-ink);
+  --color-primary: var(--color-ink);
+  --color-primary-foreground: var(--color-ink-inverse);
+  --color-secondary: var(--color-surface-raised);
+  --color-secondary-foreground: var(--color-ink);
+  --color-muted: var(--color-surface-raised);
+  --color-muted-foreground: var(--color-ink-muted);
+  --color-accent-foreground: var(--color-ink-inverse);
+  --color-destructive: var(--color-contradicted);
+  --color-border: var(--color-line);
+  --color-input: var(--color-line-strong);
+  --color-ring: var(--color-focus);
+
+  /* Type families. next/font sets the --font-*-face variables in app/layout.tsx */
+  --font-sans:
+    var(--font-plex-sans-face), "IBM Plex Sans", ui-sans-serif, system-ui,
+    sans-serif;
+  --font-mono:
+    var(--font-plex-mono-face), "IBM Plex Mono", ui-monospace, "SF Mono",
+    monospace;
+  --font-serif: var(--font-newsreader-face), "Newsreader", Georgia, serif;
+
+  /* Type scale. 2xs and dense are additions; 3xl to 5xl are redefined */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
+  --text-dense: 0.8125rem;
+  --text-dense--line-height: 1.25rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl: 2rem;
+  --text-3xl--line-height: 2.5rem;
+  --text-4xl: 2.75rem;
+  --text-4xl--line-height: 3rem;
+  --text-5xl: 4rem;
+  --text-5xl--line-height: 4.25rem;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --tracking-display: -0.02em;
+  --tracking-normal: 0em;
+
+  /* Spacing: 4px base, so p-4 is 16px */
+  --spacing: 0.25rem;
+
+  /* Radii */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  /* Elevation: neutral, small, rare */
+  --shadow-xs: 0 1px 2px rgb(22 24 29 / 0.05);
+  --shadow-md: 0 8px 24px rgb(22 24 29 / 0.08);
+  --shadow-lg: 0 24px 48px -12px rgb(22 24 29 / 0.18);
+
+  /* Motion: one curve. transition-* utilities default to it and to the fast duration */
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --default-transition-timing-function: var(--ease-standard);
+  --default-transition-duration: var(--duration-fast);
+
+  /* Breakpoints (Tailwind defaults, restated) */
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 80rem;
+  --breakpoint-2xl: 96rem;
+
+  /* Skeleton: two quiet fades, then static */
+  --animate-skeleton: skeleton-fade 1s var(--ease-standard) 2;
+  @keyframes skeleton-fade {
+    50% {
+      opacity: 0.55;
+    }
+  }
+
+  /* Overlay entrance: fade and a 4px rise from the trigger */
+  --animate-overlay-in: overlay-in var(--duration-base) var(--ease-standard);
+  @keyframes overlay-in {
+    from {
+      opacity: 0;
+      transform: translateY(var(--motion-rise-small));
+    }
+  }
+  --animate-fade-in: fade-in var(--duration-base) var(--ease-standard);
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  /* One-time highlight on a changed value in the assessment diff */
+  --animate-changed: changed-highlight var(--duration-highlight)
+    var(--ease-standard);
+  @keyframes changed-highlight {
+    from {
+      background-color: var(--color-accent-tint);
+    }
+  }
+}
+
+/* Tokens outside Tailwind's theme namespaces: plain custom properties.
+   Use as bg-(image:--pattern-hatch), duration-(--duration-base), w-(--layout-sidebar). */
+:root {
+  --pattern-hatch: repeating-linear-gradient(
+    135deg,
+    transparent 0 4px,
+    rgb(22 24 29 / 0.16) 4px 5px
+  );
+  --pattern-hatch-dense: repeating-linear-gradient(
+    135deg,
+    transparent 0 2px,
+    rgb(22 24 29 / 0.22) 2px 3px
+  );
+
+  --duration-fast: 140ms;
+  --duration-base: 200ms;
+  --duration-slow: 360ms;
+  --duration-highlight: 1200ms;
+  --motion-stagger: 40ms;
+  --motion-rise: 8px;
+  --motion-rise-small: 4px;
+  --motion-press-scale: 0.98;
+
+  --layout-sidebar: 15.5rem;
+  --layout-sidebar-collapsed: 3.5rem;
+  --layout-topbar: 3.5rem;
+  --layout-rail: 20rem;
+  --layout-content-max: 90rem;
+  --layout-marketing-max: 75rem;
+  --layout-prose-max: 42.5rem;
+  --layout-gutter: 1.5rem;
+  --layout-page-x: 2rem;
+  --layout-row: 2.25rem;
+  --layout-row-compact: 2rem;
+  --layout-row-touch: 2.75rem;
+  --layout-spine: 6rem;
+
+  --z-sticky: 10;
+  --z-drawer: 30;
+  --z-dialog: 40;
+  --z-toast: 50;
+
+  --radius: var(--radius-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+    --duration-slow: 0ms;
+    --duration-highlight: 0ms;
+    --motion-stagger: 0ms;
+    --motion-rise: 0px;
+    --motion-rise-small: 0px;
+    --motion-press-scale: 1;
+  }
+}
+
+@layer base {
+  html {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 100%;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    min-height: 100dvh;
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+  }
+
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-line);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-tint);
+    color: var(--color-ink);
+  }
+}
+
+/* Not checked, unassessable criteria and suppressed sends are hatched, never flat */
+@utility hatch {
+  background-color: var(--color-not-checked-tint);
+  background-image: var(--pattern-hatch);
+}
+
+@utility hatch-dense {
+  background-color: var(--color-not-checked-tint);
+  background-image: var(--pattern-hatch-dense);
+}
+
+/* 2px accent ring drawn inside the element, for rows that touch their neighbours */
+@utility focus-inset {
+  &:focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: -2px;
+  }
+}
+
+/* The disposition stamp's 1.5px border */
+@utility border-stamp {
+  border-width: 1.5px;
+}
+
+/* Press feedback: a tiny scale down, removed under reduced motion through the token */
+@utility press {
+  &:active {
+    transform: scale(var(--motion-press-scale));
+  }
+}
+
+/* Estimates and signals: dotted underline in the estimate ink */
+@utility underline-estimate {
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--color-estimate);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
