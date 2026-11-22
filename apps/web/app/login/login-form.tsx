@@ -7,12 +7,25 @@ import { ApiError, login } from "@/lib/api/client";
 
 const APP_HOME = "/app";
 
-/** Only same-site paths are followed after sign-in; anything else falls back to the app. */
+/** A placeholder origin: a `next` value that resolves anywhere else is not a same-site path. */
+const BASE = "http://dealproof.invalid";
+
+/**
+ * Only same-site paths are followed after sign-in; anything else falls back to the app.
+ * The value is resolved with the URL parser, which is what the browser would do, so
+ * forms such as `/\t/host` or `/\\host` cannot slip past a prefix check.
+ */
 function safeNext(value: string | null): string {
-  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) {
+  if (!value || !value.startsWith("/") || /[\u0000-\u001f\u007f\\]/.test(value)) return APP_HOME;
+  let url: URL;
+  try {
+    url = new URL(value, BASE);
+  } catch {
     return APP_HOME;
   }
-  return value.startsWith("/login") ? APP_HOME : value;
+  if (url.origin !== BASE) return APP_HOME;
+  const path = url.pathname + url.search + url.hash;
+  return path.startsWith("//") || path.startsWith("/login") ? APP_HOME : path;
 }
 
 function describe(error: unknown): string {
