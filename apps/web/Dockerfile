@@ -1,6 +1,8 @@
 # DealProof web — Cloud Run image.
 # Build from the REPO ROOT so the pnpm workspace lockfile is available:
-#   docker build -f apps/web/Dockerfile --build-arg NEXT_PUBLIC_API_URL=https://api.example -t dealproof-web .
+#   docker build -f apps/web/Dockerfile -t dealproof-web .
+# Run with API_BASE_URL set to the API's URL. The browser only calls the same-origin
+# /api/* proxy, which reads API_BASE_URL at runtime, so no URL is baked into the image.
 
 FROM node:24-alpine AS base
 RUN corepack enable
@@ -13,10 +15,9 @@ COPY apps/api/package.json apps/api/
 RUN pnpm install --frozen-lockfile --filter web...
 
 COPY apps/web apps/web
-# NEXT_PUBLIC_* values are inlined into the client bundle at build time.
-# Required: an empty value would ship a bundle that calls relative URLs.
-ARG NEXT_PUBLIC_API_URL
-RUN test -n "$NEXT_PUBLIC_API_URL" || { echo "NEXT_PUBLIC_API_URL build arg is required" >&2; exit 1; }
+# Optional. Only the legacy lib/api.ts helper reads it (inlined at build time); the
+# client in lib/api/client.ts goes through the /api proxy and ignores it.
+ARG NEXT_PUBLIC_API_URL=
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
     NEXT_TELEMETRY_DISABLED=1
 RUN pnpm --filter web build

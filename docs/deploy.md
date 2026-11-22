@@ -7,7 +7,9 @@ DealProof runs on Cloud Run in GCP project `cc-g527-showproduct`, region `asia-s
 | Web | https://dealproof-web-527967664479.asia-south1.run.app |
 | API | https://dealproof-api-527967664479.asia-south1.run.app (`/health`) |
 
-Each service also answers on a legacy `*.a.run.app` URL. The API allows both web URLs in CORS.
+Each service also answers on a legacy `*.a.run.app` URL.
+
+The browser only talks to the web origin. Every API call goes to the same-origin proxy `/api/*` (`apps/web/app/api/[...path]/route.ts`), which forwards it server-side to `API_BASE_URL` (for example `/api/health` → `<api>/health`). The `dp_session` cookie is set without a `Domain`, so it stays a first-party cookie on whichever web URL served it. CORS is not involved in this flow; the API still allows both web URLs (`WEB_ORIGIN`) for direct calls.
 
 ## Redeploy
 
@@ -19,11 +21,13 @@ ONLY=api scripts/deploy.sh         # one service only (ONLY=web for the web app)
 
 The script is idempotent. Run it at every checkpoint. It:
 
-1. Packages `REF` with `git archive`. Uncommitted work and `.env` are never uploaded, so **commit before you deploy**.
-2. Builds each image on Cloud Build (`scripts/cloudbuild.yaml`; Docker doesn't need to run locally) and pushes it to Artifact Registry, tagged with the git SHA and `latest`.
-3. Deploys `dealproof-api`, then builds the web image with `NEXT_PUBLIC_API_URL` set to the API URL and deploys `dealproof-web`.
-4. Sets the API's `WEB_ORIGIN` to the web URLs if they changed. This only happens on the first deploy.
-5. Prints both URLs.
+1. Packages `REF` with `git archive`. Uncommitted work and `.env` are never uploaded, so **commit before you deploy**. `scripts/cloudbuild.yaml` is taken from the same `REF`, not the working tree.
+2. Creates the runtime service accounts and their grants if they are missing (see [Runtime identity](#runtime-identity)).
+3. Builds each image on Cloud Build (Docker doesn't need to run locally) and pushes it to Artifact Registry, tagged with the git SHA and `latest`. The images take no build args.
+4. Deploys `dealproof-api`, then `dealproof-web` with `API_BASE_URL` set to the API URL as a runtime env var.
+5. Sets the API's `WEB_ORIGIN` to the web URLs if they changed. This only happens on the first deploy.
+6. Once both services run as their own accounts, revokes the secret and bucket grants that earlier deploys gave the default compute account (a no-op after the first time).
+7. Prints both URLs.
 
 A deploy takes about 3 minutes: about 35 s for the API build and about 1–1.5 min for the web build.
 
@@ -41,9 +45,23 @@ Requirements: an authenticated `gcloud` and `python3`. Nothing else is installed
 | Neon project | `dealproof` (`lively-term-65597239`), AWS ap-southeast-1 (Singapore, the closest Neon region to Mumbai) | Free plan, 0.25 CU fixed, scales to zero. Database `dealproof`, role `dealproof`. `DATABASE_URL` holds the **pooled** (`-pooler`) connection string |
 | Cloud Build staging bucket | `gs://cc-g527-showproduct_cloudbuild` | Created automatically by `gcloud builds submit` and holds uploaded source archives |
 
-Runtime identity: both services run as the default compute service account `527967664479-compute@developer.gserviceaccount.com`. It has `secretmanager.secretAccessor` on the four secrets and `storage.objectAdmin` on the uploads bucket.
+### Runtime identity
 
-Plain env vars on the API: `EMAIL_SEND_ENABLED=false`, `GCS_BUCKET`, `UPLOAD_RETENTION_DAYS=30`, `WEB_ORIGIN`. Secrets never go into plain env vars or build args. `NEXT_PUBLIC_API_URL` is a public URL, not a secret.
+Each service runs as its own service account. `scripts/deploy.sh` creates both and keeps the grants below in place.
+
+| Service account | Used by | Grants |
+|---|---|---|
+| `dealproof-api-sa@cc-g527-showproduct.iam.gserviceaccount.com` | `dealproof-api` | `roles/secretmanager.secretAccessor` on `DATABASE_URL`, `ANTHROPIC_API_KEY`, `CRUSTDATA_API_KEY`, `RESEND_API_KEY` (per secret, not project-wide). `roles/storage.objectAdmin` on `gs://cc-g527-showproduct-dealproof-uploads` only. `roles/iam.serviceAccountTokenCreator` on itself, so it can call `signBlob` for signed download URLs (Cloud Run credentials have no private key) |
+| `dealproof-web-sa@cc-g527-showproduct.iam.gserviceaccount.com` | `dealproof-web` | None. The web app holds no secrets and never touches the bucket |
+
+Earlier deploys ran both services as the default compute account `527967664479-compute@developer.gserviceaccount.com` and gave it `secretAccessor` on the four secrets and `objectAdmin` on the uploads bucket. Those five grants have been revoked. The account keeps the project-level `roles/editor` that GCP gives it by default; neither service runs as it, and Cloud Build still uses it to build and push images.
+
+When you add a secret for the API (for example `SESSION_SECRET`), grant `dealproof-api-sa` access to that secret only: add it to `SECRETS` and `--set-secrets` in `scripts/deploy.sh`.
+
+### Env vars
+
+- API (plain): `EMAIL_SEND_ENABLED=false`, `GCS_BUCKET`, `UPLOAD_RETENTION_DAYS=30`, `WEB_ORIGIN`. Secrets come from Secret Manager and never go into plain env vars or build args.
+- Web (runtime): `API_BASE_URL`, the API URL the `/api/*` proxy and server components call. It is a public URL, not a secret. Changing it only needs a new revision, not a rebuild. `NEXT_PUBLIC_API_URL` is no longer used by the deploy; the Dockerfile accepts it as an optional build arg for the legacy `lib/api.ts` helper.
 
 The `DATABASE_URL` from Neon includes `sslmode=require&channel_binding=require`. psycopg/libpq accept both. asyncpg does not accept `channel_binding`, so strip it in code if you use asyncpg.
 

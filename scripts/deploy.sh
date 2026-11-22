@@ -7,8 +7,13 @@
 #   ONLY=api scripts/deploy.sh        # api only (ONLY=web for web only)
 #
 # Builds run on Cloud Build from a `git archive` of REF, so uncommitted files and
-# `.env` are never uploaded. Secrets come from Secret Manager at runtime; this
-# script never reads or prints them.
+# `.env` are never uploaded. The Cloud Build config is read from the same REF.
+# Secrets come from Secret Manager at runtime; this script never reads or prints them.
+#
+# Each service runs as its own service account (created here if missing):
+#   dealproof-api-sa  secretAccessor on the four secrets, objectAdmin on the uploads
+#                     bucket, tokenCreator on itself (signBlob for signed URLs)
+#   dealproof-web-sa  no roles at all
 set -euo pipefail
 
 PROJECT="${PROJECT:-cc-g527-showproduct}"
@@ -28,7 +33,14 @@ ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 REGISTRY="${REGION}-docker.pkg.dev/${PROJECT}/${REPO}"
 SHA="$(git -C "$ROOT" rev-parse --short=12 "$REF")"
 PROJECT_NUMBER="$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')"
-RUNTIME_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+API_SA_NAME="${API_SA_NAME:-dealproof-api-sa}"
+WEB_SA_NAME="${WEB_SA_NAME:-dealproof-web-sa}"
+API_SA="${API_SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
+WEB_SA="${WEB_SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
+# Earlier deploys ran both services as this account and granted it the secrets and the
+# bucket. Those grants are revoked below once neither service uses it.
+LEGACY_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+SECRETS=(DATABASE_URL ANTHROPIC_API_KEY CRUSTDATA_API_KEY RESEND_API_KEY)
 
 log() { printf '\n==> %s\n' "$*" >&2; }
 
@@ -45,18 +57,83 @@ service_urls() {
   fi
 }
 
+# Create a service account if it does not exist yet.
+ensure_sa() { # name display-name
+  local email="$1@${PROJECT}.iam.gserviceaccount.com"
+  if ! gcloud iam service-accounts describe "$email" --project "$PROJECT" >/dev/null 2>&1; then
+    log "Creating service account ${email}"
+    gcloud iam service-accounts create "$1" --project "$PROJECT" --display-name "$2" --quiet
+    # New accounts take a few seconds to become visible to IAM policy calls.
+    for _ in 1 2 3 4 5 6; do
+      gcloud iam service-accounts describe "$email" --project "$PROJECT" >/dev/null 2>&1 && break
+      sleep 5
+    done
+  fi
+}
+
+# Least-privilege runtime identities. add-iam-policy-binding is a no-op when the
+# binding already exists, so this is safe to run every time.
+ensure_runtime_identities() {
+  log "Ensuring runtime service accounts and grants"
+  ensure_sa "$API_SA_NAME" "DealProof API runtime"
+  ensure_sa "$WEB_SA_NAME" "DealProof web runtime"
+  local secret
+  for secret in "${SECRETS[@]}"; do
+    gcloud secrets add-iam-policy-binding "$secret" --project "$PROJECT" \
+      --member "serviceAccount:${API_SA}" --role roles/secretmanager.secretAccessor \
+      --condition=None --quiet >/dev/null
+  done
+  gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
+    --member "serviceAccount:${API_SA}" --role roles/storage.objectAdmin --quiet >/dev/null
+  # Signed download URLs: Cloud Run credentials have no private key, so the API signs
+  # through the IAM signBlob call on its own account.
+  gcloud iam service-accounts add-iam-policy-binding "$API_SA" --project "$PROJECT" \
+    --member "serviceAccount:${API_SA}" --role roles/iam.serviceAccountTokenCreator \
+    --condition=None --quiet >/dev/null
+}
+
+# Revoke the grants earlier deploys gave the default compute account, once neither
+# service runs as it. Only these five bindings; the account's other roles are untouched.
+revoke_legacy_grants() {
+  local svc sa
+  for svc in "$API_SERVICE" "$WEB_SERVICE"; do
+    sa="$(gcloud run services describe "$svc" --project "$PROJECT" --region "$REGION" \
+      --format='value(spec.template.spec.serviceAccountName)' 2>/dev/null || true)"
+    if [[ -z "$sa" || "$sa" == "$LEGACY_SA" ]]; then return 0; fi
+  done
+  local secret
+  for secret in "${SECRETS[@]}"; do
+    if gcloud secrets get-iam-policy "$secret" --project "$PROJECT" \
+      --flatten=bindings --filter="bindings.role=roles/secretmanager.secretAccessor AND bindings.members:serviceAccount:${LEGACY_SA}" \
+      --format='value(bindings.role)' 2>/dev/null | grep -q .; then
+      log "Revoking ${secret} access from ${LEGACY_SA}"
+      gcloud secrets remove-iam-policy-binding "$secret" --project "$PROJECT" \
+        --member "serviceAccount:${LEGACY_SA}" --role roles/secretmanager.secretAccessor --quiet >/dev/null
+    fi
+  done
+  if gcloud storage buckets get-iam-policy "gs://${BUCKET}" \
+    --flatten=bindings --filter="bindings.role=roles/storage.objectAdmin AND bindings.members:serviceAccount:${LEGACY_SA}" \
+    --format='value(bindings.role)' 2>/dev/null | grep -q .; then
+    log "Revoking gs://${BUCKET} objectAdmin from ${LEGACY_SA}"
+    gcloud storage buckets remove-iam-policy-binding "gs://${BUCKET}" \
+      --member "serviceAccount:${LEGACY_SA}" --role roles/storage.objectAdmin --quiet >/dev/null
+  fi
+}
+
 SRC_DIR="$(mktemp -d)"
 trap 'rm -rf "$SRC_DIR"' EXIT
 log "Packaging ${REF} (${SHA}) with git archive"
 git -C "$ROOT" archive --format=tar.gz -o "$SRC_DIR/source.tgz" "$REF"
+# Use the build config from the same commit as the source, not the working tree.
+git -C "$ROOT" show "${REF}:scripts/cloudbuild.yaml" > "$SRC_DIR/cloudbuild.yaml"
 
-build() { # name dockerfile context [api_url]
-  local name="$1" dockerfile="$2" context="$3" api_url="${4:-unused}"
+build() { # name dockerfile context
+  local name="$1" dockerfile="$2" context="$3"
   log "Building ${name}:${SHA} on Cloud Build"
   gcloud builds submit "$SRC_DIR/source.tgz" \
     --project "$PROJECT" --region "$REGION" \
-    --config "$ROOT/scripts/cloudbuild.yaml" \
-    --substitutions "_IMAGE=${REGISTRY}/${name},_TAG=${SHA},_DOCKERFILE=${dockerfile},_CONTEXT=${context},_API_URL=${api_url}"
+    --config "$SRC_DIR/cloudbuild.yaml" \
+    --substitutions "_IMAGE=${REGISTRY}/${name},_TAG=${SHA},_DOCKERFILE=${dockerfile},_CONTEXT=${context}"
 }
 
 deploy_api() {
@@ -67,7 +144,7 @@ deploy_api() {
   gcloud run deploy "$API_SERVICE" \
     --project "$PROJECT" --region "$REGION" \
     --image "${REGISTRY}/api:${SHA}" \
-    --service-account "$RUNTIME_SA" \
+    --service-account "$API_SA" \
     --cpu 1 --memory "$API_MEMORY" \
     --min-instances "$API_MIN_INSTANCES" --max-instances 2 \
     --no-cpu-throttling \
@@ -78,20 +155,25 @@ deploy_api() {
     --quiet
 }
 
+API_URL="https://${API_SERVICE}-${PROJECT_NUMBER}.${REGION}.run.app"
+
 deploy_web() {
-  log "Deploying ${WEB_SERVICE}"
+  # The browser only calls the web origin; the /api/* proxy forwards server-side to
+  # API_BASE_URL, which is read at runtime (not baked into the image).
+  log "Deploying ${WEB_SERVICE} (API_BASE_URL=${API_URL})"
   gcloud run deploy "$WEB_SERVICE" \
     --project "$PROJECT" --region "$REGION" \
     --image "${REGISTRY}/web:${SHA}" \
-    --service-account "$RUNTIME_SA" \
+    --service-account "$WEB_SA" \
     --cpu 1 --memory 512Mi \
     --min-instances 0 --max-instances 2 \
     --cpu-throttling \
     --allow-unauthenticated \
+    --update-env-vars "API_BASE_URL=${API_URL}" \
     --quiet
 }
 
-API_URL="https://${API_SERVICE}-${PROJECT_NUMBER}.${REGION}.run.app"
+ensure_runtime_identities
 
 if [[ "$ONLY" == "all" || "$ONLY" == "api" ]]; then
   build api apps/api/Dockerfile apps/api
@@ -99,7 +181,7 @@ if [[ "$ONLY" == "all" || "$ONLY" == "api" ]]; then
 fi
 
 if [[ "$ONLY" == "all" || "$ONLY" == "web" ]]; then
-  build web apps/web/Dockerfile . "$API_URL"
+  build web apps/web/Dockerfile .
   web_existed="$(gcloud run services describe "$WEB_SERVICE" --project "$PROJECT" --region "$REGION" --format='value(metadata.name)' 2>/dev/null || true)"
   deploy_web
   # First deploy: the web URL did not exist when the api was deployed. Fix CORS.
@@ -114,6 +196,8 @@ for e in json.load(sys.stdin)["spec"]["template"]["spec"]["containers"][0].get("
       --update-env-vars "^@^WEB_ORIGIN=${want_origin}" --quiet
   fi
 fi
+
+revoke_legacy_grants
 
 log "Done (${SHA})"
 echo "api: ${API_URL}"
