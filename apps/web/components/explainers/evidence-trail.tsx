@@ -3,11 +3,7 @@
 import { SearchX } from "lucide-react";
 import { Fragment } from "react";
 import { formatCredits, formatDate } from "@/lib/format";
-import {
-  NOT_CHECKED_REASON_DETAIL,
-  NOT_CHECKED_REASON_LABEL,
-  RELIABILITY_LABEL,
-} from "@/lib/labels";
+import { CLAIM_STATUS_LABEL, NOT_CHECKED_REASON_LABEL, RELIABILITY_LABEL } from "@/lib/labels";
 import type { Claim } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { EstimateLabel } from "@/components/dealproof/estimate-label";
@@ -20,27 +16,25 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { trailFromClaim, type EmptySearch, type TrailFact, type TrailSource } from "./derive";
 import { ColumnHead, Connector } from "./parts";
 
-/**
- * A source that was read. It is a button: it opens exactly what was taken from it.
- */
+/** Every node of the chain is this tall, so the connectors meet them on one line. */
+const NODE = "flex min-h-7 items-center";
+
+/** A source that was read. It is a button: it opens exactly what was taken from it. */
 function SourceNode({ source }: { source: TrailSource }) {
   const first = source.evidence[0];
   const { label, reliability, class_label: classLabel } = first.source;
+  const kind = classLabel ?? RELIABILITY_LABEL[reliability];
   return (
     <Popover>
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={`Source: ${label}. Open the evidence`}
-          className="flex w-full min-w-0 items-start gap-2 rounded-md border border-line-strong bg-surface px-2 py-1.5 text-left transition-[background-color,border-color] hover:bg-surface-raised data-[state=open]:border-accent-line data-[state=open]:bg-accent-tint"
+          aria-label={`Source: ${label}, ${kind}. Open the evidence`}
+          title={`${label} · ${kind}`}
+          className="inline-flex h-7 max-w-full min-w-0 items-center gap-1.5 rounded-md border border-line-strong bg-surface px-2 text-left transition-[background-color,border-color] hover:bg-surface-raised data-[state=open]:border-accent-line data-[state=open]:bg-accent-tint"
         >
-          <SourceClassGlyph reliability={reliability} className="mt-0.5 shrink-0 text-ink-muted" />
-          <span className="flex min-w-0 flex-col">
-            <span className="truncate text-dense text-ink">{label}</span>
-            <span className="truncate text-xs text-ink-muted">
-              {classLabel ?? RELIABILITY_LABEL[reliability]}
-            </span>
-          </span>
+          <SourceClassGlyph reliability={reliability} className="shrink-0 text-ink-muted" />
+          <span className="truncate text-ink">{label}</span>
         </button>
       </PopoverTrigger>
       <PopoverContent className="flex max-h-96 flex-col gap-4 overflow-y-auto">
@@ -58,18 +52,11 @@ function SourceNode({ source }: { source: TrailSource }) {
 function FactItem({ fact }: { fact: TrailFact }) {
   const date = formatDate(fact.as_of);
   return (
-    <li className="flex min-w-0 flex-col gap-0.5">
-      <p className="flex flex-wrap items-baseline gap-x-2">
-        <span className={cn("font-mono text-xs", date ? "text-ink" : "text-ink-muted")}>
-          {date ?? "unknown date"}
-        </span>
-        {fact.part ? (
-          <span className="text-xs text-ink-muted">
-            {fact.part === "supported" ? "Supported" : "Not supported"}
-          </span>
-        ) : null}
-      </p>
-      <p className="text-dense wrap-break-word text-ink">
+    <li className={cn(NODE, "min-w-0 flex-wrap gap-x-2")}>
+      <span className={cn("shrink-0 font-mono text-xs", date ? "text-ink-secondary" : "text-ink-muted")}>
+        {date ?? "unknown date"}
+      </span>
+      <span className="min-w-0 wrap-break-word text-ink @3xl:line-clamp-2" title={fact.text}>
         {fact.estimate ? (
           <EstimateLabel kind={fact.estimate.kind} basis={fact.estimate.basis}>
             {fact.text}
@@ -77,25 +64,30 @@ function FactItem({ fact }: { fact: TrailFact }) {
         ) : (
           fact.text
         )}
-      </p>
+      </span>
+      {fact.part ? (
+        <span className="shrink-0 text-xs text-ink-muted">
+          {fact.part === "supported" ? "Supported" : "Not supported"}
+        </span>
+      ) : null}
     </li>
   );
 }
 
 /** A search that returned nothing: dashed and hatched, in the Not checked family. */
-function EmptyNode({ label, detail }: { label: string; detail: string }) {
+function EmptyNode({ label }: { label: string }) {
   return (
-    <div className="hatch flex min-w-0 items-start gap-2 rounded-md border border-dashed border-not-checked-line px-2 py-1.5 text-not-checked">
-      <Icon icon={SearchX} className="mt-0.5 shrink-0" />
-      <span className="flex min-w-0 flex-col">
-        <span className="truncate text-dense font-medium">{label}</span>
-        <span className="text-xs">{detail}</span>
-      </span>
-    </div>
+    <span
+      title={label}
+      className="hatch inline-flex h-7 max-w-full min-w-0 items-center gap-1.5 rounded-md border border-dashed border-not-checked-line px-2 text-not-checked"
+    >
+      <Icon icon={SearchX} className="shrink-0" />
+      <span className="truncate font-medium">{label}</span>
+    </span>
   );
 }
 
-/** One source, the arrow out of it, and what it gave. Stacks under 56rem of own width. */
+/** One source, the arrow out of it, and what it gave. Wide: one line. Narrow: facts under the source. */
 function TrailRow({
   node,
   dashed,
@@ -106,11 +98,75 @@ function TrailRow({
   children: React.ReactNode;
 }) {
   return (
-    <li className="grid gap-x-0 gap-y-2 @4xl:grid-cols-[minmax(0,5fr)_1.5rem_minmax(0,6fr)] @4xl:items-start">
-      {node}
-      <Connector dashed={dashed} className="mt-2.5 hidden @4xl:block" />
-      <div className="min-w-0 pl-4 @4xl:pl-0">{children}</div>
+    <li className={cn("grid gap-y-1 @3xl:items-start", PAIR)}>
+      <div className={cn(NODE, "min-w-0")}>{node}</div>
+      <span className={cn(NODE, "hidden justify-center @3xl:flex")}>
+        <Connector dashed={dashed} />
+      </span>
+      <div className="min-w-0">{children}</div>
     </li>
+  );
+}
+
+/** Source | arrow | dated fact, shared by the column heads and every row under them. */
+const PAIR = "@3xl:grid-cols-[minmax(0,2fr)_2rem_minmax(0,3fr)]";
+
+/**
+ * One step of the chain. Narrow: a vertical stepper, with a dot on a rail. Wide: a column
+ * whose head sits on one line and whose first node sits on the next, with the arrow into
+ * it on that same line.
+ */
+function Step({
+  label,
+  first = false,
+  last = false,
+  dashed = false,
+  className,
+  children,
+}: {
+  /** The quiet head above the step. A node, for the step that has two heads. */
+  label: React.ReactNode;
+  first?: boolean;
+  last?: boolean;
+  dashed?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <li className={cn("flex min-w-0", className)}>
+      {/* Narrow: the rail. */}
+      <span aria-hidden className="mr-3 flex w-2 shrink-0 flex-col items-center @3xl:hidden">
+        <span className="mt-1.5 size-2 shrink-0 rounded-full border border-ink-muted bg-surface" />
+        {last ? null : <span className="w-px flex-1 bg-line-strong" />}
+      </span>
+      {/* Wide: the arrow in, on the line of the first node. */}
+      {first ? null : (
+        <span aria-hidden className="hidden shrink-0 flex-col gap-1 px-2 @3xl:flex">
+          <span className="h-4" />
+          <span className={NODE}>
+            <Connector dashed={dashed} />
+          </span>
+        </span>
+      )}
+      <div className={cn("flex min-w-0 flex-1 flex-col gap-1", last ? "pb-0" : "pb-4 @3xl:pb-0")}>
+        {typeof label === "string" ? <ColumnHead className="leading-4">{label}</ColumnHead> : label}
+        {children}
+      </div>
+    </li>
+  );
+}
+
+/** The full rule behind its one short line: asked for, never in the way. */
+function RuleWhy({ children }: { children: React.ReactNode }) {
+  return (
+    <Popover>
+      <PopoverTrigger className="inline-flex h-7 shrink-0 items-center rounded-xs text-xs text-ink-muted underline decoration-dotted underline-offset-4 transition-colors hover:text-ink data-[state=open]:text-ink print:hidden">
+        Why?
+      </PopoverTrigger>
+      <PopoverContent align="end" className="flex flex-col gap-2 text-dense text-ink-secondary">
+        {children}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -118,7 +174,7 @@ export interface EvidenceTrailProps extends Omit<React.ComponentProps<"section">
   claim: Claim;
   /**
    * The rule that fired for this claim, in words. The API does not send it yet; without
-   * it the column shows the fixed meaning of the status and says that is what it is.
+   * it the step names the status rule in a few words and "Why?" gives its full meaning.
    */
   rule?: string | null;
   /** Searches that ran and found nothing. Not recorded by the API yet; drawn only when given. */
@@ -128,10 +184,15 @@ export interface EvidenceTrailProps extends Omit<React.ComponentProps<"section">
 }
 
 /**
- * Why a claim has the status it has, drawn left to right in a fixed order: what the
- * seller said, where DealProof looked, what it found and when, the rule, the answer.
- * A search that found nothing is drawn too, dashed, because "we looked and found no
- * record" is part of the reasoning. Static: every mark is a record on the case.
+ * Why a claim has the status it has, as one chain in a fixed order: where the seller
+ * said it, where DealProof looked, what it found and when, the rule, the answer. A
+ * search that found nothing is drawn too, dashed, because "we looked and found no
+ * record" is part of the reasoning.
+ *
+ * The chain only. The claim's words, the finding, the note and what would settle it
+ * belong to the ledger row the trail sits under, and are not said twice. Wide, it is one
+ * line of small nodes joined by arrows; under 48rem of its own width it is a vertical
+ * stepper. Static: every mark is a record on the case.
  */
 export function EvidenceTrail({
   claim,
@@ -153,36 +214,25 @@ export function EvidenceTrail({
         event.stopPropagation();
         onClick?.(event);
       }}
-      className={cn("@container cursor-auto bg-surface px-4 py-4 text-dense", className)}
+      className={cn("@container cursor-auto bg-surface px-4 py-3 text-dense", className)}
       {...props}
     >
-      <div
-        className={cn(
-          "flex flex-col gap-4 @4xl:grid @4xl:gap-x-0 @4xl:gap-y-2",
-          trail.state === "not_checked"
-            ? "@4xl:grid-cols-[minmax(0,5fr)_1.5rem_minmax(0,20fr)]"
-            : "@4xl:grid-cols-[minmax(0,5fr)_1.5rem_minmax(0,11fr)_1.5rem_minmax(0,5fr)_1.5rem_minmax(0,4fr)]",
-        )}
-      >
-        {/* 1. What the seller said */}
-        <div className="flex min-w-0 flex-col items-start gap-2">
-          <ColumnHead>Seller said</ColumnHead>
-          <p className="text-ink">“{claim.text}”</p>
-          <SourceLine evidence={[claim.stated_in]} />
-        </div>
+      <ol className="flex flex-col @3xl:flex-row @3xl:items-start">
+        {/* 1. Where the seller said it */}
+        <Step label="Seller said" first className="@3xl:max-w-64 @3xl:shrink-0">
+          <div className={NODE}>
+            <SourceLine evidence={[claim.stated_in]} />
+          </div>
+        </Step>
 
         {trail.state === "not_checked" ? (
-          <>
-            <Connector dashed className="mt-8 hidden @4xl:block" />
-            <div className="hatch flex min-w-0 flex-col items-start gap-2 rounded-md border border-dashed border-not-checked-line p-3 text-not-checked">
-              <p className="flex items-center gap-2 font-medium">
+          <Step label="Status" last dashed className="@3xl:flex-1">
+            <div className="hatch flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 self-start rounded-md border border-dashed border-not-checked-line px-2 py-1 text-not-checked">
+              <p className="flex items-center gap-1.5 font-medium">
                 <StatusGlyph status="not_checked" />
                 Not checked · {reason ? NOT_CHECKED_REASON_LABEL[reason] : "reason not recorded"}
               </p>
-              <p>
-                {reason ? NOT_CHECKED_REASON_DETAIL[reason] : "This check did not run"}. No
-                source was read, no fact was dated and no rule was applied
-              </p>
+              <p>No source was read, no fact was dated and no rule was applied</p>
               {onRunCheck ? (
                 <Button size="sm" onClick={() => onRunCheck(claim)}>
                   Run check
@@ -195,35 +245,34 @@ export function EvidenceTrail({
                 </Button>
               ) : null}
             </div>
-          </>
+          </Step>
         ) : (
           <>
-            <Connector className="mt-8 hidden @4xl:block" />
-
             {/* 2 and 3. Where we looked, and what was found and when */}
-            <div className="flex min-w-0 flex-col gap-2 border-l border-line-strong pl-4 @4xl:border-l-0 @4xl:pl-0">
-              <div className="hidden @4xl:grid @4xl:grid-cols-[minmax(0,5fr)_1.5rem_minmax(0,6fr)]">
-                <ColumnHead>Sources</ColumnHead>
-                <span />
-                <ColumnHead>Dated facts</ColumnHead>
-              </div>
-              <ColumnHead className="@4xl:hidden">Sources and dated facts</ColumnHead>
-              <ul className="flex flex-col gap-3">
+            <Step
+              className="@3xl:flex-1"
+              label={
+                <>
+                  <ColumnHead className="leading-4 @3xl:hidden">Sources and dated facts</ColumnHead>
+                  <div className={cn("hidden @3xl:grid", PAIR)}>
+                    <ColumnHead className="leading-4">Sources</ColumnHead>
+                    <span />
+                    <ColumnHead className="leading-4">Dated facts</ColumnHead>
+                  </div>
+                </>
+              }
+            >
+              <ul className="flex flex-col gap-2 @3xl:gap-1">
                 {trail.sources.map((source, index) => (
                   <Fragment key={source.key}>
                     {trail.disagree && index > 0 ? (
-                      <li
-                        className={cn(
-                          "flex items-center gap-2 text-xs font-medium @4xl:pl-[calc(5/11*100%+1.5rem)]",
-                          STATUS_INK.conflicting_evidence,
-                        )}
-                      >
+                      <li className={cn("flex items-center gap-1.5 text-xs font-medium", STATUS_INK.conflicting_evidence)}>
                         <StatusGlyph status="conflicting_evidence" size={14} />
                         disagree
                       </li>
                     ) : null}
                     <TrailRow node={<SourceNode source={source} />}>
-                      <ul className="flex flex-col gap-2">
+                      <ul className="flex flex-col pl-3 @3xl:pl-0">
                         {source.facts.map((fact) => (
                           <FactItem key={fact.key} fact={fact} />
                         ))}
@@ -235,64 +284,48 @@ export function EvidenceTrail({
                   <TrailRow
                     key={`${search.reliability}-${index}`}
                     dashed
-                    node={
-                      <EmptyNode
-                        label={search.label ?? RELIABILITY_LABEL[search.reliability]}
-                        detail="Searched, no record"
-                      />
-                    }
+                    node={<EmptyNode label={search.label ?? RELIABILITY_LABEL[search.reliability]} />}
                   >
-                    <p className="pt-1.5 text-not-checked">Nothing found</p>
+                    <p className={cn(NODE, "pl-3 text-not-checked @3xl:pl-0")}>Searched, no record</p>
                   </TrailRow>
                 ))}
                 {trail.state === "nothing_found" && trail.emptySearches.length === 0 ? (
-                  <TrailRow
-                    dashed
-                    node={<EmptyNode label="Searched" detail="No evidence was attached" />}
-                  >
-                    <p className="pt-1.5 text-not-checked">
-                      Nothing found. Which sources were searched is not recorded
+                  <TrailRow dashed node={<EmptyNode label="No evidence attached" />}>
+                    <p className={cn(NODE, "pl-3 text-not-checked @3xl:pl-0")}>
+                      Which sources were searched is not recorded
                     </p>
                   </TrailRow>
                 ) : null}
               </ul>
-            </div>
+            </Step>
 
-            <Connector className="mt-8 hidden @4xl:block" />
-
-            {/* 4. The rule */}
-            <div className="flex min-w-0 flex-col gap-2 border-l border-line-strong pl-4 @4xl:border-l-0 @4xl:pl-0">
-              <ColumnHead>Rule</ColumnHead>
-              <p className="text-ink">{trail.rule.text}</p>
-              {trail.rule.from === "status_definition" ? (
-                <p className="text-xs text-ink-muted">
-                  What this status means under the scoring policy
-                </p>
-              ) : null}
-              {trail.findings.map((finding) => (
-                <p key={finding} className="text-ink-secondary">
-                  {finding}
-                </p>
-              ))}
-              {claim.note ? <p className="text-ink-secondary">{claim.note}</p> : null}
-            </div>
-
-            <Connector className="mt-8 hidden @4xl:block" />
+            {/* 4. The rule: one short line, the full text behind "Why?" */}
+            <Step label="Rule" className="@3xl:max-w-64 @3xl:shrink-0">
+              <div className={cn(NODE, "min-w-0 gap-2")}>
+                <span className="min-w-0 truncate text-ink" title={trail.rule.short}>
+                  {trail.rule.short}
+                </span>
+                <RuleWhy>
+                  <p className="text-ink">{trail.rule.text}</p>
+                  {trail.rule.from === "status_definition" ? (
+                    <p className="text-xs text-ink-muted">
+                      What {CLAIM_STATUS_LABEL[claim.status]} means under the scoring policy. The
+                      rule that fired for this claim is not recorded
+                    </p>
+                  ) : null}
+                </RuleWhy>
+              </div>
+            </Step>
 
             {/* 5. The answer */}
-            <div className="flex min-w-0 flex-col items-start gap-2 border-l border-line-strong pl-4 @4xl:border-l-0 @4xl:pl-0">
-              <ColumnHead>Status</ColumnHead>
-              <StatusMark status={claim.status} />
-              {claim.what_would_settle ? (
-                <p className="text-ink">
-                  <span className="text-ink-muted">What would settle it: </span>
-                  {claim.what_would_settle}
-                </p>
-              ) : null}
-            </div>
+            <Step label="Status" last className="@3xl:shrink-0">
+              <div className={NODE}>
+                <StatusMark status={claim.status} />
+              </div>
+            </Step>
           </>
         )}
-      </div>
+      </ol>
     </section>
   );
 }

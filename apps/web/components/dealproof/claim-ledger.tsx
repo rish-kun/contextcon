@@ -226,11 +226,16 @@ export function ClaimLedgerRow({
       style={arrived ? { animationDelay: `${staggerDelay(index)}s` } : undefined}
       className={cn(
         arrived && "animate-row-in motion-reduce:animate-none",
-        "focus-inset grid cursor-default gap-x-0 gap-y-3 border-b border-line px-4 py-3 text-dense transition-colors lg:ledger-grid lg:gap-y-0 lg:px-0 lg:py-0",
+        "focus-inset flex cursor-default flex-col border-b border-line text-dense transition-colors",
         selected ? "selected-bar bg-accent-tint" : "hover:bg-surface-raised",
         className,
       )}
     >
+      {/* The three cells are one grid; the trail is a block of its own under it, in flow. */}
+      <div
+        role="presentation"
+        className="grid gap-x-0 gap-y-3 px-4 py-3 lg:ledger-grid lg:gap-y-0 lg:px-0 lg:py-0"
+      >
       <div role="gridcell" className="flex min-w-0 gap-3 lg:px-4 lg:py-3">
         <span className="w-5 shrink-0 text-right font-mono text-xs leading-5 text-ink-muted">
           {claim.number}
@@ -322,7 +327,10 @@ export function ClaimLedgerRow({
           )}
         />
       </div>
-      {expanded && !unsettled ? <EvidenceTrail claim={claim} role="gridcell" className="border-t border-line lg:col-span-3" /> : null}
+      </div>
+      {expanded && !unsettled ? (
+        <EvidenceTrail claim={claim} role="gridcell" className="border-t border-line" />
+      ) : null}
     </div>
   );
 }

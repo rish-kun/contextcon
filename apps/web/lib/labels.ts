@@ -33,6 +33,16 @@ export const CLAIM_STATUS_MEANING: Record<ClaimStatus, string> = {
   not_checked: "The check was not run",
 };
 
+/** The rule behind each status in a few words, for places with room for one short line. */
+export const CLAIM_STATUS_RULE: Record<ClaimStatus, string> = {
+  supported: "An adequate source agrees",
+  partially_corroborated: "Evidence backs part of it",
+  conflicting_evidence: "Sources disagree",
+  contradicted: "A reliable source conflicts",
+  cannot_verify: "No adequate source reached",
+  not_checked: "The check was not run",
+};
+
 export const NOT_CHECKED_REASON_LABEL: Record<NotCheckedReason, string> = {
   budget_reached: "budget reached",
   source_unavailable: "source unavailable",

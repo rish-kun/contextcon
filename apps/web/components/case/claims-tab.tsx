@@ -132,11 +132,9 @@ function ClaimDetail({ claim }: { claim: ClaimOut }) {
       ) : null}
 
       {claim.settle_with ? (
-        <p className="text-ink">
-          <span className="text-ink-muted">What would settle it: </span>
-          {claim.settle_with}
-          {" · "}
-          <TextLink href={`${basePath}/request`}>Request list</TextLink>
+        // The row above already names the document; this is the way to ask for it.
+        <p>
+          <TextLink href={`${basePath}/request`}>Ask for it on the request list</TextLink>
         </p>
       ) : null}
 

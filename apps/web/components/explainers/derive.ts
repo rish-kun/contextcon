@@ -7,7 +7,7 @@
  * caused a derived change), the model leaves it out and the view says so.
  */
 import type { CaseCostOut } from "@/lib/api/client";
-import { CLAIM_STATUS_MEANING } from "@/lib/labels";
+import { CLAIM_STATUS_MEANING, CLAIM_STATUS_RULE } from "@/lib/labels";
 import {
   CLAIM_STATUSES,
   type AssessmentChange,
@@ -110,6 +110,9 @@ export interface TrailModel {
   /** What DealProof concluded from several pieces of evidence taken together. */
   findings: string[];
   rule: {
+    /** A few words, for the one line of the chain. */
+    short: string;
+    /** The full rule, shown when asked for. */
     text: string;
     /** `status_definition` is the fallback: the fixed meaning of the status, not this claim's rule. */
     from: "claim" | "status_definition";
@@ -131,8 +134,12 @@ export function trailFromClaim(
   options: { rule?: string | null; emptySearches?: EmptySearch[] } = {},
 ): TrailModel {
   const rule: TrailModel["rule"] = options.rule
-    ? { text: options.rule, from: "claim" }
-    : { text: CLAIM_STATUS_MEANING[claim.status], from: "status_definition" };
+    ? { short: CLAIM_STATUS_RULE[claim.status], text: options.rule, from: "claim" }
+    : {
+        short: CLAIM_STATUS_RULE[claim.status],
+        text: CLAIM_STATUS_MEANING[claim.status],
+        from: "status_definition",
+      };
   const emptySearches = (options.emptySearches ?? []).filter((s) => s.claim_id === claim.id);
 
   if (claim.status === "not_checked") {
