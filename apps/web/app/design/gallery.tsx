@@ -81,6 +81,7 @@ import {
   Tooltip,
 } from "@/components/ui";
 import { CLAIM_STATUS_MEANING, DISPOSITION_MEANING } from "@/lib/labels";
+import { InsightSpecimens, ShellSpecimens } from "./insight-section";
 import { type SoundCue, useSound } from "@/lib/sound";
 import {
   CLAIM_STATUSES,
@@ -111,6 +112,8 @@ const SECTIONS = [
   ["explainers", "Explainers"],
   ["approval", "Approval"],
   ["sound", "Sound"],
+  ["insight", "Insight components"],
+  ["shell", "Page and panel primitives"],
 ] as const;
 
 function Section({
@@ -1136,6 +1139,20 @@ export function Gallery() {
         <ExplainersSection />
         <ApprovalSection />
         <SoundSection />
+        <Section
+          id="insight"
+          title="Insight components"
+          lead="Dense presentations of sourced data: figures with their sources, a trend line for an estimated series, tables with inline bars, people, a typed timeline, and a ranked list with its detail. They draw only what they are given."
+        >
+          <InsightSpecimens />
+        </Section>
+        <Section
+          id="shell"
+          title="Page and panel primitives"
+          lead="One page header, one panel, three table densities, and one empty, loading and error trio at three sizes. Every signed-in screen is built from these."
+        >
+          <ShellSpecimens />
+        </Section>
 
         <footer className="border-t border-line pt-4 text-xs text-ink-muted">
           <RuleBreakBlock title="How to read the red blocks" className="mb-4 max-w-(--layout-prose-max)">
