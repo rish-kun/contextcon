@@ -193,9 +193,29 @@ function statedIn(claim: ClaimOut): Evidence {
 
 const KNOWN_REASONS = ["budget_reached", "source_unavailable", "step_failed", "identity_unresolved"];
 
+/**
+ * The API's finding sentence, made fit to sit in a row that already shows the status and
+ * what would settle the claim: "Cannot verify. legal_name: no adequate source was found.
+ * Would settle it: Certificate of incorporation." reads "Legal name: no adequate source
+ * was found."
+ */
+export function findingText(claim: Pick<ClaimOut, "reason" | "status">): string {
+  const text = claim.reason
+    .replace(new RegExp(`^${CLAIM_STATUS_LABEL[claim.status]}\\.\\s+`), "")
+    .replace(/\s*Would settle it:.*$/, "")
+    // Component keys are field names: "hq_city: " reads "Hq city: ".
+    .replace(/(^|\.\s+)([a-z][a-z_]*):\s/g, (_, lead: string, key: string) => {
+      const words = key.replace(/_/g, " ");
+      return `${lead}${words.charAt(0).toUpperCase()}${words.slice(1)}: `;
+    })
+    .trim();
+  return text || claim.reason;
+}
+
 export function toClaim(claim: ClaimOut): Claim {
   const evidence = claim.evidence.map(toEvidence);
   const reason = claim.not_checked_reason;
+  const finding = findingText(claim);
   return {
     id: claim.id,
     number: claim.number,
@@ -205,9 +225,9 @@ export function toClaim(claim: ClaimOut): Claim {
     status: claim.status,
     not_checked_reason: reason && KNOWN_REASONS.includes(reason) ? reason : null,
     // The API states one finding per claim, resting on all of its evidence.
-    record: evidence.length > 0 ? [{ text: claim.reason, evidence }] : [],
+    record: evidence.length > 0 ? [{ text: finding, evidence }] : [],
     // With no evidence attached, the finding still says why: it is the row's note.
-    note: evidence.length === 0 && claim.status !== "not_checked" ? claim.reason : undefined,
+    note: evidence.length === 0 && claim.status !== "not_checked" ? finding : undefined,
     what_would_settle: claim.settle_with,
     changed_in_version: claim.changed_in_version,
   };

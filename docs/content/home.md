@@ -204,16 +204,20 @@ Layout: full illustrative case (PRD's Pune example) followed by the six-status l
 What a claim ledger looks like
 ```
 
-### Illustration notice (always visible)
+### Provenance line (always visible)
+
+The ledger shows real claims from the committed showcase export (`apps/web/content/showcase`), not an invented company. The date is the day the run finished. "Open the full case" links to `/showcase/case`.
 
 ```text
-Illustration, not a real company
+Real run · 22 Nov 2026 · claims from the company's public website · Open the full case
 ```
+
+If the export is missing or malformed, the section falls back to the Pune illustration with the label `Illustration, not a real company`.
 
 ### Case context
 
 ```text
-A mid-sized Indian logistics company's CFO office is reviewing a regional warehousing operator in Pune after a first meeting. DealProof checks six claims from the meeting and seller presentation against independent records.
+{company} is a real company that a DealProof discovery run found. These are {shown} of the {total} claims its public website makes, checked against Crustdata records and public web pages. Nothing was sent to the company.
 ```
 
 ### Full illustrative ledger

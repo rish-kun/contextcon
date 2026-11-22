@@ -63,6 +63,7 @@ import { HeroLedger } from "./hero-ledger";
 import { Container, IllustrationLabel, SectionHead } from "./primitives";
 import { ProblemLedger } from "./problem-ledger";
 import { Reveal } from "./reveal";
+import { showcaseLedger } from "./showcase-ledger";
 import { Steps } from "./steps";
 
 const SECTION = "py-16 md:py-24 lg:py-32";
@@ -218,6 +219,11 @@ function LegendTag({ status }: { status: ClaimStatus }) {
 }
 
 export function CaseSection() {
+  // The committed export of a real run. Without it the section is the labelled illustration.
+  const real = showcaseLedger();
+  const claims = real?.claims ?? CLAIMS;
+  const expandedId = claims.find((claim) => claim.status === "cannot_verify")?.id;
+
   return (
     <section id="case" className={cn(SECTION, "scroll-mt-14")}>
       <Container>
@@ -225,34 +231,67 @@ export function CaseSection() {
           <SectionHead
             eyebrow={CASE_HEAD.eyebrow}
             title={CASE_HEAD.title}
-            lead={CASE_HEAD.lead}
+            lead={
+              real
+                ? `${real.company} is a real company that a DealProof discovery run found. These are ${real.claims.length} of the ${real.total} claims its public website makes, checked against Crustdata records and public web pages. Nothing was sent to the company.`
+                : CASE_HEAD.lead
+            }
           />
-          <IllustrationLabel>{ILLUSTRATION_LABEL}</IllustrationLabel>
+          {real ? (
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-secondary">
+              <span>Real run</span>
+              <span aria-hidden className="text-ink-muted">·</span>
+              <span className="font-mono text-xs">{real.ranOn}</span>
+              <span aria-hidden className="text-ink-muted">·</span>
+              <span>claims from the company&rsquo;s public website</span>
+              <span aria-hidden className="text-ink-muted">·</span>
+              <Link
+                href="/showcase/case"
+                className="rounded-xs text-accent underline underline-offset-2 transition-colors hover:text-accent-hover"
+              >
+                Open the full case
+              </Link>
+            </p>
+          ) : (
+            <IllustrationLabel>{ILLUSTRATION_LABEL}</IllustrationLabel>
+          )}
         </Reveal>
 
         <Reveal className="mt-8 lg:mt-12">
-          <ClaimLedger label="Claim ledger for an illustrative company">
-            {CLAIMS.map((claim, i) => (
+          <ClaimLedger
+            label={real ? `Claim ledger for ${real.company}` : "Claim ledger for an illustrative company"}
+          >
+            {claims.map((claim, i) => (
               <ClaimLedgerRow
                 key={claim.id}
                 claim={claim}
                 index={i}
-                defaultExpanded={claim.status === "cannot_verify"}
+                defaultExpanded={claim.id === expandedId}
               />
             ))}
           </ClaimLedger>
-          <div className="mt-4 flex flex-col gap-4 rounded-lg border border-line bg-surface p-4 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
-            <div className="flex flex-col items-start gap-2">
-              <StatusCounts counts={CLAIM_COUNTS} />
+          {real ? (
+            <div className="mt-4 flex flex-col items-start gap-2 rounded-lg border border-line bg-surface p-4">
+              <StatusCounts counts={real.counts} />
               <p className="max-w-2xl text-sm text-pretty text-ink-secondary">
-                {CASE_HEAD.summary}
+                {real.claims.length} of {real.total} claims shown. Where the public record could not
+                settle a claim, the row says so and names the document that would.
               </p>
             </div>
-            <DispositionStamp
-              disposition={CASE_HEAD.disposition}
-              className="self-start lg:self-center"
-            />
-          </div>
+          ) : (
+            <div className="mt-4 flex flex-col gap-4 rounded-lg border border-line bg-surface p-4 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
+              <div className="flex flex-col items-start gap-2">
+                <StatusCounts counts={CLAIM_COUNTS} />
+                <p className="max-w-2xl text-sm text-pretty text-ink-secondary">
+                  {CASE_HEAD.summary}
+                </p>
+              </div>
+              <DispositionStamp
+                disposition={CASE_HEAD.disposition}
+                className="self-start lg:self-center"
+              />
+            </div>
+          )}
         </Reveal>
 
         <Reveal className="mt-16 lg:mt-24">
@@ -277,7 +316,11 @@ export function CaseSection() {
           ))}
         </dl>
 
-        <div className="mt-10 grid gap-6 lg:grid-cols-12">
+        {/* The two worked examples under the legend are invented, and say so. */}
+        <Reveal className="mt-10">
+          <IllustrationLabel>Two illustrative examples</IllustrationLabel>
+        </Reveal>
+        <div className="mt-4 grid gap-6 lg:grid-cols-12">
           <Reveal className="rounded-xl border border-line bg-surface p-5 lg:col-span-7 lg:p-8">
             <h3 className="font-serif text-2xl text-ink">
               {STATUS_NOTES.cannotVerify.title}
