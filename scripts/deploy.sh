@@ -111,9 +111,12 @@ revoke_legacy_grants() {
         --member "serviceAccount:${LEGACY_SA}" --role roles/secretmanager.secretAccessor --quiet >/dev/null
     fi
   done
-  if gcloud storage buckets get-iam-policy "gs://${BUCKET}" \
-    --flatten=bindings --filter="bindings.role=roles/storage.objectAdmin AND bindings.members:serviceAccount:${LEGACY_SA}" \
-    --format='value(bindings.role)' 2>/dev/null | grep -q .; then
+  # `gcloud storage` has no --filter, so check the policy JSON instead.
+  if gcloud storage buckets get-iam-policy "gs://${BUCKET}" --format=json 2>/dev/null \
+    | LEGACY_SA="$LEGACY_SA" python3 -c 'import json,os,sys
+m = "serviceAccount:" + os.environ["LEGACY_SA"]
+sys.exit(0 if any(b["role"] == "roles/storage.objectAdmin" and m in b.get("members", [])
+                  for b in json.load(sys.stdin).get("bindings", [])) else 1)'; then
     log "Revoking gs://${BUCKET} objectAdmin from ${LEGACY_SA}"
     gcloud storage buckets remove-iam-policy-binding "gs://${BUCKET}" \
       --member "serviceAccount:${LEGACY_SA}" --role roles/storage.objectAdmin --quiet >/dev/null
