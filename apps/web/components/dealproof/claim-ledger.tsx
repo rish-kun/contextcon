@@ -18,6 +18,7 @@ import { RuleBreakBlock } from "./blocks";
 import { PendingGlyph, StatusGlyph } from "./glyphs";
 import { Fact, SourceLine } from "./source-line";
 import { STATUS_INK, StatusLegend, StatusMark } from "./status-mark";
+import { EvidenceTrail } from "@/components/explainers/evidence-trail";
 
 /** Short labels for the 96px spine, where the full name does not fit on one line. */
 const SPINE_LABEL: Record<Claim["status"], string[]> = {
@@ -303,6 +304,7 @@ export function ClaimLedgerRow({
           )}
         />
       </div>
+      {expanded && !pending ? <EvidenceTrail claim={claim} role="gridcell" className="border-t border-line lg:col-span-3" /> : null}
     </div>
   );
 }
