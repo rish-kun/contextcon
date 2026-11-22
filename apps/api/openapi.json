@@ -7493,6 +7493,18 @@
             "type": "boolean",
             "title": "Assessed"
           },
+          "state": {
+            "type": "string",
+            "enum": [
+              "assessed",
+              "indicative",
+              "not_found",
+              "not_assessed"
+            ],
+            "title": "State",
+            "description": "assessed: reported figures; indicative: provider estimates only; not_found: the public search ran and found nothing; not_assessed: no search yet.",
+            "default": "not_assessed"
+          },
           "reason": {
             "anyOf": [
               {
@@ -7541,17 +7553,35 @@
             ],
             "title": "Conclusion",
             "description": "Bounded; never a valuation."
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Assumptions"
+          },
+          "searched": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Searched",
+            "description": "The public lookups made for financial figures."
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
           "assessed",
+          "state",
           "reason",
           "would_need",
           "period",
           "figures",
-          "conclusion"
+          "conclusion",
+          "assumptions",
+          "searched"
         ],
         "title": "FinancialAssessmentOut"
       },
@@ -7574,6 +7604,49 @@
               }
             ],
             "title": "Assumption"
+          },
+          "period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period",
+            "description": "Reporting period, e.g. \"Q2 FY27\"."
+          },
+          "basis": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "audited",
+                  "filing",
+                  "registry",
+                  "company_results",
+                  "estimate"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basis",
+            "description": "Kind of record the figure comes from."
+          },
+          "quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote",
+            "description": "The verbatim text the figure is from."
           }
         },
         "additionalProperties": false,
@@ -7581,7 +7654,10 @@
         "required": [
           "label",
           "fact",
-          "assumption"
+          "assumption",
+          "period",
+          "basis",
+          "quote"
         ],
         "title": "FinancialFigureOut"
       },

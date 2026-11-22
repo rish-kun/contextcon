@@ -6,6 +6,7 @@ point that turns case inputs into an immutable ``AssessmentVersion``.
 
 from __future__ import annotations
 
+import datetime as dt
 import hashlib
 import json
 from collections import defaultdict
@@ -21,6 +22,8 @@ from app.domain.enums import (
     CriterionResult,
     Disposition,
     IdentityStatus,
+    SourceReliability,
+    ValueKind,
 )
 from app.domain.types import (
     AssessmentInputs,
@@ -38,14 +41,17 @@ from app.domain.types import (
     ExtractedFact,
     FinancialAssessment,
     FinancialFigure,
+    FinancialInputs,
     Judgments,
     OpportunityFit,
+    ReportedFigure,
     Signal,
 )
+from app.rules import financials as fin
 from app.rules import policy
 from app.rules.claim_status import combine_states, decide_claim_status, document_for, status_label
 from app.rules.company_type import classify_company, required_checks
-from app.rules.compare import normalize_text
+from app.rules.compare import normalize_text, same_number
 from app.rules.fit import assess_case_candidate, fit_from_evaluations, must_have_failures
 from app.rules.requests import build_request_list
 from app.rules.validation import screen_fact
@@ -205,45 +211,315 @@ def business_assessment(inputs: BusinessInputs) -> BusinessAssessment:
 # --- Financial assessment ------------------------------------------------------
 
 NOT_ASSESSED = "Not assessed: no reliable financial inputs (audited statements or registry filings)"
+NOT_FOUND = "No public financials found"
+NO_VALUATION = "No valuation, forecast or fair value is implied"
+
+# Order figures are listed in, after the period.
+_FIGURE_ORDER = ("revenue", "ebitda", "profit", "net_worth", "revenue_band", "revenue_growth_pct")
+# Preferred record when two sources state the same figure for the same period.
+_BASIS_RANK = {"audited": 0, "filing": 1, "registry": 2, "company_results": 3}
+_EXCHANGES = {"nseindia.com": "NSE", "bseindia.com": "BSE"}
+
+
+def _host(url: str | None) -> str:
+    if not url:
+        return ""
+    host = url.split("://", 1)[-1].split("/", 1)[0].lower()
+    return host.removeprefix("www.")
+
+
+def _exchange(url: str | None) -> str | None:
+    host = _host(url)
+    return next((n for h, n in _EXCHANGES.items() if host == h or host.endswith("." + h)), None)
+
+
+def _basis(src_reliability: SourceReliability, url: str | None, listed: bool) -> str | None:
+    R = SourceReliability
+    if src_reliability is R.AUDITED_STATEMENT:
+        return "audited"
+    if _exchange(url) or (src_reliability is R.REGISTRY and "mca.gov.in" in _host(url)):
+        return "filing"
+    if src_reliability in (R.REGISTRY, R.REGISTRY_MIRROR):
+        return "registry"
+    if src_reliability is R.COMPANY_ANNOUNCEMENT and listed:
+        # A listed company must publish its results on its own site; the same
+        # figures it filed with the exchange.
+        return "company_results"
+    return None
+
+
+def _source_short(fig: FinancialFigure, url: str | None) -> str:
+    exchange = _exchange(url)
+    if exchange:
+        return f"{exchange} filing"
+    if fig.basis == "filing":
+        return "MCA filing"
+    if fig.basis == "registry":
+        return f"registry filing via {_host(url)}" if url else "registry filing"
+    if fig.basis == "audited":
+        return "audited statements"
+    return f"results on {_host(url)}" if url else "company results"
+
+
+def _figure(
+    fact: ExtractedFact,
+    reported: ReportedFigure | None,
+    entity_ids: list[str],
+    listed: bool,
+) -> tuple[FinancialFigure, str | None] | None:
+    rule = policy.COMPONENT_RULES.get(fact.component)
+    if rule is None or rule.check is not ClaimCategory.FINANCIALS:
+        return None
+    src = fact.evidence.source
+    basis = _basis(src.reliability, src.url, listed)
+    if basis is None:
+        return None
+    if not screen_fact(fact, entity_ids).valid:
+        return None
+    quote = fact.evidence.quote
+    if reported is not None:
+        period = (
+            fin.Period(reported.period, reported.period_end, reported.period_months or 0)
+            if reported.period and reported.period_end
+            else None
+        )
+        amount = (
+            fin.Amount(reported.amount, reported.currency, reported.unit)
+            if reported.amount is not None
+            else None
+        )
+    else:
+        period = fin.parse_period(quote)
+        amount = fin.parse_amount(str(fact.value))
+        stated = fin.parse_amount(quote)
+        if (
+            amount is not None
+            and stated is not None
+            and amount.unit is None
+            and same_number(amount.value, stated.value)
+        ):
+            amount = stated  # the quote gives the unit and currency of a bare value
+    if rule.kind is not ValueKind.MONEY:
+        amount = None
+    fig = FinancialFigure(
+        component=fact.component,
+        value=fact.value,
+        as_of=fact.evidence.as_of,
+        evidence_id=fact.evidence.id,
+        source_label=src.label,
+        period=period.label if period else None,
+        period_end=period.end if period else None,
+        period_months=period.months if period else None,
+        amount=amount.value if amount else None,
+        currency=amount.currency if amount else None,
+        unit=amount.unit if amount else None,
+        display=fin.display_amount(amount) if amount else str(fact.value),
+        basis=basis,
+        quote=quote,
+    )
+    return fig, src.url
+
+
+def _same_length_before(
+    figs: list[FinancialFigure], head: FinancialFigure, *, year_ago: bool
+) -> FinancialFigure | None:
+    if head.period_end is None or head.period_months is None:
+        return None
+    end, months = fin.prior_period(
+        fin.Period(head.period or "", head.period_end, head.period_months), year_ago=year_ago
+    )
+    return next(
+        (
+            f
+            for f in figs
+            if f.component == head.component
+            and f.period_end == end
+            and f.period_months == months
+            and f.amount is not None
+            and f.currency == head.currency
+        ),
+        None,
+    )
+
+
+def _conclusion(figs: list[FinancialFigure], urls: dict[str, str | None]) -> tuple[str, str | None]:
+    """One bounded sentence on the latest reported period: the headline figure,
+    growth against the comparable earlier period, and margins in the same period."""
+    dated = [f for f in figs if f.period_end is not None]
+    revenue = [f for f in dated if f.component == "revenue" and f.amount is not None]
+    pool = revenue or [f for f in dated if f.amount is not None] or dated or figs
+    head = max(
+        pool, key=lambda f: (f.period_end or dt.date.min, -_BASIS_RANK.get(f.basis or "", 9))
+    )
+    noun = {"revenue": "revenue", "profit": "profit", "ebitda": "EBITDA", "net_worth": "net worth"}
+    what = noun.get(head.component, head.component.replace("_", " "))
+    text = f"Reported {what} {head.display}"
+    if head.period:
+        text += f" in {head.period}"
+    parts: list[str] = []
+    if head.amount is not None:
+        for year_ago in (True, False):
+            prior = _same_length_before(figs, head, year_ago=year_ago)
+            if prior is not None and prior.amount is not None:
+                change = fin.pct_change(head.amount, prior.amount)
+                if change is not None:
+                    parts.append(
+                        f"{fin.signed_pct(change)} YoY"
+                        if year_ago
+                        else f"{fin.signed_pct(change)} vs {prior.period}"
+                    )
+                    break
+    if head.component == "revenue" and head.amount:
+        for comp, label in (("ebitda", "EBITDA margin"), ("profit", "profit margin")):
+            other = next(
+                (
+                    f
+                    for f in figs
+                    if f.component == comp
+                    and f.period_end == head.period_end
+                    and f.amount is not None
+                    and f.currency == head.currency
+                ),
+                None,
+            )
+            if other is not None and other.amount is not None:
+                parts.append(f"{label} {round(other.amount / head.amount * 100, 1):g}%")
+    if parts:
+        text += ", " + ", ".join(parts)
+    text += f" ({_source_short(head, urls.get(head.evidence_id))})"
+    return text + ". Reported figures only; " + NO_VALUATION.lower() + ".", head.period
+
+
+def _would_need(listed: bool) -> list[str]:
+    if listed:
+        return ["The latest results filing on the stock exchange", policy.DOC_FINANCIALS]
+    return [policy.DOC_FINANCIALS, "The latest annual filing with the company registry"]
+
+
+def _usd(v: float | None) -> str | None:
+    return fin.display_amount(fin.Amount(v, "USD", None)) if v is not None else None
 
 
 def financial_assessment(
-    facts: list[ExtractedFact], entity_ids: list[str] | None = None
+    facts: list[ExtractedFact],
+    entity_ids: list[str] | None = None,
+    financials: FinancialInputs | None = None,
 ) -> FinancialAssessment:
-    """Only figures from audited statements or registry filings, bound to the
-    company (``entity_ids``) on a corroborating identifier and with their
-    quotes verified: the same screen claims use. Without entity ids nothing
-    can be attached, so nothing is assessed. Headcount and hiring never enter here."""
-    figures: dict[str, FinancialFigure] = {}
-    for f in sorted(facts, key=lambda f: f.id):
-        rule = policy.COMPONENT_RULES.get(f.component)
-        if rule is None or rule.check is not ClaimCategory.FINANCIALS:
+    """What reliable public inputs show, under stated assumptions (design §6.4).
+
+    1. Reported figures: audited statements, exchange or registry filings, or a listed
+       company's own results page, bound to the company (``entity_ids``) on a
+       corroborating identifier with their quotes verified (the same screen claims
+       use). Reported with their period, growth against the same-length earlier
+       period, margins in the same period and a bounded conclusion.
+    2. Otherwise a data provider's revenue range, labelled "Indicative (estimate)".
+    3. Otherwise, once the public search ran, "No public financials found" with what
+       was searched and what would settle it.
+    Headcount and hiring never enter here, and nothing here is a valuation."""
+    fx = financials or FinancialInputs()
+    ids = list(entity_ids or [])
+    listed = fx.listing == "listed"
+    found: dict[tuple, tuple[FinancialFigure, str | None]] = {}
+    candidates = [(f, None) for f in sorted(facts, key=lambda f: f.id)] + [
+        (r.fact, r) for r in sorted(fx.figures, key=lambda r: r.fact.id)
+    ]
+    for fact, reported in candidates:
+        got = _figure(fact, reported, ids, listed)
+        if got is None:
             continue
-        src = f.evidence.source
-        if src.reliability not in policy.RELIABLE_FINANCIAL_SOURCES:
-            continue
-        if not screen_fact(f, list(entity_ids or [])).valid:
-            continue
-        figures.setdefault(
-            f.id,
-            FinancialFigure(
-                component=f.component,
-                value=f.value,
-                as_of=f.evidence.as_of,
-                evidence_id=f.evidence.id,
-                source_label=src.label,
+        fig = got[0]
+        key = (fig.component, fig.period, fig.amount if fig.amount is not None else str(fig.value))
+        held = found.get(key)
+        if held is None or _BASIS_RANK.get(fig.basis or "", 9) < _BASIS_RANK.get(
+            held[0].basis or "", 9
+        ):
+            found[key] = got
+    searched = list(fx.searched or [])
+    would_need = _would_need(listed)
+    if found:
+        figs = sorted(
+            (g[0] for g in found.values()),
+            key=lambda f: (
+                -(f.period_end or dt.date.min).toordinal(),
+                _FIGURE_ORDER.index(f.component) if f.component in _FIGURE_ORDER else 99,
+                f.evidence_id,
             ),
         )
-    if not figures:
-        return FinancialAssessment(assessed=False, reason=NOT_ASSESSED)
+        urls = {g[0].evidence_id: g[1] for g in found.values()}
+        conclusion, period = _conclusion(figs, urls)
+        bases = {f.basis for f in figs}
+        assumptions = ["Figures are taken as reported in the cited documents, without adjustment"]
+        if any(f.period_months == 3 for f in figs):
+            assumptions.append("Quarterly results are limited-review figures, not audited")
+        if "registry" in bases:
+            assumptions.append(
+                "Registry-mirror pages copy the filings made with the registry and may lag "
+                "the latest year"
+            )
+        if "company_results" in bases:
+            assumptions.append(
+                "Results as the listed company published them on its own site; the exchange "
+                "filing itself was not read"
+            )
+        assumptions += [
+            "Amounts are in the unit the source states (1 crore = 10 million, 1 lakh = 100,000)",
+            "Growth compares periods of the same length, on the basis (consolidated or "
+            "standalone) the quote states",
+            NO_VALUATION,
+        ]
+        return FinancialAssessment(
+            assessed=True,
+            state="assessed",
+            reason=f"Based on {len(figs)} reported figure(s) from public filings or results",
+            figures=figs,
+            assumptions=assumptions,
+            period=period,
+            conclusion=conclusion,
+            searched=searched,
+        )
+    estimates = [e for e in fx.estimates if e.lower_usd is not None or e.upper_usd is not None]
+    if estimates:
+        est = max(estimates, key=lambda e: (e.as_of or dt.date.min, e.evidence_id))
+        low, high = _usd(est.lower_usd), _usd(est.upper_usd)
+        span = f"{low}–{high}" if low and high else f"at least {low}" if low else f"up to {high}"
+        when = f", as of {est.as_of.isoformat()}" if est.as_of else ""
+        return FinancialAssessment(
+            assessed=False,
+            state="indicative",
+            reason=(
+                f"Indicative (estimate): annual revenue {span} from a data provider's model"
+                f"{when}. Not a reported figure."
+            ),
+            figures=[
+                FinancialFigure(
+                    component="revenue_estimate",
+                    value=span,
+                    as_of=est.as_of,
+                    evidence_id=est.evidence_id,
+                    source_label=est.source_label,
+                    display=span,
+                    currency="USD",
+                    basis="estimate",
+                )
+            ],
+            assumptions=[
+                "A modelled range from a data provider, not reported or audited figures",
+                NO_VALUATION,
+            ],
+            searched=searched,
+            would_need=would_need,
+        )
+    if fx.searched is not None:
+        where = "; ".join(searched) if searched else "no public lookup could be made"
+        return FinancialAssessment(
+            assessed=False,
+            state="not_found",
+            reason=f"{NOT_FOUND} — searched: {where}",
+            searched=searched,
+            would_need=would_need,
+        )
     return FinancialAssessment(
-        assessed=True,
-        reason=f"Based on {len(figures)} figure(s) from audited statements or registry filings",
-        figures=list(figures.values()),
-        assumptions=[
-            "Figures are taken as reported in the cited documents, without adjustment",
-            "No valuation, forecast or fair value is implied",
-        ],
+        assessed=False, state="not_assessed", reason=NOT_ASSESSED, would_need=would_need
     )
 
 
@@ -529,6 +805,8 @@ def _evidence_index(inputs: AssessmentInputs) -> list[Evidence]:
             seen.setdefault(f.evidence.id, f.evidence)
     for f in inputs.financial_facts:
         seen.setdefault(f.evidence.id, f.evidence)
+    for r in inputs.financials.figures:
+        seen.setdefault(r.fact.evidence.id, r.fact.evidence)
     return [seen[k] for k in sorted(seen)]
 
 
@@ -576,6 +854,7 @@ def assess(inputs: AssessmentInputs) -> AssessmentVersion:
     financial = financial_assessment(
         [f for c in inputs.claim_checks for f in c.facts] + list(inputs.financial_facts),
         [inputs.company.entity_id],
+        inputs.financials,
     )
     requests = build_request_list(
         outcomes,

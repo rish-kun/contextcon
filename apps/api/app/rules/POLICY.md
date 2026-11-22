@@ -1,6 +1,6 @@
 # DealProof scoring and verification policy
 
-Policy version: **2026-11-22.7** (`POLICY_VERSION` in `app/rules/policy.py`).
+Policy version: **2026-11-22.8** (`POLICY_VERSION` in `app/rules/policy.py`).
 
 DealProof's rules decide every status, score and recommendation. The AI only reads
 documents and pulls out values; it never decides. The same records under the same
@@ -202,6 +202,8 @@ A seller document counts only when it is one of the document types listed; "date
 | `ebitda` | financials | audited_statement, registry, registry_mirror | none | Audited financial statements |
 | `revenue_growth_pct` | financials | audited_statement, registry, registry_mirror | none | Audited financial statements |
 | `fiscal_year` | financials | audited_statement, registry, registry_mirror | none | Audited financial statements |
+| `net_worth` | financials | audited_statement, registry, registry_mirror | none | Audited financial statements |
+| `revenue_band` | financials | audited_statement, registry, registry_mirror | none | Audited financial statements |
 | `has_debt` | debt security | audited_statement, counterparty_confirmation, seller_document | lender_statement | Lender statements |
 | `debt_amount` | debt security | audited_statement, counterparty_confirmation, seller_document | lender_statement | Lender statements |
 | `security_registered` | debt security | registry, registry_mirror | none | Registry charge record (analyst) |
@@ -221,10 +223,30 @@ The five judgments are never blended into one score.
 3. **Business assessment:** observed signals such as headcount estimates and trend,
    open roles, locations and dated events. They are labelled as signals and never
    treated as revenue.
-4. **Financial assessment:** made only from figures in audited statements or registry
-   filings whose quotes check out and whose records are bound to the company on a
-   corroborating identifier: the same screen claims and fit use. Otherwise "Not
-   assessed: no reliable financial inputs".
+4. **Financial assessment:** what reliable financial inputs show, under stated
+   assumptions. After identity is confirmed, `verify.financials` runs for every case
+   and makes at most 2 public lookups, from the confirmed name, CIN and fixed words
+   only (never seller text): for a listed company (CIN beginning with `L`, a stock
+   symbol or IPO date on the company record, or a "Public Company" type) the exchange
+   filing and investor-relations results pages for the latest fiscal year; otherwise
+   the registry pages already found, then one registry-mirror search on the name and
+   CIN for the revenue band, net worth and last filed year. Each figure keeps its
+   verbatim quote, period ("Q2 FY27", "FY24"), unit (crore, lakh, USD) and entity
+   binding. The judgment then takes, in order:
+   - **Reported figures** from audited statements, exchange or registry filings
+     (`audited_statement`, `registry`, `registry_mirror`), or a listed company's own
+     results page (`company_announcement`, listed companies only), whose quotes check
+     out and whose records are bound to the company on a corroborating identifier:
+     the same screen claims and fit use. Reported with the latest period, growth
+     against the period of the same length a year earlier (or the one before it),
+     margins in the same period and currency, the assumptions, and a bounded
+     conclusion such as "Reported revenue ₹2,095 cr in Q2 FY27, +24% YoY (NSE
+     filing)". Never a valuation, forecast or fair value.
+   - Otherwise a data provider's revenue range, shown as **"Indicative (estimate)"**
+     and never counted as assessed.
+   - Otherwise, once the search ran, **"No public financials found — searched: …"**
+     with what was searched and what would settle it. Before the search has run:
+     "Not assessed: no reliable financial inputs".
 5. **Screening disposition:** section 5.
 
 ## 4. Company type

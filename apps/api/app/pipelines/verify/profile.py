@@ -30,6 +30,8 @@ PARTS: dict[str, str] = {
     "people": SourceReliability.DATA_PROVIDER,
     "headcount": SourceReliability.PROFESSIONAL_PROFILE_SIGNAL,
     "hiring": SourceReliability.PROFESSIONAL_PROFILE_SIGNAL,
+    # Estimated revenue is a provider's model, never a reported figure.
+    "revenue": SourceReliability.DATA_PROVIDER,
 }
 
 
@@ -151,6 +153,30 @@ def profile_rows(record: CompanyRecord, retrieved: date) -> list[dict[str, Any]]
     if hiring:
         add("hiring", "hiring.openings_count", hiring.openings_count)
         add("hiring", "hiring.recent_titles_csv", hiring.recent_titles_csv)
+
+    revenue = record.revenue or {}
+    estimated = revenue.get("estimated") or {}
+    if isinstance(estimated, dict):
+        low, high = estimated.get("lower_bound_usd"), estimated.get("upper_bound_usd")
+        if low is not None or high is not None:
+            dates = [
+                parse_date(p.get("date"))
+                for p in estimated.get("timeseries") or []
+                if isinstance(p, dict)
+            ]
+            latest_est = max((d for d in dates if d), default=None)
+            add(
+                "revenue",
+                "revenue.estimated",
+                {"lower_bound_usd": low, "upper_bound_usd": high},
+                latest_est,
+            )
+    markets = revenue.get("public_markets") or {}
+    if isinstance(markets, dict):
+        add("revenue", "revenue.public_markets.stock_symbols", markets.get("stock_symbols"))
+        add("revenue", "revenue.public_markets.ipo_date", markets.get("ipo_date"))
+        add("revenue", "revenue.public_markets.fiscal_year_end", markets.get("fiscal_year_end"))
+    add("revenue", "revenue.acquisition_status", revenue.get("acquisition_status"))
     return rows
 
 
@@ -227,6 +253,9 @@ async def build_profile(ctx: StepContext) -> dict[str, Any]:
         categories=list((record.taxonomy or {}).get("categories") or []),
         key_people=_key_people(record),
         company_type_reason=decision.reason,
+        # Listing signals `verify.financials` reads (with the CIN from the registry).
+        provider_company_type=info.company_type if info else None,
+        **market_identifiers(record),
         domains=list(
             dict.fromkeys(
                 [
@@ -246,6 +275,21 @@ async def build_profile(ctx: StepContext) -> dict[str, Any]:
     if news:
         ctx.result += f"; {len(news)} dated news links"
     return {"fields": len(rows), "company_type": decision.company_type.value, "news": news}
+
+
+def market_identifiers(record: CompanyRecord) -> dict[str, Any]:
+    """Stock symbols, IPO date and fiscal year end from the `revenue` group."""
+    markets = (record.revenue or {}).get("public_markets") or {}
+    if not isinstance(markets, dict):
+        return {}
+    symbols = markets.get("stock_symbols") or []
+    if isinstance(symbols, str):
+        symbols = [symbols]
+    return {
+        "stock_symbols": [str(x) for x in symbols if x],
+        "ipo_date": markets.get("ipo_date"),
+        "fiscal_year_end": markets.get("fiscal_year_end"),
+    }
 
 
 MAX_NEWS_LEADS = 10

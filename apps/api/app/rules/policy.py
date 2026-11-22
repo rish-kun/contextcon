@@ -20,7 +20,7 @@ from app.domain.enums import (
     ValueKind,
 )
 
-POLICY_VERSION = "2026-11-22.7"
+POLICY_VERSION = "2026-11-22.8"
 
 # Why each policy version changed, used as the reason on refreshed assessments.
 POLICY_CHANGES: dict[str, str] = {
@@ -34,6 +34,7 @@ POLICY_CHANGES: dict[str, str] = {
         "certifications match on the standard itself and must be current: an expired "
         "certificate on a register contradicts the claim"
     ),
+    "2026-11-22.8": "Financial assessment reads public filings and estimates",
 }
 
 # --- Discover: fit -----------------------------------------------------------
@@ -626,6 +627,13 @@ COMPONENT_RULES: dict[str, ComponentRule] = {
     ),
     "fiscal_year": ComponentRule(
         ClaimCategory.FINANCIALS, ValueKind.YEAR, _FINANCIAL_SOURCES, DOC_FINANCIALS
+    ),
+    "net_worth": ComponentRule(
+        ClaimCategory.FINANCIALS, ValueKind.MONEY, _FINANCIAL_SOURCES, DOC_FINANCIALS
+    ),
+    # A registry mirror's turnover band ("INR 100 Cr - 500 Cr"), shown as written.
+    "revenue_band": ComponentRule(
+        ClaimCategory.FINANCIALS, ValueKind.TEXT, _FINANCIAL_SOURCES, DOC_FINANCIALS
     ),
     # Debt and security. Owing money is a lender/accounts question; a registry
     # charge only answers "was security given".

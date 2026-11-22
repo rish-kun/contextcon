@@ -6,6 +6,7 @@ cost ledger run for real) and a regex-scripted LLM. Companies are fictional."""
 from __future__ import annotations
 
 import json
+from datetime import date
 from decimal import Decimal
 
 import httpx2
@@ -37,6 +38,7 @@ from app.pipelines.verify import common
 from app.pipelines.verify.common import (
     COMPARABLES,
     EVENTS,
+    FINANCIALS,
     IDENTITY,
     PROFILE,
     REGISTRY,
@@ -44,6 +46,7 @@ from app.pipelines.verify.common import (
     news_query,
     registry_query,
 )
+from app.pipelines.verify.financials import financials_query
 from app.pipelines.verify.identity import dependent_steps
 from tests.jobs.helpers import make_worker, states
 from tests.pipelines.case_fakes import FakeCrustdata, FakeLlm, company, enrich_record, page
@@ -168,9 +171,9 @@ async def test_shortlist_case_confirms_and_builds_profile(session, sm, api) -> N
     actor = await _actor(session)
     _happy_api(api)
     case = await _shortlist_case(session, actor)
-    # identity, profile, registry, events, comparables, then evaluate → decision flip →
-    # request list
-    assert await _drain(sm) == 8
+    # identity, profile, registry, events, comparables, financials, then evaluate →
+    # decision flip → request list
+    assert await _drain(sm) == 9
     case = await _case(session, case.id)
 
     assert case.identity_status == "confirmed"
@@ -296,9 +299,9 @@ async def test_identity_dependent_steps_blocked_while_unresolved(session, sm, ap
     await append_steps(session, run.id, dependent_steps())
     await session.commit()
     before = len(api.requests)
-    assert await _drain(sm) == 4
+    assert await _drain(sm) == 5
     assert len(api.requests) == before  # no paid call made
-    for key in (PROFILE, REGISTRY, EVENTS, COMPARABLES):
+    for key in (PROFILE, REGISTRY, EVENTS, COMPARABLES, FINANCIALS):
         step = (
             await session.execute(select(Step).where(Step.run_id == run.id, Step.key == key))
         ).scalar_one()
@@ -409,9 +412,15 @@ async def test_web_queries_carry_public_terms_only(session, sm, api) -> None:
     await session.commit()
     await _drain(sm)
     searches = api.calls("/web/search/live")
-    assert len(searches) == 3  # registry, news, news page 2 (one direct hit only)
+    # registry, news, news page 2 (one direct hit only), registry-mirror financials
+    assert len(searches) == 4
     terms = PublicTerms(name=ACME, domain=ACME_DOMAIN)
-    allowed = {registry_query(terms), news_query(terms)}
+    financial_terms = PublicTerms(name=ACME, domain=ACME_DOMAIN, cin="U63090PN2014PTC123456")
+    allowed = {
+        registry_query(terms),
+        news_query(terms),
+        financials_query(financial_terms, "registry_search", date.today()),
+    }
     secret_words = {w.lower() for w in CONFIDENTIAL.split() if len(w) > 3}
     for body in searches:
         assert body["query"] in allowed
@@ -457,9 +466,10 @@ async def test_cost_shared_from_discovery_not_double_counted(session, sm, api) -
     assert detail.cost.shared_discovery is not None
     assert detail.cost.shared_discovery.cost.crustdata_credits == 30
     # own spend: identify 0.4 + enrich 2 + registry 1+1 + news 2+1 + search 5 x 0.43
-    assert detail.cost.crustdata_credits == pytest.approx(9.55)
+    # + financials 1 (registry-mirror search; the registry page re-read is cached)
+    assert detail.cost.crustdata_credits == pytest.approx(10.55)
     assert detail.cost.credit_budget == 150
-    assert sum(line.cost.crustdata_credits for line in detail.cost.by_step) == pytest.approx(9.55)
+    assert sum(line.cost.crustdata_credits for line in detail.cost.by_step) == pytest.approx(10.55)
 
 
 async def test_case_detail_sections_over_http(session, sm, api, monkeypatch) -> None:

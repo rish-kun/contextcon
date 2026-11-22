@@ -2320,6 +2320,13 @@ export interface components {
             /** Assessed */
             assessed: boolean;
             /**
+             * State
+             * @description assessed: reported figures; indicative: provider estimates only; not_found: the public search ran and found nothing; not_assessed: no search yet.
+             * @default not_assessed
+             * @enum {string}
+             */
+            state: "assessed" | "indicative" | "not_found" | "not_assessed";
+            /**
              * Reason
              * @description "No reliable financial inputs".
              */
@@ -2335,6 +2342,13 @@ export interface components {
              * @description Bounded; never a valuation.
              */
             conclusion: string | null;
+            /** Assumptions */
+            assumptions: string[];
+            /**
+             * Searched
+             * @description The public lookups made for financial figures.
+             */
+            searched: string[];
         };
         /** FinancialFigureOut */
         FinancialFigureOut: {
@@ -2343,6 +2357,21 @@ export interface components {
             fact: components["schemas"]["FactStr"];
             /** Assumption */
             assumption: string | null;
+            /**
+             * Period
+             * @description Reporting period, e.g. "Q2 FY27".
+             */
+            period: string | null;
+            /**
+             * Basis
+             * @description Kind of record the figure comes from.
+             */
+            basis: ("audited" | "filing" | "registry" | "company_results" | "estimate") | null;
+            /**
+             * Quote
+             * @description The verbatim text the figure is from.
+             */
+            quote: string | null;
         };
         /**
          * FitState

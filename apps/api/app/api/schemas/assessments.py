@@ -63,15 +63,31 @@ class FinancialFigureOut(ApiModel):
     label: str
     fact: FactStr
     assumption: str | None = None
+    period: str | None = Field(default=None, description='Reporting period, e.g. "Q2 FY27".')
+    basis: Literal["audited", "filing", "registry", "company_results", "estimate"] | None = Field(
+        default=None, description="Kind of record the figure comes from."
+    )
+    quote: str | None = Field(default=None, description="The verbatim text the figure is from.")
 
 
 class FinancialAssessmentOut(ApiModel):
     assessed: bool
+    state: Literal["assessed", "indicative", "not_found", "not_assessed"] = Field(
+        default="not_assessed",
+        description=(
+            "assessed: reported figures; indicative: provider estimates only; not_found: "
+            "the public search ran and found nothing; not_assessed: no search yet."
+        ),
+    )
     reason: str | None = Field(default=None, description='"No reliable financial inputs".')
     would_need: list[str] = Field(default_factory=list)
     period: str | None = None
     figures: list[FinancialFigureOut] = Field(default_factory=list)
     conclusion: str | None = Field(default=None, description="Bounded; never a valuation.")
+    assumptions: list[str] = Field(default_factory=list)
+    searched: list[str] = Field(
+        default_factory=list, description="The public lookups made for financial figures."
+    )
 
 
 class DispositionReasonOut(ApiModel):

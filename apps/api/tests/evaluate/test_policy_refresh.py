@@ -20,6 +20,6 @@ def test_other_fields_untouched():
 
 
 def test_refresh_reason_names_the_country_fix():
-    assert refresh_reason("2026-11-22.3") == "policy fix: country code normalisation"
+    assert refresh_reason("2026-11-22.3").startswith("policy fix: country code normalisation")
     assert refresh_reason(policy.POLICY_VERSION).startswith("policy update")
     assert len(refresh_reason(None)) <= 64

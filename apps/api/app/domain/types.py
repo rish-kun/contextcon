@@ -299,12 +299,27 @@ class BusinessAssessment(Model):
     note: str
 
 
+FinancialBasis = Literal["audited", "filing", "registry", "company_results", "estimate"]
+ListingStatus = Literal["listed", "unlisted", "unknown"]
+
+
 class FinancialFigure(Model):
     component: str
     value: Any
     as_of: dt.date | None = None
     evidence_id: str
     source_label: str
+    # What the figure is: a period ("Q2 FY27"), its unit as written, and the kind of
+    # record it came from. `display` is the figure as shown ("₹2,095 cr").
+    period: str | None = None
+    period_end: dt.date | None = None
+    period_months: int | None = None
+    amount: float | None = None
+    currency: str | None = None
+    unit: str | None = None
+    display: str | None = None
+    basis: FinancialBasis | None = None
+    quote: str | None = None
 
 
 class FinancialAssessment(Model):
@@ -312,6 +327,45 @@ class FinancialAssessment(Model):
     reason: str
     figures: list[FinancialFigure] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
+    # assessed: reliable reported figures; indicative: provider estimates only;
+    # not_found: the public search ran and found nothing; not_assessed: no search yet.
+    state: Literal["assessed", "indicative", "not_found", "not_assessed"] = "not_assessed"
+    period: str | None = None
+    conclusion: str | None = None
+    searched: list[str] = Field(default_factory=list)
+    would_need: list[str] = Field(default_factory=list)
+
+
+class ReportedFigure(Model):
+    """A figure `verify.financials` read from a public filing, registry page or a
+    listed company's results page, with the period and unit it was stated in."""
+
+    fact: ExtractedFact
+    period: str | None = None
+    period_end: dt.date | None = None
+    period_months: int | None = None
+    amount: float | None = None
+    currency: str | None = None
+    unit: str | None = None
+
+
+class FinancialEstimate(Model):
+    """A data provider's revenue estimate: a range, never a reported figure."""
+
+    lower_usd: float | None = None
+    upper_usd: float | None = None
+    as_of: dt.date | None = None
+    evidence_id: str
+    source_label: str
+
+
+class FinancialInputs(Model):
+    figures: list[ReportedFigure] = Field(default_factory=list)
+    estimates: list[FinancialEstimate] = Field(default_factory=list)
+    listing: ListingStatus = "unknown"
+    listing_basis: str | None = None
+    # What `verify.financials` searched; None while it has not run.
+    searched: list[str] | None = None
 
 
 class DispositionDecision(Model):
@@ -366,6 +420,7 @@ class AssessmentInputs(Model):
     claim_checks: list[ClaimCheck]
     business: BusinessInputs = Field(default_factory=BusinessInputs)
     financial_facts: list[ExtractedFact] = Field(default_factory=list)
+    financials: FinancialInputs = Field(default_factory=FinancialInputs)
     # Evidence behind CompanyRecord fields, so criteria are recomputed from
     # entity-bound evidence through the same screen as claims.
     evidence: list[Evidence] = Field(default_factory=list)
