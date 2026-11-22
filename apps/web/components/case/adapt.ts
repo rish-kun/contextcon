@@ -423,7 +423,8 @@ export function toCaseCost(cost: CaseCostOut): CaseCost {
 
 /* ───────────────────────── Events ───────────────────────── */
 
-export type EventNature = "Announced" | "Reported" | "Recorded";
+export type { EventNature } from "@/components/insight/event-timeline";
+import type { EventNature } from "@/components/insight/event-timeline";
 
 /**
  * How an event is known. An announcement shows that the company said something, a news
@@ -441,11 +442,7 @@ export function eventNature(event: CaseDetail["events"][number]): EventNature {
   }
 }
 
-export const EVENT_NATURE_MEANING: Record<EventNature, string> = {
-  Announced: "The company said so. Not confirmed to have happened",
-  Reported: "An outlet reported it. Not independently confirmed",
-  Recorded: "Confirmed occurrence: a record or document shows it",
-};
+export { EVENT_NATURE_MEANING } from "@/components/insight/event-timeline";
 
 /** True when the case can attach records: the legal entity is confirmed. */
 export const identityResolved = (detail: CaseDetail): boolean =>

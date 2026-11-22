@@ -32,7 +32,7 @@ function Person({ person }: { person: PersonCard }) {
   const extra = person.history.length - VISIBLE_FACTS;
 
   return (
-    <li className="flex min-w-0 gap-3 border-r border-b border-line p-4">
+    <li className="flex min-w-0 gap-3 rounded-lg border border-line bg-surface p-4">
       <span
         aria-hidden
         className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-sunken font-mono text-xs text-ink-secondary"
@@ -94,13 +94,11 @@ export function PeopleRow({ people, className }: { people: PersonCard[]; classNa
   }
   return (
     <div className={cn("flex flex-col gap-2", className)}>
-      <div className="overflow-hidden rounded-lg border border-line bg-surface">
-        <ul className="-mr-px -mb-px grid sm:grid-cols-2 xl:grid-cols-3">
-          {people.map((person) => (
-            <Person key={person.id} person={person} />
-          ))}
-        </ul>
-      </div>
+      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {people.map((person) => (
+          <Person key={person.id} person={person} />
+        ))}
+      </ul>
       <p className="text-xs text-ink-secondary">
         Attached on company identifier and name. A match on the name alone is not shown as a record
       </p>

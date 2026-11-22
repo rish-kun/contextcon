@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useCase, useCaseDetail } from "./case-context";
 import { Memo } from "./memo";
+import { ProfilePanels } from "./profile-band";
 
 /**
  * The Overview tab is the memo. `autoPrint` is set when the reader chose "Print memo"
@@ -28,5 +29,10 @@ export function OverviewTab({ autoPrint = false }: { autoPrint?: boolean }) {
     };
   }, [autoPrint, basePath, router]);
 
-  return <Memo detail={detail} />;
+  return (
+    <div className="flex flex-col gap-8">
+      <ProfilePanels detail={detail} />
+      <Memo detail={detail} />
+    </div>
+  );
 }

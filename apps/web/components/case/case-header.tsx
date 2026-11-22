@@ -17,6 +17,7 @@ import {
 import { Button, Icon } from "@/components/ui";
 import { statusCounts, toCaseCost, toFit, toRun } from "./adapt";
 import { useCase } from "./case-context";
+import { ProfileBand } from "./profile-band";
 
 /** Why fit carries no number, in the reader's terms. */
 const FIT_STATE_NOTE: Record<Exclude<CaseDetail["opportunity"]["fit_state"], "scored">, string> = {
@@ -209,6 +210,8 @@ export function CaseHeader({ detail }: { detail: CaseDetail }) {
           </Button>
         </div>
       </div>
+
+      <ProfileBand detail={detail} />
 
       <div
         className={cn(

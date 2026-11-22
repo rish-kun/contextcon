@@ -54,7 +54,7 @@ export function FundingRoundsTable({
   const largest = Math.max(0, ...sorted.map((row) => row.amountUsd ?? 0));
 
   return (
-    <div className={cn("overflow-hidden rounded-lg border border-line bg-surface", className)}>
+    <div className={cn("overflow-x-auto rounded-lg border border-line bg-surface", className)}>
       <table className="w-full border-collapse text-left text-dense text-ink max-sm:block">
         <caption className="sr-only">{caption}</caption>
         <thead className="bg-surface-sunken max-sm:sr-only">

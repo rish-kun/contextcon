@@ -20,7 +20,7 @@ export function KpiRow({
     <div className={cn("overflow-hidden rounded-lg border border-line bg-surface", className)}>
       <dl
         aria-label={label}
-        className="-mr-px -mb-px grid grid-cols-2 sm:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]"
+        className="-mr-px -mb-px grid grid-cols-2 sm:grid-cols-[repeat(auto-fit,minmax(11.5rem,1fr))]"
       >
         {children}
       </dl>
