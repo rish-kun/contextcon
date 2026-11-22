@@ -6,10 +6,11 @@
  * never fetches the case itself.
  *
  *   const detail = useCaseDetail();          // the loaded case, inside the case layout
- *   const { reload, mutate, verify, run, runActive, isClaimPending } = useCase();
+ *   const { reload, mutate, verify, run, runActive, claimLive } = useCase();
  *
  * The provider also follows the latest run (server-sent events, with the client's
- * polling fallback) and reloads the case when the run ends.
+ * polling fallback), keeps that run's activity for the live views, and reloads the case
+ * when a claim settles and when the run ends.
  */
 import {
   createContext,
@@ -29,9 +30,12 @@ import {
   getRun,
   isFixtureMode,
   startVerify,
-  subscribeRun,
 } from "@/lib/api/client";
+import { deriveView, type RunActivityView, visibleEvents } from "@/lib/run/activity-store";
+import type { Activity } from "@/lib/run/types";
+import { EMPTY_FEED, RunFeed, type RunFeedSnapshot } from "@/lib/run/use-run-activity";
 import { isRunActive } from "./adapt";
+import { claimLiveState, type ClaimLive } from "./claim-live-state";
 
 export type CaseLoadState = "loading" | "ready" | "not_found" | "error";
 
@@ -59,6 +63,18 @@ export interface CaseContextValue {
   followRun: (run: RunOut) => void;
   /** True while a live run has not yet settled this claim. Drives the ledger's pending rows. */
   isClaimPending: (claimId: string) => boolean;
+  /** The followed run's activity: events, pacing watermarks, pause state. */
+  feed: RunFeedSnapshot;
+  /** What that activity adds up to: sources, tally, findings by subject. */
+  activity: RunActivityView;
+  /** Freeze the paced regions of the live view. Events are still received. */
+  setFeedPaused: (paused: boolean) => void;
+  /**
+   * Where one claim stands in the run being followed: waiting for identity, queued,
+   * checking (with what is being done and what was read), or just settled. Null when the
+   * run does not touch the claim, so the row shows its stored state.
+   */
+  claimLive: (claimId: string) => ClaimLive | null;
 }
 
 const CaseContext = createContext<CaseContextValue | null>(null);
@@ -88,6 +104,16 @@ function describe(error: unknown): string {
 }
 
 const SETTLED_STEP = new Set(["done", "failed", "skipped_budget"]);
+
+/** A finding that changes what `GET /cases/{id}` returns: a claim settling, identity, the assessment. */
+function settlesSomething(event: Activity): boolean {
+  if (event.kind !== "finding") return false;
+  if (event.subject === "identity" || event.subject === "assessment") return true;
+  return (
+    event.subject === "claim" &&
+    (event.items ?? []).some((item) => item.stage === "settled" || item.stage === "not_checked")
+  );
+}
 
 function mergeEvent(current: RunOut | null, event: RunStreamEvent): RunOut | null {
   if (event.event === "activity" || event.event === "live") return current;
@@ -120,6 +146,8 @@ export function CaseProvider({
   const [runActive, setRunActive] = useState(isRunActive(initial?.case.run));
   const [runError, setRunError] = useState<string | null>(null);
   const stopRef = useRef<(() => void) | null>(null);
+  const feedRef = useRef<RunFeed | null>(null);
+  const [feed, setFeed] = useState<RunFeedSnapshot>(EMPTY_FEED);
 
   const reload = useCallback(async () => {
     try {
@@ -140,6 +168,20 @@ export function CaseProvider({
     }
   }, [caseId]);
 
+  // A settling claim refreshes the case so its row has the full evidence list, at most
+  // once every two seconds however many settle together.
+  const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastReload = useRef(0);
+  const softReload = useCallback(() => {
+    if (reloadTimer.current) return;
+    const wait = Math.max(0, lastReload.current + 2000 - Date.now());
+    reloadTimer.current = setTimeout(() => {
+      reloadTimer.current = null;
+      lastReload.current = Date.now();
+      void reload();
+    }, wait);
+  }, [reload]);
+
   const followRun = useCallback(
     (next: RunOut) => {
       stopRef.current?.();
@@ -147,28 +189,44 @@ export function CaseProvider({
       setRunActive(true);
       // A fixture replay carries the recorded run's old timestamps; clock it from now.
       const startedAt = isFixtureMode ? new Date().toISOString() : next.created_at;
-      setRun({ ...next, state: "running", steps: [], created_at: startedAt, finished_at: null });
-      stopRef.current = subscribeRun(next.id, (raw) => {
-        const event: RunStreamEvent =
-          isFixtureMode && raw.event === "run"
-            ? {
-                event: "run",
-                data: {
-                  ...raw.data,
-                  created_at: startedAt,
-                  finished_at: isRunActive(raw.data) ? null : new Date().toISOString(),
-                },
-              }
-            : raw;
-        setRun((current) => mergeEvent(current, event));
-        if (event.event === "run" && !isRunActive(event.data)) {
-          setRunActive(false);
-          stopRef.current = null;
-          void reload();
-        }
+      const seed: RunOut = { ...next, state: "running", steps: [], created_at: startedAt, finished_at: null };
+      setRun(seed);
+      const runFeed = new RunFeed(seed, {
+        onEvent: (raw) => {
+          const event: RunStreamEvent =
+            isFixtureMode && raw.event === "run"
+              ? {
+                  event: "run",
+                  data: {
+                    ...raw.data,
+                    created_at: startedAt,
+                    finished_at: isRunActive(raw.data) ? null : new Date().toISOString(),
+                  },
+                }
+              : raw;
+          setRun((current) => mergeEvent(current, event));
+          if (event.event === "step" && SETTLED_STEP.has(event.data.state)) {
+            // A claim check or the identity step finishing changes what the case holds.
+            if (/(^|\.)(claim|facts):|identity/.test(event.data.key)) softReload();
+          }
+          if (event.event === "activity" && settlesSomething(event.data)) softReload();
+          if (event.event === "run" && !isRunActive(event.data)) {
+            setRunActive(false);
+            void reload();
+          }
+        },
       });
+      feedRef.current = runFeed;
+      setFeed(runFeed.getSnapshot());
+      const off = runFeed.subscribe(setFeed);
+      runFeed.start();
+      stopRef.current = () => {
+        off();
+        runFeed.stop();
+        stopRef.current = null;
+      };
     },
-    [reload],
+    [reload, softReload],
   );
 
   const verify = useCallback(async () => {
@@ -205,7 +263,10 @@ export function CaseProvider({
     } else if (initial.case.run && isRunActive(initial.case.run)) {
       followRun(initial.case.run);
     }
-    return () => stopRef.current?.();
+    return () => {
+      stopRef.current?.();
+      if (reloadTimer.current) clearTimeout(reloadTimer.current);
+    };
     // Runs once per case: `initial` is the server's snapshot for this mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId]);
@@ -225,6 +286,15 @@ export function CaseProvider({
     [run, runActive],
   );
 
+  const shown = useMemo(() => visibleEvents(feed.events, feed.upto), [feed.events, feed.upto]);
+  const activity = useMemo(() => deriveView(shown), [shown]);
+  const setFeedPaused = useCallback((paused: boolean) => feedRef.current?.setPaused(paused), []);
+  const claimLive = useCallback(
+    (claimId: string) =>
+      detail ? claimLiveState(claimId, { detail, run, runActive, view: activity, events: shown, settledSeq: feed.settled.findings }) : null,
+    [detail, run, runActive, activity, shown, feed.settled.findings],
+  );
+
   const value = useMemo<CaseContextValue>(
     () => ({
       caseId,
@@ -240,8 +310,12 @@ export function CaseProvider({
       verify,
       followRun,
       isClaimPending,
+      feed,
+      activity,
+      setFeedPaused,
+      claimLive,
     }),
-    [caseId, detail, state, error, reload, mutate, run, runActive, runError, verify, followRun, isClaimPending],
+    [caseId, detail, state, error, reload, mutate, run, runActive, runError, verify, followRun, isClaimPending, feed, activity, setFeedPaused, claimLive],
   );
 
   return <CaseContext.Provider value={value}>{children}</CaseContext.Provider>;

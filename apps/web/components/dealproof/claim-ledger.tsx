@@ -150,6 +150,12 @@ export interface ClaimLedgerRowProps {
   onRunCheck?: (claim: Claim) => void;
   /** Shown under the record when the row is expanded: evidence spans, dates, history. */
   detail?: React.ReactNode;
+  /**
+   * A followed run's view of this row, built from that run's own events. `spine` stands in
+   * for the status mark while the claim has no status yet (waiting, queued, checking);
+   * `body` stands in for the record; `trail` sits under the record once it has settled.
+   */
+  live?: { spine?: React.ReactNode; body?: React.ReactNode; trail?: React.ReactNode };
   className?: string;
 }
 
@@ -168,10 +174,13 @@ export function ClaimLedgerRow({
   changedHref,
   onRunCheck,
   detail,
+  live,
   className,
 }: ClaimLedgerRowProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const notChecked = claim.status === "not_checked" && !pending;
+  /** No status to show yet: the legacy `pending` flag, or a live run's own spine. */
+  const unsettled = pending || live?.spine != null;
+  const notChecked = claim.status === "not_checked" && !unsettled;
 
   function isOwnEvent(event: React.SyntheticEvent<HTMLElement>): boolean {
     const target = event.target as HTMLElement;
@@ -249,12 +258,14 @@ export function ClaimLedgerRow({
         role="gridcell"
         className={cn(
           "flex lg:flex-col lg:items-center lg:gap-1 lg:border-x lg:px-2 lg:py-3 lg:text-center",
-          pending
+          unsettled
             ? "text-ink-muted lg:border-line lg:bg-surface-sunken"
             : cn(STATUS_INK[claim.status], lgSurface(claim.status)),
         )}
       >
-        {pending ? (
+        {live?.spine != null ? (
+          live.spine
+        ) : pending ? (
           <span className="inline-flex animate-fade-in items-center gap-1 motion-reduce:animate-none lg:flex-col">
             <PendingGlyph />
             <span className="text-xs">Checking</span>
@@ -285,12 +296,15 @@ export function ClaimLedgerRow({
 
       <div role="gridcell" className="flex min-w-0 items-start gap-3 lg:px-4 lg:py-3">
         <div className="min-w-0 flex-1">
-          {pending ? (
+          {live?.body != null ? (
+            live.body
+          ) : pending ? (
             <p className="text-ink-muted">Gathering evidence for this claim</p>
           ) : (
             <RecordSide claim={claim} expanded={expanded || notChecked} onRunCheck={onRunCheck} />
           )}
-          {expanded && !pending && detail ? (
+          {live?.trail}
+          {expanded && !unsettled && detail ? (
             <div className="mt-3 animate-fade-in border-t border-line pt-3 motion-reduce:animate-none">
               {detail}
             </div>
@@ -304,7 +318,7 @@ export function ClaimLedgerRow({
           )}
         />
       </div>
-      {expanded && !pending ? <EvidenceTrail claim={claim} role="gridcell" className="border-t border-line lg:col-span-3" /> : null}
+      {expanded && !unsettled ? <EvidenceTrail claim={claim} role="gridcell" className="border-t border-line lg:col-span-3" /> : null}
     </div>
   );
 }

@@ -20,7 +20,6 @@ import { CLAIM_STATUSES } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
   ClaimLedger,
-  ClaimLedgerRow,
   SourceChip,
   StatusGlyph,
   StatusMark,
@@ -45,6 +44,7 @@ import {
   toEvidence,
 } from "./adapt";
 import { useCase, useCaseDetail } from "./case-context";
+import { LiveClaimRow } from "./claim-live";
 import {
   ConfidentialityStrip,
   DocumentDropzone,
@@ -389,7 +389,7 @@ const ALL_CATEGORIES = "all";
  */
 export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
   const detail = useCaseDetail();
-  const { basePath, verify, runActive, isClaimPending } = useCase();
+  const { basePath, verify, runActive } = useCase();
   const counts = useMemo(() => statusCounts(detail.claims), [detail.claims]);
   const [statuses, setStatuses] = useState<Set<ClaimStatus>>(() => {
     const first = CLAIM_STATUSES.find((status) => status === initialStatus);
@@ -535,11 +535,10 @@ export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
           ) : (
             <ClaimLedger label={`Claim ledger, ${plural(visible.length, "claim")}`}>
               {visible.map((claim, index) => (
-                <ClaimLedgerRow
+                <LiveClaimRow
                   key={claim.id}
                   index={index}
                   claim={{ ...toClaim(claim), retry_credits_estimate: retryCredits.get(claim.id) }}
-                  pending={isClaimPending(claim.id)}
                   changedHref={`${basePath}/assessment`}
                   onRunCheck={identityOpen || runActive ? undefined : () => void verify()}
                   detail={<ClaimDetail claim={claim} />}
