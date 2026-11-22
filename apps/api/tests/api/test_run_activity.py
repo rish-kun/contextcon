@@ -89,10 +89,10 @@ async def test_sse_sends_the_backlog_then_live_and_resumes(app, session, sm) -> 
         after = _blocks((await c.get(path, params={"after": 4})).text)
 
     kinds = [b.get("event") or b["comment"] for b in full]
-    assert kinds == ["run", "step", *["activity"] * 5, "live", "run"]
+    assert kinds == ["run", "step", *["activity"] * 5, "live", "run", "end"]
     activity = [b for b in full if b.get("event") == "activity"]
     assert [b["id"] for b in activity] == ["1", "2", "3", "4", "5"]
     assert [b["data"]["seq"] for b in activity] == [1, 2, 3, 4, 5]
-    assert full[-1]["data"]["state"] == "done"
+    assert full[-2]["data"]["state"] == "done" and full[-1]["data"] == {}
     assert [b["data"]["seq"] for b in resumed if b.get("event") == "activity"] == [4, 5]
     assert [b["data"]["seq"] for b in after if b.get("event") == "activity"] == [5]

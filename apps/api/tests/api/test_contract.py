@@ -356,7 +356,7 @@ def test_sse_stream_emits_steps_activities_then_run(fixture_client: TestClient) 
     assert ": live\n\n" in text
     events = _sse_blocks(text)
     assert events[0][0] == "run" and events[0][1]["state"] == "running"
-    assert events[-1][0] == "run" and events[-1][1]["state"] == "done"
+    assert events[-1] == ("end", {}) and events[-2][0] == "run" and events[-2][1]["state"] == "done"
     steps = [data for name, data in events if name == "step"]
     assert len(steps) == 2 * len(run.steps)
     assert steps[-1]["state"] == "done"

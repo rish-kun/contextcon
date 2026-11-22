@@ -17,7 +17,8 @@ works on every instance and through Neon's pooled endpoint, where LISTEN/NOTIFY 
 unavailable. The stream sends `event: run` (run without steps), `event: step` for
 every step, the `event: activity` backlog (each with `id: {seq}`), a `: live` comment,
 then one `event: step` per change, every new `event: activity`, `event: run` on every
-state or cost change, and a final `event: run` once the run is `done`/`failed`.
+state or cost change, and a final `event: run` once the run is `done`/`failed`,
+followed by `event: end` once every activity has been sent.
 """
 
 import asyncio
@@ -261,6 +262,10 @@ def activity_frame(activity: ActivityOut) -> str:
 
 
 LIVE_MARKER = ": live\n\n"
+# The last frame of a finished run, after the backlog and the final `event: run`. Clients
+# close on this, never on a finished `run` snapshot: on a reconnect that snapshot comes
+# before the backlog.
+END_FRAME = "event: end\ndata: {}\n\n"
 
 
 # --- Activity: reading -------------------------------------------------------------------
@@ -449,6 +454,7 @@ async def run_event_stream(
                 yield run_event
             last_state, last_run = out.state, signature
         if terminal:
+            yield END_FRAME
             return
         ticks += 1
         if ticks % max(1, round(KEEPALIVE_SECONDS / max(tick, 0.05))) == 0:

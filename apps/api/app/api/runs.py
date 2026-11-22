@@ -108,6 +108,7 @@ async def _fixture_events(run: RunOut, after: int = 0) -> AsyncIterator[str]:
         for activity in rest:
             yield events.activity_frame(activity)
     yield sse(RunEvent(data=run.model_copy(update={"steps": []})))
+    yield events.END_FRAME
 
 
 async def _load(workspace_id: uuid.UUID, run_id: str) -> RunOut:
@@ -157,7 +158,10 @@ _SSE_DESCRIPTION = (
     "run state or cost change, and last once the run is `done` or `failed`); `event: step` "
     "carries a StepOut (every step once, then each change); `event: activity` carries an "
     "ActivityOut with `id: <seq>` (the backlog after `Last-Event-ID` or `?after=`, then a "
-    "`: live` comment, then each new one). Other lines starting with `:` are keepalives."
+    "`: live` comment, then each new one). Once the run is finished and every activity has "
+    "been sent, `event: end` (data `{}`) is the last frame: clients close on it, not on a "
+    "finished `run`, which a reconnect sends before the backlog. Other lines starting "
+    "with `:` are keepalives."
 )
 
 

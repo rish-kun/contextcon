@@ -69,7 +69,12 @@ async def test_run_status_and_events_for_own_workspace(client, session, monkeypa
     assert stream.status_code == 200
     assert stream.headers["content-type"].startswith("text/event-stream")
     evts = _events(stream.text)
-    assert evts[0][0] == "run" and evts[-1][0] == "run" and evts[-1][1]["state"] == "done"
+    assert (
+        evts[0][0] == "run"
+        and evts[-1] == ("end", {})
+        and evts[-2][0] == "run"
+        and evts[-2][1]["state"] == "done"
+    )
     assert [e for e, _ in evts].count("step") == 1
 
 

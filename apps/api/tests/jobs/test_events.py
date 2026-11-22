@@ -125,7 +125,8 @@ async def test_sse_streams_step_changes_until_the_run_ends(session, sm, monkeypa
     assert resp.headers["content-type"].startswith("text/event-stream")
     evts = _parse(resp.text)
     assert evts[0][0] == "run" and evts[0][1]["state"] == "pending" and evts[0][1]["steps"] == []
-    assert evts[-1][0] == "run" and evts[-1][1]["state"] == "done"
+    assert evts[-1] == ("end", {})
+    assert evts[-2][0] == "run" and evts[-2][1]["state"] == "done"
     profile = [d for e, d in evts if e == "step" and d["key"] == "profile"]
     assert [p["state"] for p in profile][0] == "pending"
     assert any(p["detail"] == "Reading the registry record" for p in profile)
@@ -133,7 +134,7 @@ async def test_sse_streams_step_changes_until_the_run_ends(session, sm, monkeypa
     funding = [d for e, d in evts if e == "step" and d["key"] == "funding"]
     assert funding[-1]["state"] == "skipped_budget"
     assert funding[-1]["result"] == "Not checked: budget reached"
-    assert evts[-1][1]["checks_not_run"] == 1
+    assert evts[-2][1]["checks_not_run"] == 1
 
 
 async def test_sse_404_for_other_workspace(session, sm) -> None:
@@ -267,8 +268,40 @@ async def test_sse_run_header_spend_keeps_up_with_the_steps(session, sm, monkeyp
     assert any(d["cost"]["crustdata_credits"] == 7 for d in running), running
     steps = {d["key"]: d for e, d in evts if e == "step"}
     assert sum(s["cost"]["crustdata_credits"] for s in steps.values()) == 7
-    assert evts[-1][1]["cost"]["crustdata_credits"] == 7
+    assert evts[-2][1]["cost"]["crustdata_credits"] == 7
     assert final["cost"]["crustdata_credits"] == sum(
         s["cost"]["crustdata_credits"] for s in final["steps"]
     )
     assert final["reserved_credits"] == 0
+
+
+async def test_sse_reconnect_to_a_finished_run_ends_after_the_backlog(session, sm) -> None:
+    """A reconnect to a finished run gets the finished run first, then the backlog. The
+    client must not close on that first snapshot: `event: end` comes after every
+    activity, as the very last frame."""
+    from app.jobs import activity as act
+
+    t = await tenant(session)
+    run = await create_run(
+        session,
+        workspace_id=t.workspace.id,
+        kind="verify",
+        case_id=t.case.id,
+        steps=[StepSpec("only", "noop", uses_budget=False)],
+    )
+    await session.commit()
+    reg = StepRegistry()
+    await make_worker(sm, reg).drain()
+    em = act.ActivityEmitter(sm, workspace_id=t.workspace.id, run_id=run.id)
+    seqs = await em.write([act.envelope(act.Kind.STATUS, act.Label(f"s{i}")) for i in range(3)])
+    assert seqs == [1, 2, 3]
+
+    frames = [f async for f in events.run_event_stream(sm, t.workspace.id, run.id, after=1)]
+    evts = _parse("".join(frames))
+    assert evts[0][0] == "run" and evts[0][1]["state"] == "done"
+    kinds = [e for e, _ in evts]
+    assert [d["seq"] for e, d in evts if e == "activity"] == [2, 3]
+    assert kinds.index("activity") > 0  # the finished snapshot came before the backlog
+    assert evts[-1] == ("end", {})
+    assert kinds.count("end") == 1
+    assert max(i for i, k in enumerate(kinds) if k == "activity") < kinds.index("end")

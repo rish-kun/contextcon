@@ -478,10 +478,15 @@ export function subscribeRun(
   let timer: ReturnType<typeof setTimeout> | null = null;
   let lastSeq = after;
   let live = false;
+  let finished = false;
+  // Aborts every request still in flight when the caller unsubscribes.
+  const aborter = new AbortController();
   const stop = () => {
     stopped = true;
     source?.close();
     if (timer) clearTimeout(timer);
+    timer = null;
+    aborter.abort();
   };
 
   if (isFixtureMode) {
@@ -504,20 +509,26 @@ export function subscribeRun(
 
   const poll = async () => {
     if (stopped) return;
+    const init = { signal: aborter.signal };
     try {
-      const [run, page] = await Promise.all([
-        getRun(runId),
-        listRunActivity(runId, lastSeq).catch(() => null),
-      ]);
+      // The run first, then its activity: a run seen finished has all of its activity
+      // written by the time the page is read.
+      const run = await getRun(runId, init);
+      if (stopped) return;
+      const page = await listRunActivity(runId, lastSeq, init).catch(() => null);
       if (stopped) return;
       for (const activity of page?.items ?? []) emitActivity(activity);
+      const lastPage = page !== null && page.next_after === null;
       // The first poll is the backlog; what later polls bring is new.
-      if (!page || page.next_after === null) goLive();
+      if (lastPage) goLive();
       onEvent({ event: "run", data: run });
-      if (isTerminal(run) && (!page || page.next_after === null)) return stop();
+      // Only once the final page of a finished run has been read: a failed page read
+      // polls again rather than dropping the activity after it.
+      if (isTerminal(run) && lastPage) return stop();
     } catch {
       /* keep polling through transient errors */
     }
+    if (stopped) return;
     timer = setTimeout(poll, POLL_MS);
   };
 
@@ -549,13 +560,20 @@ export function subscribeRun(
       reconnects = 0;
       const run = JSON.parse((e as MessageEvent<string>).data) as RunOut;
       onEvent({ event: "run", data: run });
-      if (isTerminal(run)) stop();
+      // Not a reason to close: on a reconnect the finished run comes before the backlog.
+      if (isTerminal(run)) finished = true;
     });
+    // The server's last frame, after the backlog and the final run: nothing more follows.
+    es.addEventListener("end", stop);
     es.onerror = () => {
       if (stopped) return;
       es.close();
       source = null;
-      if (reconnects < SSE_RECONNECTS) {
+      // A finished run whose stream closed without `end` (an older server): read what is
+      // left by polling, which stops after the final page.
+      if (finished) {
+        void poll();
+      } else if (reconnects < SSE_RECONNECTS) {
         timer = setTimeout(connect, 1000 * 2 ** reconnects);
         reconnects += 1;
       } else {
