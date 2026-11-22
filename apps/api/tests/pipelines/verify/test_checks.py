@@ -784,3 +784,18 @@ async def test_registry_and_news_queries_use_the_confirmed_record_name(session):
     terms = common.PublicTerms.of(common.ConfirmedEntity.of(case))
     for query in (common.news_query(terms), common.registry_query(terms)):
         assert NAME in query and "falcon" not in query.casefold()
+
+
+async def test_iso_country_code_matches_a_claimed_country_name(sm, session):
+    """Found live (PALMS WMS, 22 Nov 2026): the record's country is the ISO code `IND`,
+    and "Head Quartered in Bangalore, India" was marked contradicted by it."""
+    case = await _case(session)
+    locations = {"headquarters": "HSR Layout, Karnataka, India", "country": "IND"}
+    enrich = {**ENRICH, "locations": locations}
+    sentences = [
+        ("We are headquartered in India", "location", [("country", "India")]),
+        ("We are headquartered in Singapore", "location", [("country", "Singapore")]),
+    ]
+    _, ledger, _ = await _verify(sm, session, case, sentences, pune_crustdata(enrich=enrich))
+    assert ledger["We are headquartered in India"].status == "supported"
+    assert ledger["We are headquartered in Singapore"].status == "contradicted"

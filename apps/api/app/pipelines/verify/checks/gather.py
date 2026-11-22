@@ -40,6 +40,7 @@ from app.db.models import Source as SourceRow
 from app.domain.enums import ClaimCategory, IdentityStatus, SourceReliability
 from app.domain.types import Claim, ExtractedFact
 from app.extraction.llm import StructuredLlm
+from app.pipelines.discover.countries import country_name
 from app.pipelines.verify.checks import activity as check_activity
 from app.pipelines.verify.checks.facts import (
     TextUnit,
@@ -764,7 +765,11 @@ async def gather_identity_location(env: CheckEnv, claim: Claim) -> Gathered:
                     (component, locations.headquarters, "locations.headquarters", "HQ")
                 )
     if locations and locations.country and "country" in comps:
-        profile_facts.append(("country", locations.country, "locations.country", "HQ"))
+        # The provider stores an ISO code ("IND"); compared as text with a claimed
+        # "India" it read as a contradiction. An unknown code is not a fact.
+        country = country_name(locations.country)
+        if country:
+            profile_facts.append(("country", country, "locations.country", "HQ"))
     if info and info.year_founded and "incorporation_year" in comps:
         profile_facts.append(
             ("incorporation_year", info.year_founded, "basic_info.year_founded", "founded year")
