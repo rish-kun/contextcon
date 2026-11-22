@@ -2,7 +2,7 @@ import asyncio
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import ledger
@@ -10,6 +10,7 @@ from app.db.models import Step
 from app.jobs import BUDGET_REACHED, BudgetExceeded, StepContext, StepRegistry, StepSpec, create_run
 from app.jobs.engine import (
     LeaseLost,
+    append_steps,
     claim_step,
     mark_done,
     mark_retry_or_failed,
@@ -500,3 +501,76 @@ async def test_dependencies_must_exist(session) -> None:
     t = await tenant(session)
     with pytest.raises(ValueError):
         await _run(session, t, [StepSpec("a", "noop", depends_on=["nope"])])
+
+
+async def _wait_for_lock_wait(sm, task: asyncio.Task, timeout: float = 10.0) -> bool:
+    """True once some backend waits for a row lock; False if `task` finished first."""
+    deadline = asyncio.get_running_loop().time() + timeout
+    while asyncio.get_running_loop().time() < deadline:
+        if task.done():
+            return False
+        async with sm() as s:
+            waiting = await s.scalar(
+                text(
+                    "SELECT count(*) FROM pg_locks WHERE NOT granted"
+                    " AND locktype IN ('transactionid', 'tuple')"
+                )
+            )
+        if waiting:
+            return True
+        await asyncio.sleep(0.05)
+    raise AssertionError("neither waited nor finished")
+
+
+async def test_run_is_not_closed_while_steps_are_being_appended(session, sm) -> None:
+    """A worker finishing the last step while a handler appends steps must wait for the
+    append to commit, see the new step pending and leave the run open."""
+    t = await tenant(session)
+    run = await _run(session, t, [StepSpec("a", "noop")])
+    async with sm() as s:
+        claim = await claim_step(s, "w1", 30)
+    assert claim is not None
+
+    appender = sm()
+    await append_steps(appender, run.id, [StepSpec("b", "noop", depends_on=["a"])])
+
+    async def finish_a() -> None:
+        async with sm() as s:
+            await mark_done(s, claim.id, claim.token, {"ok": True})
+            await s.commit()
+
+    finishing = asyncio.create_task(finish_a())
+    try:
+        assert await _wait_for_lock_wait(sm, finishing), "closing the run did not wait"
+        await appender.commit()
+        await finishing
+    finally:
+        await appender.close()
+    assert await states(sm, run.id) == {"a": "done", "b": "pending"}
+    assert await run_state(sm, run.id) == "running"
+    async with sm() as s:
+        nxt = await claim_step(s, "w2", 30)
+    assert nxt is not None and (await step(sm, run.id, "b")).id == nxt.id
+
+
+async def test_concurrent_appends_and_completions_never_strand_a_step(session, sm) -> None:
+    """Many appends racing many completions: every run ends with no pending step left
+    behind a closed run."""
+    t = await tenant(session)
+    reg = StepRegistry()
+
+    @reg.handler("grow")
+    async def grow(ctx: StepContext) -> dict:
+        n = int(ctx.input.get("n", 0))
+        if n < 3:
+            await ctx.append_steps(
+                [StepSpec(f"{ctx.key}.{i}", "grow", input={"n": n + 1}) for i in range(2)]
+            )
+        return {}
+
+    run = await _run(session, t, [StepSpec("root", "grow")])
+    workers = [make_worker(sm, reg) for _ in range(4)]
+    await asyncio.gather(*(w.drain() for w in workers))
+    final = await states(sm, run.id)
+    assert len(final) == 15 and set(final.values()) == {"done"}
+    assert await run_state(sm, run.id) == "done"

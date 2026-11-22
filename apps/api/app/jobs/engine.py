@@ -166,6 +166,10 @@ async def append_steps(
     """
 
     default_attempts = max_attempts or get_job_settings().worker_max_attempts
+    # The run-row lock `propagate_and_complete` takes before it closes a run. Held
+    # until this transaction ends, so a worker finishing the run's last step waits
+    # for the new steps to commit, sees them pending and leaves the run open.
+    await lock_run(session, run_id)
     existing = {
         s.key: s
         for s in (await session.execute(select(Step).where(Step.run_id == run_id))).scalars()
@@ -616,12 +620,27 @@ async def skip_remaining_budgeted(session: AsyncSession, run_id: uuid.UUID) -> i
     return result.rowcount  # type: ignore[attr-defined,no-any-return]
 
 
+async def lock_run(session: AsyncSession, run_id: uuid.UUID) -> None:
+    """`SELECT … FOR NO KEY UPDATE` on the run row: appending steps and closing the run
+    are serialised on it, so a run is never closed while steps are being added.
+
+    NO KEY: rows that only reference the run (activity events, cost entries, written
+    from other sessions while a handler holds this lock) take KEY SHARE for their
+    foreign key, which this lock does not block."""
+    found = await session.execute(
+        select(Run.id).where(Run.id == run_id).with_for_update(key_share=True)
+    )
+    if found.first() is None:
+        raise LookupError("run not found")
+
+
 async def propagate_and_complete(session: AsyncSession, run_id: uuid.UUID) -> None:
     """Push failures/skips to dependents that don't tolerate them, then close the run
-    if every step is terminal."""
+    if every step is terminal (never while a step is pending or running)."""
     # Serialise per run: without this, two workers finishing the last two steps at
     # the same time each see the other's step still running and nobody closes the run.
-    await session.execute(select(Run.id).where(Run.id == run_id).with_for_update())
+    # `append_steps` takes the same lock, so steps being appended are seen here.
+    await lock_run(session, run_id)
     steps = list(
         (
             await session.execute(
