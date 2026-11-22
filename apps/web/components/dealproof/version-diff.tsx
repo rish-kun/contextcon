@@ -18,11 +18,14 @@ import { StatusMark } from "./status-mark";
 export function VersionRail({
   versions,
   current,
+  viewing,
   onOpen,
   className,
 }: {
   versions: AssessmentVersionMeta[];
   current: number;
+  /** The version open on the page, when it is not the current one. */
+  viewing?: number;
   onOpen?: (version: number) => void;
   className?: string;
 }) {
@@ -52,7 +55,12 @@ export function VersionRail({
               <span className="text-dense text-ink-secondary">· {item.trigger}</span>
               {isCurrent ? (
                 <Badge variant="mono">current</Badge>
-              ) : onOpen ? (
+              ) : null}
+              {item.version === viewing && !isCurrent ? (
+                <Badge variant="accent" className="font-mono text-2xs">
+                  reading
+                </Badge>
+              ) : onOpen && item.version !== (viewing ?? current) ? (
                 <Button
                   variant="link"
                   size="inline"
@@ -75,10 +83,13 @@ export function ReadingOldVersionBanner({
   reading,
   current,
   className,
+  children,
 }: {
   reading: number;
   current: number;
   className?: string;
+  /** A way back, for example a link that opens the current version. */
+  children?: React.ReactNode;
 }) {
   return (
     <p
@@ -89,6 +100,7 @@ export function ReadingOldVersionBanner({
       )}
     >
       You are reading version {reading}. Version {current} is current
+      {children ? <> · {children}</> : null}
     </p>
   );
 }
