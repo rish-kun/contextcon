@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import repo
 from app.db.models import AssessmentVersion as VersionRow
+from app.db.models import Case
 from app.domain.types import AssessmentDiff, AssessmentInputs, AssessmentVersion
 from app.jobs import StepSpec
 from app.pipelines.evaluate.inputs import load_inputs
@@ -32,7 +33,7 @@ STEP_KEY = "evaluate"
 
 # Called with the new assessment before it is stored; returns extra sections to keep in
 # the version (the memo). Set by the memo pipeline; None keeps CP-22 standalone.
-Enricher = Callable[[AsyncSession, uuid.UUID, AssessmentVersion, Any], Awaitable[dict]]
+Enricher = Callable[[AsyncSession, Case, AssessmentInputs, AssessmentVersion, Any], Awaitable[dict]]
 
 
 @dataclass
@@ -100,7 +101,7 @@ async def evaluate_case(
         "today": today.isoformat(),
     }
     if enrich is not None:
-        document.update(await enrich(session, case.id, result, enrich_arg))
+        document.update(await enrich(session, case, inputs, result, enrich_arg))
     row = await repo.add_assessment_version(
         session,
         workspace_id,

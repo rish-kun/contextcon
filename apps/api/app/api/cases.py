@@ -30,6 +30,7 @@ from app.db.repo import list_cases as repo_list_cases
 from app.db.session import get_session
 from app.jobs import events as run_events
 from app.pipelines import evaluate
+from app.pipelines.memo import detail as _memo_sections  # noqa: F401  (CP-25 sections)
 
 router = make_router(prefix="/cases", tags=["cases"])
 

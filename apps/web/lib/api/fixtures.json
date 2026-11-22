@@ -2954,6 +2954,7 @@
           }
         ]
       },
+      "memo": null,
       "risks": [
         {
           "kind": "gap",
@@ -3270,7 +3271,12 @@
           "publisher": null,
           "run_id": "fx-run-verify",
           "attached": true,
-          "unattached_reason": null
+          "unattached_reason": null,
+          "request_hash": null,
+          "excerpt": null,
+          "delete_after": null,
+          "deleted_at": null,
+          "deletion_reason": null
         },
         {
           "source_id": "fx-src-headcount",
@@ -3289,7 +3295,12 @@
           "publisher": null,
           "run_id": "fx-run-verify",
           "attached": true,
-          "unattached_reason": null
+          "unattached_reason": null,
+          "request_hash": null,
+          "excerpt": null,
+          "delete_after": null,
+          "deleted_at": null,
+          "deletion_reason": null
         },
         {
           "source_id": "fx-src-funding",
@@ -3308,7 +3319,12 @@
           "publisher": null,
           "run_id": "fx-run-verify",
           "attached": true,
-          "unattached_reason": null
+          "unattached_reason": null,
+          "request_hash": null,
+          "excerpt": null,
+          "delete_after": null,
+          "deleted_at": null,
+          "deletion_reason": null
         },
         {
           "source_id": "fx-src-registry",
@@ -3323,7 +3339,12 @@
           "publisher": null,
           "run_id": "fx-run-verify",
           "attached": true,
-          "unattached_reason": null
+          "unattached_reason": null,
+          "request_hash": null,
+          "excerpt": null,
+          "delete_after": null,
+          "deleted_at": null,
+          "deletion_reason": null
         },
         {
           "source_id": "fx-src-charge",
@@ -3338,7 +3359,12 @@
           "publisher": null,
           "run_id": "fx-run-verify",
           "attached": true,
-          "unattached_reason": null
+          "unattached_reason": null,
+          "request_hash": null,
+          "excerpt": null,
+          "delete_after": null,
+          "deleted_at": null,
+          "deletion_reason": null
         },
         {
           "source_id": "fx-src-people",
@@ -3357,7 +3383,12 @@
           "publisher": null,
           "run_id": "fx-run-verify",
           "attached": true,
-          "unattached_reason": null
+          "unattached_reason": null,
+          "request_hash": null,
+          "excerpt": null,
+          "delete_after": null,
+          "deleted_at": null,
+          "deletion_reason": null
         },
         {
           "source_id": "fx-src-jobs",
@@ -3376,7 +3407,12 @@
           "publisher": null,
           "run_id": "fx-run-verify",
           "attached": true,
-          "unattached_reason": null
+          "unattached_reason": null,
+          "request_hash": null,
+          "excerpt": null,
+          "delete_after": null,
+          "deleted_at": null,
+          "deletion_reason": null
         },
         {
           "source_id": "fx-src-news-funding",
@@ -3391,7 +3427,12 @@
           "publisher": null,
           "run_id": "fx-run-verify",
           "attached": true,
-          "unattached_reason": null
+          "unattached_reason": null,
+          "request_hash": null,
+          "excerpt": null,
+          "delete_after": null,
+          "deleted_at": null,
+          "deletion_reason": null
         },
         {
           "source_id": "fx-src-announce",
@@ -3406,7 +3447,12 @@
           "publisher": null,
           "run_id": "fx-run-verify",
           "attached": true,
-          "unattached_reason": null
+          "unattached_reason": null,
+          "request_hash": null,
+          "excerpt": null,
+          "delete_after": null,
+          "deleted_at": null,
+          "deletion_reason": null
         },
         {
           "source_id": "fx-src-deck",
@@ -3421,7 +3467,12 @@
           "publisher": null,
           "run_id": "fx-run-verify",
           "attached": true,
-          "unattached_reason": null
+          "unattached_reason": null,
+          "request_hash": null,
+          "excerpt": null,
+          "delete_after": null,
+          "deleted_at": null,
+          "deletion_reason": null
         },
         {
           "source_id": "fx-src-payroll",
@@ -3436,7 +3487,12 @@
           "publisher": null,
           "run_id": "fx-run-verify",
           "attached": true,
-          "unattached_reason": null
+          "unattached_reason": null,
+          "request_hash": null,
+          "excerpt": null,
+          "delete_after": null,
+          "deleted_at": null,
+          "deletion_reason": null
         },
         {
           "source_id": "fx-src-unattached",
@@ -3451,7 +3507,12 @@
           "publisher": null,
           "run_id": "fx-run-verify",
           "attached": false,
-          "unattached_reason": "Name match only; no shared domain, id or city"
+          "unattached_reason": "Name match only; no shared domain, id or city",
+          "request_hash": null,
+          "excerpt": null,
+          "delete_after": null,
+          "deleted_at": null,
+          "deletion_reason": null
         }
       ],
       "cost": {
@@ -3929,6 +3990,7 @@
         "no_fair_comparison_reason": "Identity unresolved"
       },
       "assessment": null,
+      "memo": null,
       "risks": [
         {
           "kind": "not_checked",
@@ -5779,6 +5841,7 @@
       "case_credits": 150.0,
       "discover_credits": 60.0,
       "investor_credits": 60.0
-    }
+    },
+    "markdown": ""
   }
 }

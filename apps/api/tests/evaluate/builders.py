@@ -9,6 +9,7 @@ import httpx2 as httpx
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.api import cases as case_routes
+from app.api.cases_deps import get_case_session
 from app.auth.deps import current_user
 from app.auth.sessions import AuthUser
 from app.db import repo
@@ -225,4 +226,5 @@ def api_client(
 
     app.dependency_overrides[current_user] = user
     app.dependency_overrides[case_routes.case_session] = session
+    app.dependency_overrides[get_case_session] = session
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t")

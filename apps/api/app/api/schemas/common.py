@@ -256,6 +256,20 @@ class SourceRecordOut(ApiModel):
         description="False for unattached candidates: records with no corroborating identifier.",
     )
     unattached_reason: str | None = None
+    request_hash: str | None = Field(
+        default=None,
+        description="sha256 of the canonical provider request, so the call can be replayed.",
+    )
+    excerpt: str | None = Field(
+        default=None, description="An exact excerpt used from this source; null once purged."
+    )
+    delete_after: datetime | None = Field(
+        default=None, description="When confidential detail of this source is deleted."
+    )
+    deleted_at: datetime | None = None
+    deletion_reason: str | None = Field(
+        default=None, description="Why the excerpt or attachment is gone (retention record)."
+    )
 
 
 # ---------------------------------------------------------------- cost

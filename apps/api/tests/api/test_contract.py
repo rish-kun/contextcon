@@ -110,8 +110,10 @@ SESSION_ROUTES = {
     "/investor-searches/{search_id}",  # CP-18
     "/cases/{case_id}/requests",  # CP-23
 }
+# Implemented and public (CP-25): served without a session.
+PUBLIC_ROUTES = {"/policy"}
 AUTH_ROUTES = SESSION_ROUTES | {"/auth/login", "/auth/logout"}
-STUB_ROUTES = [r for r in ROUTES if r[1] not in AUTH_ROUTES]
+STUB_ROUTES = [r for r in ROUTES if r[1] not in AUTH_ROUTES | PUBLIC_ROUTES]
 
 MSG = f"/cases/{CASE}/messages"
 REVISION = {"subject": "s", "body": "b", "recipient": "a@b.example"}

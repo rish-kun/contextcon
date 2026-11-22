@@ -2797,6 +2797,17 @@
             ],
             "description": "Latest version; history via GET /cases/{id}/assessments."
           },
+          "memo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaseMemoOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Screening memo of the latest assessment version."
+          },
           "risks": {
             "items": {
               "$ref": "#/components/schemas/RiskItemOut"
@@ -2868,6 +2879,7 @@
           "events",
           "comparables",
           "assessment",
+          "memo",
           "risks",
           "request_list",
           "message",
@@ -2879,6 +2891,71 @@
         ],
         "title": "CaseDetail",
         "description": "The memo aggregate, sections in the PRD's finished-case order."
+      },
+      "CaseMemoOut": {
+        "properties": {
+          "assessment_version": {
+            "type": "integer",
+            "title": "Assessment Version"
+          },
+          "assessment_version_id": {
+            "type": "string",
+            "title": "Assessment Version Id"
+          },
+          "policy_version": {
+            "type": "string",
+            "title": "Policy Version"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/MemoSectionOut"
+            },
+            "type": "array",
+            "title": "Sections"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/MemoCitationOut"
+            },
+            "type": "array",
+            "title": "Citations"
+          },
+          "retention_notice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retention Notice",
+            "description": "Deletion dates for uploaded documents, when there are any."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "assessment_version",
+          "assessment_version_id",
+          "policy_version",
+          "generated_at",
+          "title",
+          "sections",
+          "citations",
+          "retention_notice"
+        ],
+        "title": "CaseMemoOut",
+        "description": "The screening memo for one assessment version, in the PRD's finished-case order."
       },
       "CaseOut": {
         "properties": {
@@ -5938,6 +6015,162 @@
         ],
         "title": "LoginIn"
       },
+      "MemoCitationOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Marker used in drafted text, e.g. \"F1\"."
+          },
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvidenceOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deletion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeletionRecordOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "evidence",
+          "deletion"
+        ],
+        "title": "MemoCitationOut",
+        "description": "One numbered citation. A purged excerpt shows its deletion record, not a broken link."
+      },
+      "MemoLineOut": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "citation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Citation Ids"
+          },
+          "claim_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Claim Ids"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind",
+            "description": "\"estimate\", \"signal\", \"not_checked\", \"gap\", \"assumption\"..."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text",
+          "citation_ids",
+          "claim_ids",
+          "kind"
+        ],
+        "title": "MemoLineOut",
+        "description": "One deterministic memo line (built by rules from the assessment, never drafted)."
+      },
+      "MemoSectionOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number",
+            "description": "Template section number, 1-10."
+          },
+          "heading": {
+            "type": "string",
+            "title": "Heading"
+          },
+          "drafted_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drafted Text",
+            "description": "Prose that only restates cited accepted facts; every sentence ends with [F<n>] markers. Null for purely structured sections."
+          },
+          "used_fallback": {
+            "type": "boolean",
+            "title": "Used Fallback",
+            "description": "True when the drafted prose failed validation twice.",
+            "default": false
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/MemoLineOut"
+            },
+            "type": "array",
+            "title": "Lines"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes",
+            "description": "Template boilerplate."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "number",
+          "heading",
+          "drafted_text",
+          "used_fallback",
+          "lines",
+          "notes"
+        ],
+        "title": "MemoSectionOut"
+      },
       "MessageOut": {
         "properties": {
           "id": {
@@ -6286,6 +6519,12 @@
           },
           "budgets": {
             "$ref": "#/components/schemas/BudgetsOut"
+          },
+          "markdown": {
+            "type": "string",
+            "title": "Markdown",
+            "description": "POLICY.md: the policy explained in words.",
+            "default": ""
           }
         },
         "additionalProperties": false,
@@ -6303,7 +6542,8 @@
           "company_type_rule",
           "investor_ranking_rule",
           "comparables_rule",
-          "budgets"
+          "budgets",
+          "markdown"
         ],
         "title": "PolicyOut"
       },
@@ -7382,6 +7622,67 @@
               }
             ],
             "title": "Unattached Reason"
+          },
+          "request_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Hash",
+            "description": "sha256 of the canonical provider request, so the call can be replayed."
+          },
+          "excerpt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excerpt",
+            "description": "An exact excerpt used from this source; null once purged."
+          },
+          "delete_after": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delete After",
+            "description": "When confidential detail of this source is deleted."
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At"
+          },
+          "deletion_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deletion Reason",
+            "description": "Why the excerpt or attachment is gone (retention record)."
           }
         },
         "additionalProperties": false,
@@ -7399,7 +7700,12 @@
           "publisher",
           "run_id",
           "attached",
-          "unattached_reason"
+          "unattached_reason",
+          "request_hash",
+          "excerpt",
+          "delete_after",
+          "deleted_at",
+          "deletion_reason"
         ],
         "title": "SourceRecordOut",
         "description": "A full, reproducible source row for the Sources tab."

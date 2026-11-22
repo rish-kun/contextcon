@@ -82,7 +82,7 @@ def evidence_out(e: Evidence, src: Source) -> EvidenceOut:
     )
 
 
-def _uuids(ids: Iterable[str]) -> list[uuid.UUID]:
+def uuids(ids: Iterable[str]) -> list[uuid.UUID]:
     out = []
     for i in ids:
         try:
@@ -136,7 +136,7 @@ async def load_lookups(
         )
         ev_ids |= _evidence_ids(stored_assessment(row), d)
     lk = Lookups()
-    wanted = _uuids(ev_ids)
+    wanted = uuids(ev_ids)
     if wanted:
         res = await session.execute(
             select(Evidence, Source)
@@ -148,7 +148,7 @@ async def load_lookups(
         select(Claim.id, Claim.original_text).where(Claim.case_id == case_id)
     )
     lk.claims = {str(i): t for i, t in claims.all()}
-    crit_ids = _uuids(
+    crit_ids = uuids(
         e.criterion_id
         for row in rows
         for e in stored_assessment(row).judgments.opportunity_fit.evaluations

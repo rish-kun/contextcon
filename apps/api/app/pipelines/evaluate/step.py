@@ -6,6 +6,7 @@ import datetime as dt
 
 from app.jobs import StepContext, step_handler
 from app.pipelines.evaluate.service import HANDLER, evaluate_case
+from app.pipelines.memo.llm import memo_llm, memo_section_builder
 
 TRIGGERS = {
     "verify": "initial verify",
@@ -32,6 +33,8 @@ async def assess_case(ctx: StepContext) -> dict:
         today=today(),
         trigger=trigger,
         run_id=ctx.run.id,
+        enrich=memo_section_builder(),
+        enrich_arg=memo_llm(ctx),
     )
     a = outcome.assessment
     label = a.disposition.value.replace("_", " ")

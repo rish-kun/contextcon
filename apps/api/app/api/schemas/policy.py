@@ -60,3 +60,4 @@ class PolicyOut(ApiModel):
     investor_ranking_rule: str
     comparables_rule: str
     budgets: BudgetsOut
+    markdown: str = Field(default="", description="POLICY.md: the policy explained in words.")

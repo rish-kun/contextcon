@@ -771,6 +771,8 @@ export interface components {
             comparables: components["schemas"]["ComparablesOut"];
             /** @description Latest version; history via GET /cases/{id}/assessments. */
             assessment: components["schemas"]["AssessmentVersionOut"] | null;
+            /** @description Screening memo of the latest assessment version. */
+            memo: components["schemas"]["CaseMemoOut"] | null;
             /** Risks */
             risks: components["schemas"]["RiskItemOut"][];
             request_list: components["schemas"]["RequestListOut"] | null;
@@ -785,6 +787,34 @@ export interface components {
             cost: components["schemas"]["CaseCostOut"];
             /** Runs */
             runs: components["schemas"]["RunSummaryOut"][];
+        };
+        /**
+         * CaseMemoOut
+         * @description The screening memo for one assessment version, in the PRD's finished-case order.
+         */
+        CaseMemoOut: {
+            /** Assessment Version */
+            assessment_version: number;
+            /** Assessment Version Id */
+            assessment_version_id: string;
+            /** Policy Version */
+            policy_version: string;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Title */
+            title: string;
+            /** Sections */
+            sections: components["schemas"]["MemoSectionOut"][];
+            /** Citations */
+            citations: components["schemas"]["MemoCitationOut"][];
+            /**
+             * Retention Notice
+             * @description Deletion dates for uploaded documents, when there are any.
+             */
+            retention_notice: string | null;
         };
         /** CaseOut */
         CaseOut: {
@@ -1863,6 +1893,68 @@ export interface components {
             /** Password */
             password: string;
         };
+        /**
+         * MemoCitationOut
+         * @description One numbered citation. A purged excerpt shows its deletion record, not a broken link.
+         */
+        MemoCitationOut: {
+            /**
+             * Id
+             * @description Marker used in drafted text, e.g. "F1".
+             */
+            id: string;
+            /** Number */
+            number: number;
+            evidence: components["schemas"]["EvidenceOut"] | null;
+            deletion: components["schemas"]["DeletionRecordOut"] | null;
+        };
+        /**
+         * MemoLineOut
+         * @description One deterministic memo line (built by rules from the assessment, never drafted).
+         */
+        MemoLineOut: {
+            /** Text */
+            text: string;
+            /** Citation Ids */
+            citation_ids: string[];
+            /** Claim Ids */
+            claim_ids: string[];
+            /**
+             * Kind
+             * @description "estimate", "signal", "not_checked", "gap", "assumption"...
+             */
+            kind: string | null;
+        };
+        /** MemoSectionOut */
+        MemoSectionOut: {
+            /** Key */
+            key: string;
+            /**
+             * Number
+             * @description Template section number, 1-10.
+             */
+            number: number | null;
+            /** Heading */
+            heading: string;
+            /**
+             * Drafted Text
+             * @description Prose that only restates cited accepted facts; every sentence ends with [F<n>] markers. Null for purely structured sections.
+             */
+            drafted_text: string | null;
+            /**
+             * Used Fallback
+             * @description True when the drafted prose failed validation twice.
+             * @default false
+             */
+            used_fallback: boolean;
+            /** Lines */
+            lines: components["schemas"]["MemoLineOut"][];
+            /**
+             * Notes
+             * @description Template boilerplate.
+             */
+            notes: string[];
+        };
         /** MessageOut */
         MessageOut: {
             /** Id */
@@ -1978,6 +2070,12 @@ export interface components {
             /** Comparables Rule */
             comparables_rule: string;
             budgets: components["schemas"]["BudgetsOut"];
+            /**
+             * Markdown
+             * @description POLICY.md: the policy explained in words.
+             * @default
+             */
+            markdown: string;
         };
         /** PolicyThresholdsOut */
         PolicyThresholdsOut: {
@@ -2368,6 +2466,28 @@ export interface components {
             attached: boolean;
             /** Unattached Reason */
             unattached_reason: string | null;
+            /**
+             * Request Hash
+             * @description sha256 of the canonical provider request, so the call can be replayed.
+             */
+            request_hash: string | null;
+            /**
+             * Excerpt
+             * @description An exact excerpt used from this source; null once purged.
+             */
+            excerpt: string | null;
+            /**
+             * Delete After
+             * @description When confidential detail of this source is deleted.
+             */
+            delete_after: string | null;
+            /** Deleted At */
+            deleted_at: string | null;
+            /**
+             * Deletion Reason
+             * @description Why the excerpt or attachment is gone (retention record).
+             */
+            deletion_reason: string | null;
         };
         /**
          * SourceRef

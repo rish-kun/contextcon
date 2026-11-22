@@ -199,6 +199,57 @@ class CaseCostOut(ApiModel):
     shared_discovery: SharedCostOut | None = None
 
 
+class MemoCitationOut(ApiModel):
+    """One numbered citation. A purged excerpt shows its deletion record, not a broken link."""
+
+    id: str = Field(description='Marker used in drafted text, e.g. "F1".')
+    number: int
+    evidence: EvidenceOut | None = None
+    deletion: DeletionRecordOut | None = None
+
+
+class MemoLineOut(ApiModel):
+    """One deterministic memo line (built by rules from the assessment, never drafted)."""
+
+    text: str
+    citation_ids: list[str] = Field(default_factory=list)
+    claim_ids: list[str] = Field(default_factory=list)
+    kind: str | None = Field(
+        default=None, description='"estimate", "signal", "not_checked", "gap", "assumption"...'
+    )
+
+
+class MemoSectionOut(ApiModel):
+    key: str
+    number: int | None = Field(default=None, description="Template section number, 1-10.")
+    heading: str
+    drafted_text: str | None = Field(
+        default=None,
+        description="Prose that only restates cited accepted facts; every sentence ends with "
+        "[F<n>] markers. Null for purely structured sections.",
+    )
+    used_fallback: bool = Field(
+        default=False, description="True when the drafted prose failed validation twice."
+    )
+    lines: list[MemoLineOut] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list, description="Template boilerplate.")
+
+
+class CaseMemoOut(ApiModel):
+    """The screening memo for one assessment version, in the PRD's finished-case order."""
+
+    assessment_version: int
+    assessment_version_id: str
+    policy_version: str
+    generated_at: datetime
+    title: str
+    sections: list[MemoSectionOut]
+    citations: list[MemoCitationOut] = Field(default_factory=list)
+    retention_notice: str | None = Field(
+        default=None, description="Deletion dates for uploaded documents, when there are any."
+    )
+
+
 class CaseDetail(ApiModel):
     """The memo aggregate, sections in the PRD's finished-case order."""
 
@@ -211,6 +262,9 @@ class CaseDetail(ApiModel):
     comparables: ComparablesOut
     assessment: AssessmentVersionOut | None = Field(
         default=None, description="Latest version; history via GET /cases/{id}/assessments."
+    )
+    memo: CaseMemoOut | None = Field(
+        default=None, description="Screening memo of the latest assessment version."
     )
     risks: list[RiskItemOut] = Field(default_factory=list)
     request_list: RequestListOut | None = None
