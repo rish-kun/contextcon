@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
-import { caseHref } from "@/components/app-shell";
-import { ClaimsCell, DispositionCell, FitCell, FitCompact } from "@/components/dashboard/case-cells";
+import { caseHref, useShell } from "@/components/app-shell";
+import { ClaimsCell, DispositionCell, FitCell, FitCompact, waitingCue } from "@/components/dashboard/case-cells";
 import { DispositionStamp, StatusCounts } from "@/components/dealproof";
 import {
+  Button,
   EmptyState,
   ErrorState,
+  Input,
   LoadingState,
   Page,
   PageHeader,
@@ -24,19 +26,17 @@ import {
   Toolbar,
 } from "@/components/ui";
 import type { CaseDetail, CaseSummary } from "@/lib/api/client";
-import { formatDate, plural } from "@/lib/format";
+import { formatCredits, formatDate, plural } from "@/lib/format";
+import { DISPOSITION_LABEL } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import {
   attention,
   claimCounts,
   coverageNote,
-  PIPELINE_COLUMNS,
-  PIPELINE_LABEL,
-  type PipelineColumn,
-  pipelineColumn,
   REQUEST_STATE_LABEL,
   requestState,
   useWorkspace,
+  withAssessment,
   type Workspace,
 } from "@/lib/workspace";
 
@@ -73,42 +73,89 @@ function useView(): [View, (view: View) => void] {
   ];
 }
 
-/** What the column rule says, shown under its title so nobody has to guess why a card is there. */
-const COLUMN_RULE: Record<PipelineColumn, string> = {
-  identity: "Legal entity not confirmed",
+const LANES = ["verifying", "identity", "assessed", "approval", "sent"] as const;
+type Lane = (typeof LANES)[number];
+
+const LANE_LABEL: Record<Lane, string> = {
+  verifying: "Verifying",
+  identity: "Needs identity",
+  assessed: "Assessed",
+  approval: "Awaiting approval",
+  sent: "Sent",
+};
+
+/** What puts a card in the lane, shown under its title so nobody has to guess why it is there. */
+const LANE_RULE: Record<Lane, string> = {
   verifying: "Checks running now",
-  failed: "Last run did not finish",
-  assessed: "Assessed, no request drafted",
-  drafted: "Request waiting on a person",
+  identity: "Legal entity not confirmed",
+  assessed: "By disposition, no request waiting",
+  approval: "A request waits on a person",
   sent: "Request left, or was suppressed",
 };
 
-function CaseCard({ item, detail }: { item: CaseSummary; detail: CaseDetail | undefined }) {
+/** The lane a case sits in, read from its record. Work in flight comes first. */
+function laneOf(item: CaseSummary, detail: CaseDetail | undefined): Lane {
+  if (item.status === "verifying") return "verifying";
+  if (item.identity_state !== "confirmed") return "identity";
+  const request = requestState(detail);
+  if (request === "sent" || request === "suppressed") return "sent";
+  if (request !== "none") return "approval";
+  return "assessed";
+}
+
+const DISPOSITION_ORDER = ["prioritise", "investigate_further", "deprioritise", "cannot_assess"] as const;
+
+/** "2 blockers to Prioritise": how many open items stand between the case and the next disposition. */
+function blockersLine(item: CaseSummary): string | null {
+  const flip = item.decision_flip;
+  if (!flip || flip.state !== "has_blockers" || flip.blockers_to_next < 1) return null;
+  const next = flip.next_disposition ? DISPOSITION_LABEL[flip.next_disposition] : "the next disposition";
+  return `${plural(flip.blockers_to_next, "blocker")} to ${next}`;
+}
+
+function host(website: string | null): string | null {
+  if (!website) return null;
+  return website.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "") || null;
+}
+
+/** Only what the record holds: a field with no value is left out, not printed as "not scored". */
+function CaseCard({ item, detail, lane }: { item: CaseSummary; detail: CaseDetail | undefined; lane: Lane }) {
   const counts = claimCounts(detail);
   const request = requestState(detail);
-  const waiting = attention(item, detail)[0];
+  const blockers = blockersLine(item);
+  const domain = host(item.website);
+  const running = lane === "verifying" ? waitingCue(item, detail) : null;
+  const identity = lane === "identity" ? attention(item, detail)[0]?.what : null;
+  const scored = item.fit_state === "scored" && item.fit !== null;
   return (
     <li className="relative flex flex-col gap-2 rounded-md border border-line bg-surface p-3 transition-colors hover:border-line-strong">
-      <RowLink stretch href={caseHref(item.id)} className="truncate text-sm">
-        {item.name}
-      </RowLink>
-      {item.disposition ? (
-        <DispositionStamp disposition={item.disposition} size="sm" className="self-start" />
-      ) : (
-        <span className="text-xs text-ink-muted">No disposition yet</span>
-      )}
-      <FitCompact item={item} />
-      {counts && detail && detail.claims.length > 0 ? (
-        <StatusCounts counts={counts} />
-      ) : (
-        <span className="text-xs text-ink-muted">
-          {item.claim_count > 0 ? plural(item.claim_count, "claim") : "No claims yet"}
+      <div className="flex min-w-0 flex-col">
+        <RowLink stretch href={caseHref(item.id)} className="truncate text-sm">
+          {item.name}
+        </RowLink>
+        <span className="truncate font-mono text-2xs text-ink-muted">
+          {domain ? `${domain} · ` : null}
+          <time dateTime={item.updated_at}>{formatDate(item.updated_at)}</time>
         </span>
-      )}
+      </div>
+      {running ? (
+        <span className="text-xs font-medium text-accent">{running}</span>
+      ) : identity ? (
+        <span className="text-xs text-cannot-verify">{identity}</span>
+      ) : item.disposition && lane !== "assessed" ? (
+        <DispositionStamp disposition={item.disposition} size="sm" className="self-start" />
+      ) : null}
+      {scored ? <FitCompact item={item} /> : null}
+      {counts && detail && detail.claims.length > 0 ? <StatusCounts counts={counts} /> : null}
+      {blockers ? (
+        <span className="self-start rounded-xs border border-dashed border-line-strong px-1.5 py-0.5 font-mono text-xs text-ink-secondary">
+          {blockers}
+        </span>
+      ) : null}
       {request !== "none" ? (
         <span
           className={cn(
-            "self-start rounded-xs px-1 text-xs",
+            "self-start rounded-xs px-1.5 py-0.5 text-xs",
             request === "suppressed"
               ? "border border-dashed border-not-checked-line bg-not-checked-tint text-not-checked"
               : "bg-surface-sunken text-ink-secondary",
@@ -116,37 +163,66 @@ function CaseCard({ item, detail }: { item: CaseSummary; detail: CaseDetail | un
         >
           {REQUEST_STATE_LABEL[request]}
         </span>
-      ) : waiting ? (
-        <span className="text-xs text-ink-secondary">{waiting.what}</span>
       ) : null}
-      <time dateTime={item.updated_at} className="font-mono text-2xs text-ink-muted">
-        Updated {formatDate(item.updated_at)}
-      </time>
     </li>
   );
 }
 
-function Board({ workspace, grouped }: { workspace: Workspace; grouped: Record<PipelineColumn, CaseSummary[]> }) {
+type Grouped = Record<Lane, CaseSummary[]>;
+
+function Cards({ items, workspace, lane }: { items: CaseSummary[]; workspace: Workspace; lane: Lane }) {
   return (
-    <div className="-mx-4 overflow-x-auto px-4 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
-      <ol className="grid min-w-max grid-flow-col auto-cols-[15rem] gap-3 xl:min-w-0 xl:auto-cols-fr">
-        {PIPELINE_COLUMNS.map((column) => (
-          <li key={column} className="flex min-w-0 flex-col gap-2">
+    <ul className={cn("grid gap-2", lane === "assessed" && "sm:grid-cols-2")}>
+      {items.map((item) => (
+        <CaseCard key={item.id} item={item} detail={workspace.details[item.id]} lane={lane} />
+      ))}
+    </ul>
+  );
+}
+
+function Board({ workspace, grouped }: { workspace: Workspace; grouped: Grouped }) {
+  const filled = LANES.filter((lane) => grouped[lane].length > 0);
+  const empty = LANES.filter((lane) => grouped[lane].length === 0);
+  return (
+    <div className="flex flex-col gap-4">
+      {empty.length > 0 ? (
+        <p className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
+          Empty lanes
+          {empty.map((lane) => (
+            <span key={lane} className="inline-flex h-6 items-center gap-1 rounded-xs border border-line bg-surface px-2 text-ink-secondary">
+              {LANE_LABEL[lane]}
+              <span className="font-mono text-2xs text-ink-muted">0</span>
+            </span>
+          ))}
+        </p>
+      ) : null}
+      <ol className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-4">
+        {filled.map((lane) => (
+          <li key={lane} className={cn("flex min-w-0 flex-col gap-3", lane === "assessed" ? "lg:flex-[2]" : "lg:flex-1")}>
             <div className="flex flex-col border-b border-line-strong pb-2">
               <h2 className="flex items-baseline justify-between gap-2 text-sm font-medium text-ink">
-                {PIPELINE_LABEL[column]}
-                <span className="font-mono text-xs font-normal text-ink-muted">{grouped[column].length}</span>
+                {LANE_LABEL[lane]}
+                <span className="font-mono text-xs font-normal text-ink-muted">{grouped[lane].length}</span>
               </h2>
-              <p className="text-xs text-ink-muted">{COLUMN_RULE[column]}</p>
+              <p className="text-xs text-ink-muted">{LANE_RULE[lane]}</p>
             </div>
-            {grouped[column].length === 0 ? (
-              <p className="text-xs text-ink-muted">None</p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {grouped[column].map((item) => (
-                  <CaseCard key={item.id} item={item} detail={workspace.details[item.id]} />
+            {lane === "assessed" ? (
+              <>
+                {DISPOSITION_ORDER.filter((d) => grouped.assessed.some((item) => item.disposition === d)).map((d) => (
+                  <div key={d} className="flex flex-col gap-2">
+                    <DispositionStamp disposition={d} size="sm" className="self-start" />
+                    <Cards items={grouped.assessed.filter((item) => item.disposition === d)} workspace={workspace} lane={lane} />
+                  </div>
                 ))}
-              </ul>
+                {grouped.assessed.some((item) => !item.disposition) ? (
+                  <div className="flex flex-col gap-2">
+                    <h3 className="text-xs font-medium text-ink-secondary">No disposition yet</h3>
+                    <Cards items={grouped.assessed.filter((item) => !item.disposition)} workspace={workspace} lane={lane} />
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <Cards items={grouped[lane]} workspace={workspace} lane={lane} />
             )}
           </li>
         ))}
@@ -155,7 +231,7 @@ function Board({ workspace, grouped }: { workspace: Workspace; grouped: Record<P
   );
 }
 
-function PipelineTable({ workspace, grouped }: { workspace: Workspace; grouped: Record<PipelineColumn, CaseSummary[]> }) {
+function PipelineTable({ workspace, grouped }: { workspace: Workspace; grouped: Grouped }) {
   return (
     <Panel>
       <PanelBody flush>
@@ -166,17 +242,18 @@ function PipelineTable({ workspace, grouped }: { workspace: Workspace; grouped: 
               <TableHead>Disposition</TableHead>
               <TableHead>Fit · assessable</TableHead>
               <TableHead>Claims</TableHead>
+              <TableHead>To next disposition</TableHead>
               <TableHead>Request</TableHead>
               <TableHead numeric>Updated</TableHead>
             </TableRow>
           </TableHeader>
-          {PIPELINE_COLUMNS.filter((column) => grouped[column].length > 0).map((column) => (
+          {LANES.filter((column) => grouped[column].length > 0).map((column) => (
             <TableBody key={column}>
               <tr className="border-b border-line bg-surface-sunken">
-                <th colSpan={6} scope="colgroup" className="h-8 px-4 text-left text-xs font-medium text-ink-secondary">
-                  {PIPELINE_LABEL[column]}{" "}
+                <th colSpan={7} scope="colgroup" className="h-8 px-4 text-left text-xs font-medium text-ink-secondary">
+                  {LANE_LABEL[column]}{" "}
                   <span className="pl-1 font-mono font-normal text-ink-muted">{grouped[column].length}</span>
-                  <span className="pl-3 font-normal text-ink-muted">{COLUMN_RULE[column]}</span>
+                  <span className="pl-3 font-normal text-ink-muted">{LANE_RULE[column]}</span>
                 </th>
               </tr>
               {grouped[column].map((item) => {
@@ -200,6 +277,9 @@ function PipelineTable({ workspace, grouped }: { workspace: Workspace; grouped: 
                     <TableCell>
                       <ClaimsCell item={item} detail={detail} />
                     </TableCell>
+                    <TableCell muted={!blockersLine(item)} className="font-mono text-xs whitespace-nowrap">
+                      {blockersLine(item) ?? "–"}
+                    </TableCell>
                     <TableCell muted={requestState(detail) === "none"}>
                       {REQUEST_STATE_LABEL[requestState(detail)]}
                     </TableCell>
@@ -216,21 +296,22 @@ function PipelineTable({ workspace, grouped }: { workspace: Workspace; grouped: 
 }
 
 /**
- * `/app/pipeline`. Every case by where it stands. The columns are states DealProof reads
- * from the record, not stages a person drags a card between: nobody can move a case to
- * "Assessed". Empty columns stay, so the board keeps its shape.
+ * `/app/pipeline`. Every case by where it stands: two lanes for work in flight, then one
+ * per disposition. The lanes are read from the record, not stages a person drags a card
+ * between. Empty lanes stay, so the board keeps its shape.
  */
 export function Pipeline() {
+  const { openVerify } = useShell();
   const [state, retry] = useWorkspace();
   const [view, setView] = useView();
-  const [disposition, setDisposition] = useState<"all" | "with" | "without">("all");
+  const [query, setQuery] = useState("");
 
   if (state.status === "loading") {
     return (
       <Page>
         <PageHeader title="Pipeline" />
         <Panel>
-          <LoadingState label="Loading the pipeline" shape="rows" density="two-line" />
+          <LoadingState label="Loading pipeline" shape="rows" density="two-line" />
         </Panel>
       </Page>
     );
@@ -239,20 +320,23 @@ export function Pipeline() {
     return (
       <Page>
         <PageHeader title="Pipeline" />
-        <ErrorState size="page" what="The pipeline" reason={state.message} status={state.code} onRetry={retry} />
+        <ErrorState size="page" what="Pipeline" reason={state.message} status={state.code} onRetry={retry} />
       </Page>
     );
   }
 
   const workspace = state.data;
-  const shown = workspace.cases.filter((item) =>
-    disposition === "all" ? true : disposition === "with" ? Boolean(item.disposition) : !item.disposition,
-  );
-  const grouped = Object.fromEntries(PIPELINE_COLUMNS.map((column) => [column, [] as CaseSummary[]])) as Record<
-    PipelineColumn,
-    CaseSummary[]
-  >;
-  for (const item of shown) grouped[pipelineColumn(item, workspace.details[item.id])].push(item);
+  const needle = query.trim().toLowerCase();
+  const cases = workspace.cases.map((item) => withAssessment(item, workspace.details[item.id]));
+  const shown = cases.filter((item) => !needle || item.name.toLowerCase().includes(needle));
+  const group = (cases: CaseSummary[]) => {
+    const out = Object.fromEntries(LANES.map((lane) => [lane, [] as CaseSummary[]])) as Grouped;
+    for (const item of cases) out[laneOf(item, workspace.details[item.id])].push(item);
+    return out;
+  };
+  const all = group(cases);
+  const credits = cases.reduce((sum, item) => sum + item.cost.crustdata_credits, 0);
+  const grouped = group(shown);
   const coverage = coverageNote(workspace);
 
   return (
@@ -262,32 +346,56 @@ export function Pipeline() {
         meta={
           <>
             <span className="font-mono">{workspace.cases.length}</span>{" "}
-            {workspace.cases.length === 1 ? "case" : "cases"} by where they stand
+            {workspace.cases.length === 1 ? "case" : "cases"}, each filed by its own record
             {coverage ? <span className="font-mono text-xs text-ink-muted"> · request state {coverage}</span> : null}
           </>
         }
-        figures={[
-          { label: "Request drafted", value: grouped.drafted.length, href: "/app/approvals" },
-          { label: "Waiting on identity", value: grouped.identity.length },
-        ]}
+        actions={<Button onClick={openVerify}>Verify a company</Button>}
       />
 
       {workspace.cases.length === 0 ? (
         <EmptyState
           size="page"
-          title="No cases yet"
+          title="No cases in the pipeline"
           actions={
-            <Link href="/app/discover/new" className="text-dense text-accent underline underline-offset-2">
-              New screening
-            </Link>
+            <>
+              <Button asChild variant="primary" size="sm">
+                <Link href="/app/discover/new">New screening</Link>
+              </Button>
+              <Button size="sm" onClick={openVerify}>
+                Verify a company
+              </Button>
+            </>
           }
         >
-          Cases appear here once a company is opened for verification, each in the column its
-          record puts it in.
+          A case lands in a lane once a company is opened for verification, and moves as DealProof
+          verifies claims, writes an assessment and drafts a request.
         </EmptyState>
       ) : (
         <>
-          <Toolbar count={`${shown.length} shown`}>
+          <Panel>
+            <dl className="grid grid-cols-2 divide-line sm:grid-cols-3 lg:grid-cols-6 lg:divide-x">
+              {LANES.map((lane) => (
+                <div key={lane} className="flex flex-col gap-0.5 px-4 py-3">
+                  <dt className="text-xs text-ink-secondary">{LANE_LABEL[lane]}</dt>
+                  <dd className="font-mono text-xl font-medium text-ink">{all[lane].length}</dd>
+                </div>
+              ))}
+              <div className="flex flex-col gap-0.5 px-4 py-3">
+                <dt className="text-xs text-ink-secondary">Credits spent</dt>
+                <dd className="font-mono text-xl font-medium text-ink">{formatCredits(credits)}</dd>
+              </div>
+            </dl>
+          </Panel>
+          <Toolbar count={`${shown.length} of ${workspace.cases.length}`}>
+            <Input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search by company"
+              aria-label="Search by company"
+              className="h-8 w-56 text-dense"
+            />
             <Segmented
               label="View"
               value={view}
@@ -297,18 +405,21 @@ export function Pipeline() {
                 { value: "table", label: "Table" },
               ]}
             />
-            <Segmented
-              label="Filter by disposition"
-              value={disposition}
-              onChange={setDisposition}
-              options={[
-                { value: "all", label: "All", count: workspace.cases.length },
-                { value: "with", label: "Has a disposition", count: workspace.cases.filter((c) => c.disposition).length },
-                { value: "without", label: "None yet", count: workspace.cases.filter((c) => !c.disposition).length },
-              ]}
-            />
           </Toolbar>
-          {view === "board" ? (
+          {shown.length === 0 ? (
+            <Panel>
+              <EmptyState
+                title="No cases match this search"
+                actions={
+                  <Button size="sm" onClick={() => setQuery("")}>
+                    Reset search
+                  </Button>
+                }
+              >
+                Clear the search to see the full board.
+              </EmptyState>
+            </Panel>
+          ) : view === "board" ? (
             <Board workspace={workspace} grouped={grouped} />
           ) : (
             <PipelineTable workspace={workspace} grouped={grouped} />

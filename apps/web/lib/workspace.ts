@@ -169,3 +169,20 @@ export function pipelineColumn(item: CaseSummary, detail: CaseDetail | undefined
   if (request !== "none") return "drafted";
   return "assessed";
 }
+
+/**
+ * The list row with disposition and fit filled from the case's latest assessment when the
+ * list did not carry them, so a board never shows less than the case page does.
+ */
+export function withAssessment(item: CaseSummary, detail: CaseDetail | undefined): CaseSummary {
+  if (!detail) return item;
+  const judgments = detail.assessment?.judgments;
+  const fit = judgments?.opportunity_fit;
+  return {
+    ...item,
+    disposition: item.disposition ?? judgments?.screening_disposition.disposition ?? null,
+    fit_state: item.fit_state ?? fit?.state ?? detail.opportunity.fit_state ?? null,
+    fit: item.fit ?? fit?.fit ?? detail.opportunity.fit ?? null,
+    assessable_pct: item.assessable_pct ?? fit?.assessable_pct ?? detail.opportunity.assessable_pct ?? null,
+  };
+}
