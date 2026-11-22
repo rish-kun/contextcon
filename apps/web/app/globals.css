@@ -182,6 +182,17 @@
     }
   }
 
+  /* Ledger rows fade and rise 8px; criteria cells fade. Both hold their start state
+     until their delay passes, and both are dropped under reduced motion */
+  --animate-row-in: row-in var(--duration-slow) var(--ease-standard) backwards;
+  @keyframes row-in {
+    from {
+      opacity: 0;
+      transform: translateY(var(--motion-rise));
+    }
+  }
+  --animate-cell-in: fade-in var(--duration-slow) var(--ease-standard) backwards;
+
   /* One-time highlight on a changed value in the assessment diff */
   --animate-changed: changed-highlight var(--duration-highlight)
     var(--ease-standard);
@@ -327,4 +338,9 @@
 /* Selected row: accent tint plus a 2px accent bar on the left edge */
 @utility selected-bar {
   box-shadow: inset 2px 0 0 var(--color-accent);
+}
+
+/* The claim ledger: claim (5) | status spine (96px) | the record (7) */
+@utility ledger-grid {
+  grid-template-columns: minmax(0, 5fr) var(--layout-spine) minmax(0, 7fr);
 }
