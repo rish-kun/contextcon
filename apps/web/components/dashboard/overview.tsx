@@ -320,7 +320,7 @@ function Book({ workspace }: { workspace: Workspace }) {
           label="Need you"
           href="/app/pipeline"
           value={needing}
-          note="Identity, approvals, failed runs, checks not run"
+          note="Identity, approvals, failed runs"
         />
         <StatTile
           label="Prioritise"
@@ -333,7 +333,7 @@ function Book({ workspace }: { workspace: Workspace }) {
           value={notChecked}
           note={
             notChecked > 0
-              ? `across ${plural(perCase.filter((count) => count > 0).length, "case")}. Never counted as settled`
+              ? `across ${plural(perCase.filter((count) => count > 0).length, "case")}`
               : "Every claim on file was checked"
           }
         />

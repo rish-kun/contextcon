@@ -175,7 +175,6 @@ function Entry({ item, alternate, side, last }: { item: TimelineItem; alternate:
           <TopicTag kind={item.kind} />
           <NatureTag nature={item.nature} />
         </div>
-        <p className="text-xs text-ink-muted">{EVENT_NATURE_MEANING[item.nature]}</p>
         {item.quote ? (
           <blockquote className="max-w-(--layout-prose-max) border-l-2 border-line-strong pl-3 text-left text-dense text-ink-secondary">
             “{item.quote}”

@@ -17,9 +17,23 @@ import { SourceClassGlyph } from "./glyphs";
  * Enter opens the evidence popover with the exact quote or field, the reliability class
  * in words, the URL or request, the retrieval time and the entity it was attached to.
  */
-export function SourceChip({ evidence, className }: { evidence: Evidence; className?: string }) {
+export function SourceChip({
+  evidence,
+  compact = false,
+  className,
+}: {
+  evidence: Evidence;
+  /**
+   * For tight places such as a stat tile: the glyph and the date when it is known, or the
+   * glyph and the source name when it is not. The full name and "as of" line are in the
+   * hint and in the popover.
+   */
+  compact?: boolean;
+  className?: string;
+}) {
   const { source } = evidence;
   const asOf = formatAsOf(source.as_of);
+  const dated = Boolean(source.as_of);
 
   return (
     <Popover>
@@ -27,24 +41,30 @@ export function SourceChip({ evidence, className }: { evidence: Evidence; classN
         <button
           type="button"
           aria-label={`Source: ${source.label}, ${asOf}. Open the evidence`}
+          title={compact ? `${source.label} · ${asOf}` : undefined}
           className={cn(
             "inline-flex h-5.5 max-w-full items-center gap-1 rounded-xs border border-line bg-surface-raised px-1.5 text-xs text-ink-secondary transition-[background-color,border-color] hover:border-line-strong hover:bg-surface-sunken data-[state=open]:border-accent-line data-[state=open]:bg-accent-tint",
             className,
           )}
         >
           <SourceClassGlyph reliability={source.reliability} className="shrink-0 text-ink-muted" />
-          <span className="truncate">{source.label}</span>
-          <span aria-hidden className="text-ink-muted">
-            ·
-          </span>
-          <span
-            className={cn(
-              "shrink-0 font-mono text-2xs",
-              source.as_of ? "text-ink-secondary" : "text-ink-muted",
-            )}
-          >
-            {asOf}
-          </span>
+          {compact && dated ? null : <span className="truncate">{source.label}</span>}
+          {compact || !dated ? null : (
+            <span aria-hidden className="text-ink-muted">
+              ·
+            </span>
+          )}
+          {/* An unknown date is not printed. The popover says the fact is undated. */}
+          {!dated ? null : (
+            <span
+              className={cn(
+                "shrink-0 font-mono text-2xs",
+                dated ? "text-ink-secondary" : "text-ink-muted",
+              )}
+            >
+              {asOf}
+            </span>
+          )}
         </button>
       </PopoverTrigger>
       <PopoverContent>
@@ -139,10 +159,13 @@ export function hasSource(evidence: Evidence[] | null | undefined): evidence is 
 export function SourceLine({
   evidence,
   max = 2,
+  compact = false,
   className,
 }: {
   evidence: Evidence[];
   max?: number;
+  /** Short chips for tight places: see `SourceChip`. */
+  compact?: boolean;
   className?: string;
 }) {
   const [showAll, setShowAll] = useState(false);
@@ -158,7 +181,7 @@ export function SourceLine({
       className={cn("inline-flex max-w-full flex-wrap items-center gap-1", className)}
     >
       {visible.map((item, index) => (
-        <SourceChip key={item.id ?? `${item.source.label}-${index}`} evidence={item} />
+        <SourceChip key={item.id ?? `${item.source.label}-${index}`} evidence={item} compact={compact} />
       ))}
       {extra > 0 ? (
         <button

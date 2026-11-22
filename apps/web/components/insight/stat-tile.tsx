@@ -69,7 +69,7 @@ export function StatTile({
 }) {
   const figure = (
     <>
-      <span className="text-xl font-semibold text-ink">{value}</span>
+      <span className="text-lg font-semibold text-ink">{value}</span>
       {unit ? <span className="text-dense font-normal text-ink-secondary"> {unit}</span> : null}
     </>
   );
@@ -77,7 +77,7 @@ export function StatTile({
   return (
     <div
       className={cn(
-        "flex min-w-0 flex-col gap-1 border-r border-b border-line px-4 py-3",
+        "flex min-w-0 flex-col gap-0.5 border-r border-b border-line px-4 py-2.5",
         missing && "hatch",
         className,
       )}
@@ -114,7 +114,7 @@ export function StatTile({
           </span>
         )}
         {note ? <span className="text-xs text-ink-secondary">{note}</span> : null}
-        {evidence ? <SourceLine evidence={evidence} max={2} /> : null}
+        {evidence ? <SourceLine evidence={evidence} max={1} compact /> : null}
       </dd>
     </div>
   );

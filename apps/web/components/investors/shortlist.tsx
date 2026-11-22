@@ -66,9 +66,7 @@ export function Shortlist({ search }: { search: InvestorSearchOut }) {
           </span>
         </h2>
         <p className="max-w-3xl text-dense text-ink-secondary">
-          {scope}. Ranked by comparable investments found in the record, recent ones counting
-          more. An investor is listed only where a dated funding record supports it, and any
-          message to an investor waits for a person&apos;s approval.
+          {scope}. Ranked by dated comparable investments, recent ones counting more.
         </p>
         {isFixtureMode ? (
           <p className="mt-1 self-start rounded-xs border border-dashed border-line-strong px-2 py-0.5 text-xs text-ink-secondary">

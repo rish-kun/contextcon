@@ -262,8 +262,7 @@ export function Pipeline() {
         meta={
           <>
             <span className="font-mono">{workspace.cases.length}</span>{" "}
-            {workspace.cases.length === 1 ? "case" : "cases"} by where they stand. The record decides the
-            column
+            {workspace.cases.length === 1 ? "case" : "cases"} by where they stand
             {coverage ? <span className="font-mono text-xs text-ink-muted"> · request state {coverage}</span> : null}
           </>
         }

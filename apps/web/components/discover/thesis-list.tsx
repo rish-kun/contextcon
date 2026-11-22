@@ -47,7 +47,7 @@ export function ThesisList() {
     <Page>
       <PageHeader
         title="Screenings"
-        meta="Each screening keeps its thesis, its criteria, its search run and the shortlist it produced"
+        meta="A thesis, its criteria and the shortlist it produced"
         figures={
           theses && theses.length > 0
             ? [

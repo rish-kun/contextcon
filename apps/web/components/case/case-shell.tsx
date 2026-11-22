@@ -174,7 +174,7 @@ export function CaseShell({ children }: { children: React.ReactNode }) {
       ) : null}
       {detail ? (
         <>
-          <div data-case-chrome="" className="flex flex-col gap-6">
+          <div data-case-chrome="" className="flex flex-col gap-4">
             <CaseHeader detail={detail} />
             <CaseTabs detail={detail} active={active} />
           </div>

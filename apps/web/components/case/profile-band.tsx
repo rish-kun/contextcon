@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import type { CaseDetail } from "@/lib/api/client";
 import { formatDate, plural } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { SourceLine } from "@/components/dealproof";
 import {
   EventTimeline,
@@ -11,8 +13,6 @@ import {
   HeadcountTrend,
   KpiRow,
   PeopleRow,
-  seriesSummary,
-  Sparkline,
   StatTile,
 } from "@/components/insight";
 import { eventNature, factEstimate, factEvidence, sourceEvidence, toEvidence } from "./adapt";
@@ -32,174 +32,169 @@ const headcountPoints = (profile: Profile) =>
     value: point.employee_count,
   }));
 
-/**
- * What the company does, where, and how DealProof classed it. Each is a fact from a
- * record, so each ends in its source chip and as-of date; the class is DealProof's own
- * rule and says which rule.
- */
-function ProfileFacts({ profile }: { profile: Profile }) {
-  const items: { label: string; value: React.ReactNode; source: React.ReactNode }[] = [];
-  if (profile.description) {
-    items.push({
-      label: "Business",
-      value: profile.description.value,
-      source: <SourceLine evidence={factEvidence(profile.description)} max={1} />,
-    });
+/** "Chennai, India" from a long address: the last two real parts, without a trailing ISO code. */
+export function shortPlace(address: string, country?: string | null): string {
+  const parts = address
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part && !/^[A-Z]{2,3}$/.test(part));
+  if (parts.length <= 2) return parts.join(", ") || address;
+  const tail = parts.slice(-2);
+  if (country && !tail.some((part) => part.toLowerCase() === country.toLowerCase())) {
+    return `${parts[parts.length - 1]}, ${country}`;
   }
-  if (profile.industries && profile.industries.value.length > 0) {
-    items.push({
-      label: "Industry",
-      value: (
-        <span className="flex flex-wrap gap-1">
-          {profile.industries.value.map((industry) => (
-            <span key={industry} className="rounded-xs bg-surface-sunken px-2 py-0.5 text-xs text-ink-secondary">
-              {industry}
-            </span>
-          ))}
-        </span>
-      ),
-      source: <SourceLine evidence={factEvidence(profile.industries)} max={1} />,
-    });
-  }
-  if (profile.headquarters) {
-    const sameSource = profile.country?.source.source_id === profile.headquarters.source.source_id;
-    items.push({
-      label: "Headquarters",
-      value: [profile.headquarters.value, sameSource ? profile.country?.value : null].filter(Boolean).join(", "),
-      source: <SourceLine evidence={factEvidence(profile.headquarters)} max={1} />,
-    });
-  }
-  if (profile.company_type) {
-    items.push({
-      label: "Judged as",
-      value: profile.company_type === "startup" ? "A startup" : "An established business",
-      source: (
-        <span className="font-mono text-2xs text-ink-muted">
-          DealProof rule · {profile.company_type_reason ?? "reason not recorded"}
-        </span>
-      ),
-    });
-  }
-  if (items.length === 0) return null;
-  return (
-    <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">
-      {items.map((item) => (
-        <div key={item.label} className="flex min-w-0 flex-col items-start gap-1">
-          <dt className="text-xs text-ink-muted">{item.label}</dt>
-          <dd className="text-dense text-ink">{item.value}</dd>
-          <dd>{item.source}</dd>
-        </div>
-      ))}
-    </dl>
-  );
+  return tail.join(", ");
+}
+
+/** One line under the company name: what it does and where, from the record. */
+export function profileSummary(profile: Profile | null): string | null {
+  if (!profile) return null;
+  const parts = [
+    ...(profile.industries?.value ?? []).slice(0, 2),
+    profile.headquarters ? shortPlace(profile.headquarters.value, profile.country?.value) : profile.country?.value,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : null;
 }
 
 /**
- * The profile band in the case header: a description, tags, and a row of figures, each
- * with its source and as-of date. Team size and its change are estimates from
- * professional profiles and say so. Revenue, valuation and ownership have a tile only to
- * say they are not on record: the tile is hatched and names what would be needed.
+ * The few figures a reader wants before opening a tab: when the company was formed, how
+ * big it is estimated to be, and what it has raised. Each carries its source as a short
+ * chip; the full source line is in the Overview tab. A figure the record does not hold is
+ * said in words, never shown as zero.
  */
 export function ProfileBand({ detail }: { detail: CaseDetail }) {
   const { profile } = detail;
   if (detail.identity.state !== "confirmed" || !profile) return null;
 
-  const trend = headcountPoints(profile);
   const growth = profile.headcount_growth_yoy_pct;
   const founded = profile.incorporation_date ?? profile.year_founded;
-  const financial = detail.assessment?.judgments.financial_assessment;
   const rounds = profile.funding_rounds.length;
+  const funding = profile.total_funding_usd;
+  const hasFunding = Boolean(funding && funding.value > 0);
 
   return (
-    <section aria-label="Company profile" className="flex flex-col gap-3">
-      <ProfileFacts profile={profile} />
-      <KpiRow label="Profile figures">
-        {founded ? (
-          <StatTile
-            label={profile.incorporation_date ? "Incorporated" : "Founded"}
-            value={
-              <span className="font-mono text-lg">
-                {profile.incorporation_date
-                  ? (formatDate(profile.incorporation_date.value) ?? profile.incorporation_date.value)
-                  : profile.year_founded?.value}
-              </span>
-            }
-            evidence={factEvidence(founded)}
-          />
-        ) : (
-          <StatTile label="Incorporated" missing="Not returned" />
-        )}
+    <KpiRow label="Profile figures">
+      {founded ? (
+        <StatTile
+          label={profile.incorporation_date ? "Incorporated" : "Founded"}
+          value={
+            profile.incorporation_date
+              ? (formatDate(profile.incorporation_date.value) ?? profile.incorporation_date.value)
+              : profile.year_founded?.value
+          }
+          evidence={factEvidence(founded)}
+        />
+      ) : (
+        <StatTile label="Founded" missing="Not returned" />
+      )}
 
-        {profile.headcount ? (
-          <StatTile
-            label="Team size"
-            value={profile.headcount.value.toLocaleString("en-US")}
-            unit="people"
-            estimate={factEstimate(profile.headcount)}
-            evidence={[
-              ...factEvidence(profile.headcount),
-              // The line beside the figure is the dated series, cited at its latest point.
-              ...(profile.headcount_series && trend.length > 1
-                ? sourceEvidence(profile.headcount_series.source, trend.at(-1)?.date ?? null)
-                : []),
-            ]}
-            trend={
-              trend.length > 1 ? (
-                <Sparkline
-                  points={trend}
-                  estimate
-                  label={`Estimated headcount, ${seriesSummary(trend, "people")}`}
-                />
-              ) : undefined
-            }
-          />
-        ) : (
-          <StatTile label="Team size" missing="No estimate returned" />
-        )}
+      {profile.headcount ? (
+        <StatTile
+          label="Team size"
+          value={profile.headcount.value.toLocaleString("en-US")}
+          unit="people"
+          estimate={factEstimate(profile.headcount)}
+          note={
+            growth
+              ? `${growth.value > 0 ? "+" : growth.value < 0 ? "−" : ""}${Math.abs(growth.value)}% vs 12 months earlier`
+              : undefined
+          }
+          evidence={factEvidence(profile.headcount)}
+        />
+      ) : (
+        <StatTile label="Team size" missing="No estimate returned" />
+      )}
 
-        {growth ? (
-          <StatTile
-            label="Headcount change"
-            value={`${growth.value > 0 ? "+" : growth.value < 0 ? "−" : ""}${Math.abs(growth.value)}%`}
-            estimate={factEstimate(growth)}
-            note="vs 12 months earlier. Not evidence of revenue"
-            evidence={factEvidence(growth)}
-          />
+      {funding && hasFunding ? (
+        <StatTile
+          label="Funding on record"
+          value={formatAmountUsd(funding.value)}
+          note={rounds > 0 ? plural(rounds, "dated round") : undefined}
+          evidence={factEvidence(funding)}
+        />
+      ) : rounds > 0 ? (
+        <StatTile label="Funding on record" value={plural(rounds, "round")} note="Amounts not recorded" />
+      ) : (
+        <StatTile
+          label="Funding on record"
+          missing="No rounds found"
+          note={funding ? `Searched ${formatDate(funding.source.retrieved_at) ?? "at an unrecorded time"}` : undefined}
+        />
+      )}
+
+      {profile.hiring?.openings ? (
+        <StatTile
+          label="Open roles"
+          value={profile.hiring.openings.value}
+          estimate={factEstimate(profile.hiring.openings)}
+          evidence={factEvidence(profile.hiring.openings)}
+        />
+      ) : null}
+    </KpiRow>
+  );
+}
+
+/** The company's own description, two lines until asked for more, with where it came from. */
+function About({ profile }: { profile: Profile }) {
+  const [open, setOpen] = useState(false);
+  const financialNote = profile.company_type
+    ? `Judged as ${profile.company_type === "startup" ? "a startup" : "an established business"}`
+    : null;
+  if (!profile.description && !profile.headquarters) return null;
+  const long = (profile.description?.value.length ?? 0) > 220;
+  return (
+    <div className="flex flex-col gap-2">
+      <h3 className={sectionHead}>About</h3>
+      <dl className="grid gap-x-8 gap-y-3 rounded-lg border border-line bg-surface p-4 text-dense lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        {profile.description ? (
+          <div className="flex min-w-0 flex-col items-start gap-1">
+            <dt className="text-xs text-ink-muted">In the company&apos;s own words</dt>
+            <dd className={cn("text-ink", !open && "line-clamp-2")}>{profile.description.value}</dd>
+            {long ? (
+              <button
+                type="button"
+                aria-expanded={open}
+                onClick={() => setOpen((value) => !value)}
+                className="rounded-xs text-xs text-accent underline underline-offset-2 transition-colors hover:text-accent-hover"
+              >
+                {open ? "Show less" : "Show more"}
+              </button>
+            ) : null}
+            <dd>
+              <SourceLine evidence={factEvidence(profile.description)} max={1} />
+            </dd>
+          </div>
         ) : null}
-
-        {profile.total_funding_usd ? (
-          <StatTile
-            label="Funding on record"
-            value={formatAmountUsd(profile.total_funding_usd.value)}
-            note={rounds > 0 ? `${plural(rounds, "dated round")} on record` : undefined}
-            evidence={factEvidence(profile.total_funding_usd)}
-          />
-        ) : (
-          <StatTile label="Funding on record" missing="No funding record returned" />
-        )}
-
-        {profile.hiring?.openings ? (
-          <StatTile
-            label="Open roles"
-            value={profile.hiring.openings.value}
-            estimate={factEstimate(profile.hiring.openings)}
-            evidence={factEvidence(profile.hiring.openings)}
-          />
-        ) : null}
-
-        {financial?.assessed ? null : (
-          <StatTile
-            label="Revenue, valuation, ownership"
-            missing="Not on record"
-            note={
-              financial?.would_need.length
-                ? `Would need: ${financial.would_need.join(", ")}`
-                : "Private company financials are not public. DealProof does not estimate them"
-            }
-          />
-        )}
-      </KpiRow>
-    </section>
+        <div className="flex min-w-0 flex-col gap-3">
+          {profile.headquarters ? (
+            <div className="flex min-w-0 flex-col items-start gap-1">
+              <dt className="text-xs text-ink-muted">Headquarters</dt>
+              <dd className="text-ink">{profile.headquarters.value}</dd>
+              <dd>
+                <SourceLine evidence={factEvidence(profile.headquarters)} max={1} />
+              </dd>
+            </div>
+          ) : null}
+          {profile.industries && profile.industries.value.length > 0 ? (
+            <div className="flex min-w-0 flex-col items-start gap-1">
+              <dt className="text-xs text-ink-muted">Industry</dt>
+              <dd className="text-ink">{profile.industries.value.join(", ")}</dd>
+              <dd>
+                <SourceLine evidence={factEvidence(profile.industries)} max={1} />
+              </dd>
+            </div>
+          ) : null}
+          {financialNote ? (
+            <div className="flex min-w-0 flex-col items-start gap-1">
+              <dt className="text-xs text-ink-muted">Company type</dt>
+              <dd className="text-ink" title={profile.company_type_reason ?? undefined}>
+                {financialNote}
+              </dd>
+            </div>
+          ) : null}
+        </div>
+      </dl>
+    </div>
   );
 }
 
@@ -222,6 +217,7 @@ export function ProfilePanels({ detail }: { detail: CaseDetail }) {
 
   return (
     <section aria-label="Profile at a glance" className="flex flex-col gap-6 print:hidden">
+      <About profile={profile} />
       <div className="flex flex-col gap-2">
         <h3 className={sectionHead}>Founders and leadership</h3>
         <PeopleRow
@@ -253,10 +249,6 @@ export function ProfilePanels({ detail }: { detail: CaseDetail }) {
               <HeadcountTrend points={[]} basis="" evidence={[]} />
             )}
           </div>
-          <p className="text-xs text-ink-secondary">
-            A headcount trend is a signal of operating scale. It is never treated as proof of
-            revenue
-          </p>
         </div>
 
         <div className="flex min-w-0 flex-col gap-2">
