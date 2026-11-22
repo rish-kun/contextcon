@@ -17,6 +17,7 @@ from app.domain.enums import (
 )
 
 __all__ = [
+    "AmountBand",
     "CallStatus",
     "ClaimOrigin",
     "ClaimStatus",
@@ -24,12 +25,16 @@ __all__ = [
     "CriterionResult",
     "Disposition",
     "IdentityStatus",
+    "OrgType",
     "PriorityReason",
+    "ResearchGoal",
+    "RowOrigin",
     "RunKind",
     "RunState",
     "SendStatus",
     "StepState",
     "TERMINAL_STEP_STATES",
+    "UserStatus",
     "check_in",
 ]
 
@@ -48,6 +53,46 @@ class RunKind(StrEnum):
     VERIFY = "verify"
     EVALUATE = "evaluate"
     RECHECK = "recheck"
+    ORG_RESEARCH = "org_research"
+
+
+class UserStatus(StrEnum):
+    """`pending`: signed up while signup test mode was on and not on the allowlist.
+    A pending user cannot sign in until activated."""
+
+    ACTIVE = "active"
+    PENDING = "pending"
+
+
+class OrgType(StrEnum):
+    ACQUIRER = "acquirer"
+    INVESTOR = "investor"
+    BUSINESS = "business"
+    ADVISER = "adviser"
+
+
+class ResearchGoal(StrEnum):
+    ACQUIRE = "acquire"
+    RAISE = "raise"
+    BOTH = "both"
+
+
+class AmountBand(StrEnum):
+    """Deal size, or funding sought, in USD."""
+
+    UNDER_0_5M = "under_0_5m"
+    FROM_0_5M_TO_2M = "0_5m_2m"
+    FROM_2M_TO_10M = "2m_10m"
+    FROM_10M_TO_50M = "10m_50m"
+    OVER_50M = "over_50m"
+
+
+class RowOrigin(StrEnum):
+    """Who started a thesis or an investor search: a person, or the auto-research run
+    started from the organisation profile."""
+
+    USER = "user"
+    AUTO_RESEARCH = "auto_research"
 
 
 class RunState(StrEnum):

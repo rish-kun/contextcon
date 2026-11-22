@@ -127,6 +127,7 @@ class RunKind(StrEnum):
     verify = "verify"
     evaluate = "evaluate"
     recheck = "recheck"
+    org_research = "org_research"
 
 
 class RunState(StrEnum):

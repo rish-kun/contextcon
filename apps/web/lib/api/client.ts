@@ -37,8 +37,6 @@ export type InvestorSearchSummary = Schemas["InvestorSearchSummary"];
 export type InvestorEntryOut = Schemas["InvestorEntryOut"];
 
 export type CaseCreate = Schemas["CaseCreate"];
-export type CompanyCandidate = Schemas["CompanyCandidateOut"];
-export type CompanyLookup = Schemas["CompanyLookupOut"];
 export type CaseOut = Schemas["CaseOut"];
 export type CaseSummary = Schemas["CaseSummary"];
 export type CaseDetail = Schemas["CaseDetail"];
@@ -245,10 +243,6 @@ export async function getInvestorSearch(id: string, init?: RequestInit): Promise
 export async function createCase(body: CaseCreate): Promise<CaseOut> {
   if (isFixtureMode) return (await fx()).createCase(body);
   return call("POST", "/cases", { json: body });
-}
-
-export async function lookupCompanies(q: string): Promise<CompanyLookup> {
-  return call("GET", `/companies/lookup?q=${encodeURIComponent(q)}`);
 }
 
 export async function listCases(init?: RequestInit): Promise<CaseSummary[]> {

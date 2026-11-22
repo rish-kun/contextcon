@@ -327,27 +327,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/companies/lookup": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Lookup Companies
-         * @description Companies matching a typed name, each with a short description, to pick from
-         *     before a case opens.
-         */
-        get: operations["lookup_companies"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/cases/{case_id}/decision-flip": {
         parameters: {
             query?: never;
@@ -1258,8 +1237,6 @@ export interface components {
             website?: string | null;
             /** Thesis Id */
             thesis_id?: string | null;
-            /** Crustdata Id */
-            crustdata_id?: number | null;
         };
         /**
          * CaseCriteriaIn
@@ -1531,32 +1508,6 @@ export interface components {
          * @enum {string}
          */
         ClaimStatus: "supported" | "contradicted" | "partially_corroborated" | "conflicting_evidence" | "cannot_verify" | "not_checked";
-        /** CompanyCandidateOut */
-        CompanyCandidateOut: {
-            /** Crustdata Id */
-            crustdata_id: number;
-            /** Name */
-            name: string;
-            /** Domain */
-            domain: string | null;
-            /** Description */
-            description: string | null;
-            /** Hq City */
-            hq_city: string | null;
-            /** Hq Country */
-            hq_country: string | null;
-            /** Founded Year */
-            founded_year: number | null;
-            /** Headcount */
-            headcount: number | null;
-            /** Industry */
-            industry: string | null;
-            /**
-             * Listed
-             * @default false
-             */
-            listed: boolean;
-        };
         /**
          * CompanyItemOut
          * @description `subject: company` (and `peer`). Later stages send only the rows that changed.
@@ -1596,18 +1547,6 @@ export interface components {
             assessable: number | null;
             /** Rank */
             rank: number | null;
-        };
-        /** CompanyLookupOut */
-        CompanyLookupOut: {
-            /** Query */
-            query: string;
-            /** Candidates */
-            candidates: components["schemas"]["CompanyCandidateOut"][];
-            /**
-             * Credits Used
-             * @default 0
-             */
-            credits_used: number;
         };
         /** CompanyProfileOut */
         CompanyProfileOut: {
@@ -3296,7 +3235,7 @@ export interface components {
          * RunKind
          * @enum {string}
          */
-        RunKind: "discover" | "investor_discover" | "verify" | "evaluate" | "recheck";
+        RunKind: "discover" | "investor_discover" | "verify" | "evaluate" | "recheck" | "org_research";
         /** RunOut */
         RunOut: {
             /** Id */
@@ -4958,64 +4897,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AssessmentVersionOut"][];
-                };
-            };
-            /** @description No valid session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Not found, or not visible to this user. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description Not implemented yet (stub). */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    lookup_companies: {
-        parameters: {
-            query: {
-                q: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CompanyLookupOut"];
                 };
             };
             /** @description No valid session. */

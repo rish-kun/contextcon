@@ -62,7 +62,6 @@ ROUTES: list[tuple[str, str, str, object]] = [
     ),
     ("POST", "/cases", "/cases", {"name": "Example (fixture)", "website": "example.example"}),
     ("GET", "/cases", "/cases", None),
-    ("GET", "/companies/lookup", "/companies/lookup?q=Acme", None),
     ("GET", "/cases/{case_id}", f"/cases/{CASE}", None),
     (
         "POST",
@@ -120,7 +119,6 @@ SESSION_ROUTES = {
     "/runs/{run_id}/activity",
     "/runs/{run_id}/resume",
     "/cases",  # CP-19: create and list
-    "/companies/lookup",  # pick a company before a case opens
     "/cases/{case_id}",  # CP-19
     "/cases/{case_id}/identity",  # CP-19
     "/cases/{case_id}/verify",  # CP-19

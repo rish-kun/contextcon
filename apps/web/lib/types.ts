@@ -299,7 +299,8 @@ export type RunKind =
   | "investor_discover"
   | "verify"
   | "evaluate"
-  | "recheck";
+  | "recheck"
+  | "org_research";
 
 export type RunStatus = "running" | "finished" | "failed";
 

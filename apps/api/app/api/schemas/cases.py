@@ -40,17 +40,11 @@ class CaseCreate(ApiModel):
     name: str | None = Field(default=None, min_length=1, max_length=300)
     website: str | None = Field(default=None, min_length=3, max_length=500)
     thesis_id: str | None = None
-    # A company picked from `GET /companies/lookup`: identity starts from this id.
-    crustdata_id: int | None = Field(default=None, gt=0)
 
     @model_validator(mode="after")
     def _one_entry_point(self) -> "CaseCreate":
-        if self.shortlist_item_id is not None:
-            return self
-        if self.crustdata_id is not None and self.name:
-            return self
-        if not (self.name and self.website):
-            raise ValueError("give shortlist_item_id, name with crustdata_id, or name and website")
+        if self.shortlist_item_id is None and not (self.name and self.website):
+            raise ValueError("give shortlist_item_id, or both name and website")
         return self
 
 

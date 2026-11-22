@@ -16,6 +16,7 @@ from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     Date,
@@ -39,6 +40,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, IdMixin
 from app.db.enums import (
+    AmountBand,
     CallStatus,
     ClaimOrigin,
     ClaimStatus,
@@ -46,11 +48,15 @@ from app.db.enums import (
     CriterionResult,
     Disposition,
     IdentityStatus,
+    OrgType,
     PriorityReason,
+    ResearchGoal,
+    RowOrigin,
     RunKind,
     RunState,
     SendStatus,
     StepState,
+    UserStatus,
     check_in,
 )
 
@@ -90,6 +96,9 @@ class Workspace(IdMixin, Base):
     __tablename__ = "workspaces"
 
     name: Mapped[str] = mapped_column(String(200))
+    # Total Crustdata credits the workspace may spend across all its runs (self-serve
+    # signups start at AUTH_WORKSPACE_STARTING_CREDITS). Null: no ceiling.
+    credit_allowance: Mapped[Decimal | None] = mapped_column(Credits)
 
 
 class User(IdMixin, Base):
@@ -101,8 +110,14 @@ class User(IdMixin, Base):
     email: Mapped[str] = mapped_column(String(320), unique=True)
     display_name: Mapped[str] = mapped_column(String(200))
     password_hash: Mapped[str | None] = mapped_column(String(500))
+    status: Mapped[str] = mapped_column(
+        String(16), default=UserStatus.ACTIVE, server_default=UserStatus.ACTIVE.value
+    )
 
-    __table_args__ = (CheckConstraint("length(trim(display_name)) > 0", name="named"),)
+    __table_args__ = (
+        CheckConstraint("length(trim(display_name)) > 0", name="named"),
+        CheckConstraint(check_in("status", UserStatus), name="status"),
+    )
 
 
 class AuthSession(IdMixin, Base):
@@ -130,10 +145,15 @@ class Thesis(IdMixin, Base):
     status: Mapped[str] = mapped_column(String(32), default="draft")
     # Served read-only by `/public/showcase/*` when set (operator-set, migration 0009).
     is_showcase: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    origin: Mapped[str] = mapped_column(
+        String(32), default=RowOrigin.USER, server_default=RowOrigin.USER.value
+    )
 
     criteria: Mapped[list["Criterion"]] = relationship(
         back_populates="thesis", order_by="Criterion.position", cascade="all, delete-orphan"
     )
+
+    __table_args__ = (CheckConstraint(check_in("origin", RowOrigin), name="origin"),)
 
 
 class Criterion(IdMixin, Base):
@@ -222,8 +242,14 @@ class InvestorRun(IdMixin, Base):
     status: Mapped[str] = mapped_column(String(32), default="pending")
     # Served read-only by `/public/showcase/*` when set (operator-set, migration 0009).
     is_showcase: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    origin: Mapped[str] = mapped_column(
+        String(32), default=RowOrigin.USER, server_default=RowOrigin.USER.value
+    )
 
-    __table_args__ = (UniqueConstraint("id", "workspace_id"),)
+    __table_args__ = (
+        UniqueConstraint("id", "workspace_id"),
+        CheckConstraint(check_in("origin", RowOrigin), name="origin"),
+    )
 
 
 class InvestorEntry(IdMixin, Base):
@@ -954,6 +980,106 @@ class ApiCache(IdMixin, Base):
             name="confidential_scoped",
         ),
         Index("ix_api_cache_purge", "confidential", "delete_after"),
+    )
+
+
+# --- Organisation profile and auto-research ------------------------------------
+
+
+class OrgProfile(IdMixin, Base):
+    """The workspace's own organisation: who it is, and what it wants (acquire, raise
+    or both). One per workspace.
+
+    `provenance` maps each profile field to where its value came from:
+    `{"sector": {"origin": "crustdata", "evidence_path": "basic_info.industries[0]",
+    "as_of": "2026-10-01", "record_value": "…"}}` or `{"origin": "user"}`. A field is
+    `crustdata` only while its value equals what the stored record says.
+    `record_snapshot` is the trimmed public enrich record of the org's own company
+    (set only once the user saved a profile with that company id). `pending_autofill`
+    holds the last auto-fill lookup until the user saves, so saving needs no second
+    paid call."""
+
+    __tablename__ = "org_profiles"
+
+    workspace_id: Mapped[uuid.UUID] = mapped_column(_fk("workspaces.id"), unique=True)
+    version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    org_type: Mapped[str | None] = mapped_column(String(16))
+    name: Mapped[str | None] = mapped_column(String(200))
+    website_domain: Mapped[str | None] = mapped_column(String(253))
+    crustdata_company_id: Mapped[int | None] = mapped_column(BigInteger)
+    sector: Mapped[str | None] = mapped_column(String(300))
+    hq: Mapped[str | None] = mapped_column(String(200))
+    hq_country: Mapped[str | None] = mapped_column(String(100))
+    size_band: Mapped[str | None] = mapped_column(String(16))
+    stage: Mapped[str | None] = mapped_column(String(32))
+    goal: Mapped[str | None] = mapped_column(String(16))
+    deal_size_band: Mapped[str | None] = mapped_column(String(16))
+    what_we_want: Mapped[str | None] = mapped_column(Text)
+    provenance: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")
+    record_snapshot: Mapped[dict | None] = mapped_column(JSONB)
+    record_retrieved_at: Mapped[datetime | None] = _ts()
+    record_source_id: Mapped[uuid.UUID | None] = mapped_column(
+        _fk("sources.id", ondelete="SET NULL")
+    )
+    pending_autofill: Mapped[dict | None] = mapped_column(JSONB)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(_fk("users.id", ondelete="SET NULL"))
+
+    __table_args__ = (
+        CheckConstraint(f"org_type IS NULL OR {check_in('org_type', OrgType)}", name="org_type"),
+        CheckConstraint(f"goal IS NULL OR {check_in('goal', ResearchGoal)}", name="goal"),
+        CheckConstraint(
+            f"deal_size_band IS NULL OR {check_in('deal_size_band', AmountBand)}",
+            name="deal_size_band",
+        ),
+    )
+
+
+class OrgResearch(IdMixin, Base):
+    """One auto-research attempt from the org profile (design I §4.1).
+
+    A parent `org_research` job run freezes the profile into `inputs` and launches the
+    existing pipelines as children: a Discover run on a thesis owned by the workspace
+    (`theses.origin = auto_research`) and/or an investor search
+    (`investor_runs.origin = auto_research`). Child ids are deterministic
+    (`uuid5(research_id, "thesis" | "discover" | "investors")`), so a re-run launch step
+    after a crash starts only what is missing. `status` is written by the parent's
+    steps (`deriving` → `searching`); once the children finish, readers compute
+    `ready | partial | failed` from their runs."""
+
+    __tablename__ = "org_research"
+
+    workspace_id: Mapped[uuid.UUID] = mapped_column(_fk("workspaces.id"), index=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(_fk("users.id", ondelete="SET NULL"))
+    mode: Mapped[str] = mapped_column(String(16))
+    trigger: Mapped[str] = mapped_column(String(16), default="manual")
+    profile_version: Mapped[int] = mapped_column(Integer)
+    inputs: Mapped[dict] = mapped_column(JSONB, default=dict)
+    inputs_hash: Mapped[str] = mapped_column(String(64))
+    market: Mapped[dict | None] = mapped_column(JSONB)
+    derivation: Mapped[dict | None] = mapped_column(JSONB)
+    thesis_id: Mapped[uuid.UUID | None] = mapped_column(_fk("theses.id", ondelete="SET NULL"))
+    discovery_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        _fk("discovery_runs.id", ondelete="SET NULL")
+    )
+    investor_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        _fk("investor_runs.id", ondelete="SET NULL")
+    )
+    research_run_id: Mapped[uuid.UUID | None] = mapped_column(_fk("runs.id", ondelete="SET NULL"))
+    status: Mapped[str] = mapped_column(String(16), default="deriving")
+    budget_credits: Mapped[Decimal] = mapped_column(Credits)
+    finished_at: Mapped[datetime | None] = _ts()
+
+    __table_args__ = (
+        CheckConstraint(check_in("mode", ResearchGoal), name="mode"),
+        CheckConstraint("trigger IN ('onboarding', 'manual', 'retry', 'seed')", name="trigger"),
+        CheckConstraint(
+            "status IN ('deriving', 'searching', 'finishing', 'ready', 'partial', 'failed')",
+            name="status",
+        ),
+        Index("ix_org_research_workspace_created", "workspace_id", "created_at"),
     )
 
 

@@ -117,6 +117,7 @@ export const RUN_KIND_LABEL: Record<RunKind, string> = {
   verify: "Verify",
   evaluate: "Evaluate",
   recheck: "Recheck",
+  org_research: "Research",
 };
 
 export const STEP_STATUS_LABEL: Record<StepStatus, string> = {
