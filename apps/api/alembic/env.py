@@ -8,15 +8,25 @@ Which database URL: `config.attributes["database_url"]` (tests), else
 Concurrency: every run takes a Postgres advisory lock before Alembic reads the
 current revision, so two containers starting at once cannot both apply the same
 migration. The second waits, then finds the schema at head and does nothing.
+
+Live traffic: once it holds that lock, the run sets `lock_timeout`
+(MIGRATION_LOCK_TIMEOUT, default 5s), so a DDL statement that would queue behind the
+running API's row locks (the job worker's FOR UPDATE on runs/steps) gives up instead
+of stalling every query queued behind it. A lock timeout or deadlock rolls the whole
+upgrade back (DDL is transactional), and the upgrade is retried with backoff, up to
+MIGRATION_ATTEMPTS times (default 8).
 """
 
 import asyncio
 import logging
 import os
+import time
+from collections.abc import Callable
 from logging.config import fileConfig
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.pool import NullPool
 
 from alembic import context
@@ -37,6 +47,13 @@ if config.config_file_name is not None and "database_url" not in config.attribut
 # Advisory lock key for migrations: the bytes "DPmigrat" as a signed 64-bit integer.
 # Any process that holds this lock is migrating the schema.
 MIGRATION_LOCK_KEY = int.from_bytes(b"DPmigrat", "big", signed=True)
+
+# How long one DDL statement may wait for a table lock, and how often to retry.
+LOCK_TIMEOUT = os.environ.get("MIGRATION_LOCK_TIMEOUT", "5s")
+ATTEMPTS = max(1, int(os.environ.get("MIGRATION_ATTEMPTS", "8")))
+MAX_BACKOFF_SECONDS = 30.0
+# deadlock_detected, lock_not_available (lock_timeout)
+_RETRYABLE_SQLSTATES = {"40P01", "55P03"}
 
 
 def _database_url() -> str:
@@ -79,6 +96,42 @@ def _lock(connection: Connection) -> None:
         log.info("waiting for the migration lock (another instance is migrating)")
         connection.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": MIGRATION_LOCK_KEY})
     log.info("migration lock acquired")
+    # Set only after the advisory lock, so waiting for another migrator is unbounded
+    # but each statement of our own gives up on a table lock after LOCK_TIMEOUT.
+    connection.execute(text("SELECT set_config('lock_timeout', :t, true)"), {"t": LOCK_TIMEOUT})
+
+
+def _sqlstate(exc: BaseException) -> str | None:
+    """The Postgres SQLSTATE behind a SQLAlchemy/asyncpg error, if any."""
+    seen: BaseException | None = exc.orig if isinstance(exc, DBAPIError) else exc
+    while seen is not None:
+        code = getattr(seen, "sqlstate", None) or getattr(seen, "pgcode", None)
+        if code:
+            return str(code)
+        seen = seen.__cause__
+    return None
+
+
+def _with_retries(run: Callable[[], None]) -> None:
+    delay = 1.0
+    for attempt in range(1, ATTEMPTS + 1):
+        try:
+            run()
+            return
+        except DBAPIError as exc:
+            code = _sqlstate(exc)
+            if code not in _RETRYABLE_SQLSTATES or attempt == ATTEMPTS:
+                raise
+            reason = "deadlock" if code == "40P01" else f"lock_timeout ({LOCK_TIMEOUT})"
+            log.warning(
+                "migration attempt %d/%d rolled back on %s; retrying in %.0fs",
+                attempt,
+                ATTEMPTS,
+                reason,
+                delay,
+            )
+            time.sleep(delay)
+            delay = min(delay * 2, MAX_BACKOFF_SECONDS)
 
 
 def _run(connection: Connection) -> None:
@@ -108,9 +161,9 @@ async def _run_async() -> None:
 def run_migrations_online() -> None:
     connection = config.attributes.get("connection")
     if connection is not None:
-        _run(connection)
+        _run(connection)  # the caller owns the connection and its transaction
         return
-    asyncio.run(_run_async())
+    _with_retries(lambda: asyncio.run(_run_async()))
 
 
 if context.is_offline_mode():
