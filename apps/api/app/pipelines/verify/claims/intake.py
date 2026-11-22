@@ -46,6 +46,7 @@ from app.extraction import PageText, extract_claims, redact_document
 from app.extraction.llm import LlmOutputError, StructuredLlm
 from app.extraction.pii import regex_redact, regex_redact_fn
 from app.jobs import StepSpec, append_steps, create_run
+from app.jobs.activity import doc_kind
 from app.pipelines.verify.claims.components import (
     ClaimToNormalise,
     NormalisedComponents,
@@ -408,7 +409,7 @@ async def schedule_document_extraction(
             StepSpec(
                 key=f"{EXTRACT_PREFIX}{stored.document.id}",
                 handler=EXTRACT_HANDLER,
-                label=f"Read claims from {stored.document.filename}",
+                label=f"Read claims from the uploaded {doc_kind(stored.document.file_kind)}",
                 input={
                     "document_id": str(stored.document.id),
                     "text_status": result.text_status,

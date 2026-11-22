@@ -1935,6 +1935,7 @@ def policy() -> PolicyOut:
 
 def export() -> dict[str, Any]:
     """Everything the web fixture mode needs, as JSON-ready data keyed by client call."""
+    from app.api import fixture_activity
 
     def dump(obj: Any) -> Any:
         if isinstance(obj, list):
@@ -1963,5 +1964,6 @@ def export() -> dict[str, Any]:
             },
             "documents": documents(),
             "policy": policy(),
+            "activity": fixture_activity.recordings(),
         }
     )

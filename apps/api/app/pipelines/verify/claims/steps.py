@@ -6,8 +6,10 @@ import uuid
 from typing import Any
 
 import app.pipelines.verify.checks.steps  # noqa: F401  (registers verify.checks.claim)
+from app.clients.activity import activity_topic
 from app.db.models import Document
 from app.jobs import StepContext, step_handler
+from app.jobs.activity import NoticeCode, Subject, doc_kind, render
 from app.pipelines.verify.checks.clients import client_factory, close_quietly
 from app.pipelines.verify.claims.intake import (
     EXTRACT_HANDLER,
@@ -21,24 +23,36 @@ async def extract_claims_step(ctx: StepContext) -> dict[str, Any]:
     document = await ctx.session.get(Document, uuid.UUID(ctx.input["document_id"]))
     if document is None or document.case_id != ctx.run.case_id:
         raise LookupError("document not found for this case")
-    await ctx.set_detail(f"Reading {document.filename}")
+    # Never the filename: the document kind in words (§2.10 of the live-run design).
+    await ctx.set_detail(render("status.reading_document", doc_kind=doc_kind(document.file_kind)))
     llm = client_factory().llm(ctx, delete_after=document.delete_after)
     try:
-        intake = await extract_document_claims(
-            ctx.session,
-            document=document,
-            llm=llm,
-            text_status=ctx.input.get("text_status") or "ok",
-            text_reason=ctx.input.get("text_reason"),
-            pages_without_text=ctx.input.get("pages_without_text") or None,
-            run_id=ctx.run.id,
-            step_id=ctx.step_id,
-        )
+        with activity_topic(purpose="claims", reading="document"):
+            intake = await extract_document_claims(
+                ctx.session,
+                document=document,
+                llm=llm,
+                text_status=ctx.input.get("text_status") or "ok",
+                text_reason=ctx.input.get("text_reason"),
+                pages_without_text=ctx.input.get("pages_without_text") or None,
+                run_id=ctx.run.id,
+                step_id=ctx.step_id,
+            )
     finally:
         await close_quietly(llm)
     to_check = [c for c in intake.claims if str(c.id) not in intake.checked]
     if to_check:
         await schedule_claim_checks(ctx.session, run_id=ctx.run.id, claims=to_check)
+        # Ids and categories only: the client already has the claim text.
+        await ctx.activity.findings(
+            lambda _batch: render("finding.claims_queued", n=len(to_check)),
+            subject=Subject.CLAIM,
+            items=[{"id": str(c.id), "stage": "queued", "category": c.category} for c in to_check],
+            counts={"queued": len(to_check), "checking": 0, "settled": 0,
+                    "not_checked": len(intake.checked)},
+        )  # fmt: skip
+    elif not intake.claims:
+        await ctx.activity.notice(NoticeCode.NOTHING_TO_CHECK)
     readable = len(intake.claims) - len(intake.checked)
     ctx.result = f"{readable} claim{'s' if readable != 1 else ''} read from {document.filename}"
     if intake.checked:

@@ -24,12 +24,14 @@ from __future__ import annotations
 
 import asyncio
 import random
+import time
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Any, NoReturn
 
 import httpx2
 from pydantic import ValidationError
 
+from app.clients import activity
 from app.clients.base import (
     CallOperation,
     CallRecord,
@@ -507,6 +509,44 @@ class CrustdataClient:
         return await self._post(endpoint, body)
 
     async def _post(self, endpoint: str, body: dict[str, Any]) -> tuple[Any, CallRecord]:
+        """`_operation`, reported to the recorder's live activity hook when it returns
+        (a success, a cache hit, or a final failure)."""
+        if not callable(getattr(self.recorder, "activity", None)):
+            return await self._operation(endpoint, body)
+        started = time.monotonic()
+        try:
+            data, record = await self._operation(endpoint, body)
+        except CrustdataError as exc:
+            await self._report(endpoint, body, None, exc.record, started, ok=False)
+            raise
+        await self._report(endpoint, body, data, record, started, ok=True)
+        return data, record
+
+    async def _report(
+        self,
+        endpoint: str,
+        body: dict[str, Any],
+        data: Any,
+        record: CallRecord,
+        started: float,
+        *,
+        ok: bool,
+    ) -> None:
+        report = activity.CallReport(
+            provider=PROVIDER,
+            endpoint=endpoint,
+            ok=ok,
+            from_cache=record.from_cache,
+            attempts=record.attempts,
+            duration_ms=int((time.monotonic() - started) * 1000),
+            credits=record.credits_used,
+            error=record.error,
+            body=body,
+            data=data,
+        )
+        await activity.emit(self.recorder, report)
+
+    async def _operation(self, endpoint: str, body: dict[str, Any]) -> tuple[Any, CallRecord]:
         """One operation: cache lookup, then dispatches until success or give-up.
 
         Each dispatch is recorded on its own. A dispatch is retried only when its cost

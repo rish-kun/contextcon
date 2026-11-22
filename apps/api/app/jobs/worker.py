@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.db.adapters import DbCache, DbCallRecorder
 from app.db.enums import StepState
 from app.db.models import Run, Step
+from app.jobs.activity import ActivityEmitter, NoticeCode
 from app.jobs.config import JobSettings, get_job_settings
 from app.jobs.engine import (
     BudgetExceeded,
@@ -150,6 +151,22 @@ class Worker:
                 lease_token=token,
             )
 
+            # The live activity stream: this step's emitter, also fed by the clients'
+            # recorder hook (`call`, `source`, `model` events for every paid call).
+            ctx.activity = ActivityEmitter(
+                self.sessionmaker,
+                workspace_id=run.workspace_id,
+                run_id=run.id,
+                step_id=step_id,
+                step_key=key,
+                lease_token=token,
+                case_run=run.case_id is not None,
+            )
+            if ctx.recorder is not None:
+                ctx.recorder.activity_sink = ctx.activity.report
+            if attempt > 1:
+                await ctx.activity.notice(NoticeCode.STEP_RESUMED)
+
             task = asyncio.create_task(handler(ctx))
             lease_lost = asyncio.Event()
             heartbeat = asyncio.create_task(self._heartbeat(claim, task, lease_lost))
@@ -199,6 +216,7 @@ class Worker:
                 log.exception("step %s (%s) failed", step_id, handler_name)
                 await self._fail(claim, public_error(exc), True)
             finally:
+                await ctx.activity.close()
                 heartbeat.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
                     await heartbeat

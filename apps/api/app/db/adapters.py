@@ -31,7 +31,7 @@ Inside a job step these come ready-made as `ctx.recorder` and `ctx.cache`.
 import hashlib
 import uuid
 from collections import Counter
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -41,6 +41,7 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.clients.activity import CallReport
 from app.clients.base import CallRecord, safe_error_code, stable_hash
 from app.db.enums import CallStatus, StepState
 from app.db.errors import BudgetExceeded, LeaseLost
@@ -96,6 +97,7 @@ class DbCallRecorder:
         self.ctx = ctx
         self.lease_token = lease_token
         self._occurrences: Counter[str] = Counter()
+        self.activity_sink: Callable[[CallReport], Awaitable[None]] | None = None
         self._mine: set[str] = set()
 
     # --- operation hooks ----------------------------------------------------------
@@ -184,6 +186,12 @@ class DbCallRecorder:
             await session.commit()
         if deferred:
             await cache.set(record.cache_key, cache_value)
+
+    async def activity(self, report: CallReport) -> None:
+        """The clients' live-activity hook. Inside a job step the worker points
+        `activity_sink` at the step's emitter (`ctx.activity.report`)."""
+        if self.activity_sink is not None:
+            await self.activity_sink(report)
 
     # --- plain recorder (cache hits, and clients without the operation hooks) ------
 

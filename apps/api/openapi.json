@@ -1784,7 +1784,7 @@
           "runs"
         ],
         "summary": "Stream Run Events",
-        "description": "Stream step and run changes as server-sent events until the run finishes.",
+        "description": "Stream step, run and activity changes as server-sent events until the run finishes.",
         "operationId": "stream_run_events",
         "parameters": [
           {
@@ -1795,11 +1795,30 @@
               "type": "string",
               "title": "Run Id"
             }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Resume after this activity seq (or `Last-Event-ID`).",
+              "title": "After"
+            },
+            "description": "Resume after this activity seq (or `Last-Event-ID`)."
           }
         ],
         "responses": {
           "200": {
-            "description": "Server-sent events. `event: run` carries a RunOut without steps (first, on every run state change, and last once the run is `done` or `failed`); `event: step` carries a StepOut (every step once, then each change). Lines starting with `:` are keepalives.",
+            "description": "Server-sent events. `event: run` carries a RunOut without steps (first, on every run state or cost change, and last once the run is `done` or `failed`); `event: step` carries a StepOut (every step once, then each change); `event: activity` carries an ActivityOut with `id: <seq>` (the backlog after `Last-Event-ID` or `?after=`, then a `: live` comment, then each new one). Other lines starting with `:` are keepalives.",
             "content": {
               "text/event-stream": {
                 "schema": {
@@ -1811,7 +1830,108 @@
                   },
                   "step": {
                     "$ref": "#/components/schemas/StepOut"
+                  },
+                  "activity": {
+                    "$ref": "#/components/schemas/ActivityOut"
                   }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to this user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not implemented yet (stub).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs/{run_id}/activity": {
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "List Run Activity",
+        "description": "The run's activity log, in seq order, with run totals. For the run log, a reload\nmid-run, and the polling fallback (every 2 s with the last seq).",
+        "operationId": "list_run_activity",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Return activities with seq > after.",
+              "default": 0,
+              "title": "After"
+            },
+            "description": "Return activities with seq > after."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 2000,
+              "minimum": 1,
+              "default": 500,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityPage"
                 }
               }
             }
@@ -2366,6 +2486,398 @@
   },
   "components": {
     "schemas": {
+      "ActivityKind": {
+        "type": "string",
+        "enum": [
+          "status",
+          "call",
+          "source",
+          "model",
+          "finding",
+          "notice"
+        ],
+        "title": "ActivityKind"
+      },
+      "ActivityOut": {
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "title": "Seq",
+            "description": "Per run, strictly increasing from 1."
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "step_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Id"
+          },
+          "step_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Key"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ActivityKind"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At",
+            "description": "When it happened (UTC, ms), not when it was sent."
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "≤ 120 chars, from a template."
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail",
+            "description": "≤ 200 chars."
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProgressOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Only when both numbers are real."
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SourceRefOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "call": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CallInfoOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "counts": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counts",
+            "description": "Keys fixed per kind and endpoint."
+          },
+          "highlights": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Highlights",
+            "description": "≤ 2, each ≤ 100 chars."
+          },
+          "items": {
+            "anyOf": [
+              {
+                "items": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CompanyItemOut"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ClaimItemOut"
+                    },
+                    {
+                      "$ref": "#/components/schemas/IdentityItemOut"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RoundItemOut"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InvestorItemOut"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EventItemOut"
+                    },
+                    {
+                      "$ref": "#/components/schemas/AssessmentItemOut"
+                    },
+                    {
+                      "$ref": "#/components/schemas/RequestListItemOut"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Items",
+            "description": "≤ 8, typed by subject."
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActivitySubject"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NoticeCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActivityRefOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The row this is about."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "seq",
+          "run_id",
+          "step_id",
+          "step_key",
+          "kind",
+          "at",
+          "label",
+          "detail",
+          "progress",
+          "source",
+          "call",
+          "counts",
+          "highlights",
+          "items",
+          "subject",
+          "code",
+          "ref"
+        ],
+        "title": "ActivityOut",
+        "description": "One thing the run did. Append-only per run; `seq` is also the SSE `id:`.\n\nPublic data and the user's own criteria only (never claim text, document text or\nfilenames, prompts, model output, case-run search queries or contact details).\nFields a kind does not use are null."
+      },
+      "ActivityPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ActivityOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_after": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next After",
+            "description": "Pass as `after` for the next page; null at the end."
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ActivitySummaryOut"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "next_after",
+          "summary"
+        ],
+        "title": "ActivityPage"
+      },
+      "ActivityRefOut": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "claim",
+              "company",
+              "investor",
+              "document"
+            ],
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "id"
+        ],
+        "title": "ActivityRefOut"
+      },
+      "ActivitySubject": {
+        "type": "string",
+        "enum": [
+          "company",
+          "claim",
+          "investor",
+          "round",
+          "identity",
+          "event",
+          "peer",
+          "assessment",
+          "request_list"
+        ],
+        "title": "ActivitySubject"
+      },
+      "ActivitySummaryOut": {
+        "properties": {
+          "by_kind": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "By Kind"
+          },
+          "crustdata_calls": {
+            "type": "integer",
+            "title": "Crustdata Calls",
+            "default": 0
+          },
+          "records_returned": {
+            "type": "integer",
+            "title": "Records Returned",
+            "default": 0
+          },
+          "sources_read": {
+            "type": "integer",
+            "title": "Sources Read",
+            "default": 0
+          },
+          "sources_failed": {
+            "type": "integer",
+            "title": "Sources Failed",
+            "default": 0
+          },
+          "domains": {
+            "type": "integer",
+            "title": "Domains",
+            "default": 0
+          },
+          "companies_found": {
+            "type": "integer",
+            "title": "Companies Found",
+            "default": 0
+          },
+          "investors_found": {
+            "type": "integer",
+            "title": "Investors Found",
+            "default": 0
+          },
+          "claims_settled": {
+            "type": "integer",
+            "title": "Claims Settled",
+            "default": 0
+          },
+          "credits": {
+            "type": "number",
+            "title": "Credits",
+            "default": 0
+          },
+          "llm_usd": {
+            "type": "number",
+            "title": "Llm Usd",
+            "default": 0
+          },
+          "elapsed_seconds": {
+            "type": "number",
+            "title": "Elapsed Seconds",
+            "default": 0
+          },
+          "last_seq": {
+            "type": "integer",
+            "title": "Last Seq",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "by_kind",
+          "crustdata_calls",
+          "records_returned",
+          "sources_read",
+          "sources_failed",
+          "domains",
+          "companies_found",
+          "investors_found",
+          "claims_settled",
+          "credits",
+          "llm_usd",
+          "elapsed_seconds",
+          "last_seq"
+        ],
+        "title": "ActivitySummaryOut",
+        "description": "Run totals over every activity so far (credits and USD are the cost ledger's)."
+      },
       "AdequateSourcesOut": {
         "properties": {
           "category": {
@@ -2478,6 +2990,71 @@
           "revision_id"
         ],
         "title": "ApproveIn"
+      },
+      "AssessmentItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "stage": {
+            "type": "string",
+            "const": "written",
+            "title": "Stage",
+            "default": "written"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "disposition": {
+            "$ref": "#/components/schemas/Disposition"
+          },
+          "previous_disposition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Disposition"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fit": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fit"
+          },
+          "assessable": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assessable"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "stage",
+          "version",
+          "disposition",
+          "previous_disposition",
+          "fit",
+          "assessable"
+        ],
+        "title": "AssessmentItemOut"
       },
       "AssessmentVersionOut": {
         "properties": {
@@ -2668,6 +3245,123 @@
           "fact"
         ],
         "title": "BusinessSignalOut"
+      },
+      "CallInfoOut": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "crustdata",
+              "anthropic"
+            ],
+            "title": "Provider"
+          },
+          "endpoint": {
+            "type": "string",
+            "enum": [
+              "company_identify",
+              "company_search",
+              "company_enrich",
+              "person_search",
+              "job_search",
+              "web_search",
+              "web_fetch",
+              "messages"
+            ],
+            "title": "Endpoint"
+          },
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Allowlisted code when ok is false."
+          },
+          "from_cache": {
+            "type": "boolean",
+            "title": "From Cache",
+            "default": false
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts",
+            "description": "HTTP dispatches; > 1 means it was retried.",
+            "default": 1
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "credits": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credits",
+            "description": "This call. 0 on a cache hit; null when not reported."
+          },
+          "usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usd",
+            "description": "Model calls only."
+          },
+          "credits_total": {
+            "type": "number",
+            "title": "Credits Total",
+            "description": "Run total after this call.",
+            "default": 0
+          },
+          "usd_total": {
+            "type": "number",
+            "title": "Usd Total",
+            "description": "Run total after this call.",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "provider",
+          "endpoint",
+          "ok",
+          "error",
+          "from_cache",
+          "attempts",
+          "duration_ms",
+          "credits",
+          "usd",
+          "credits_total",
+          "usd_total"
+        ],
+        "title": "CallInfoOut",
+        "description": "One external call, final state only (emitted when it returns)."
       },
       "CaseCostOut": {
         "properties": {
@@ -3357,6 +4051,97 @@
         ],
         "title": "ClaimCreate"
       },
+      "ClaimItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "checking",
+              "settled",
+              "not_checked"
+            ],
+            "title": "Stage"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClaimStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "previous_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClaimStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidence_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Count"
+          },
+          "snippet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snippet",
+            "description": "≤ 200 chars, only from a web page or Crustdata record."
+          },
+          "gap": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gap",
+            "description": "The rule's canned sentence."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "stage",
+          "category",
+          "status",
+          "previous_status",
+          "evidence_count",
+          "snippet",
+          "gap"
+        ],
+        "title": "ClaimItemOut",
+        "description": "`subject: claim`. No claim text: `category` is the only description."
+      },
       "ClaimOrigin": {
         "type": "string",
         "enum": [
@@ -3518,6 +4303,176 @@
           "not_checked"
         ],
         "title": "ClaimStatus"
+      },
+      "CompanyItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Crustdata company id: stable across every stage."
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "found",
+              "dropped",
+              "enriching",
+              "enriched",
+              "scored",
+              "explained"
+            ],
+            "title": "Stage"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "headcount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headcount"
+          },
+          "headcount_is_estimate": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headcount Is Estimate"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "marks": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "found",
+                    "none",
+                    "not_checked"
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marks"
+          },
+          "highlight": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Highlight"
+          },
+          "fit": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fit"
+          },
+          "assessable": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assessable"
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "stage",
+          "name",
+          "domain",
+          "location",
+          "headcount",
+          "headcount_is_estimate",
+          "reason",
+          "marks",
+          "highlight",
+          "fit",
+          "assessable",
+          "rank"
+        ],
+        "title": "CompanyItemOut",
+        "description": "`subject: company` (and `peer`). Later stages send only the rows that changed."
       },
       "CompanyProfileOut": {
         "properties": {
@@ -4652,6 +5607,70 @@
         "title": "EstimateKind",
         "description": "How a non-recorded value is labelled in the UI."
       },
+      "EventItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "stage": {
+            "type": "string",
+            "const": "found",
+            "title": "Stage",
+            "default": "found"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "event_kind": {
+            "type": "string",
+            "title": "Event Kind"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "Event kind in words + the domain."
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "stage",
+          "date",
+          "event_kind",
+          "title",
+          "domain"
+        ],
+        "title": "EventItemOut"
+      },
       "EventOut": {
         "properties": {
           "id": {
@@ -5464,6 +6483,62 @@
         ],
         "title": "IdentityCandidateOut"
       },
+      "IdentityItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "ambiguous",
+              "unresolved"
+            ],
+            "title": "Stage"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain"
+          },
+          "matched_keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Matched Keys"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "stage",
+          "name",
+          "domain",
+          "matched_keys"
+        ],
+        "title": "IdentityItemOut"
+      },
       "IdentityKeyOut": {
         "properties": {
           "key": {
@@ -5756,6 +6831,65 @@
           "possible_duplicates"
         ],
         "title": "InvestorEntryOut"
+      },
+      "InvestorItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "found",
+              "ranked"
+            ],
+            "title": "Stage"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank"
+          },
+          "comparable_rounds": {
+            "type": "integer",
+            "title": "Comparable Rounds",
+            "default": 0
+          },
+          "last_round_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Round Date"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "stage",
+          "name",
+          "rank",
+          "comparable_rounds",
+          "last_round_date"
+        ],
+        "title": "InvestorItemOut"
       },
       "InvestorSearchIn": {
         "properties": {
@@ -6321,6 +7455,22 @@
         ],
         "title": "NotCheckedReason"
       },
+      "NoticeCode": {
+        "type": "string",
+        "enum": [
+          "search_widened",
+          "budget_low",
+          "budget_reached",
+          "step_resumed",
+          "served_from_cache",
+          "call_retried",
+          "source_limit",
+          "identity_blocked",
+          "nothing_to_check",
+          "activity_limit"
+        ],
+        "title": "NoticeCode"
+      },
       "OpportunityFitOut": {
         "properties": {
           "state": {
@@ -6651,6 +7801,25 @@
         ],
         "title": "PolicyWeightsOut"
       },
+      "ProgressOut": {
+        "properties": {
+          "done": {
+            "type": "integer",
+            "title": "Done"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "done",
+          "total"
+        ],
+        "title": "ProgressOut"
+      },
       "ReasonOut": {
         "properties": {
           "text": {
@@ -6734,6 +7903,29 @@
         ],
         "title": "RequestItemOut",
         "description": "One requested document, linked to every question it resolves (deduplicated)."
+      },
+      "RequestListItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "drafted",
+              "nothing_to_request"
+            ],
+            "title": "Stage"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "stage"
+        ],
+        "title": "RequestListItemOut"
       },
       "RequestListOut": {
         "properties": {
@@ -6928,6 +8120,116 @@
           "claim_ids"
         ],
         "title": "RiskItemOut"
+      },
+      "RoundInvestorOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "name"
+        ],
+        "title": "RoundInvestorOut"
+      },
+      "RoundItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "stage": {
+            "type": "string",
+            "const": "found",
+            "title": "Stage",
+            "default": "found"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          },
+          "company_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Id"
+          },
+          "round": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date",
+            "description": "Null: undated, cannot be ranked on."
+          },
+          "amount_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Usd"
+          },
+          "investors": {
+            "items": {
+              "$ref": "#/components/schemas/RoundInvestorOut"
+            },
+            "type": "array",
+            "title": "Investors"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "stage",
+          "company",
+          "company_id",
+          "round",
+          "date",
+          "amount_usd",
+          "investors"
+        ],
+        "title": "RoundItemOut"
       },
       "RunKind": {
         "type": "string",
@@ -7848,6 +9150,121 @@
         ],
         "title": "SourceRef",
         "description": "Where a fact came from. Every displayed fact carries one."
+      },
+      "SourceRefOut": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "web_page",
+              "crustdata_record",
+              "seller_document"
+            ],
+            "title": "Type"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain",
+            "description": "Lower-case host; null for non-web."
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "Tracking parameters stripped; null if it carried a token."
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "≤ 140 chars."
+          },
+          "source_class": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SourceClass"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of",
+            "description": "Date of the fact; null: no date."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "read",
+              "failed",
+              "skipped"
+            ],
+            "title": "State",
+            "default": "read"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "http_403",
+                  "timeout",
+                  "robots",
+                  "empty",
+                  "too_large",
+                  "budget"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "domain",
+          "url",
+          "title",
+          "source_class",
+          "as_of",
+          "state",
+          "reason"
+        ],
+        "title": "SourceRefOut",
+        "description": "A public page or a Crustdata record. Never an uploaded document's content: a\n`seller_document` carries only its kind in words as `title`."
       },
       "StatedInOut": {
         "properties": {

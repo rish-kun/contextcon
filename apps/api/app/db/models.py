@@ -695,6 +695,28 @@ class Step(IdMixin, Base):
     )
 
 
+class RunActivity(IdMixin, Base):
+    """One thing a run did, for the live run view and the run log: a status line, a
+    Crustdata call, a page read, a model read, a finding or a notice. Append-only and
+    numbered per run (`seq`), so a client can resume after the last one it saw.
+
+    `payload` is the whole `ActivityOut` envelope. Public data and the user's own
+    criteria only: never document text or filenames, claim text, prompts, model output,
+    case-run search queries or contact details (`app.jobs.activity`)."""
+
+    __tablename__ = "run_activities"
+
+    workspace_id: Mapped[uuid.UUID] = mapped_column(_fk("workspaces.id"), index=True)
+    run_id: Mapped[uuid.UUID] = mapped_column(_fk("runs.id"))
+    step_id: Mapped[uuid.UUID | None] = mapped_column(_fk("steps.id", ondelete="SET NULL"))
+    seq: Mapped[int] = mapped_column(Integer)
+    kind: Mapped[str] = mapped_column(String(16))
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    payload: Mapped[dict] = mapped_column(JSONB)
+
+    __table_args__ = (UniqueConstraint("run_id", "seq"),)
+
+
 # --- Cost ledger and API cache -----------------------------------------------
 
 

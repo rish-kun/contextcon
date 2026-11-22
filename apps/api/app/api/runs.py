@@ -1,4 +1,5 @@
-"""Run routes: status, SSE progress and resume, scoped to the signed-in user's workspace.
+"""Run routes: status, SSE progress, the activity log and resume, scoped to the signed-in
+user's workspace.
 
 SSE wire format (`GET /runs/{id}/events`):
 
@@ -8,20 +9,27 @@ SSE wire format (`GET /runs/{id}/events`):
     event: step
     data: <StepOut JSON>
 
-The stream starts with a `run` event, sends a `step` event per step and per change, may
-send `: keepalive` comments, and ends after a `run` event whose state is `done` or
-`failed`. Clients fall back to polling `GET /runs/{id}` every 2 s if the stream fails.
-Errors (401, 404) are returned as JSON before the stream starts.
+    id: <seq>
+    event: activity
+    data: <ActivityOut JSON>
+
+The stream starts with a `run` event and a `step` event per step, then the activity
+backlog (after `Last-Event-ID` or `?after=`, else from the start), then a `: live`
+comment; after that a `step` event per change, each new `activity`, a `run` event on
+every state or cost change, `: keepalive` comments, and it ends after a `run` event whose
+state is `done` or `failed`. Clients fall back to polling `GET /runs/{id}` and
+`GET /runs/{id}/activity?after=<last seq>` every 2 s if the stream fails. Errors (401,
+404) are returned as JSON before the stream starts.
 """
 
 import asyncio
 import uuid
 from collections.abc import AsyncIterator
 
-from fastapi import Request, status
+from fastapi import Header, Query, Request, status
 from fastapi.responses import StreamingResponse
 
-from app.api import fixtures
+from app.api import fixture_activity, fixtures
 from app.api._base import (
     COMMON_RESPONSES,
     FIXTURE_HEADER,
@@ -30,7 +38,7 @@ from app.api._base import (
     not_found,
 )
 from app.api.schemas.common import RunState, StepState
-from app.api.schemas.runs import RunEvent, RunOut, StepEvent
+from app.api.schemas.runs import ActivityOut, ActivityPage, RunEvent, RunOut, StepEvent
 from app.auth.deps import WorkspaceId
 from app.db import repo
 from app.db.session import get_sessionmaker
@@ -66,15 +74,30 @@ def _fixture_run(run_id: str) -> RunOut:
     return run
 
 
-async def _fixture_events(run: RunOut) -> AsyncIterator[str]:
-    """Replay a fixture run as if it were happening now."""
+async def _fixture_events(run: RunOut, after: int = 0) -> AsyncIterator[str]:
+    """Replay a fixture run as if it were happening now: each step goes running → done
+    with its recorded activities in between, spaced like the real run but never more
+    than `FIXTURE_EVENT_DELAY_SECONDS` apart."""
+    activities = [a for a in fixture_activity.activities(run.id) if a.seq > after]
+    by_step: dict[str | None, list[ActivityOut]] = {}
+    for activity in activities:
+        by_step.setdefault(activity.step_id, []).append(activity)
     yield sse(RunEvent(data=run.model_copy(update={"state": RunState.running, "steps": []})))
+    yield events.LIVE_MARKER
+    for activity in by_step.pop(None, []):
+        yield events.activity_frame(activity)
     for step in run.steps:
         await asyncio.sleep(FIXTURE_EVENT_DELAY_SECONDS)
         running = step.model_copy(update={"state": StepState.running, "result": None})
         yield sse(StepEvent(data=running))
+        for activity in by_step.pop(step.id, []):
+            await asyncio.sleep(FIXTURE_EVENT_DELAY_SECONDS / 2)
+            yield events.activity_frame(activity)
         await asyncio.sleep(FIXTURE_EVENT_DELAY_SECONDS)
         yield sse(StepEvent(data=step))
+    for rest in by_step.values():
+        for activity in rest:
+            yield events.activity_frame(activity)
     yield sse(RunEvent(data=run.model_copy(update={"steps": []})))
 
 
@@ -104,8 +127,10 @@ def _json_error(code: int) -> dict:
 
 _SSE_DESCRIPTION = (
     "Server-sent events. `event: run` carries a RunOut without steps (first, on every "
-    "run state change, and last once the run is `done` or `failed`); `event: step` carries "
-    "a StepOut (every step once, then each change). Lines starting with `:` are keepalives."
+    "run state or cost change, and last once the run is `done` or `failed`); `event: step` "
+    "carries a StepOut (every step once, then each change); `event: activity` carries an "
+    "ActivityOut with `id: <seq>` (the backlog after `Last-Event-ID` or `?after=`, then a "
+    "`: live` comment, then each new one). Other lines starting with `:` are keepalives."
 )
 
 
@@ -122,6 +147,7 @@ _SSE_DESCRIPTION = (
                     "x-sse-events": {
                         "run": {"$ref": "#/components/schemas/RunOut"},
                         "step": {"$ref": "#/components/schemas/StepOut"},
+                        "activity": {"$ref": "#/components/schemas/ActivityOut"},
                     },
                 }
             },
@@ -132,22 +158,52 @@ _SSE_DESCRIPTION = (
     },
 )
 async def stream_run_events(
-    run_id: str, request: Request, workspace_id: WorkspaceId
+    run_id: str,
+    request: Request,
+    workspace_id: WorkspaceId,
+    after: int | None = Query(
+        default=None, ge=0, description="Resume after this activity seq (or `Last-Event-ID`)."
+    ),
+    last_event_id: str | None = Header(default=None, include_in_schema=False),
 ) -> EventStreamResponse:
-    """Stream step and run changes as server-sent events until the run finishes."""
+    """Stream step, run and activity changes as server-sent events until the run finishes."""
+    if after is None and last_event_id and last_event_id.strip().isdigit():
+        after = int(last_event_id.strip())
     if fixtures_enabled():
         run = _fixture_run(run_id)
         return EventStreamResponse(
-            _fixture_events(run), headers={**SSE_HEADERS, FIXTURE_HEADER: "1"}
+            _fixture_events(run, after or 0), headers={**SSE_HEADERS, FIXTURE_HEADER: "1"}
         )
     await _load(workspace_id, run_id)  # 404 before the stream starts
     stream = events.run_event_stream(
         get_sessionmaker(),
         workspace_id,
         _run_id(run_id),
+        after=after,
         is_disconnected=request.is_disconnected,
     )
     return EventStreamResponse(stream, headers=SSE_HEADERS)
+
+
+@router.get("/{run_id}/activity", response_model=ActivityPage)
+async def list_run_activity(
+    run_id: str,
+    workspace_id: WorkspaceId,
+    after: int = Query(default=0, ge=0, description="Return activities with seq > after."),
+    limit: int = Query(default=500, ge=1, le=2000),
+) -> ActivityPage:
+    """The run's activity log, in seq order, with run totals. For the run log, a reload
+    mid-run, and the polling fallback (every 2 s with the last seq)."""
+    if fixtures_enabled():
+        _fixture_run(run_id)
+        return fixture_activity.page(run_id, after=after, limit=limit)
+    async with get_sessionmaker()() as db:
+        try:
+            return await events.load_activity_page(
+                db, workspace_id, _run_id(run_id), after=after, limit=limit
+            )
+        except repo.NotFound:
+            not_found("Run")
 
 
 @router.post("/{run_id}/resume", response_model=RunOut, status_code=status.HTTP_202_ACCEPTED)

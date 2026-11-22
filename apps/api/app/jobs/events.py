@@ -12,30 +12,56 @@ Wiring, once auth provides the workspace (outside fixture mode):
                                      is_disconnected=request.is_disconnected)
     return EventStreamResponse(stream, headers={"Cache-Control": "no-cache"})
 
-SSE polls the steps table (default every second), which works on every instance and
-through Neon's pooled endpoint, where LISTEN/NOTIFY is unavailable. The stream sends
-`event: run` (run without steps), then `event: step` for every step, then one
-`event: step` per change, and a final `event: run` once the run is `done`/`failed`.
+SSE polls the database (activities every 0.5 s, the run and steps every second), which
+works on every instance and through Neon's pooled endpoint, where LISTEN/NOTIFY is
+unavailable. The stream sends `event: run` (run without steps), `event: step` for
+every step, the `event: activity` backlog (each with `id: {seq}`), a `: live` comment,
+then one `event: step` per change, every new `event: activity`, `event: run` on every
+state or cost change, and a final `event: run` once the run is `done`/`failed`.
 """
 
 import asyncio
+import logging
 import uuid
+from collections import Counter
 from collections.abc import AsyncIterator, Awaitable, Callable
+from datetime import UTC, datetime
 from decimal import Decimal
 
+from pydantic import ValidationError
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.api.schemas.common import CostTotalsOut, RunKind, StepState
 from app.api.schemas.common import RunState as ContractRunState
-from app.api.schemas.runs import RunEvent, RunOut, StepEvent, StepOut
+from app.api.schemas.runs import (
+    ActivityOut,
+    ActivityPage,
+    ActivitySummaryOut,
+    RunEvent,
+    RunOut,
+    StepEvent,
+    StepOut,
+)
 from app.db import repo
 from app.db.enums import CallStatus, RunState
-from app.db.models import CallAttempt, Case, CostEntry, DiscoveryRun, InvestorRun, Run, Thesis
+from app.db.models import (
+    CallAttempt,
+    Case,
+    CostEntry,
+    DiscoveryRun,
+    InvestorRun,
+    Run,
+    RunActivity,
+    Thesis,
+)
 from app.jobs.engine import resume_run
 
+log = logging.getLogger(__name__)
+
 POLL_SECONDS = 1.0
-KEEPALIVE_EVERY = 15  # polls
+ACTIVITY_POLL_SECONDS = 0.5
+KEEPALIVE_SECONDS = 15.0
 
 _NOT_RUN = {StepState.skipped_budget, StepState.failed}
 
@@ -205,42 +231,201 @@ def _sse(event: StepEvent | RunEvent) -> str:
     return f"event: {event.event}\ndata: {event.data.model_dump_json()}\n\n"
 
 
+def activity_frame(activity: ActivityOut) -> str:
+    return f"id: {activity.seq}\nevent: activity\ndata: {activity.model_dump_json()}\n\n"
+
+
+LIVE_MARKER = ": live\n\n"
+
+
+# --- Activity: reading -------------------------------------------------------------------
+
+
+async def activity_since(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    run_id: uuid.UUID,
+    after: int = 0,
+    limit: int | None = None,
+) -> list[ActivityOut]:
+    """Activities with seq > `after`, in seq order, of a run in `workspace_id`."""
+    stmt = (
+        select(RunActivity.payload)
+        .where(
+            RunActivity.run_id == run_id,
+            RunActivity.workspace_id == workspace_id,
+            RunActivity.seq > after,
+        )
+        .order_by(RunActivity.seq)
+    )
+    if limit is not None:
+        stmt = stmt.limit(limit)
+    out = []
+    for payload in (await session.execute(stmt)).scalars():
+        try:
+            out.append(ActivityOut.model_validate(payload))
+        except ValidationError:
+            log.warning("activity: stored event does not fit the contract; skipped")
+    return out
+
+
+async def load_activity_page(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    run_id: uuid.UUID,
+    *,
+    after: int = 0,
+    limit: int = 500,
+) -> ActivityPage:
+    """`GET /runs/{id}/activity`: one page after `after`, plus the run's summary. Raises
+    `repo.NotFound` for a run outside `workspace_id`."""
+    run = await repo.get_run(session, workspace_id, run_id, with_steps=False)
+    if run.workspace_id != workspace_id:
+        raise repo.NotFound("run")
+    limit = max(1, min(limit, 2000))
+    items = await activity_since(session, workspace_id, run.id, after, limit)
+    return ActivityPage(
+        items=items,
+        next_after=items[-1].seq if len(items) == limit else None,
+        summary=await activity_summary(session, workspace_id, run),
+    )
+
+
+async def activity_summary(
+    session: AsyncSession, workspace_id: uuid.UUID, run: Run
+) -> ActivitySummaryOut:
+    """Totals over every activity of the run; credits and USD from the cost ledger."""
+    payloads = (
+        await session.execute(
+            select(RunActivity.payload)
+            .where(RunActivity.run_id == run.id, RunActivity.workspace_id == workspace_id)
+            .order_by(RunActivity.seq)
+        )
+    ).scalars()
+    by_kind: Counter[str] = Counter()
+    calls = records = read = failed = last_seq = 0
+    domains: set[str] = set()
+    companies: set[str] = set()
+    investors: set[str] = set()
+    claims: dict[str, str] = {}
+    for p in payloads:
+        last_seq = max(last_seq, int(p.get("seq") or 0))
+        by_kind[p.get("kind") or "?"] += 1
+        call = p.get("call") or {}
+        if p.get("kind") == "call" and call.get("provider") == "crustdata":
+            calls += 1
+            counts = p.get("counts") or {}
+            records += sum(int(counts.get(k) or 0) for k in _RECORD_KEYS)
+        source = p.get("source") or {}
+        if p.get("kind") == "source":
+            if source.get("state") == "read":
+                read += 1
+            elif source.get("state") == "failed":
+                failed += 1
+            if source.get("domain"):
+                domains.add(source["domain"])
+        subject = p.get("subject")
+        for item in p.get("items") or []:
+            if subject == "company" and item.get("stage") == "found":
+                companies.add(str(item.get("id")))
+            elif subject == "investor":
+                investors.add(str(item.get("id")))
+            elif subject == "round":
+                investors.update(str(i.get("key")) for i in item.get("investors") or [])
+            elif subject == "claim":
+                claims[str(item.get("id"))] = str(item.get("stage"))
+    cost = (
+        await session.execute(
+            select(
+                func.coalesce(func.sum(CostEntry.credits), 0),
+                func.coalesce(func.sum(CostEntry.usd), 0),
+            ).where(CostEntry.run_id == run.id, CostEntry.workspace_id == workspace_id)
+        )
+    ).one()
+    end = run.finished_at or datetime.now(UTC)
+    return ActivitySummaryOut(
+        by_kind=dict(by_kind),
+        crustdata_calls=calls,
+        records_returned=records,
+        sources_read=read,
+        sources_failed=failed,
+        domains=len(domains),
+        companies_found=len(companies),
+        investors_found=len(investors),
+        claims_settled=sum(stage in ("settled", "not_checked") for stage in claims.values()),
+        credits=float(cost[0] or 0),
+        llm_usd=float(cost[1] or 0),
+        elapsed_seconds=round(max(0.0, (end - run.created_at).total_seconds()), 3),
+        last_seq=last_seq,
+    )
+
+
+_RECORD_KEYS = ("returned", "candidates", "postings")
+
+
+# --- The stream --------------------------------------------------------------------------
+
+
 async def run_event_stream(
     sessionmaker: async_sessionmaker[AsyncSession],
     workspace_id: uuid.UUID,
     run_id: uuid.UUID,
     *,
+    after: int | None = None,
     poll_seconds: float | None = None,
+    activity_poll_seconds: float | None = None,
     is_disconnected: Callable[[], Awaitable[bool]] | None = None,
 ) -> AsyncIterator[str]:
     """SSE frames for one run until it is done or failed. Check access (call
-    `load_run_out`) before starting the response, so a 404 is not sent mid-stream."""
-    poll = POLL_SECONDS if poll_seconds is None else poll_seconds
+    `load_run_out`) before starting the response, so a 404 is not sent mid-stream.
+
+    Sends the run, every step, the activity backlog after `after` (from `Last-Event-ID`
+    or `?after=`), then `: live`, then changes as they happen: steps when they change,
+    activities as they are written (polled every 0.5 s), and the run again on every
+    state or cost change. The run and steps are reloaded every second."""
+    run_poll = POLL_SECONDS if poll_seconds is None else poll_seconds
+    tick = ACTIVITY_POLL_SECONDS if activity_poll_seconds is None else activity_poll_seconds
+    tick = min(tick, run_poll)
+    every = max(1, round(run_poll / tick)) if tick > 0 else 1
     seen: dict[str, tuple] = {}
+    last_seq = max(0, after or 0)
     last_state: str | None = None
-    polls = 0
+    last_cost: CostTotalsOut | None = None
+    ticks = 0
     while True:
+        out: RunOut | None = None
         async with sessionmaker() as session:
-            out = await load_run_out(session, workspace_id, run_id)
+            if ticks % every == 0:
+                out = await load_run_out(session, workspace_id, run_id)
+            # Read after the run, so a run seen finished has all its activities here.
+            activities = await activity_since(session, workspace_id, run_id, last_seq)
         first = last_state is None
-        terminal = out.state in (RunState.DONE, RunState.FAILED)
-        run_event = _sse(RunEvent(data=out.model_copy(update={"steps": []})))
+        terminal = out is not None and out.state in (RunState.DONE, RunState.FAILED)
+        if out is not None:
+            run_event = _sse(RunEvent(data=out.model_copy(update={"steps": []})))
+            if first:
+                yield run_event
+            for step in out.steps:
+                signature = (step.state, step.attempts, step.detail, step.result, step.error)
+                if seen.get(step.id) != signature:
+                    seen[step.id] = signature
+                    yield _sse(StepEvent(data=step))
+        for activity in activities:
+            last_seq = max(last_seq, activity.seq)
+            yield activity_frame(activity)
         if first:
-            yield run_event
-        for step in out.steps:
-            signature = (step.state, step.attempts, step.detail, step.result, step.error)
-            if seen.get(step.id) != signature:
-                seen[step.id] = signature
-                yield _sse(StepEvent(data=step))
-        # Every run state change is announced; the stream always ends on a run event.
-        if (not first and out.state != last_state) or (first and terminal):
-            yield run_event
-        last_state = out.state
+            yield LIVE_MARKER
+        if out is not None:
+            changed = out.state != last_state or out.cost != last_cost
+            # Every state or cost change is announced; the stream ends on a run event.
+            if (not first and changed) or (first and terminal):
+                yield run_event
+            last_state, last_cost = out.state, out.cost
         if terminal:
             return
-        polls += 1
-        if polls % KEEPALIVE_EVERY == 0:
+        ticks += 1
+        if ticks % max(1, round(KEEPALIVE_SECONDS / max(tick, 0.05))) == 0:
             yield ": keepalive\n\n"
         if is_disconnected is not None and await is_disconnected():
             return
-        await asyncio.sleep(poll)
+        await asyncio.sleep(tick)

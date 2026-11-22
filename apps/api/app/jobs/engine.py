@@ -25,6 +25,7 @@ from app.db.enums import TERMINAL_STEP_STATES, RunState, StepState
 from app.db.errors import BUDGET_REACHED, BudgetExceeded, LeaseLost
 from app.db.ledger import CostContext, budget_used
 from app.db.models import Case, DiscoveryRun, InvestorRun, Run, Step
+from app.jobs.activity import ActivityEmitter, NullEmitter
 from app.jobs.config import get_job_settings
 from app.settings import get_settings
 
@@ -265,14 +266,20 @@ class StepContext:
     # Set by `keep_output_confidential()`: the output goes to an expiring payload.
     confidential_output: bool = False
     confidential_output_until: datetime | None = None
+    # The live activity stream (`app.jobs.activity`): `await ctx.activity.status(...)`,
+    # `.source`, `.finding`, `.notice`. The worker gives each step its own emitter.
+    activity: ActivityEmitter = field(default_factory=NullEmitter)
 
     async def set_detail(self, detail: str) -> None:
-        """Live sub-line while the step runs; visible to the SSE stream at once."""
+        """Live sub-line while the step runs; visible to the SSE stream at once. Also a
+        `status` activity with the same words, so pass public words only: never a
+        filename, claim text or anything read from a document."""
         async with self.sessionmaker() as session:
             await session.execute(
                 update(Step).where(Step.id == self.step_id).values(detail=detail[:500])
             )
             await session.commit()
+        await self.activity.status(detail)
 
     def log(self, message: str) -> None:
         self.logs.append(message)

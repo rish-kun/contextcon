@@ -440,9 +440,30 @@ export interface paths {
         };
         /**
          * Stream Run Events
-         * @description Stream step and run changes as server-sent events until the run finishes.
+         * @description Stream step, run and activity changes as server-sent events until the run finishes.
          */
         get: operations["stream_run_events"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Run Activity
+         * @description The run's activity log, in seq order, with run totals. For the run log, a reload
+         *     mid-run, and the polling fallback (every 2 s with the last seq).
+         */
+        get: operations["list_run_activity"];
         put?: never;
         post?: never;
         delete?: never;
@@ -614,6 +635,170 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * ActivityKind
+         * @enum {string}
+         */
+        ActivityKind: "status" | "call" | "source" | "model" | "finding" | "notice";
+        /**
+         * ActivityOut
+         * @description One thing the run did. Append-only per run; `seq` is also the SSE `id:`.
+         *
+         *     Public data and the user's own criteria only (never claim text, document text or
+         *     filenames, prompts, model output, case-run search queries or contact details).
+         *     Fields a kind does not use are null.
+         */
+        ActivityOut: {
+            /**
+             * Seq
+             * @description Per run, strictly increasing from 1.
+             */
+            seq: number;
+            /** Run Id */
+            run_id: string;
+            /** Step Id */
+            step_id: string | null;
+            /** Step Key */
+            step_key: string | null;
+            kind: components["schemas"]["ActivityKind"];
+            /**
+             * At
+             * Format: date-time
+             * @description When it happened (UTC, ms), not when it was sent.
+             */
+            at: string;
+            /**
+             * Label
+             * @description ≤ 120 chars, from a template.
+             */
+            label: string;
+            /**
+             * Detail
+             * @description ≤ 200 chars.
+             */
+            detail: string | null;
+            /** @description Only when both numbers are real. */
+            progress: components["schemas"]["ProgressOut"] | null;
+            source: components["schemas"]["SourceRefOut"] | null;
+            call: components["schemas"]["CallInfoOut"] | null;
+            /**
+             * Counts
+             * @description Keys fixed per kind and endpoint.
+             */
+            counts: {
+                [key: string]: number;
+            } | null;
+            /**
+             * Highlights
+             * @description ≤ 2, each ≤ 100 chars.
+             */
+            highlights: string[] | null;
+            /**
+             * Items
+             * @description ≤ 8, typed by subject.
+             */
+            items: (components["schemas"]["CompanyItemOut"] | components["schemas"]["ClaimItemOut"] | components["schemas"]["IdentityItemOut"] | components["schemas"]["RoundItemOut"] | components["schemas"]["InvestorItemOut"] | components["schemas"]["EventItemOut"] | components["schemas"]["AssessmentItemOut"] | components["schemas"]["RequestListItemOut"])[] | null;
+            subject: components["schemas"]["ActivitySubject"] | null;
+            code: components["schemas"]["NoticeCode"] | null;
+            /** @description The row this is about. */
+            ref: components["schemas"]["ActivityRefOut"] | null;
+        };
+        /** ActivityPage */
+        ActivityPage: {
+            /** Items */
+            items: components["schemas"]["ActivityOut"][];
+            /**
+             * Next After
+             * @description Pass as `after` for the next page; null at the end.
+             */
+            next_after: number | null;
+            summary: components["schemas"]["ActivitySummaryOut"];
+        };
+        /** ActivityRefOut */
+        ActivityRefOut: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "claim" | "company" | "investor" | "document";
+            /** Id */
+            id: string;
+        };
+        /**
+         * ActivitySubject
+         * @enum {string}
+         */
+        ActivitySubject: "company" | "claim" | "investor" | "round" | "identity" | "event" | "peer" | "assessment" | "request_list";
+        /**
+         * ActivitySummaryOut
+         * @description Run totals over every activity so far (credits and USD are the cost ledger's).
+         */
+        ActivitySummaryOut: {
+            /** By Kind */
+            by_kind: {
+                [key: string]: number;
+            };
+            /**
+             * Crustdata Calls
+             * @default 0
+             */
+            crustdata_calls: number;
+            /**
+             * Records Returned
+             * @default 0
+             */
+            records_returned: number;
+            /**
+             * Sources Read
+             * @default 0
+             */
+            sources_read: number;
+            /**
+             * Sources Failed
+             * @default 0
+             */
+            sources_failed: number;
+            /**
+             * Domains
+             * @default 0
+             */
+            domains: number;
+            /**
+             * Companies Found
+             * @default 0
+             */
+            companies_found: number;
+            /**
+             * Investors Found
+             * @default 0
+             */
+            investors_found: number;
+            /**
+             * Claims Settled
+             * @default 0
+             */
+            claims_settled: number;
+            /**
+             * Credits
+             * @default 0
+             */
+            credits: number;
+            /**
+             * Llm Usd
+             * @default 0
+             */
+            llm_usd: number;
+            /**
+             * Elapsed Seconds
+             * @default 0
+             */
+            elapsed_seconds: number;
+            /**
+             * Last Seq
+             * @default 0
+             */
+            last_seq: number;
+        };
         /** AdequateSourcesOut */
         AdequateSourcesOut: {
             category: components["schemas"]["ClaimCategory"];
@@ -657,6 +842,25 @@ export interface components {
         ApproveIn: {
             /** Revision Id */
             revision_id: string;
+        };
+        /** AssessmentItemOut */
+        AssessmentItemOut: {
+            /** Id */
+            id: string;
+            /**
+             * Stage
+             * @default written
+             * @constant
+             */
+            stage: "written";
+            /** Version */
+            version: number;
+            disposition: components["schemas"]["Disposition"];
+            previous_disposition: components["schemas"]["Disposition"] | null;
+            /** Fit */
+            fit: number | null;
+            /** Assessable */
+            assessable: number | null;
         };
         /** AssessmentVersionOut */
         AssessmentVersionOut: {
@@ -730,6 +934,64 @@ export interface components {
             label: string;
             /** @description Always labelled as a signal or estimate. */
             fact: components["schemas"]["FactStr"];
+        };
+        /**
+         * CallInfoOut
+         * @description One external call, final state only (emitted when it returns).
+         */
+        CallInfoOut: {
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "crustdata" | "anthropic";
+            /**
+             * Endpoint
+             * @enum {string}
+             */
+            endpoint: "company_identify" | "company_search" | "company_enrich" | "person_search" | "job_search" | "web_search" | "web_fetch" | "messages";
+            /** Ok */
+            ok: boolean;
+            /**
+             * Error
+             * @description Allowlisted code when ok is false.
+             */
+            error: string | null;
+            /**
+             * From Cache
+             * @default false
+             */
+            from_cache: boolean;
+            /**
+             * Attempts
+             * @description HTTP dispatches; > 1 means it was retried.
+             * @default 1
+             */
+            attempts: number;
+            /** Duration Ms */
+            duration_ms: number | null;
+            /**
+             * Credits
+             * @description This call. 0 on a cache hit; null when not reported.
+             */
+            credits: number | null;
+            /**
+             * Usd
+             * @description Model calls only.
+             */
+            usd: number | null;
+            /**
+             * Credits Total
+             * @description Run total after this call.
+             * @default 0
+             */
+            credits_total: number;
+            /**
+             * Usd Total
+             * @description Run total after this call.
+             * @default 0
+             */
+            usd_total: number;
         };
         /** CaseCostOut */
         CaseCostOut: {
@@ -939,6 +1201,35 @@ export interface components {
             text: string;
         };
         /**
+         * ClaimItemOut
+         * @description `subject: claim`. No claim text: `category` is the only description.
+         */
+        ClaimItemOut: {
+            /** Id */
+            id: string;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "queued" | "checking" | "settled" | "not_checked";
+            /** Category */
+            category: string;
+            status: components["schemas"]["ClaimStatus"] | null;
+            previous_status: components["schemas"]["ClaimStatus"] | null;
+            /** Evidence Count */
+            evidence_count: number | null;
+            /**
+             * Snippet
+             * @description ≤ 200 chars, only from a web page or Crustdata record.
+             */
+            snippet: string | null;
+            /**
+             * Gap
+             * @description The rule's canned sentence.
+             */
+            gap: string | null;
+        };
+        /**
          * ClaimOrigin
          * @enum {string}
          */
@@ -1004,6 +1295,46 @@ export interface components {
          * @enum {string}
          */
         ClaimStatus: "supported" | "contradicted" | "partially_corroborated" | "conflicting_evidence" | "cannot_verify" | "not_checked";
+        /**
+         * CompanyItemOut
+         * @description `subject: company` (and `peer`). Later stages send only the rows that changed.
+         */
+        CompanyItemOut: {
+            /**
+             * Id
+             * @description Crustdata company id: stable across every stage.
+             */
+            id: string;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "found" | "dropped" | "enriching" | "enriched" | "scored" | "explained";
+            /** Name */
+            name: string | null;
+            /** Domain */
+            domain: string | null;
+            /** Location */
+            location: string | null;
+            /** Headcount */
+            headcount: number | null;
+            /** Headcount Is Estimate */
+            headcount_is_estimate: boolean | null;
+            /** Reason */
+            reason: string | null;
+            /** Marks */
+            marks: {
+                [key: string]: "pending" | "found" | "none" | "not_checked";
+            } | null;
+            /** Highlight */
+            highlight: string | null;
+            /** Fit */
+            fit: number | null;
+            /** Assessable */
+            assessable: number | null;
+            /** Rank */
+            rank: number | null;
+        };
         /** CompanyProfileOut */
         CompanyProfileOut: {
             /** Crustdata Company Id */
@@ -1418,6 +1749,28 @@ export interface components {
          * @enum {string}
          */
         EstimateKind: "estimate" | "signal";
+        /** EventItemOut */
+        EventItemOut: {
+            /** Id */
+            id: string;
+            /**
+             * Stage
+             * @default found
+             * @constant
+             */
+            stage: "found";
+            /** Date */
+            date: string | null;
+            /** Event Kind */
+            event_kind: string;
+            /**
+             * Title
+             * @description Event kind in words + the domain.
+             */
+            title: string | null;
+            /** Domain */
+            domain: string | null;
+        };
         /** EventOut */
         EventOut: {
             /** Id */
@@ -1691,6 +2044,22 @@ export interface components {
             /** Differing */
             differing: components["schemas"]["IdentityKeyOut"][];
         };
+        /** IdentityItemOut */
+        IdentityItemOut: {
+            /** Id */
+            id: string;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "confirmed" | "ambiguous" | "unresolved";
+            /** Name */
+            name: string | null;
+            /** Domain */
+            domain: string | null;
+            /** Matched Keys */
+            matched_keys: string[];
+        };
         /** IdentityKeyOut */
         IdentityKeyOut: {
             /**
@@ -1796,6 +2165,27 @@ export interface components {
              * @description Every entry id this one may duplicate.
              */
             possible_duplicates: string[];
+        };
+        /** InvestorItemOut */
+        InvestorItemOut: {
+            /** Id */
+            id: string;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "found" | "ranked";
+            /** Name */
+            name: string;
+            /** Rank */
+            rank: number | null;
+            /**
+             * Comparable Rounds
+             * @default 0
+             */
+            comparable_rounds: number;
+            /** Last Round Date */
+            last_round_date: string | null;
         };
         /** InvestorSearchIn */
         InvestorSearchIn: {
@@ -2006,6 +2396,11 @@ export interface components {
          * @enum {string}
          */
         NotCheckedReason: "budget_reached" | "source_unavailable" | "step_failed" | "identity_unresolved";
+        /**
+         * NoticeCode
+         * @enum {string}
+         */
+        NoticeCode: "search_widened" | "budget_low" | "budget_reached" | "step_resumed" | "served_from_cache" | "call_retried" | "source_limit" | "identity_blocked" | "nothing_to_check" | "activity_limit";
         /** OpportunityFitOut */
         OpportunityFitOut: {
             state: components["schemas"]["FitState"];
@@ -2117,6 +2512,13 @@ export interface components {
             /** Preference */
             preference: number;
         };
+        /** ProgressOut */
+        ProgressOut: {
+            /** Done */
+            done: number;
+            /** Total */
+            total: number;
+        };
         /** ReasonOut */
         ReasonOut: {
             /** Text */
@@ -2146,6 +2548,16 @@ export interface components {
             claim_ids: string[];
             /** Questions */
             questions: string[];
+        };
+        /** RequestListItemOut */
+        RequestListItemOut: {
+            /** Id */
+            id: string;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "drafted" | "nothing_to_request";
         };
         /** RequestListOut */
         RequestListOut: {
@@ -2229,6 +2641,39 @@ export interface components {
             text: string;
             /** Claim Ids */
             claim_ids: string[];
+        };
+        /** RoundInvestorOut */
+        RoundInvestorOut: {
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+        };
+        /** RoundItemOut */
+        RoundItemOut: {
+            /** Id */
+            id: string;
+            /**
+             * Stage
+             * @default found
+             * @constant
+             */
+            stage: "found";
+            /** Company */
+            company: string | null;
+            /** Company Id */
+            company_id: string | null;
+            /** Round */
+            round: string | null;
+            /**
+             * Date
+             * @description Null: undated, cannot be ranked on.
+             */
+            date: string | null;
+            /** Amount Usd */
+            amount_usd: number | null;
+            /** Investors */
+            investors: components["schemas"]["RoundInvestorOut"][];
         };
         /**
          * RunKind
@@ -2557,6 +3002,47 @@ export interface components {
              * @description Copies of one announcement share an origin and count as one source.
              */
             origin_id: string | null;
+        };
+        /**
+         * SourceRefOut
+         * @description A public page or a Crustdata record. Never an uploaded document's content: a
+         *     `seller_document` carries only its kind in words as `title`.
+         */
+        SourceRefOut: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "web_page" | "crustdata_record" | "seller_document";
+            /**
+             * Domain
+             * @description Lower-case host; null for non-web.
+             */
+            domain: string | null;
+            /**
+             * Url
+             * @description Tracking parameters stripped; null if it carried a token.
+             */
+            url: string | null;
+            /**
+             * Title
+             * @description ≤ 140 chars.
+             */
+            title: string | null;
+            source_class: components["schemas"]["SourceClass"] | null;
+            /**
+             * As Of
+             * @description Date of the fact; null: no date.
+             */
+            as_of: string | null;
+            /**
+             * State
+             * @default read
+             * @enum {string}
+             */
+            state: "read" | "failed" | "skipped";
+            /** Reason */
+            reason: ("http_403" | "timeout" | "robots" | "empty" | "too_large" | "budget") | null;
         };
         /**
          * StatedInOut
@@ -4164,7 +4650,10 @@ export interface operations {
     };
     stream_run_events: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Resume after this activity seq (or `Last-Event-ID`). */
+                after?: number | null;
+            };
             header?: never;
             path: {
                 run_id: string;
@@ -4173,13 +4662,75 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Server-sent events. `event: run` carries a RunOut without steps (first, on every run state change, and last once the run is `done` or `failed`); `event: step` carries a StepOut (every step once, then each change). Lines starting with `:` are keepalives. */
+            /** @description Server-sent events. `event: run` carries a RunOut without steps (first, on every run state or cost change, and last once the run is `done` or `failed`); `event: step` carries a StepOut (every step once, then each change); `event: activity` carries an ActivityOut with `id: <seq>` (the backlog after `Last-Event-ID` or `?after=`, then a `: live` comment, then each new one). Other lines starting with `:` are keepalives. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "text/event-stream": string;
+                };
+            };
+            /** @description No valid session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not found, or not visible to this user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not implemented yet (stub). */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    list_run_activity: {
+        parameters: {
+            query?: {
+                /** @description Return activities with seq > after. */
+                after?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityPage"];
                 };
             };
             /** @description No valid session. */

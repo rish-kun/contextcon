@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import asyncio
 import random
+import time
 from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar
 
@@ -33,6 +34,7 @@ import anthropic
 from anthropic import AsyncAnthropic
 from pydantic import BaseModel, Field, ValidationError
 
+from app.clients import activity
 from app.clients.base import (
     CallOperation,
     CallRecord,
@@ -313,6 +315,49 @@ class LLMClient:
         return min(delay + random.uniform(0, self.backoff_base), self.backoff_max)
 
     async def _call(
+        self,
+        endpoint_kind: str,
+        key_params: dict[str, Any],
+        send: Callable[[], Awaitable[Any]],
+        use: Callable[[Any], dict[str, Any]],
+        *,
+        use_cache: bool,
+        public: bool,
+    ) -> tuple[dict[str, Any], CallRecord]:
+        """`_operation`, reported to the recorder's live activity hook when it returns:
+        endpoint, usage and timing only, never the prompt or the reply."""
+        if not callable(getattr(self.recorder, "activity", None)):
+            return await self._operation(
+                endpoint_kind, key_params, send, use, use_cache=use_cache, public=public
+            )
+        started = time.monotonic()
+        try:
+            payload, record = await self._operation(
+                endpoint_kind, key_params, send, use, use_cache=use_cache, public=public
+            )
+        except LLMError as exc:
+            await self._report(endpoint_kind, exc.record, started, public, ok=False)
+            raise
+        await self._report(endpoint_kind, record, started, public, ok=True)
+        return payload, record
+
+    async def _report(
+        self, endpoint_kind: str, record: CallRecord, started: float, public: bool, *, ok: bool
+    ) -> None:
+        report = activity.CallReport(
+            provider=PROVIDER,
+            endpoint=endpoint_kind,
+            ok=ok,
+            from_cache=record.from_cache,
+            attempts=record.attempts,
+            duration_ms=int((time.monotonic() - started) * 1000),
+            usd=record.cost_usd if record.usage_known else None,
+            error=record.error,
+            public=public,
+        )
+        await activity.emit(self.recorder, report)
+
+    async def _operation(
         self,
         endpoint_kind: str,
         key_params: dict[str, Any],

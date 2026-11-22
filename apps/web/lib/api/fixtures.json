@@ -2982,8 +2982,8 @@
             "evidence": []
           }
         ],
-        "trigger_document_ids": ["fx-doc-payroll"],
-        "document_ids": ["fx-doc-deck", "fx-doc-payroll"],
+        "trigger_document_ids": [],
+        "document_ids": [],
         "evidence_ids": [],
         "confidential_removed_on": null
       },
@@ -4624,8 +4624,8 @@
             "evidence": []
           }
         ],
-        "trigger_document_ids": ["fx-doc-payroll"],
-        "document_ids": ["fx-doc-deck", "fx-doc-payroll"],
+        "trigger_document_ids": [],
+        "document_ids": [],
         "evidence_ids": [],
         "confidential_removed_on": null
       }
@@ -5884,5 +5884,3697 @@
       "investor_credits": 60.0
     },
     "markdown": ""
+  },
+  "activity": {
+    "fx-run-discover": [
+      {
+        "seq": 1,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-1",
+        "step_key": "discover.search",
+        "kind": "status",
+        "at": "2026-11-22T09:30:00.600000Z",
+        "label": "Resolving filter values",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 2,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-1",
+        "step_key": "discover.search",
+        "kind": "status",
+        "at": "2026-11-22T09:30:01.200000Z",
+        "label": "Searching companies (India · warehousing · 50–500 people)",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 3,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-1",
+        "step_key": "discover.search",
+        "kind": "call",
+        "at": "2026-11-22T09:30:03.500000Z",
+        "label": "Company search · 48 companies",
+        "detail": "India · warehousing · 50–500 people",
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "crustdata",
+          "endpoint": "company_search",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 2310,
+          "credits": 6.2,
+          "usd": null,
+          "credits_total": 6.2,
+          "usd_total": 0.0
+        },
+        "counts": {
+          "returned": 48,
+          "new": 48,
+          "total_available": 212
+        },
+        "highlights": [
+          "Kestrel Supply Systems (fixture) · Pune, India",
+          "Morrow Docks (fixture) · Chennai, India"
+        ],
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 4,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-1",
+        "step_key": "discover.search",
+        "kind": "finding",
+        "at": "2026-11-22T09:30:04.100000Z",
+        "label": "Found 48 companies",
+        "detail": "Primary pass",
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "found": 48,
+          "in_play": 48,
+          "dropped": 0,
+          "enriched": 0,
+          "scored": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-sl-kestrel",
+            "stage": "found",
+            "name": "Kestrel Supply Systems (fixture)",
+            "domain": "kestrel-supply.example",
+            "location": "Pune, India",
+            "headcount": 420,
+            "headcount_is_estimate": true,
+            "reason": null,
+            "marks": null,
+            "highlight": null,
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          },
+          {
+            "id": "fx-sl-harbourline",
+            "stage": "found",
+            "name": "Harbourline Warehousing (fixture)",
+            "domain": "harbourline.example",
+            "location": "Bhiwandi, India",
+            "headcount": 310,
+            "headcount_is_estimate": true,
+            "reason": null,
+            "marks": null,
+            "highlight": null,
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          },
+          {
+            "id": "fx-sl-morrow",
+            "stage": "found",
+            "name": "Morrow Docks (fixture)",
+            "domain": "morrowdocks.example",
+            "location": "Chennai, India",
+            "headcount": 180,
+            "headcount_is_estimate": true,
+            "reason": null,
+            "marks": null,
+            "highlight": null,
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          },
+          {
+            "id": "fx-sl-tarawade",
+            "stage": "found",
+            "name": "Tarawade Freight Software (fixture)",
+            "domain": "tarawade.example",
+            "location": "Ahmedabad, India",
+            "headcount": 95,
+            "headcount_is_estimate": true,
+            "reason": null,
+            "marks": null,
+            "highlight": null,
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          },
+          {
+            "id": "fx-cand-21",
+            "stage": "found",
+            "name": "Portside Freight (fixture)",
+            "domain": null,
+            "location": "India",
+            "headcount": null,
+            "headcount_is_estimate": true,
+            "reason": null,
+            "marks": null,
+            "highlight": null,
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          },
+          {
+            "id": "fx-cand-22",
+            "stage": "found",
+            "name": "Kestrel Supply Systems India (fixture)",
+            "domain": null,
+            "location": "India",
+            "headcount": null,
+            "headcount_is_estimate": true,
+            "reason": null,
+            "marks": null,
+            "highlight": null,
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          }
+        ],
+        "subject": "company",
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 5,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-2",
+        "step_key": "discover.dedupe_gate",
+        "kind": "status",
+        "at": "2026-11-22T09:31:00.600000Z",
+        "label": "Removing duplicates and must-have failures",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 6,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-2",
+        "step_key": "discover.dedupe_gate",
+        "kind": "finding",
+        "at": "2026-11-22T09:31:01.200000Z",
+        "label": "Dropped 7 companies",
+        "detail": "3 duplicates · 4 failed a must-have",
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "found": 48,
+          "in_play": 41,
+          "dropped": 7,
+          "enriched": 0,
+          "scored": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-cand-21",
+            "stage": "dropped",
+            "name": "Portside Freight (fixture)",
+            "domain": null,
+            "location": null,
+            "headcount": null,
+            "headcount_is_estimate": null,
+            "reason": "Failed must-have: privately held",
+            "marks": null,
+            "highlight": null,
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          },
+          {
+            "id": "fx-cand-22",
+            "stage": "dropped",
+            "name": "Kestrel Supply Systems India (fixture)",
+            "domain": null,
+            "location": null,
+            "headcount": null,
+            "headcount_is_estimate": null,
+            "reason": "Duplicate of Kestrel Supply Systems",
+            "marks": null,
+            "highlight": null,
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          }
+        ],
+        "subject": "company",
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 7,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-3",
+        "step_key": "discover.enrich",
+        "kind": "status",
+        "at": "2026-11-22T09:32:00.600000Z",
+        "label": "Enriching 15 companies",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 8,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-3",
+        "step_key": "discover.enrich",
+        "kind": "call",
+        "at": "2026-11-22T09:32:02.400000Z",
+        "label": "Enriched 15 of 15 companies",
+        "detail": "Funding and headcount",
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "crustdata",
+          "endpoint": "company_enrich",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 1840,
+          "credits": 30.0,
+          "usd": null,
+          "credits_total": 36.2,
+          "usd_total": 0.0
+        },
+        "counts": {
+          "requested": 15,
+          "returned": 15,
+          "with_funding": 9,
+          "funding_rounds": 14,
+          "with_investors": 8,
+          "with_headcount_series": 12,
+          "with_web_traffic": 0
+        },
+        "highlights": [
+          "Kestrel Supply Systems (fixture) · Seed · 2025-04",
+          "Harbourline Warehousing (fixture) · Series A · 2023-11"
+        ],
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 9,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-3",
+        "step_key": "discover.enrich",
+        "kind": "source",
+        "at": "2026-11-22T09:32:02.600000Z",
+        "label": "Read the record of Kestrel Supply Systems (fixture)",
+        "detail": null,
+        "progress": null,
+        "source": {
+          "type": "crustdata_record",
+          "domain": null,
+          "url": null,
+          "title": "Kestrel Supply Systems (fixture) · company record",
+          "source_class": "data_provider",
+          "as_of": "2026-11-01",
+          "state": "read",
+          "reason": null
+        },
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 10,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-3",
+        "step_key": "discover.enrich",
+        "kind": "status",
+        "at": "2026-11-22T09:32:03Z",
+        "label": "Reading job postings for Kestrel Supply Systems (fixture)",
+        "detail": null,
+        "progress": {
+          "done": 1,
+          "total": 4
+        },
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 11,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-3",
+        "step_key": "discover.enrich",
+        "kind": "call",
+        "at": "2026-11-22T09:32:03.600000Z",
+        "label": "Job search · 8 postings",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "crustdata",
+          "endpoint": "job_search",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 640,
+          "credits": 0.24,
+          "usd": null,
+          "credits_total": 36.44,
+          "usd_total": 0.0
+        },
+        "counts": {
+          "postings": 8,
+          "companies": 1
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 12,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-3",
+        "step_key": "discover.enrich",
+        "kind": "finding",
+        "at": "2026-11-22T09:32:03.800000Z",
+        "label": "Enriched Kestrel Supply Systems (fixture)",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "found": 48,
+          "in_play": 41,
+          "dropped": 7,
+          "enriched": 1,
+          "scored": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-sl-kestrel",
+            "stage": "enriched",
+            "name": "Kestrel Supply Systems (fixture)",
+            "domain": null,
+            "location": null,
+            "headcount": null,
+            "headcount_is_estimate": null,
+            "reason": null,
+            "marks": {
+              "funding": "found",
+              "headcount": "found",
+              "hiring": "found"
+            },
+            "highlight": "Headcount +18% in 12 months",
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          }
+        ],
+        "subject": "company",
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 13,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-3",
+        "step_key": "discover.enrich",
+        "kind": "source",
+        "at": "2026-11-22T09:32:04Z",
+        "label": "Read the record of Harbourline Warehousing (fixture)",
+        "detail": null,
+        "progress": null,
+        "source": {
+          "type": "crustdata_record",
+          "domain": null,
+          "url": null,
+          "title": "Harbourline Warehousing (fixture) · company record",
+          "source_class": "data_provider",
+          "as_of": "2026-11-01",
+          "state": "read",
+          "reason": null
+        },
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 14,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-3",
+        "step_key": "discover.enrich",
+        "kind": "status",
+        "at": "2026-11-22T09:32:04.400000Z",
+        "label": "Reading job postings for Harbourline Warehousing (fixture)",
+        "detail": null,
+        "progress": {
+          "done": 2,
+          "total": 4
+        },
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 15,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-3",
+        "step_key": "discover.enrich",
+        "kind": "call",
+        "at": "2026-11-22T09:32:05Z",
+        "label": "Job search · 6 postings",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "crustdata",
+          "endpoint": "job_search",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 640,
+          "credits": 0.18,
+          "usd": null,
+          "credits_total": 36.62,
+          "usd_total": 0.0
+        },
+        "counts": {
+          "postings": 6,
+          "companies": 1
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 16,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-3",
+        "step_key": "discover.enrich",
+        "kind": "finding",
+        "at": "2026-11-22T09:32:05.200000Z",
+        "label": "Enriched Harbourline Warehousing (fixture)",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "found": 48,
+          "in_play": 41,
+          "dropped": 7,
+          "enriched": 2,
+          "scored": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-sl-harbourline",
+            "stage": "enriched",
+            "name": "Harbourline Warehousing (fixture)",
+            "domain": null,
+            "location": null,
+            "headcount": null,
+            "headcount_is_estimate": null,
+            "reason": null,
+            "marks": {
+              "funding": "found",
+              "headcount": "found",
+              "hiring": "found"
+            },
+            "highlight": null,
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          }
+        ],
+        "subject": "company",
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 17,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-3",
+        "step_key": "discover.enrich",
+        "kind": "source",
+        "at": "2026-11-22T09:32:05.400000Z",
+        "label": "Read the record of Morrow Docks (fixture)",
+        "detail": null,
+        "progress": null,
+        "source": {
+          "type": "crustdata_record",
+          "domain": null,
+          "url": null,
+          "title": "Morrow Docks (fixture) · company record",
+          "source_class": "data_provider",
+          "as_of": "2026-11-01",
+          "state": "read",
+          "reason": null
+        },
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 18,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-3",
+        "step_key": "discover.enrich",
+        "kind": "status",
+        "at": "2026-11-22T09:32:05.800000Z",
+        "label": "Reading job postings for Morrow Docks (fixture)",
+        "detail": null,
+        "progress": {
+          "done": 3,
+          "total": 4
+        },
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 19,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-3",
+        "step_key": "discover.enrich",
+        "kind": "call",
+        "at": "2026-11-22T09:32:06.400000Z",
+        "label": "Job search · 4 postings",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "crustdata",
+          "endpoint": "job_search",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 640,
+          "credits": 0.12,
+          "usd": null,
+          "credits_total": 36.74,
+          "usd_total": 0.0
+        },
+        "counts": {
+          "postings": 4,
+          "companies": 1
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 20,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-3",
+        "step_key": "discover.enrich",
+        "kind": "finding",
+        "at": "2026-11-22T09:32:06.600000Z",
+        "label": "Enriched Morrow Docks (fixture)",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "found": 48,
+          "in_play": 41,
+          "dropped": 7,
+          "enriched": 3,
+          "scored": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-sl-morrow",
+            "stage": "enriched",
+            "name": "Morrow Docks (fixture)",
+            "domain": null,
+            "location": null,
+            "headcount": null,
+            "headcount_is_estimate": null,
+            "reason": null,
+            "marks": {
+              "funding": "found",
+              "headcount": "found",
+              "hiring": "found"
+            },
+            "highlight": null,
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          }
+        ],
+        "subject": "company",
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 21,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-3",
+        "step_key": "discover.enrich",
+        "kind": "source",
+        "at": "2026-11-22T09:32:06.800000Z",
+        "label": "Read the record of Tarawade Freight Software (fixture)",
+        "detail": null,
+        "progress": null,
+        "source": {
+          "type": "crustdata_record",
+          "domain": null,
+          "url": null,
+          "title": "Tarawade Freight Software (fixture) · company record",
+          "source_class": "data_provider",
+          "as_of": "2026-11-01",
+          "state": "read",
+          "reason": null
+        },
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 22,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-3",
+        "step_key": "discover.enrich",
+        "kind": "status",
+        "at": "2026-11-22T09:32:07.200000Z",
+        "label": "Reading job postings for Tarawade Freight Software (fixture)",
+        "detail": null,
+        "progress": {
+          "done": 4,
+          "total": 4
+        },
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 23,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-3",
+        "step_key": "discover.enrich",
+        "kind": "call",
+        "at": "2026-11-22T09:32:07.800000Z",
+        "label": "Job search · 2 postings",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "crustdata",
+          "endpoint": "job_search",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 640,
+          "credits": 0.06,
+          "usd": null,
+          "credits_total": 36.8,
+          "usd_total": 0.0
+        },
+        "counts": {
+          "postings": 2,
+          "companies": 1
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 24,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-3",
+        "step_key": "discover.enrich",
+        "kind": "finding",
+        "at": "2026-11-22T09:32:08Z",
+        "label": "Enriched Tarawade Freight Software (fixture)",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "found": 48,
+          "in_play": 41,
+          "dropped": 7,
+          "enriched": 4,
+          "scored": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-sl-tarawade",
+            "stage": "enriched",
+            "name": "Tarawade Freight Software (fixture)",
+            "domain": null,
+            "location": null,
+            "headcount": null,
+            "headcount_is_estimate": null,
+            "reason": null,
+            "marks": {
+              "funding": "found",
+              "headcount": "found",
+              "hiring": "found"
+            },
+            "highlight": null,
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          }
+        ],
+        "subject": "company",
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 25,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-4",
+        "step_key": "discover.score",
+        "kind": "status",
+        "at": "2026-11-22T09:33:00.600000Z",
+        "label": "Applying your criteria to 15 companies",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 26,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-4",
+        "step_key": "discover.score",
+        "kind": "finding",
+        "at": "2026-11-22T09:33:01.200000Z",
+        "label": "Ranked 4 companies",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "found": 48,
+          "in_play": 4,
+          "dropped": 7,
+          "enriched": 15,
+          "scored": 15
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-sl-kestrel",
+            "stage": "scored",
+            "name": "Kestrel Supply Systems (fixture)",
+            "domain": null,
+            "location": null,
+            "headcount": null,
+            "headcount_is_estimate": null,
+            "reason": null,
+            "marks": null,
+            "highlight": null,
+            "fit": 82.0,
+            "assessable": 0.8,
+            "rank": 1
+          },
+          {
+            "id": "fx-sl-harbourline",
+            "stage": "scored",
+            "name": "Harbourline Warehousing (fixture)",
+            "domain": null,
+            "location": null,
+            "headcount": null,
+            "headcount_is_estimate": null,
+            "reason": null,
+            "marks": null,
+            "highlight": null,
+            "fit": 78.0,
+            "assessable": 0.9,
+            "rank": 2
+          },
+          {
+            "id": "fx-sl-morrow",
+            "stage": "scored",
+            "name": "Morrow Docks (fixture)",
+            "domain": null,
+            "location": null,
+            "headcount": null,
+            "headcount_is_estimate": null,
+            "reason": null,
+            "marks": null,
+            "highlight": null,
+            "fit": 64.0,
+            "assessable": 0.6,
+            "rank": 3
+          },
+          {
+            "id": "fx-sl-tarawade",
+            "stage": "scored",
+            "name": "Tarawade Freight Software (fixture)",
+            "domain": null,
+            "location": null,
+            "headcount": null,
+            "headcount_is_estimate": null,
+            "reason": null,
+            "marks": null,
+            "highlight": null,
+            "fit": 51.0,
+            "assessable": 0.5,
+            "rank": 4
+          }
+        ],
+        "subject": "company",
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 27,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-5",
+        "step_key": "discover.cards",
+        "kind": "status",
+        "at": "2026-11-22T09:34:00.600000Z",
+        "label": "Writing why each company is on the list",
+        "detail": null,
+        "progress": {
+          "done": 0,
+          "total": 4
+        },
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 28,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-5",
+        "step_key": "discover.cards",
+        "kind": "model",
+        "at": "2026-11-22T09:34:01.700000Z",
+        "label": "Drafted why a company is on the list",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "anthropic",
+          "endpoint": "messages",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 1200,
+          "credits": null,
+          "usd": 0.0005,
+          "credits_total": 36.8,
+          "usd_total": 0.0005
+        },
+        "counts": {
+          "explained": 1
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 29,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-5",
+        "step_key": "discover.cards",
+        "kind": "finding",
+        "at": "2026-11-22T09:34:01.800000Z",
+        "label": "Explained Kestrel Supply Systems (fixture)",
+        "detail": null,
+        "progress": {
+          "done": 1,
+          "total": 4
+        },
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-sl-kestrel",
+            "stage": "explained",
+            "name": "Kestrel Supply Systems (fixture)",
+            "domain": null,
+            "location": null,
+            "headcount": null,
+            "headcount_is_estimate": null,
+            "reason": null,
+            "marks": null,
+            "highlight": null,
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          }
+        ],
+        "subject": "company",
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 30,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-5",
+        "step_key": "discover.cards",
+        "kind": "model",
+        "at": "2026-11-22T09:34:02.900000Z",
+        "label": "Drafted why a company is on the list",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "anthropic",
+          "endpoint": "messages",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 1200,
+          "credits": null,
+          "usd": 0.0005,
+          "credits_total": 36.8,
+          "usd_total": 0.001
+        },
+        "counts": {
+          "explained": 1
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 31,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-5",
+        "step_key": "discover.cards",
+        "kind": "finding",
+        "at": "2026-11-22T09:34:03Z",
+        "label": "Explained Harbourline Warehousing (fixture)",
+        "detail": null,
+        "progress": {
+          "done": 2,
+          "total": 4
+        },
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-sl-harbourline",
+            "stage": "explained",
+            "name": "Harbourline Warehousing (fixture)",
+            "domain": null,
+            "location": null,
+            "headcount": null,
+            "headcount_is_estimate": null,
+            "reason": null,
+            "marks": null,
+            "highlight": null,
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          }
+        ],
+        "subject": "company",
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 32,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-5",
+        "step_key": "discover.cards",
+        "kind": "model",
+        "at": "2026-11-22T09:34:04.100000Z",
+        "label": "Drafted why a company is on the list",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "anthropic",
+          "endpoint": "messages",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 1200,
+          "credits": null,
+          "usd": 0.0005,
+          "credits_total": 36.8,
+          "usd_total": 0.0015
+        },
+        "counts": {
+          "explained": 1
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 33,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-5",
+        "step_key": "discover.cards",
+        "kind": "finding",
+        "at": "2026-11-22T09:34:04.200000Z",
+        "label": "Explained Morrow Docks (fixture)",
+        "detail": null,
+        "progress": {
+          "done": 3,
+          "total": 4
+        },
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-sl-morrow",
+            "stage": "explained",
+            "name": "Morrow Docks (fixture)",
+            "domain": null,
+            "location": null,
+            "headcount": null,
+            "headcount_is_estimate": null,
+            "reason": null,
+            "marks": null,
+            "highlight": null,
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          }
+        ],
+        "subject": "company",
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 34,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-5",
+        "step_key": "discover.cards",
+        "kind": "model",
+        "at": "2026-11-22T09:34:05.300000Z",
+        "label": "Drafted why a company is on the list",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "anthropic",
+          "endpoint": "messages",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 1200,
+          "credits": null,
+          "usd": 0.0005,
+          "credits_total": 36.8,
+          "usd_total": 0.002
+        },
+        "counts": {
+          "explained": 1
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 35,
+        "run_id": "fx-run-discover",
+        "step_id": "fx-run-discover-step-5",
+        "step_key": "discover.cards",
+        "kind": "finding",
+        "at": "2026-11-22T09:34:05.400000Z",
+        "label": "Explained Tarawade Freight Software (fixture)",
+        "detail": null,
+        "progress": {
+          "done": 4,
+          "total": 4
+        },
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-sl-tarawade",
+            "stage": "explained",
+            "name": "Tarawade Freight Software (fixture)",
+            "domain": null,
+            "location": null,
+            "headcount": null,
+            "headcount_is_estimate": null,
+            "reason": null,
+            "marks": null,
+            "highlight": null,
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          }
+        ],
+        "subject": "company",
+        "code": null,
+        "ref": null
+      }
+    ],
+    "fx-run-investors": [
+      {
+        "seq": 1,
+        "run_id": "fx-run-investors",
+        "step_id": "fx-run-investors-step-1",
+        "step_key": "investors.comparables",
+        "kind": "status",
+        "at": "2026-11-22T09:30:00.600000Z",
+        "label": "Searching for comparable companies that raised money",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 2,
+        "run_id": "fx-run-investors",
+        "step_id": "fx-run-investors-step-1",
+        "step_key": "investors.comparables",
+        "kind": "call",
+        "at": "2026-11-22T09:30:02.700000Z",
+        "label": "Company search · 40 companies",
+        "detail": "India · warehousing software · Series A",
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "crustdata",
+          "endpoint": "company_search",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 2100,
+          "credits": 6.5,
+          "usd": null,
+          "credits_total": 6.5,
+          "usd_total": 0.0
+        },
+        "counts": {
+          "returned": 40,
+          "new": 40,
+          "total_available": 133
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 3,
+        "run_id": "fx-run-investors",
+        "step_id": "fx-run-investors-step-1",
+        "step_key": "investors.comparables",
+        "kind": "finding",
+        "at": "2026-11-22T09:30:03.300000Z",
+        "label": "Found 40 companies",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "found": 40,
+          "in_play": 40,
+          "dropped": 0,
+          "enriched": 0,
+          "scored": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "900002",
+            "stage": "found",
+            "name": "Kestrel Supply Systems (fixture)",
+            "domain": null,
+            "location": null,
+            "headcount": null,
+            "headcount_is_estimate": null,
+            "reason": null,
+            "marks": null,
+            "highlight": null,
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          },
+          {
+            "id": "900005",
+            "stage": "found",
+            "name": "Ridgeway Cold Chain (fixture)",
+            "domain": null,
+            "location": null,
+            "headcount": null,
+            "headcount_is_estimate": null,
+            "reason": null,
+            "marks": null,
+            "highlight": null,
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          },
+          {
+            "id": "900006",
+            "stage": "found",
+            "name": "Lattice Yards (fixture)",
+            "domain": null,
+            "location": null,
+            "headcount": null,
+            "headcount_is_estimate": null,
+            "reason": null,
+            "marks": null,
+            "highlight": null,
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          }
+        ],
+        "subject": "company",
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 4,
+        "run_id": "fx-run-investors",
+        "step_id": "fx-run-investors-step-2",
+        "step_key": "investors.enrich",
+        "kind": "status",
+        "at": "2026-11-22T09:31:00.600000Z",
+        "label": "Reading funding rounds of 25 companies",
+        "detail": null,
+        "progress": {
+          "done": 0,
+          "total": 25
+        },
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 5,
+        "run_id": "fx-run-investors",
+        "step_id": "fx-run-investors-step-2",
+        "step_key": "investors.enrich",
+        "kind": "call",
+        "at": "2026-11-22T09:31:04.500000Z",
+        "label": "Enriched 25 of 25 companies",
+        "detail": "Funding",
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "crustdata",
+          "endpoint": "company_enrich",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 3900,
+          "credits": 50.0,
+          "usd": null,
+          "credits_total": 56.5,
+          "usd_total": 0.0
+        },
+        "counts": {
+          "requested": 25,
+          "returned": 25,
+          "with_funding": 18,
+          "funding_rounds": 31,
+          "with_investors": 14,
+          "with_headcount_series": 0,
+          "with_web_traffic": 0
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 6,
+        "run_id": "fx-run-investors",
+        "step_id": "fx-run-investors-step-2",
+        "step_key": "investors.enrich",
+        "kind": "finding",
+        "at": "2026-11-22T09:31:04.800000Z",
+        "label": "Read 1 funding rounds of Kestrel Supply Systems (fixture)",
+        "detail": null,
+        "progress": {
+          "done": 1,
+          "total": 25
+        },
+        "source": null,
+        "call": null,
+        "counts": {
+          "companies": 25,
+          "rounds": 1,
+          "rounds_dated": 1,
+          "investors": 1
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "rnd-900002",
+            "stage": "found",
+            "company": "Kestrel Supply Systems (fixture)",
+            "company_id": "900002",
+            "round": "Seed",
+            "date": "2025-04-02",
+            "amount_usd": null,
+            "investors": [
+              {
+                "key": "name:northgate ventures (fixture)",
+                "name": "Northgate Ventures (fixture)"
+              }
+            ]
+          }
+        ],
+        "subject": "round",
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 7,
+        "run_id": "fx-run-investors",
+        "step_id": "fx-run-investors-step-2",
+        "step_key": "investors.enrich",
+        "kind": "finding",
+        "at": "2026-11-22T09:31:05.100000Z",
+        "label": "Read 1 funding rounds of Ridgeway Cold Chain (fixture)",
+        "detail": null,
+        "progress": {
+          "done": 2,
+          "total": 25
+        },
+        "source": null,
+        "call": null,
+        "counts": {
+          "companies": 25,
+          "rounds": 2,
+          "rounds_dated": 2,
+          "investors": 2
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "rnd-900005",
+            "stage": "found",
+            "company": "Ridgeway Cold Chain (fixture)",
+            "company_id": "900005",
+            "round": "Seed",
+            "date": "2024-09-01",
+            "amount_usd": 1500000.0,
+            "investors": [
+              {
+                "key": "name:banyan seed partners (fixture)",
+                "name": "Banyan Seed Partners (fixture)"
+              }
+            ]
+          }
+        ],
+        "subject": "round",
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 8,
+        "run_id": "fx-run-investors",
+        "step_id": "fx-run-investors-step-2",
+        "step_key": "investors.enrich",
+        "kind": "finding",
+        "at": "2026-11-22T09:31:05.400000Z",
+        "label": "Read 1 funding rounds of Lattice Yards (fixture)",
+        "detail": null,
+        "progress": {
+          "done": 3,
+          "total": 25
+        },
+        "source": null,
+        "call": null,
+        "counts": {
+          "companies": 25,
+          "rounds": 3,
+          "rounds_dated": 3,
+          "investors": 3
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "rnd-900006",
+            "stage": "found",
+            "company": "Lattice Yards (fixture)",
+            "company_id": "900006",
+            "round": "Pre Seed",
+            "date": "2022-01-15",
+            "amount_usd": null,
+            "investors": [
+              {
+                "key": "name:banyan seed partners llp (fixture)",
+                "name": "Banyan Seed Partners LLP (fixture)"
+              }
+            ]
+          }
+        ],
+        "subject": "round",
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 9,
+        "run_id": "fx-run-investors",
+        "step_id": "fx-run-investors-step-3",
+        "step_key": "investors.rank",
+        "kind": "status",
+        "at": "2026-11-22T09:32:00.600000Z",
+        "label": "Grouping investors and ranking by dated comparable rounds",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 10,
+        "run_id": "fx-run-investors",
+        "step_id": "fx-run-investors-step-3",
+        "step_key": "investors.rank",
+        "kind": "finding",
+        "at": "2026-11-22T09:32:01.200000Z",
+        "label": "Ranked 3 investors",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "investors": 3,
+          "ranked": 3,
+          "not_ranked": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "name:northgate ventures (fixture)",
+            "stage": "ranked",
+            "name": "Northgate Ventures (fixture)",
+            "rank": 1,
+            "comparable_rounds": 1,
+            "last_round_date": "2025-04-02"
+          },
+          {
+            "id": "name:banyan seed partners (fixture)",
+            "stage": "ranked",
+            "name": "Banyan Seed Partners (fixture)",
+            "rank": 2,
+            "comparable_rounds": 1,
+            "last_round_date": "2024-09-01"
+          },
+          {
+            "id": "name:banyan seed partners llp (fixture)",
+            "stage": "ranked",
+            "name": "Banyan Seed Partners LLP (fixture)",
+            "rank": 3,
+            "comparable_rounds": 1,
+            "last_round_date": "2022-01-15"
+          }
+        ],
+        "subject": "investor",
+        "code": null,
+        "ref": null
+      }
+    ],
+    "fx-run-verify": [
+      {
+        "seq": 1,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-1",
+        "step_key": "verify.identity",
+        "kind": "status",
+        "at": "2026-11-22T09:30:00.600000Z",
+        "label": "Matching the domain harbourline.example",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 2,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-1",
+        "step_key": "verify.identity",
+        "kind": "call",
+        "at": "2026-11-22T09:30:01.200000Z",
+        "label": "Company identify · 2 candidates",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "crustdata",
+          "endpoint": "company_identify",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 700,
+          "credits": 0.4,
+          "usd": null,
+          "credits_total": 0.4,
+          "usd_total": 0.0
+        },
+        "counts": {
+          "candidates": 2
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 3,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-1",
+        "step_key": "verify.identity",
+        "kind": "finding",
+        "at": "2026-11-22T09:30:01.800000Z",
+        "label": "Identity confirmed",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "candidates": 2
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "900001",
+            "stage": "confirmed",
+            "name": "Harbourline Warehousing (fixture)",
+            "domain": "harbourline.example",
+            "matched_keys": [
+              "domain",
+              "crustdata_company_id"
+            ]
+          }
+        ],
+        "subject": "identity",
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 4,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-2",
+        "step_key": "verify.registry",
+        "kind": "status",
+        "at": "2026-11-22T09:31:00.600000Z",
+        "label": "Searching public registry records",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 5,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-2",
+        "step_key": "verify.registry",
+        "kind": "call",
+        "at": "2026-11-22T09:31:02.100000Z",
+        "label": "Web search · 6 results",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "crustdata",
+          "endpoint": "web_search",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 1500,
+          "credits": 1.0,
+          "usd": null,
+          "credits_total": 1.4,
+          "usd_total": 0.0
+        },
+        "counts": {
+          "hits": 6,
+          "news_hits": 0
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 6,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-2",
+        "step_key": "verify.registry",
+        "kind": "status",
+        "at": "2026-11-22T09:31:02.700000Z",
+        "label": "Reading registry.example",
+        "detail": null,
+        "progress": {
+          "done": 1,
+          "total": 2
+        },
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 7,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-2",
+        "step_key": "verify.registry",
+        "kind": "source",
+        "at": "2026-11-22T09:31:03.900000Z",
+        "label": "Read registry.example",
+        "detail": null,
+        "progress": {
+          "done": 1,
+          "total": 2
+        },
+        "source": {
+          "type": "web_page",
+          "domain": "registry.example",
+          "url": "https://registry.example/company/harbourline",
+          "title": "Harbourline Warehousing Private Limited (fixture)",
+          "source_class": "registry",
+          "as_of": "2026-10-01",
+          "state": "read",
+          "reason": null
+        },
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 8,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-2",
+        "step_key": "verify.registry",
+        "kind": "model",
+        "at": "2026-11-22T09:31:05.800000Z",
+        "label": "Read registry.example",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "anthropic",
+          "endpoint": "messages",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 1900,
+          "credits": null,
+          "usd": 0.0006,
+          "credits_total": 1.4,
+          "usd_total": 0.0006
+        },
+        "counts": {
+          "facts": 2,
+          "rejected_no_span": 0
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 9,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-2",
+        "step_key": "verify.registry",
+        "kind": "status",
+        "at": "2026-11-22T09:31:06.400000Z",
+        "label": "Reading filings.example",
+        "detail": null,
+        "progress": {
+          "done": 2,
+          "total": 2
+        },
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 10,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-2",
+        "step_key": "verify.registry",
+        "kind": "source",
+        "at": "2026-11-22T09:31:07.600000Z",
+        "label": "Read filings.example",
+        "detail": null,
+        "progress": {
+          "done": 2,
+          "total": 2
+        },
+        "source": {
+          "type": "web_page",
+          "domain": "filings.example",
+          "url": "https://filings.example/company/harbourline",
+          "title": "Charges registered against Harbourline (fixture)",
+          "source_class": "registry",
+          "as_of": "2026-10-01",
+          "state": "read",
+          "reason": null
+        },
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 11,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-2",
+        "step_key": "verify.registry",
+        "kind": "model",
+        "at": "2026-11-22T09:31:09.500000Z",
+        "label": "Read filings.example",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "anthropic",
+          "endpoint": "messages",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 1900,
+          "credits": null,
+          "usd": 0.0006,
+          "credits_total": 1.4,
+          "usd_total": 0.0012
+        },
+        "counts": {
+          "facts": 2,
+          "rejected_no_span": 0
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 12,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-3",
+        "step_key": "verify.profile",
+        "kind": "status",
+        "at": "2026-11-22T09:32:00.600000Z",
+        "label": "Reading the company record",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 13,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-3",
+        "step_key": "verify.profile",
+        "kind": "call",
+        "at": "2026-11-22T09:32:01.200000Z",
+        "label": "Enriched 1 of 1 companies",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "crustdata",
+          "endpoint": "company_enrich",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 1300,
+          "credits": 2.0,
+          "usd": null,
+          "credits_total": 3.4,
+          "usd_total": 0.0012
+        },
+        "counts": {
+          "requested": 1,
+          "returned": 1,
+          "with_funding": 1,
+          "funding_rounds": 1,
+          "with_investors": 1,
+          "with_headcount_series": 1,
+          "with_web_traffic": 0
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 14,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-3",
+        "step_key": "verify.profile",
+        "kind": "source",
+        "at": "2026-11-22T09:32:01.800000Z",
+        "label": "Read the company record",
+        "detail": null,
+        "progress": null,
+        "source": {
+          "type": "crustdata_record",
+          "domain": null,
+          "url": null,
+          "title": "Harbourline Warehousing (fixture) · company record",
+          "source_class": "data_provider",
+          "as_of": "2026-11-01",
+          "state": "read",
+          "reason": null
+        },
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 15,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-4",
+        "step_key": "verify.people",
+        "kind": "call",
+        "at": "2026-11-22T09:33:00.600000Z",
+        "label": "People search · 6 people",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "crustdata",
+          "endpoint": "person_search",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 1700,
+          "credits": 5.5,
+          "usd": null,
+          "credits_total": 8.9,
+          "usd_total": 0.0012
+        },
+        "counts": {
+          "returned": 6,
+          "current_leadership": 4
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 16,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-5",
+        "step_key": "verify.jobs",
+        "kind": "call",
+        "at": "2026-11-22T09:34:00.600000Z",
+        "label": "Job search · 10 postings",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "crustdata",
+          "endpoint": "job_search",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 800,
+          "credits": 0.3,
+          "usd": null,
+          "credits_total": 9.2,
+          "usd_total": 0.0012
+        },
+        "counts": {
+          "postings": 10,
+          "companies": 1
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 17,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-6",
+        "step_key": "claims.extract:fx-doc-deck",
+        "kind": "status",
+        "at": "2026-11-22T09:35:00.600000Z",
+        "label": "Reading the uploaded presentation",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 18,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-6",
+        "step_key": "claims.extract:fx-doc-deck",
+        "kind": "model",
+        "at": "2026-11-22T09:35:06.800000Z",
+        "label": "Read the uploaded document",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "anthropic",
+          "endpoint": "messages",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 6200,
+          "credits": null,
+          "usd": 0.0046,
+          "credits_total": 9.2,
+          "usd_total": 0.0058
+        },
+        "counts": {
+          "claims": 8,
+          "pages": 14
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 19,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-6",
+        "step_key": "claims.extract:fx-doc-deck",
+        "kind": "finding",
+        "at": "2026-11-22T09:35:07.400000Z",
+        "label": "Queued 8 claims for checking",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "queued": 8,
+          "checking": 0,
+          "settled": 0,
+          "not_checked": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-claim-1",
+            "stage": "queued",
+            "category": "identity_incorporation",
+            "status": null,
+            "previous_status": null,
+            "evidence_count": null,
+            "snippet": null,
+            "gap": null
+          },
+          {
+            "id": "fx-claim-2",
+            "stage": "queued",
+            "category": "team_size",
+            "status": null,
+            "previous_status": null,
+            "evidence_count": null,
+            "snippet": null,
+            "gap": null
+          },
+          {
+            "id": "fx-claim-3",
+            "stage": "queued",
+            "category": "leadership_history",
+            "status": null,
+            "previous_status": null,
+            "evidence_count": null,
+            "snippet": null,
+            "gap": null
+          },
+          {
+            "id": "fx-claim-4",
+            "stage": "queued",
+            "category": "funding",
+            "status": null,
+            "previous_status": null,
+            "evidence_count": null,
+            "snippet": null,
+            "gap": null
+          },
+          {
+            "id": "fx-claim-5",
+            "stage": "queued",
+            "category": "dated_event",
+            "status": null,
+            "previous_status": null,
+            "evidence_count": null,
+            "snippet": null,
+            "gap": null
+          },
+          {
+            "id": "fx-claim-7",
+            "stage": "queued",
+            "category": "location",
+            "status": null,
+            "previous_status": null,
+            "evidence_count": null,
+            "snippet": null,
+            "gap": null
+          },
+          {
+            "id": "fx-claim-8",
+            "stage": "queued",
+            "category": "debt_security",
+            "status": null,
+            "previous_status": null,
+            "evidence_count": null,
+            "snippet": null,
+            "gap": null
+          },
+          {
+            "id": "fx-claim-6",
+            "stage": "queued",
+            "category": "customer_partnership",
+            "status": null,
+            "previous_status": null,
+            "evidence_count": null,
+            "snippet": null,
+            "gap": null
+          }
+        ],
+        "subject": "claim",
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 20,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-7",
+        "step_key": "evidence.claim:fx-claim-1",
+        "kind": "status",
+        "at": "2026-11-22T09:36:00.600000Z",
+        "label": "Checking: identity incorporation",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-1"
+        }
+      },
+      {
+        "seq": 21,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-7",
+        "step_key": "evidence.claim:fx-claim-1",
+        "kind": "finding",
+        "at": "2026-11-22T09:36:01.200000Z",
+        "label": "Checking a claim: identity incorporation",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "queued": 7,
+          "checking": 1,
+          "settled": 0,
+          "not_checked": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-claim-1",
+            "stage": "checking",
+            "category": "identity_incorporation",
+            "status": null,
+            "previous_status": null,
+            "evidence_count": null,
+            "snippet": null,
+            "gap": null
+          }
+        ],
+        "subject": "claim",
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-1"
+        }
+      },
+      {
+        "seq": 22,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-7",
+        "step_key": "evidence.claim:fx-claim-1",
+        "kind": "source",
+        "at": "2026-11-22T09:36:02.600000Z",
+        "label": "Read registry.example",
+        "detail": null,
+        "progress": null,
+        "source": {
+          "type": "web_page",
+          "domain": "registry.example",
+          "url": "https://registry.example/harbourline/fx-claim-1",
+          "title": "Harbourline Warehousing (fixture) · public record",
+          "source_class": "registry",
+          "as_of": "2026-09-03",
+          "state": "read",
+          "reason": null
+        },
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-1"
+        }
+      },
+      {
+        "seq": 23,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-7",
+        "step_key": "evidence.claim:fx-claim-1",
+        "kind": "model",
+        "at": "2026-11-22T09:36:04.200000Z",
+        "label": "Read registry.example for identity incorporation",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "anthropic",
+          "endpoint": "messages",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 1600,
+          "credits": null,
+          "usd": 0.0007,
+          "credits_total": 9.2,
+          "usd_total": 0.0065
+        },
+        "counts": {
+          "facts": 1,
+          "rejected_no_span": 0
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-1"
+        }
+      },
+      {
+        "seq": 24,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-7",
+        "step_key": "evidence.claim:fx-claim-1",
+        "kind": "finding",
+        "at": "2026-11-22T09:36:04.800000Z",
+        "label": "Claim settled: supported",
+        "detail": "Identity incorporation",
+        "progress": null,
+        "source": {
+          "type": "web_page",
+          "domain": "registry.example",
+          "url": "https://registry.example/harbourline/fx-claim-1",
+          "title": "Harbourline Warehousing (fixture) · public record",
+          "source_class": "registry",
+          "as_of": "2026-09-03",
+          "state": "read",
+          "reason": null
+        },
+        "call": null,
+        "counts": {
+          "queued": 6,
+          "checking": 0,
+          "settled": 1,
+          "not_checked": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-claim-1",
+            "stage": "settled",
+            "category": "identity_incorporation",
+            "status": "supported",
+            "previous_status": null,
+            "evidence_count": 2,
+            "snippet": "…Harbourline Warehousing (fixture) was incorporated in 2016 in Pune…",
+            "gap": null
+          }
+        ],
+        "subject": "claim",
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-1"
+        }
+      },
+      {
+        "seq": 25,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-8",
+        "step_key": "evidence.claim:fx-claim-2",
+        "kind": "status",
+        "at": "2026-11-22T09:37:00.600000Z",
+        "label": "Checking: team size",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-2"
+        }
+      },
+      {
+        "seq": 26,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-8",
+        "step_key": "evidence.claim:fx-claim-2",
+        "kind": "finding",
+        "at": "2026-11-22T09:37:01.200000Z",
+        "label": "Checking a claim: team size",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "queued": 6,
+          "checking": 1,
+          "settled": 1,
+          "not_checked": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-claim-2",
+            "stage": "checking",
+            "category": "team_size",
+            "status": null,
+            "previous_status": null,
+            "evidence_count": null,
+            "snippet": null,
+            "gap": null
+          }
+        ],
+        "subject": "claim",
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-2"
+        }
+      },
+      {
+        "seq": 27,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-8",
+        "step_key": "evidence.claim:fx-claim-2",
+        "kind": "finding",
+        "at": "2026-11-22T09:37:01.800000Z",
+        "label": "Claim settled: cannot verify",
+        "detail": "Team size",
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "queued": 5,
+          "checking": 0,
+          "settled": 2,
+          "not_checked": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-claim-2",
+            "stage": "settled",
+            "category": "team_size",
+            "status": "cannot_verify",
+            "previous_status": null,
+            "evidence_count": 0,
+            "snippet": null,
+            "gap": "No dated payroll record was found"
+          }
+        ],
+        "subject": "claim",
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-2"
+        }
+      },
+      {
+        "seq": 28,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-9",
+        "step_key": "evidence.claim:fx-claim-3",
+        "kind": "status",
+        "at": "2026-11-22T09:38:00.600000Z",
+        "label": "Checking: leadership history",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-3"
+        }
+      },
+      {
+        "seq": 29,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-9",
+        "step_key": "evidence.claim:fx-claim-3",
+        "kind": "finding",
+        "at": "2026-11-22T09:38:01.200000Z",
+        "label": "Checking a claim: leadership history",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "queued": 5,
+          "checking": 1,
+          "settled": 2,
+          "not_checked": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-claim-3",
+            "stage": "checking",
+            "category": "leadership_history",
+            "status": null,
+            "previous_status": null,
+            "evidence_count": null,
+            "snippet": null,
+            "gap": null
+          }
+        ],
+        "subject": "claim",
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-3"
+        }
+      },
+      {
+        "seq": 30,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-9",
+        "step_key": "evidence.claim:fx-claim-3",
+        "kind": "finding",
+        "at": "2026-11-22T09:38:01.800000Z",
+        "label": "Claim settled: supported",
+        "detail": "Leadership history",
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "queued": 4,
+          "checking": 0,
+          "settled": 3,
+          "not_checked": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-claim-3",
+            "stage": "settled",
+            "category": "leadership_history",
+            "status": "supported",
+            "previous_status": null,
+            "evidence_count": 0,
+            "snippet": null,
+            "gap": null
+          }
+        ],
+        "subject": "claim",
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-3"
+        }
+      },
+      {
+        "seq": 31,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-10",
+        "step_key": "evidence.claim:fx-claim-4",
+        "kind": "status",
+        "at": "2026-11-22T09:39:00.600000Z",
+        "label": "Checking: funding",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-4"
+        }
+      },
+      {
+        "seq": 32,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-10",
+        "step_key": "evidence.claim:fx-claim-4",
+        "kind": "finding",
+        "at": "2026-11-22T09:39:01.200000Z",
+        "label": "Checking a claim: funding",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "queued": 4,
+          "checking": 1,
+          "settled": 3,
+          "not_checked": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-claim-4",
+            "stage": "checking",
+            "category": "funding",
+            "status": null,
+            "previous_status": null,
+            "evidence_count": null,
+            "snippet": null,
+            "gap": null
+          }
+        ],
+        "subject": "claim",
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-4"
+        }
+      },
+      {
+        "seq": 33,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-10",
+        "step_key": "evidence.claim:fx-claim-4",
+        "kind": "source",
+        "at": "2026-11-22T09:39:02.600000Z",
+        "label": "Read news.example",
+        "detail": null,
+        "progress": null,
+        "source": {
+          "type": "web_page",
+          "domain": "news.example",
+          "url": "https://news.example/harbourline/fx-claim-4",
+          "title": "Harbourline Warehousing (fixture) · public record",
+          "source_class": "news",
+          "as_of": "2026-09-03",
+          "state": "read",
+          "reason": null
+        },
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-4"
+        }
+      },
+      {
+        "seq": 34,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-10",
+        "step_key": "evidence.claim:fx-claim-4",
+        "kind": "model",
+        "at": "2026-11-22T09:39:04.200000Z",
+        "label": "Read news.example for funding",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "anthropic",
+          "endpoint": "messages",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 1600,
+          "credits": null,
+          "usd": 0.0007,
+          "credits_total": 9.2,
+          "usd_total": 0.0072
+        },
+        "counts": {
+          "facts": 1,
+          "rejected_no_span": 0
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-4"
+        }
+      },
+      {
+        "seq": 35,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-10",
+        "step_key": "evidence.claim:fx-claim-4",
+        "kind": "finding",
+        "at": "2026-11-22T09:39:04.800000Z",
+        "label": "Claim settled: conflicting evidence",
+        "detail": "Funding",
+        "progress": null,
+        "source": {
+          "type": "web_page",
+          "domain": "news.example",
+          "url": "https://news.example/harbourline/fx-claim-4",
+          "title": "Harbourline Warehousing (fixture) · public record",
+          "source_class": "news",
+          "as_of": "2026-09-03",
+          "state": "read",
+          "reason": null
+        },
+        "call": null,
+        "counts": {
+          "queued": 3,
+          "checking": 0,
+          "settled": 4,
+          "not_checked": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-claim-4",
+            "stage": "settled",
+            "category": "funding",
+            "status": "conflicting_evidence",
+            "previous_status": null,
+            "evidence_count": 2,
+            "snippet": "…Harbourline Warehousing (fixture) was incorporated in 2016 in Pune…",
+            "gap": "Sources disagree on the date"
+          }
+        ],
+        "subject": "claim",
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-4"
+        }
+      },
+      {
+        "seq": 36,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-11",
+        "step_key": "evidence.claim:fx-claim-5",
+        "kind": "status",
+        "at": "2026-11-22T09:40:00.600000Z",
+        "label": "Checking: dated event",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-5"
+        }
+      },
+      {
+        "seq": 37,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-11",
+        "step_key": "evidence.claim:fx-claim-5",
+        "kind": "finding",
+        "at": "2026-11-22T09:40:01.200000Z",
+        "label": "Checking a claim: dated event",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "queued": 3,
+          "checking": 1,
+          "settled": 4,
+          "not_checked": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-claim-5",
+            "stage": "checking",
+            "category": "dated_event",
+            "status": null,
+            "previous_status": null,
+            "evidence_count": null,
+            "snippet": null,
+            "gap": null
+          }
+        ],
+        "subject": "claim",
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-5"
+        }
+      },
+      {
+        "seq": 38,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-11",
+        "step_key": "evidence.claim:fx-claim-5",
+        "kind": "source",
+        "at": "2026-11-22T09:40:02.600000Z",
+        "label": "Read news.example",
+        "detail": null,
+        "progress": null,
+        "source": {
+          "type": "web_page",
+          "domain": "news.example",
+          "url": "https://news.example/harbourline/fx-claim-5",
+          "title": "Harbourline Warehousing (fixture) · public record",
+          "source_class": "company_announcement",
+          "as_of": "2026-09-03",
+          "state": "read",
+          "reason": null
+        },
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-5"
+        }
+      },
+      {
+        "seq": 39,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-11",
+        "step_key": "evidence.claim:fx-claim-5",
+        "kind": "model",
+        "at": "2026-11-22T09:40:04.200000Z",
+        "label": "Read news.example for dated event",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "anthropic",
+          "endpoint": "messages",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 1600,
+          "credits": null,
+          "usd": 0.0007,
+          "credits_total": 9.2,
+          "usd_total": 0.0079
+        },
+        "counts": {
+          "facts": 1,
+          "rejected_no_span": 0
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-5"
+        }
+      },
+      {
+        "seq": 40,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-11",
+        "step_key": "evidence.claim:fx-claim-5",
+        "kind": "finding",
+        "at": "2026-11-22T09:40:04.800000Z",
+        "label": "Claim settled: partially corroborated",
+        "detail": "Dated event",
+        "progress": null,
+        "source": {
+          "type": "web_page",
+          "domain": "news.example",
+          "url": "https://news.example/harbourline/fx-claim-5",
+          "title": "Harbourline Warehousing (fixture) · public record",
+          "source_class": "company_announcement",
+          "as_of": "2026-09-03",
+          "state": "read",
+          "reason": null
+        },
+        "call": null,
+        "counts": {
+          "queued": 2,
+          "checking": 0,
+          "settled": 5,
+          "not_checked": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-claim-5",
+            "stage": "settled",
+            "category": "dated_event",
+            "status": "partially_corroborated",
+            "previous_status": null,
+            "evidence_count": 2,
+            "snippet": "…Harbourline Warehousing (fixture) was incorporated in 2016 in Pune…",
+            "gap": "Nothing found shows the facility is operating"
+          }
+        ],
+        "subject": "claim",
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-5"
+        }
+      },
+      {
+        "seq": 41,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-12",
+        "step_key": "evidence.claim:fx-claim-7",
+        "kind": "status",
+        "at": "2026-11-22T09:41:00.600000Z",
+        "label": "Checking: location",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-7"
+        }
+      },
+      {
+        "seq": 42,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-12",
+        "step_key": "evidence.claim:fx-claim-7",
+        "kind": "finding",
+        "at": "2026-11-22T09:41:01.200000Z",
+        "label": "Checking a claim: location",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "queued": 2,
+          "checking": 1,
+          "settled": 5,
+          "not_checked": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-claim-7",
+            "stage": "checking",
+            "category": "location",
+            "status": null,
+            "previous_status": null,
+            "evidence_count": null,
+            "snippet": null,
+            "gap": null
+          }
+        ],
+        "subject": "claim",
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-7"
+        }
+      },
+      {
+        "seq": 43,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-12",
+        "step_key": "evidence.claim:fx-claim-7",
+        "kind": "source",
+        "at": "2026-11-22T09:41:02.600000Z",
+        "label": "Read registry.example",
+        "detail": null,
+        "progress": null,
+        "source": {
+          "type": "web_page",
+          "domain": "registry.example",
+          "url": "https://registry.example/harbourline/fx-claim-7",
+          "title": "Harbourline Warehousing (fixture) · public record",
+          "source_class": "registry",
+          "as_of": "2026-09-03",
+          "state": "read",
+          "reason": null
+        },
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-7"
+        }
+      },
+      {
+        "seq": 44,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-12",
+        "step_key": "evidence.claim:fx-claim-7",
+        "kind": "model",
+        "at": "2026-11-22T09:41:04.200000Z",
+        "label": "Read registry.example for location",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "anthropic",
+          "endpoint": "messages",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 1600,
+          "credits": null,
+          "usd": 0.0007,
+          "credits_total": 9.2,
+          "usd_total": 0.0086
+        },
+        "counts": {
+          "facts": 1,
+          "rejected_no_span": 0
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-7"
+        }
+      },
+      {
+        "seq": 45,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-12",
+        "step_key": "evidence.claim:fx-claim-7",
+        "kind": "finding",
+        "at": "2026-11-22T09:41:04.800000Z",
+        "label": "Claim settled: contradicted",
+        "detail": "Location",
+        "progress": null,
+        "source": {
+          "type": "web_page",
+          "domain": "registry.example",
+          "url": "https://registry.example/harbourline/fx-claim-7",
+          "title": "Harbourline Warehousing (fixture) · public record",
+          "source_class": "registry",
+          "as_of": "2026-09-03",
+          "state": "read",
+          "reason": null
+        },
+        "call": null,
+        "counts": {
+          "queued": 1,
+          "checking": 0,
+          "settled": 6,
+          "not_checked": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-claim-7",
+            "stage": "settled",
+            "category": "location",
+            "status": "contradicted",
+            "previous_status": null,
+            "evidence_count": 2,
+            "snippet": "…Harbourline Warehousing (fixture) was incorporated in 2016 in Pune…",
+            "gap": null
+          }
+        ],
+        "subject": "claim",
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-7"
+        }
+      },
+      {
+        "seq": 46,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-13",
+        "step_key": "evidence.claim:fx-claim-8",
+        "kind": "status",
+        "at": "2026-11-22T09:42:00.600000Z",
+        "label": "Checking: debt security",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-8"
+        }
+      },
+      {
+        "seq": 47,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-13",
+        "step_key": "evidence.claim:fx-claim-8",
+        "kind": "finding",
+        "at": "2026-11-22T09:42:01.200000Z",
+        "label": "Checking a claim: debt security",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "queued": 1,
+          "checking": 1,
+          "settled": 6,
+          "not_checked": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-claim-8",
+            "stage": "checking",
+            "category": "debt_security",
+            "status": null,
+            "previous_status": null,
+            "evidence_count": null,
+            "snippet": null,
+            "gap": null
+          }
+        ],
+        "subject": "claim",
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-8"
+        }
+      },
+      {
+        "seq": 48,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-13",
+        "step_key": "evidence.claim:fx-claim-8",
+        "kind": "finding",
+        "at": "2026-11-22T09:42:01.800000Z",
+        "label": "Claim settled: cannot verify",
+        "detail": "Debt security",
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "queued": 0,
+          "checking": 0,
+          "settled": 7,
+          "not_checked": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-claim-8",
+            "stage": "settled",
+            "category": "debt_security",
+            "status": "cannot_verify",
+            "previous_status": null,
+            "evidence_count": 0,
+            "snippet": null,
+            "gap": "Lender statements are needed"
+          }
+        ],
+        "subject": "claim",
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-8"
+        }
+      },
+      {
+        "seq": 49,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-14",
+        "step_key": "evidence.events",
+        "kind": "status",
+        "at": "2026-11-22T09:43:00.600000Z",
+        "label": "Searching news about the company",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 50,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-14",
+        "step_key": "evidence.events",
+        "kind": "call",
+        "at": "2026-11-22T09:43:01.200000Z",
+        "label": "Web search · 9 results",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "crustdata",
+          "endpoint": "web_search",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 1400,
+          "credits": 1.0,
+          "usd": null,
+          "credits_total": 10.2,
+          "usd_total": 0.0086
+        },
+        "counts": {
+          "hits": 9,
+          "news_hits": 6
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 51,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-14",
+        "step_key": "evidence.events",
+        "kind": "source",
+        "at": "2026-11-22T09:43:01.800000Z",
+        "label": "Could not read social.example",
+        "detail": null,
+        "progress": null,
+        "source": {
+          "type": "web_page",
+          "domain": "social.example",
+          "url": "https://social.example/company/harbourline",
+          "title": null,
+          "source_class": "company_announcement",
+          "as_of": null,
+          "state": "failed",
+          "reason": "http_403"
+        },
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 52,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-14",
+        "step_key": "evidence.events",
+        "kind": "finding",
+        "at": "2026-11-22T09:43:02.400000Z",
+        "label": "Found 3 dated events",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "events": 3
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-evt-1",
+            "stage": "found",
+            "date": "2023-11-20",
+            "event_kind": "funding",
+            "title": "Funding announcement · news.example",
+            "domain": "news.example"
+          }
+        ],
+        "subject": "event",
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 53,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-15",
+        "step_key": "evidence.comparables",
+        "kind": "finding",
+        "at": "2026-11-22T09:44:00.600000Z",
+        "label": "Found 2 comparable companies",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "peers": 2
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "900005",
+            "stage": "found",
+            "name": "Ridgeway Cold Chain (fixture)",
+            "domain": null,
+            "location": "Chennai, India",
+            "headcount": 210,
+            "headcount_is_estimate": true,
+            "reason": null,
+            "marks": null,
+            "highlight": null,
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          },
+          {
+            "id": "900003",
+            "stage": "found",
+            "name": "Morrow Docks (fixture)",
+            "domain": null,
+            "location": "Chennai, India",
+            "headcount": 180,
+            "headcount_is_estimate": true,
+            "reason": null,
+            "marks": null,
+            "highlight": null,
+            "fit": null,
+            "assessable": null,
+            "rank": null
+          }
+        ],
+        "subject": "peer",
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 54,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-15",
+        "step_key": "evidence.comparables",
+        "kind": "notice",
+        "at": "2026-11-22T09:44:01.200000Z",
+        "label": "Credit budget reached",
+        "detail": "What was not read is marked not checked",
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": "budget_reached",
+        "ref": null
+      },
+      {
+        "seq": 55,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-16",
+        "step_key": "evaluate.assess",
+        "kind": "status",
+        "at": "2026-11-22T09:45:00.600000Z",
+        "label": "Applying the screening rules",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 56,
+        "run_id": "fx-run-verify",
+        "step_id": "fx-run-verify-step-16",
+        "step_key": "evaluate.assess",
+        "kind": "finding",
+        "at": "2026-11-22T09:45:01.200000Z",
+        "label": "Assessment written: investigate further",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "supported": 2,
+          "open": 5
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-assessment-1",
+            "stage": "written",
+            "version": 1,
+            "disposition": "investigate_further",
+            "previous_disposition": null,
+            "fit": 78.0,
+            "assessable": 0.7
+          }
+        ],
+        "subject": "assessment",
+        "code": null,
+        "ref": null
+      }
+    ],
+    "fx-run-recheck": [
+      {
+        "seq": 1,
+        "run_id": "fx-run-recheck",
+        "step_id": "fx-run-recheck-step-1",
+        "step_key": "claims.extract_text:fx-doc-payroll",
+        "kind": "status",
+        "at": "2026-11-22T09:30:00.600000Z",
+        "label": "Reading the uploaded PDF",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 2,
+        "run_id": "fx-run-recheck",
+        "step_id": "fx-run-recheck-step-1",
+        "step_key": "claims.extract_text:fx-doc-payroll",
+        "kind": "source",
+        "at": "2026-11-22T09:30:01.200000Z",
+        "label": "Read the uploaded PDF",
+        "detail": null,
+        "progress": null,
+        "source": {
+          "type": "seller_document",
+          "domain": null,
+          "url": null,
+          "title": "Seller document · PDF",
+          "source_class": "seller_document",
+          "as_of": null,
+          "state": "read",
+          "reason": null
+        },
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 3,
+        "run_id": "fx-run-recheck",
+        "step_id": "fx-run-recheck-step-2",
+        "step_key": "recheck.facts:fx-claim-2",
+        "kind": "status",
+        "at": "2026-11-22T09:31:00.600000Z",
+        "label": "Checking: team size",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-2"
+        }
+      },
+      {
+        "seq": 4,
+        "run_id": "fx-run-recheck",
+        "step_id": "fx-run-recheck-step-2",
+        "step_key": "recheck.facts:fx-claim-2",
+        "kind": "model",
+        "at": "2026-11-22T09:31:01.200000Z",
+        "label": "Read the uploaded document for team size",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": {
+          "provider": "anthropic",
+          "endpoint": "messages",
+          "ok": true,
+          "error": null,
+          "from_cache": false,
+          "attempts": 1,
+          "duration_ms": 1500,
+          "credits": null,
+          "usd": 0.0005,
+          "credits_total": 0.0,
+          "usd_total": 0.0005
+        },
+        "counts": {
+          "facts": 1,
+          "rejected_no_span": 0
+        },
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-2"
+        }
+      },
+      {
+        "seq": 5,
+        "run_id": "fx-run-recheck",
+        "step_id": "fx-run-recheck-step-2",
+        "step_key": "recheck.facts:fx-claim-2",
+        "kind": "finding",
+        "at": "2026-11-22T09:31:01.800000Z",
+        "label": "Claim settled: supported",
+        "detail": "Team size",
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "queued": 0,
+          "checking": 0,
+          "settled": 1,
+          "not_checked": 0
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-claim-2",
+            "stage": "settled",
+            "category": "team_size",
+            "status": "supported",
+            "previous_status": "cannot_verify",
+            "evidence_count": 1,
+            "snippet": null,
+            "gap": null
+          }
+        ],
+        "subject": "claim",
+        "code": null,
+        "ref": {
+          "type": "claim",
+          "id": "fx-claim-2"
+        }
+      },
+      {
+        "seq": 6,
+        "run_id": "fx-run-recheck",
+        "step_id": "fx-run-recheck-step-3",
+        "step_key": "evaluate.assess",
+        "kind": "status",
+        "at": "2026-11-22T09:32:00.600000Z",
+        "label": "Applying the screening rules",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": null,
+        "highlights": null,
+        "items": null,
+        "subject": null,
+        "code": null,
+        "ref": null
+      },
+      {
+        "seq": 7,
+        "run_id": "fx-run-recheck",
+        "step_id": "fx-run-recheck-step-3",
+        "step_key": "evaluate.assess",
+        "kind": "finding",
+        "at": "2026-11-22T09:32:01.200000Z",
+        "label": "Assessment written: investigate further",
+        "detail": null,
+        "progress": null,
+        "source": null,
+        "call": null,
+        "counts": {
+          "supported": 3,
+          "open": 4
+        },
+        "highlights": null,
+        "items": [
+          {
+            "id": "fx-assessment-2",
+            "stage": "written",
+            "version": 2,
+            "disposition": "investigate_further",
+            "previous_disposition": "investigate_further",
+            "fit": 80.0,
+            "assessable": 0.75
+          }
+        ],
+        "subject": "assessment",
+        "code": null,
+        "ref": null
+      }
+    ]
   }
 }

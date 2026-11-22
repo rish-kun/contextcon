@@ -12,6 +12,7 @@ from app.api import export_openapi, fixtures, runs
 from app.api._base import FIXTURE_HEADER
 from app.api.schemas import common
 from app.api.schemas.common import ClaimStatus, FactStr, SourceClass, SourceRef
+from app.api.schemas.runs import ActivityOut
 from app.main import create_app
 
 CASE = fixtures.CASE_ID
@@ -83,6 +84,7 @@ ROUTES: list[tuple[str, str, str, object]] = [
     ("GET", "/cases/{case_id}/requests", f"/cases/{CASE}/requests", None),
     ("GET", "/runs/{run_id}", f"/runs/{RUN}", None),
     ("GET", "/runs/{run_id}/events", f"/runs/{RUN}/events", None),
+    ("GET", "/runs/{run_id}/activity", f"/runs/{RUN}/activity", None),
     ("POST", "/runs/{run_id}/resume", f"/runs/{RUN}/resume", None),
     ("GET", "/policy", "/policy", None),
 ]
@@ -92,6 +94,7 @@ SESSION_ROUTES = {
     "/auth/me",
     "/runs/{run_id}",
     "/runs/{run_id}/events",
+    "/runs/{run_id}/activity",
     "/runs/{run_id}/resume",
     "/cases",  # CP-19: create and list
     "/cases/{case_id}",  # CP-19
@@ -225,6 +228,7 @@ def test_sse_contract_documents_events_and_json_errors() -> None:
     assert events == {
         "run": {"$ref": "#/components/schemas/RunOut"},
         "step": {"$ref": "#/components/schemas/StepOut"},
+        "activity": {"$ref": "#/components/schemas/ActivityOut"},
     }
     for code in ("401", "404"):
         assert set(responses[code]["content"]) == {"application/json"}, code
@@ -298,21 +302,71 @@ def test_fixture_companies_are_labelled() -> None:
         assert "(fixture)" in name, name
 
 
-def test_sse_stream_emits_steps_then_run(fixture_client: TestClient) -> None:
+def _sse_blocks(text: str) -> list[tuple[str, dict]]:
+    out = []
+    for block in text.strip().split("\n\n"):
+        fields = dict(line.split(": ", 1) for line in block.split("\n") if not line.startswith(":"))
+        if "event" in fields:
+            out.append((fields["event"], json.loads(fields["data"])))
+    return out
+
+
+def test_sse_stream_emits_steps_activities_then_run(fixture_client: TestClient) -> None:
+    from app.api import fixture_activity
+
     run = fixtures.runs()[fixtures.DISCOVER_RUN_ID]
     with fixture_client.stream("GET", f"/runs/{run.id}/events") as response:
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("text/event-stream")
         text = "".join(response.iter_text())
-    events = [
-        (block.split("\n")[0].removeprefix("event: "), json.loads(block.split("\n")[1][6:]))
-        for block in text.strip().split("\n\n")
-    ]
+    assert ": live\n\n" in text
+    events = _sse_blocks(text)
     assert events[0][0] == "run" and events[0][1]["state"] == "running"
     assert events[-1][0] == "run" and events[-1][1]["state"] == "done"
     steps = [data for name, data in events if name == "step"]
     assert len(steps) == 2 * len(run.steps)
     assert steps[-1]["state"] == "done"
+    activities = [data for name, data in events if name == "activity"]
+    recorded = fixture_activity.activities(run.id)
+    assert (
+        [a["seq"] for a in activities]
+        == [a.seq for a in recorded]
+        == list(range(1, len(recorded) + 1))
+    )
+    assert f"id: {recorded[-1].seq}\nevent: activity" in text
+    # Resuming after a seq sends only what came after it.
+    with fixture_client.stream(
+        "GET", f"/runs/{run.id}/events", headers={"Last-Event-ID": "30"}
+    ) as response:
+        resumed = _sse_blocks("".join(response.iter_text()))
+    assert [d["seq"] for n, d in resumed if n == "activity"] == list(range(31, len(recorded) + 1))
+
+
+def test_fixture_activity_page_and_kinds(fixture_client: TestClient) -> None:
+    from app.api import fixture_activity
+
+    for run_id in (
+        fixtures.DISCOVER_RUN_ID,
+        fixtures.INVESTOR_RUN_ID,
+        fixtures.VERIFY_RUN_ID,
+        fixtures.RECHECK_RUN_ID,
+    ):
+        page = fixture_client.get(f"/runs/{run_id}/activity").json()
+        assert page["items"], run_id
+        assert [a["seq"] for a in page["items"]] == list(range(1, len(page["items"]) + 1))
+        assert page["next_after"] is None
+        assert page["summary"]["last_seq"] == len(page["items"])
+        for item in page["items"]:
+            assert set(item) == set(ActivityOut.model_fields), item  # nulls, never omitted
+            assert len(item["label"]) <= 120
+    first = fixture_client.get(f"/runs/{fixtures.VERIFY_RUN_ID}/activity?after=0&limit=10").json()
+    assert [a["seq"] for a in first["items"]] == list(range(1, 11)) and first["next_after"] == 10
+    verify = fixture_activity.activities(fixtures.VERIFY_RUN_ID)
+    kinds = {a.kind.value for a in verify}
+    assert kinds == {"status", "call", "source", "model", "finding", "notice"}
+    subjects = {a.subject.value for a in verify if a.subject}
+    assert {"identity", "claim", "event", "peer", "assessment"} <= subjects
+    assert fixture_client.get("/runs/nope/activity").status_code == 404
 
 
 def test_shared_enums_match_spec() -> None:
