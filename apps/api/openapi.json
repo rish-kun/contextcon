@@ -7347,6 +7347,17 @@
             ],
             "description": "Estimate."
           },
+          "headcount_series": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HeadcountSeriesOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Estimate. The provider's dated points, oldest first."
+          },
           "total_funding_usd": {
             "anyOf": [
               {
@@ -7404,6 +7415,7 @@
           "location",
           "headcount",
           "headcount_growth_yoy_pct",
+          "headcount_series",
           "total_funding_usd",
           "funding_rounds",
           "hiring",

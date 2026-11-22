@@ -154,6 +154,26 @@ def enrich_values(company: dict[str, Any]) -> list[FieldValue]:
                 "headcount.total", "headcount.total", headcount["total"], hc_as_of, True, "estimate"
             )
         )
+    points = sorted(
+        (
+            {"date": d.isoformat(), "employee_count": int(p["employee_count"])}
+            for p in series
+            if (d := parse_date(p.get("date")))
+        ),
+        key=lambda p: p["date"],
+    )
+    if len(points) >= 2:  # one point is the total above, not a trend
+        out.append(
+            FieldValue(
+                "headcount.timeseries",
+                "headcount.timeseries",
+                points,
+                hc_as_of,
+                True,
+                "estimate",
+                raw=series,
+            )
+        )
     growth = headcount.get("growth_percent") or {}
     for key, names in (
         ("headcount.growth_percent.12m", ("yoy", "12m")),

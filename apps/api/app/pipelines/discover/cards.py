@@ -69,6 +69,13 @@ def _number(f: dict[str, Any] | None, cast: type) -> dict[str, Any] | None:
         return None
 
 
+def _series(f: dict[str, Any] | None) -> dict[str, Any] | None:
+    """The provider's dated headcount points. Always an estimate; never interpolated."""
+    if f is None or not isinstance(f.get("value"), list) or len(f["value"]) < 2:
+        return None
+    return {"points": f["value"], "source": f["source"], "estimate_basis": ESTIMATE_BASIS}
+
+
 def met_reasons(criteria: list[Criterion], assessment: CandidateAssessment) -> list[dict[str, Any]]:
     """Deterministic reasons: the criteria met, each with its evidence."""
     labels = {c.id: c.label for c in criteria}
@@ -153,6 +160,7 @@ def build_card(
         "location": _location(facts),
         "headcount": _number(facts.get("headcount.total"), int),
         "headcount_growth_yoy_pct": _number(facts.get("headcount.growth_percent.12m"), float),
+        "headcount_series": _series(facts.get("headcount.timeseries")),
         "total_funding_usd": _number(facts.get("funding.total_investment_usd"), float),
         "funding_rounds": [
             {

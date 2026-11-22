@@ -17,7 +17,7 @@ from app.api.schemas.common import (
     FactInt,
     FactStr,
 )
-from app.api.schemas.company import FundingRoundOut, HiringOut
+from app.api.schemas.company import FundingRoundOut, HeadcountSeriesOut, HiringOut
 from app.api.schemas.runs import RunOut
 
 
@@ -81,6 +81,9 @@ class ShortlistCardOut(ApiModel):
     location: FactStr | None = None
     headcount: FactInt | None = Field(default=None, description="Estimate.")
     headcount_growth_yoy_pct: FactFloat | None = Field(default=None, description="Estimate.")
+    headcount_series: HeadcountSeriesOut | None = Field(
+        default=None, description="Estimate. The provider's dated points, oldest first."
+    )
     total_funding_usd: FactFloat | None = None
     funding_rounds: list[FundingRoundOut] = Field(default_factory=list)
     hiring: HiringOut | None = Field(default=None, description="Signal.")

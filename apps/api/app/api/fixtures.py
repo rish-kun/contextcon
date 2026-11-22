@@ -670,6 +670,13 @@ HARBOURLINE_RESULTS = _results(
 )
 
 
+HARBOURLINE_HEADCOUNT = [
+    HeadcountPointOut(date=date(2025, 11, 1), employee_count=135),
+    HeadcountPointOut(date=date(2026, 5, 1), employee_count=148),
+    HeadcountPointOut(date=date(2026, 11, 1), employee_count=160),
+]
+
+
 def _card(name: str, city: str, headcount: int, growth: float | None, **kw: Any):
     src = S_PROFILE.model_copy(update={"source_id": f"fx-src-enrich-{name[:4].lower()}"})
     hsrc = S_HEADCOUNT.model_copy(update={"source_id": f"fx-src-headcount-{name[:4].lower()}"})
@@ -681,6 +688,11 @@ def _card(name: str, city: str, headcount: int, growth: float | None, **kw: Any)
         headcount_growth_yoy_pct=(
             FactFloat(**_est(growth, hsrc, date(2026, 11, 1), basis))
             if growth is not None
+            else None
+        ),
+        headcount_series=(
+            HeadcountSeriesOut(points=points, source=hsrc)
+            if (points := kw.pop("series", None))
             else None
         ),
         last_updated=_t(3),
@@ -754,6 +766,7 @@ def shortlist() -> list[ShortlistItemOut]:
                 "Nashik",
                 160,
                 18.5,
+                series=HARBOURLINE_HEADCOUNT,
                 business="Contract warehousing and cold storage for manufacturers",
                 funding_rounds=harbour_rounds,
                 total_funding_usd=FactFloat(**_fact(6_000_000.0, S_FUNDING, date(2023, 11, 20))),
@@ -1509,14 +1522,7 @@ def _profile() -> CompanyProfileOut:
         company_type_reason="Founded 2016 (within 10 years) and last round Series A",
         headcount=FactInt(**_est(160, S_HEADCOUNT, date(2026, 11, 1), basis)),
         headcount_growth_yoy_pct=FactFloat(**_est(18.5, S_HEADCOUNT, date(2026, 11, 1), basis)),
-        headcount_series=HeadcountSeriesOut(
-            points=[
-                HeadcountPointOut(date=date(2025, 11, 1), employee_count=135),
-                HeadcountPointOut(date=date(2026, 5, 1), employee_count=148),
-                HeadcountPointOut(date=date(2026, 11, 1), employee_count=160),
-            ],
-            source=S_HEADCOUNT,
-        ),
+        headcount_series=HeadcountSeriesOut(points=HARBOURLINE_HEADCOUNT, source=S_HEADCOUNT),
         total_funding_usd=FactFloat(**_fact(6_000_000.0, S_FUNDING, date(2023, 11, 20))),
         funding_rounds=shortlist()[1].card.funding_rounds,
         people=[

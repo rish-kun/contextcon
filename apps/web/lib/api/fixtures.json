@@ -364,6 +364,7 @@
             "estimate_basis": "from professional profiles, not a payroll count"
           },
           "headcount_growth_yoy_pct": null,
+          "headcount_series": null,
           "total_funding_usd": null,
           "funding_rounds": [],
           "hiring": null,
@@ -571,6 +572,32 @@
             "as_of": "2026-11-01",
             "is_estimate": true,
             "estimate_kind": "estimate",
+            "estimate_basis": "from professional profiles, not a payroll count"
+          },
+          "headcount_series": {
+            "points": [
+              {
+                "date": "2025-11-01",
+                "employee_count": 135
+              },
+              {
+                "date": "2026-05-01",
+                "employee_count": 148
+              },
+              {
+                "date": "2026-11-01",
+                "employee_count": 160
+              }
+            ],
+            "source": {
+              "source_id": "fx-src-headcount-harb",
+              "provider": "crustdata",
+              "label": "Headcount estimate",
+              "url_or_endpoint": "POST /company/enrich#headcount",
+              "retrieved_at": "2026-11-22T09:32:00Z",
+              "source_class": "professional_profile_signal",
+              "origin_id": null
+            },
             "estimate_basis": "from professional profiles, not a payroll count"
           },
           "total_funding_usd": {
@@ -796,6 +823,7 @@
             "estimate_basis": "from professional profiles, not a payroll count"
           },
           "headcount_growth_yoy_pct": null,
+          "headcount_series": null,
           "total_funding_usd": null,
           "funding_rounds": [],
           "hiring": null,
@@ -927,6 +955,7 @@
             "estimate_basis": "from professional profiles, not a payroll count"
           },
           "headcount_growth_yoy_pct": null,
+          "headcount_series": null,
           "total_funding_usd": null,
           "funding_rounds": [],
           "hiring": null,

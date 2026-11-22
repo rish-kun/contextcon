@@ -2368,6 +2368,8 @@ export interface components {
             headcount: components["schemas"]["FactInt"] | null;
             /** @description Estimate. */
             headcount_growth_yoy_pct: components["schemas"]["FactFloat"] | null;
+            /** @description Estimate. The provider's dated points, oldest first. */
+            headcount_series: components["schemas"]["HeadcountSeriesOut"] | null;
             total_funding_usd: components["schemas"]["FactFloat"] | null;
             /** Funding Rounds */
             funding_rounds: components["schemas"]["FundingRoundOut"][];
