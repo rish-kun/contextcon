@@ -44,6 +44,7 @@ from app.clients.crustdata_models import (
     WebPage,
     WebSearchResult,
 )
+from app.clients.ratelimit import SlidingWindowRateLimiter
 from app.settings import Settings, get_settings
 
 PROVIDER = "crustdata"
@@ -58,6 +59,23 @@ PERSON_SEARCH = "/person/search"
 JOB_SEARCH = "/job/search"
 WEB_SEARCH_LIVE = "/web/search/live"
 WEB_FETCH_LIVE = "/web/enrich/live"
+
+# Crustdata's default per-endpoint limits (requests per minute, per API key).
+DEFAULT_RATE_LIMITS: dict[str, int] = {
+    COMPANY_IDENTIFY: 30,
+    COMPANY_SEARCH: 30,
+    PERSON_SEARCH: 30,
+    JOB_SEARCH: 30,
+    COMPANY_ENRICH: 15,
+    WEB_SEARCH_LIVE: 10,
+    WEB_FETCH_LIVE: 10,
+}
+
+# Shared by every client in the process (the limits are per API key, not per client).
+SHARED_RATE_LIMITER = SlidingWindowRateLimiter(DEFAULT_RATE_LIMITS)
+
+MAX_ENRICH_IDS = 25
+MAX_FETCH_URLS = 10
 
 # Enrich groups DealProof needs for a company profile. Enrich bills per returned
 # match (2 credits), not per group, except `technographics`, which is left out.
@@ -147,6 +165,26 @@ class CrustdataError(Exception):
         self.record = record
 
 
+class CrustdataPlanError(CrustdataError):
+    """403: the endpoint or a requested field is not on this account's plan."""
+
+
+class SemanticSearchUnavailable(CrustdataPlanError):
+    """403 on company search with ``search``: natural-language mode is not enabled."""
+
+
+class CrustdataCreditsError(CrustdataError):
+    """402: the account is out of credits."""
+
+
+def _error_class(status: int | None, *, natural_language: bool) -> type[CrustdataError]:
+    if status == 402:
+        return CrustdataCreditsError
+    if status == 403:
+        return SemanticSearchUnavailable if natural_language else CrustdataPlanError
+    return CrustdataError
+
+
 class CrustdataClient:
     def __init__(
         self,
@@ -161,6 +199,7 @@ class CrustdataClient:
         recorder: CallRecorder | None = None,
         cache: ResponseCache | None = None,
         http_client: httpx2.AsyncClient | None = None,
+        rate_limiter: SlidingWindowRateLimiter | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
         if not api_key:
@@ -180,19 +219,19 @@ class CrustdataClient:
         self.backoff_max = backoff_max
         self.recorder = recorder
         self.cache = cache
+        self.rate_limiter = rate_limiter or SHARED_RATE_LIMITER
         self._sleep = sleep
 
     @classmethod
     def from_settings(cls, settings: Settings | None = None, **kwargs: Any) -> CrustdataClient:
         s = settings or get_settings()
-        return cls(
-            s.crustdata_api_key.get_secret_value(),
-            base_url=s.crustdata_base_url,
-            api_version=s.crustdata_api_version,
-            timeout=s.crustdata_timeout_seconds,
-            max_retries=s.crustdata_max_retries,
-            **kwargs,
-        )
+        options: dict[str, Any] = {
+            "base_url": s.crustdata_base_url,
+            "api_version": s.crustdata_api_version,
+            "timeout": s.crustdata_timeout_seconds,
+            "max_retries": s.crustdata_max_retries,
+        }
+        return cls(s.crustdata_api_key.get_secret_value(), **{**options, **kwargs})
 
     async def aclose(self) -> None:
         if self._owns_http:
@@ -244,12 +283,19 @@ class CrustdataClient:
         cursor: str | None = None,
         sorts: Sequence[dict[str, str]] | None = None,
         fields: Sequence[str] | None = None,
+        fallback_to_filters: bool = False,
     ) -> tuple[CompanySearchResult, CallRecord]:
         """Company search with structured filters, a natural-language query, or both.
 
         With ``query`` the results are relevance-ranked (``mode`` = hybrid | lexical |
         semantic, at most 100 per page) and ``filters`` act as hard constraints;
         ``sorts`` are rejected in that mode.
+
+        Natural-language mode is enabled per account. When it is not, the API answers
+        403 and this raises `SemanticSearchUnavailable`, unless ``fallback_to_filters``
+        is set and ``filters`` were given: then the same search runs on the filters
+        alone and the result has ``natural_language=False``. The failed attempt is
+        still reported to the recorder as its own call.
         """
         if filters is None and not query:
             raise ValueError("search_companies needs filters, a query, or both.")
@@ -266,8 +312,16 @@ class CrustdataClient:
             body["sorts"] = list(sorts)
         if fields:
             body["fields"] = list(fields)
-        data, record = await self._post(COMPANY_SEARCH, body)
-        return CompanySearchResult.model_validate(data or {}), record
+        try:
+            data, record = await self._post(COMPANY_SEARCH, body)
+        except SemanticSearchUnavailable:
+            if not (fallback_to_filters and filters is not None):
+                raise
+            body.pop("search")
+            data, record = await self._post(COMPANY_SEARCH, body)
+        result = CompanySearchResult.model_validate(data or {})
+        result.natural_language = "search" in body
+        return result, record
 
     async def enrich_company(
         self,
@@ -286,8 +340,8 @@ class CrustdataClient:
             if isinstance(crustdata_company_ids, int)
             else list(crustdata_company_ids)
         )
-        if not ids:
-            raise ValueError("enrich_company needs at least one company id.")
+        if not 1 <= len(ids) <= MAX_ENRICH_IDS:
+            raise ValueError(f"enrich_company takes between 1 and {MAX_ENRICH_IDS} company ids.")
         body = {"crustdata_company_ids": ids, "fields": list(fields)}
         data, record = await self._post(COMPANY_ENRICH, body)
         return [EnrichResult.model_validate(item) for item in data or []], record
@@ -397,10 +451,14 @@ class CrustdataClient:
     async def fetch_pages(
         self, urls: Sequence[str], *, human_mode: bool = False
     ) -> tuple[list[WebPage], CallRecord]:
-        """Live fetch of up to 10 pages (title + content). 1 credit per page."""
+        """Live fetch of up to 10 pages (title + HTML content). 1 credit per page.
+
+        Pages that could not be fetched come back with ``url: null``; use
+        `failed_urls` to find which requested URLs they were.
+        """
         url_list = list(urls)
-        if not 1 <= len(url_list) <= 10:
-            raise ValueError("fetch_pages takes between 1 and 10 URLs.")
+        if not 1 <= len(url_list) <= MAX_FETCH_URLS:
+            raise ValueError(f"fetch_pages takes between 1 and {MAX_FETCH_URLS} URLs.")
         body: dict[str, Any] = {"urls": url_list}
         if human_mode:
             body["human_mode"] = True
@@ -452,6 +510,7 @@ class CrustdataClient:
         attempt = 0
         while True:
             record.attempts = attempt + 1
+            await self.rate_limiter.acquire(endpoint)
             response: httpx2.Response | None = None
             try:
                 response = await self._http.post(
@@ -498,6 +557,9 @@ class CrustdataClient:
                     f"HTTP {response.status_code}: {message}",
                     status=response.status_code,
                     error_type=error_type,
+                    error_class=_error_class(
+                        response.status_code, natural_language="search" in body
+                    ),
                 )
 
             data = strip_contact_fields(response.json())
@@ -526,6 +588,7 @@ class CrustdataClient:
         *,
         status: int | None,
         error_type: str | None,
+        error_class: type[CrustdataError] = CrustdataError,
     ) -> NoReturn:
         record.status = "failed"
         record.finished_at = utcnow()
@@ -533,7 +596,13 @@ class CrustdataClient:
         record.usage_known = credits_complete
         record.error = message
         await report(self.recorder, record)
-        raise CrustdataError(message, status=status, error_type=error_type, record=record)
+        raise error_class(message, status=status, error_type=error_type, record=record)
+
+
+def failed_urls(requested: Sequence[str], pages: Sequence[WebPage]) -> list[str]:
+    """Requested URLs with no successful page in a `fetch_pages` result."""
+    fetched = {page.url for page in pages if page.success and page.url}
+    return [url for url in requested if url not in fetched]
 
 
 def leadership_filters(

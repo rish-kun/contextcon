@@ -157,6 +157,8 @@ class CompanySearchResult(_Model):
     companies: list[CompanyRecord] = Field(default_factory=list)
     next_cursor: str | None = None
     total_count: int | None = None
+    # Set by the client: whether natural-language ranking was applied.
+    natural_language: bool = False
 
 
 # --- People --------------------------------------------------------------------

@@ -6,11 +6,19 @@ import pytest
 
 from app.clients.base import InMemoryCache, InMemoryRecorder
 from app.clients.crustdata import (
+    DEFAULT_RATE_LIMITS,
+    SHARED_RATE_LIMITER,
     CrustdataClient,
+    CrustdataCreditsError,
     CrustdataError,
+    CrustdataPlanError,
+    SemanticSearchUnavailable,
+    failed_urls,
     leadership_filters,
     strip_contact_fields,
 )
+from app.clients.crustdata_models import WebPage
+from app.clients.ratelimit import SlidingWindowRateLimiter
 
 pytestmark = pytest.mark.anyio
 
@@ -39,7 +47,14 @@ Handler = Callable[[httpx2.Request], httpx2.Response]
 
 
 class Harness:
-    def __init__(self, handler: Handler, *, cache: bool = False, max_retries: int = 3) -> None:
+    def __init__(
+        self,
+        handler: Handler,
+        *,
+        cache: bool = False,
+        max_retries: int = 3,
+        rate_limiter: SlidingWindowRateLimiter | None = None,
+    ) -> None:
         self.requests: list[httpx2.Request] = []
         self.sleeps: list[float] = []
         self.recorder = InMemoryRecorder()
@@ -58,6 +73,7 @@ class Harness:
             recorder=self.recorder,
             cache=self.cache,
             max_retries=max_retries,
+            rate_limiter=rate_limiter or SlidingWindowRateLimiter({}),
             sleep=fake_sleep,
         )
 
@@ -470,3 +486,125 @@ def test_strip_contact_fields_keeps_flags_and_other_data() -> None:
 def test_empty_api_key_is_rejected() -> None:
     with pytest.raises(ValueError):
         CrustdataClient("")
+
+
+def test_from_settings_lets_kwargs_override_settings() -> None:
+    from app.settings import Settings
+
+    settings = Settings(_env_file=None, crustdata_api_key="k", crustdata_max_retries=5)
+    assert CrustdataClient.from_settings(settings).max_retries == 5
+    assert CrustdataClient.from_settings(settings, max_retries=1).max_retries == 1
+
+
+def nl_forbidden() -> httpx2.Response:
+    return httpx2.Response(
+        403,
+        json={"error": {"type": "permission_error", "message": "semantic search not enabled"}},
+        headers={"x-credits-used": "0"},
+    )
+
+
+async def test_semantic_search_403_raises_specific_error() -> None:
+    h = Harness(lambda request: nl_forbidden())
+    with pytest.raises(SemanticSearchUnavailable) as info:
+        await h.client.search_companies(query="warehousing software")
+    assert isinstance(info.value, CrustdataPlanError)
+    assert info.value.status == 403
+    assert len(h.requests) == 1
+
+
+async def test_semantic_search_falls_back_to_filters_when_asked() -> None:
+    h = Harness(
+        sequence(
+            nl_forbidden(),
+            ok({"companies": [{"crustdata_company_id": 7}]}, credits="0.03"),
+        )
+    )
+    filters = {"field": "locations.country", "type": "=", "value": "IND"}
+    result, record = await h.client.search_companies(
+        filters=filters, query="warehousing software", fallback_to_filters=True
+    )
+    assert "search" in h.body(0)
+    assert h.body(1) == {"limit": 20, "filters": filters}
+    assert result.natural_language is False
+    assert result.companies[0].crustdata_company_id == 7
+    assert record.status == "succeeded"
+    # Both calls reach the recorder: the refused NL attempt and the filter search.
+    assert [r.status for r in h.recorder.final()] == ["failed", "succeeded"]
+
+    h2 = Harness(lambda request: ok({"companies": []}, credits="0"))
+    result, _ = await h2.client.search_companies(query="x")
+    assert result.natural_language is True
+
+
+async def test_semantic_fallback_needs_filters() -> None:
+    h = Harness(lambda request: nl_forbidden())
+    with pytest.raises(SemanticSearchUnavailable):
+        await h.client.search_companies(query="x", fallback_to_filters=True)
+
+
+async def test_plan_and_credit_errors() -> None:
+    h = Harness(
+        sequence(
+            httpx2.Response(403, json={"error": {"type": "permission_error", "message": "no"}}),
+            httpx2.Response(402, json={"error": {"type": "insufficient_credits", "message": "0"}}),
+        )
+    )
+    with pytest.raises(CrustdataPlanError) as plan:
+        await h.client.enrich_company(1)
+    assert not isinstance(plan.value, SemanticSearchUnavailable)
+    with pytest.raises(CrustdataCreditsError):
+        await h.client.enrich_company(1)
+
+
+async def test_enrich_accepts_up_to_25_ids() -> None:
+    h = Harness(lambda request: ok([], credits="0"))
+    await h.client.enrich_company(list(range(1, 26)))
+    assert len(h.body()["crustdata_company_ids"]) == 25
+    with pytest.raises(ValueError):
+        await h.client.enrich_company(list(range(26)))
+    with pytest.raises(ValueError):
+        await h.client.enrich_company([])
+
+
+def test_failed_urls_correlates_null_entries() -> None:
+    requested = ["https://a.example/1", "https://b.example/2", "https://c.example/3"]
+    pages = [
+        WebPage(success=True, url="https://a.example/1", content="<p>"),
+        WebPage(success=False, url=None),
+        WebPage(success=True, url="https://c.example/3", content="<p>"),
+    ]
+    assert failed_urls(requested, pages) == ["https://b.example/2"]
+
+
+async def test_each_attempt_waits_for_the_endpoint_rate_limit() -> None:
+    now = [0.0]
+    waits: list[float] = []
+
+    async def fake_sleep(seconds: float) -> None:
+        waits.append(seconds)
+        now[0] += seconds
+
+    limiter = SlidingWindowRateLimiter(
+        {"/company/identify": 2}, clock=lambda: now[0], sleep=fake_sleep
+    )
+    h = Harness(
+        sequence(
+            httpx2.Response(500, headers={"x-credits-used": "0"}),
+            ok(IDENTIFY_BODY),
+            ok(IDENTIFY_BODY),
+        ),
+        rate_limiter=limiter,
+    )
+    await h.client.identify_company(domains=["a.com"])  # two attempts use the quota
+    assert waits == []
+    await h.client.identify_company(domains=["b.com"])  # third request waits for the window
+    assert waits == [60.0]
+
+
+def test_default_limits_follow_crustdata_defaults() -> None:
+    assert DEFAULT_RATE_LIMITS["/company/enrich"] == 15
+    assert DEFAULT_RATE_LIMITS["/web/search/live"] == 10
+    assert DEFAULT_RATE_LIMITS["/web/enrich/live"] == 10
+    assert DEFAULT_RATE_LIMITS["/company/identify"] == 30
+    assert CrustdataClient("k").rate_limiter is SHARED_RATE_LIMITER
