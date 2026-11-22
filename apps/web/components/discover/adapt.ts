@@ -25,14 +25,15 @@ import type {
 type SourceClass = Schemas["SourceClass"];
 
 /**
- * The API has finer source classes than the eight glyphs. Each maps to the nearest glyph,
- * and where the nearest one would describe it wrongly, the class is named in its own words.
+ * The API's source classes are the domain's own. All but one are a reliability class the
+ * shared chip already words (`lib/labels.ts`); a registry mirror takes the registry glyph
+ * and says in its own words that it is a mirror.
  */
 const SOURCE_CLASS: Record<
   SourceClass,
   { reliability: ReliabilityClass; label?: string; note?: string }
 > = {
-  registry_official: { reliability: "registry" },
+  registry: { reliability: "registry" },
   registry_mirror: {
     reliability: "registry",
     label: "Registry mirror",
@@ -41,33 +42,15 @@ const SOURCE_CLASS: Record<
   audited_statement: { reliability: "audited_statement" },
   counterparty_confirmation: { reliability: "counterparty_confirmation" },
   company_announcement: { reliability: "company_announcement" },
-  funding_database: {
-    reliability: "registry",
-    label: "Funding database",
-    note: "A data provider's record of a funding round. Useful for the round, its date and the investors named. It is not a filing",
-  },
-  professional_profile: { reliability: "professional_profile_signal" },
-  headcount_estimate: {
-    reliability: "professional_profile_signal",
-    label: "Headcount estimate",
-    note: "Inferred from professional profiles. Not a payroll count, and thin for site staff",
-  },
-  data_provider_profile: {
-    reliability: "professional_profile_signal",
-    label: "Data provider profile",
-    note: "A company profile compiled by a data provider. Useful for what the company does and where it is. It is not a filing",
-  },
   news: { reliability: "news" },
+  professional_profile_signal: { reliability: "professional_profile_signal" },
+  data_provider: { reliability: "data_provider" },
   seller_document: { reliability: "seller_document" },
   seller_statement: { reliability: "seller_statement" },
-  user_typed: {
-    reliability: "seller_statement",
-    label: "Typed by a user",
-    note: "Entered by a person. Treated as a claim to check, not as evidence",
-  },
 };
 
 export function toSource(ref: SourceRef, asOf: string | null): Source {
+  // The cast admits a class added to the API after this screen was built.
   const known = SOURCE_CLASS[ref.source_class] as (typeof SOURCE_CLASS)[SourceClass] | undefined;
   const isUrl = /^https?:\/\//.test(ref.url_or_endpoint);
   return {
@@ -78,7 +61,7 @@ export function toSource(ref: SourceRef, asOf: string | null): Source {
     request: isUrl ? null : ref.url_or_endpoint,
     retrieved_at: ref.retrieved_at,
     as_of: asOf,
-    reliability: known?.reliability ?? "professional_profile_signal",
+    reliability: known?.reliability ?? "data_provider",
     class_label: known ? (known.label ?? null) : ref.source_class,
     class_note: known ? (known.note ?? null) : "This source class is new to this screen",
   };
