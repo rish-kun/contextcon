@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.15",
     "anthropic>=2.12.0",
+    "argon2-cffi>=23.1",
     "asyncpg>=0.30",
     "fastapi>=0.165.0",
     "google-cloud-storage>=3.17.1",

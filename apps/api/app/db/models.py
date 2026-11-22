@@ -86,6 +86,19 @@ class User(IdMixin, Base):
     __table_args__ = (CheckConstraint("length(trim(display_name)) > 0", name="named"),)
 
 
+class AuthSession(IdMixin, Base):
+    """A signed-in browser session (`app.auth`). The cookie holds a random token; only
+    its SHA-256 is stored, so a database read does not hand out live sessions."""
+
+    __tablename__ = "auth_sessions"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(_fk("users.id"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime] = _ts(nullable=False)
+
+    __table_args__ = (Index("ix_auth_sessions_expires_at", "expires_at"),)
+
+
 # --- Discover ----------------------------------------------------------------
 
 
@@ -639,7 +652,11 @@ class CallAttempt(IdMixin, Base):
     started_at: Mapped[datetime | None] = _ts()
     finished_at: Mapped[datetime | None] = _ts()
 
-    __table_args__ = (CheckConstraint(check_in("status", CallStatus), name="status"),)
+    __table_args__ = (
+        CheckConstraint(check_in("status", CallStatus), name="status"),
+        # The run status / SSE poll groups a run's calls by step on every tick.
+        Index("ix_call_attempts_run_step", "run_id", "step_id"),
+    )
 
 
 class CostEntry(IdMixin, Base):

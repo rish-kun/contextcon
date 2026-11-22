@@ -86,6 +86,16 @@
               }
             }
           },
+          "429": {
+            "description": "Too many failed sign-ins; see Retry-After.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -105,7 +115,7 @@
           "auth"
         ],
         "summary": "Logout",
-        "description": "End the session and clear the cookie.",
+        "description": "End the session and clear the cookie. Succeeds without a session too.",
         "operationId": "logout",
         "responses": {
           "204": {
@@ -1776,20 +1786,19 @@
         ],
         "responses": {
           "200": {
-            "description": "Server-sent events: `event: step` (StepOut) and `event: run` (RunOut without steps). The JSON schema describes one event's name and data.",
+            "description": "Server-sent events. `event: run` carries a RunOut without steps (first, on every run state change, and last once the run is `done` or `failed`); `event: step` carries a StepOut (every step once, then each change). Lines starting with `:` are keepalives.",
             "content": {
               "text/event-stream": {
                 "schema": {
-                  "type": "string",
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/StepEvent"
-                    },
-                    {
-                      "$ref": "#/components/schemas/RunEvent"
-                    }
-                  ],
-                  "title": "Response 200 Stream Run Events"
+                  "type": "string"
+                },
+                "x-sse-events": {
+                  "run": {
+                    "$ref": "#/components/schemas/RunOut"
+                  },
+                  "step": {
+                    "$ref": "#/components/schemas/StepOut"
+                  }
                 }
               }
             }
@@ -1797,7 +1806,7 @@
           "401": {
             "description": "No valid session.",
             "content": {
-              "text/event-stream": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorOut"
                 }
@@ -1807,7 +1816,7 @@
           "404": {
             "description": "Not found, or not visible to this user.",
             "content": {
-              "text/event-stream": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorOut"
                 }
@@ -1817,7 +1826,7 @@
           "501": {
             "description": "Not implemented yet (stub).",
             "content": {
-              "text/event-stream": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorOut"
                 }
@@ -1843,7 +1852,7 @@
           "runs"
         ],
         "summary": "Resume Run",
-        "description": "Re-queue failed or interrupted steps. Cached calls replay at no new cost.",
+        "description": "Re-queue failed or budget-skipped steps. Cached calls replay at no new cost.",
         "operationId": "resume_run",
         "parameters": [
           {
@@ -6547,27 +6556,6 @@
         ],
         "title": "RiskItemOut"
       },
-      "RunEvent": {
-        "properties": {
-          "event": {
-            "type": "string",
-            "const": "run",
-            "title": "Event",
-            "default": "run"
-          },
-          "data": {
-            "$ref": "#/components/schemas/RunOut"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "event",
-          "data"
-        ],
-        "title": "RunEvent",
-        "description": "SSE `event: run`; data is the run without steps. Sent on every run state change."
-      },
       "RunKind": {
         "type": "string",
         "enum": [
@@ -7472,27 +7460,6 @@
         ],
         "title": "StatedInOut",
         "description": "Where the claim was made: a document page, or typed by a named person."
-      },
-      "StepEvent": {
-        "properties": {
-          "event": {
-            "type": "string",
-            "const": "step",
-            "title": "Event",
-            "default": "step"
-          },
-          "data": {
-            "$ref": "#/components/schemas/StepOut"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "event",
-          "data"
-        ],
-        "title": "StepEvent",
-        "description": "SSE `event: step`; data is the changed step."
       },
       "StepOut": {
         "properties": {

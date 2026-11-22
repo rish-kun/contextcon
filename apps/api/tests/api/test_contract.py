@@ -87,9 +87,14 @@ ROUTES: list[tuple[str, str, str, object]] = [
     ("GET", "/policy", "/policy", None),
 ]
 
+# Implemented with auth (CP-16): outside fixture mode they answer 401 without a session.
+SESSION_ROUTES = {"/auth/me", "/runs/{run_id}", "/runs/{run_id}/events", "/runs/{run_id}/resume"}
+AUTH_ROUTES = SESSION_ROUTES | {"/auth/login", "/auth/logout"}
+STUB_ROUTES = [r for r in ROUTES if r[1] not in AUTH_ROUTES]
+
 MSG = f"/cases/{CASE}/messages"
 REVISION = {"subject": "s", "body": "b", "recipient": "a@b.example"}
-# Implemented by app.act (mounted as-is); they fail closed until CP-16 wires auth.
+# Implemented by app.act (mounted as-is); they need a session (CP-16).
 ACT_ROUTES: list[tuple[str, str, str, object]] = [
     ("POST", "/cases/{case_id}/messages", MSG, REVISION),
     ("GET", "/cases/{case_id}/messages/send-summary", f"{MSG}/send-summary", None),
@@ -158,7 +163,7 @@ def test_operation_ids_are_function_names() -> None:
     assert all(re.fullmatch(r"[a-z_]+", i) for i in ids)
 
 
-@pytest.mark.parametrize(("method", "template", "path", "body"), ROUTES)
+@pytest.mark.parametrize(("method", "template", "path", "body"), STUB_ROUTES)
 def test_stub_returns_501(client: TestClient, method, template, path, body) -> None:
     response = _call(client, method, path, body)
     assert response.status_code == 501, (template, response.text)
@@ -166,11 +171,35 @@ def test_stub_returns_501(client: TestClient, method, template, path, body) -> N
     assert FIXTURE_HEADER not in response.headers
 
 
-@pytest.mark.parametrize(("method", "template", "path", "body"), ACT_ROUTES)
-def test_act_routes_fail_closed_until_auth_is_wired(
-    fixture_client: TestClient, method, template, path, body
-) -> None:
-    assert _call(fixture_client, method, path, body).status_code == 501, template
+@pytest.mark.parametrize(
+    ("method", "template", "path", "body"),
+    [r for r in ROUTES if r[1] in SESSION_ROUTES] + ACT_ROUTES,
+)
+def test_routes_need_a_session(client: TestClient, method, template, path, body) -> None:
+    """No `dp_session` cookie → 401 before any handler (or database) runs."""
+    response = _call(client, method, path, body)
+    assert response.status_code == 401, (template, response.text)
+    assert response.headers["content-type"].startswith("application/json")
+    assert FIXTURE_HEADER not in response.headers
+
+
+def test_logout_without_session_clears_cookie(client: TestClient) -> None:
+    response = client.post("/auth/logout")
+    assert response.status_code == 204
+    assert "dp_session=" in response.headers["set-cookie"]
+
+
+def test_sse_contract_documents_events_and_json_errors() -> None:
+    spec = create_app().openapi()
+    responses = spec["paths"]["/runs/{run_id}/events"]["get"]["responses"]
+    assert set(responses["200"]["content"]) == {"text/event-stream"}
+    events = responses["200"]["content"]["text/event-stream"]["x-sse-events"]
+    assert events == {
+        "run": {"$ref": "#/components/schemas/RunOut"},
+        "step": {"$ref": "#/components/schemas/StepOut"},
+    }
+    for code in ("401", "404"):
+        assert set(responses[code]["content"]) == {"application/json"}, code
 
 
 def test_fact_schema_requires_source() -> None:

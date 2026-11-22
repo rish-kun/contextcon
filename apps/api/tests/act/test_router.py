@@ -157,10 +157,12 @@ def test_invalid_recipient_is_422_and_other_case_is_404(api) -> None:
     assert client.get(f"/cases/case-2/messages/{message['id']}").status_code == 404
 
 
-def test_unwired_router_fails_closed() -> None:
+def test_router_without_session_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With the real auth dependencies and no `dp_session` cookie nothing runs."""
+    monkeypatch.delenv("DEALPROOF_FIXTURES", raising=False)
     app = FastAPI()
     app.include_router(router)
     response = TestClient(app).post(
         BASE, json={"subject": "s", "body": "b", "recipient": RECIPIENT}
     )
-    assert response.status_code == 501
+    assert response.status_code == 401

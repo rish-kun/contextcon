@@ -52,7 +52,7 @@ export interface paths {
         put?: never;
         /**
          * Logout
-         * @description End the session and clear the cookie.
+         * @description End the session and clear the cookie. Succeeds without a session too.
          */
         post: operations["logout"];
         delete?: never;
@@ -462,7 +462,7 @@ export interface paths {
         put?: never;
         /**
          * Resume Run
-         * @description Re-queue failed or interrupted steps. Cached calls replay at no new cost.
+         * @description Re-queue failed or budget-skipped steps. Cached calls replay at no new cost.
          */
         post: operations["resume_run"];
         delete?: never;
@@ -2074,19 +2074,6 @@ export interface components {
             claim_ids: string[];
         };
         /**
-         * RunEvent
-         * @description SSE `event: run`; data is the run without steps. Sent on every run state change.
-         */
-        RunEvent: {
-            /**
-             * Event
-             * @default run
-             * @constant
-             */
-            event: "run";
-            data: components["schemas"]["RunOut"];
-        };
-        /**
          * RunKind
          * @enum {string}
          */
@@ -2395,19 +2382,6 @@ export interface components {
             /** Typed At */
             typed_at: string | null;
         };
-        /**
-         * StepEvent
-         * @description SSE `event: step`; data is the changed step.
-         */
-        StepEvent: {
-            /**
-             * Event
-             * @default step
-             * @constant
-             */
-            event: "step";
-            data: components["schemas"]["StepOut"];
-        };
         /** StepOut */
         StepOut: {
             /** Id */
@@ -2629,6 +2603,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too many failed sign-ins; see Retry-After. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
                 };
             };
             /** @description Not implemented yet (stub). */
@@ -3980,13 +3963,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Server-sent events: `event: step` (StepOut) and `event: run` (RunOut without steps). The JSON schema describes one event's name and data. */
+            /** @description Server-sent events. `event: run` carries a RunOut without steps (first, on every run state change, and last once the run is `done` or `failed`); `event: step` carries a StepOut (every step once, then each change). Lines starting with `:` are keepalives. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/event-stream": string | components["schemas"]["StepEvent"] | components["schemas"]["RunEvent"];
+                    "text/event-stream": string;
                 };
             };
             /** @description No valid session. */
@@ -3995,7 +3978,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/event-stream": components["schemas"]["ErrorOut"];
+                    "application/json": components["schemas"]["ErrorOut"];
                 };
             };
             /** @description Not found, or not visible to this user. */
@@ -4004,7 +3987,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/event-stream": components["schemas"]["ErrorOut"];
+                    "application/json": components["schemas"]["ErrorOut"];
                 };
             };
             /** @description Validation Error */
@@ -4022,7 +4005,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/event-stream": components["schemas"]["ErrorOut"];
+                    "application/json": components["schemas"]["ErrorOut"];
                 };
             };
         };
