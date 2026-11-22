@@ -1,6 +1,6 @@
 # DealProof scoring and verification policy
 
-Policy version: **2026-11-22.3** (`POLICY_VERSION` in `app/rules/policy.py`).
+Policy version: **2026-11-22.4** (`POLICY_VERSION` in `app/rules/policy.py`).
 
 DealProof's rules decide every status, score and recommendation. The AI only reads
 documents and pulls out values; it never decides. The same records under the same
@@ -27,6 +27,10 @@ No record = unknown.
 - **Disputed fields are unknown.** When sources disagree on a field (another
   source gives a value with a different result, or the field's evidence is part
   of a claim with conflicting evidence), the criterion is unknown, never fail.
+- **Country codes are country names.** A record's ISO code ("IND") is compared as
+  the country it names ("India"); an unknown code is unknown, never a fail.
+  Cases assessed under an earlier policy are re-assessed on start-up with the reason
+  "policy fix: country code normalisation".
 - **Stale fields never exclude.** A field whose record is more than 730 days old
   still counts toward fit, but a fail on it is not verified, so it can neither
   exclude a company nor lead to Deprioritise.

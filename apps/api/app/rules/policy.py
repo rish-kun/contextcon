@@ -20,7 +20,12 @@ from app.domain.enums import (
     ValueKind,
 )
 
-POLICY_VERSION = "2026-11-22.3"
+POLICY_VERSION = "2026-11-22.4"
+
+# Why each policy version changed, used as the reason on refreshed assessments.
+POLICY_CHANGES: dict[str, str] = {
+    "2026-11-22.4": "policy fix: country code normalisation",
+}
 
 # --- Discover: fit -----------------------------------------------------------
 

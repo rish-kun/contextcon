@@ -40,9 +40,15 @@ async def jobs_lifespan(
     if database_configured():
         # Verify runs that finished before they ended in an assessment get their tail
         # (idempotent, one instance at a time). In the background: start-up never waits.
+        from app.pipelines.evaluate.refresh import run_refresh
         from app.pipelines.verify.backfill import run_backfill
 
-        backfill = asyncio.create_task(run_backfill(get_sessionmaker()), name="dealproof-backfill")
+        async def _start_up_jobs() -> None:
+            await run_backfill(get_sessionmaker())
+            # Cases assessed under an older policy are re-assessed with its reason.
+            await run_refresh(get_sessionmaker())
+
+        backfill = asyncio.create_task(_start_up_jobs(), name="dealproof-backfill")
     try:
         yield
     finally:

@@ -69,6 +69,7 @@ from app.domain.types import (
 )
 from app.domain.types import Evidence as EvidenceIn
 from app.domain.types import Source as SourceIn
+from app.pipelines.discover.countries import country_name
 from app.rules import policy
 
 R = SourceReliability
@@ -271,6 +272,17 @@ def _is_estimate(e: Evidence, src: Source) -> bool:
     return path.startswith(ESTIMATE_PREFIXES) or src.source_class in ESTIMATE_CLASSES
 
 
+COUNTRY_FIELDS = frozenset({"locations.country", "headcount.largest_headcount_country"})
+
+
+def _field_value(path: str, value: Any) -> Any:
+    """The provider stores ISO codes ("IND") for countries; criteria name the country
+    ("India"). An unknown code is unknown (None), never a mismatch."""
+    if path in COUNTRY_FIELDS:
+        return country_name(value)
+    return value
+
+
 def company_record(case: Case, evidence: list[tuple[Evidence, Source]]) -> CompanyRecord:
     latest: dict[str, tuple[Evidence, Source]] = {}
     for e, s in sorted(evidence, key=lambda p: _when(p[0])):
@@ -280,7 +292,7 @@ def company_record(case: Case, evidence: list[tuple[Evidence, Source]]) -> Compa
         name=case.company_name,
         fields={
             path: FieldFact(
-                value=e.value,
+                value=_field_value(path, e.value),
                 evidence_id=str(e.id),
                 as_of=e.as_of,
                 is_estimate=_is_estimate(e, s),
