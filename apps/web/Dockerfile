@@ -14,7 +14,9 @@ RUN pnpm install --frozen-lockfile --filter web...
 
 COPY apps/web apps/web
 # NEXT_PUBLIC_* values are inlined into the client bundle at build time.
+# Required: an empty value would ship a bundle that calls relative URLs.
 ARG NEXT_PUBLIC_API_URL
+RUN test -n "$NEXT_PUBLIC_API_URL" || { echo "NEXT_PUBLIC_API_URL build arg is required" >&2; exit 1; }
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
     NEXT_TELEMETRY_DISABLED=1
 RUN pnpm --filter web build

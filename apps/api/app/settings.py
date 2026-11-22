@@ -11,13 +11,27 @@ from pathlib import Path
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# apps/api/app/settings.py -> repo root is three levels up from this file's directory.
-REPO_ROOT = Path(__file__).resolve().parents[3]
+
+def _find_repo_env(settings_file: Path) -> Path | None:
+    """Return the repo-root `.env` when running from the monorepo, else None.
+
+    In the repo, apps/api/app/settings.py sits three levels below the root. In the
+    Docker image the file is /app/app/settings.py, which has no such ancestor, so
+    the app relies on process environment variables only.
+    """
+    parents = settings_file.resolve().parents
+    if len(parents) <= 3:
+        return None
+    candidate = parents[3] / ".env"
+    return candidate if candidate.is_file() else None
+
+
+ENV_FILE = _find_repo_env(Path(__file__))
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=REPO_ROOT / ".env",
+        env_file=ENV_FILE,
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
@@ -37,7 +51,7 @@ class Settings(BaseSettings):
     email_send_enabled: bool = False
 
     # Storage
-    database_url: str = ""
+    database_url: SecretStr = SecretStr("")
     gcs_bucket: str = ""
     upload_retention_days: int = Field(default=30, gt=0)
 
