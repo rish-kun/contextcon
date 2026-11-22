@@ -425,6 +425,28 @@ Motion: during a run the running segment grows with `scaleX` (`draw`) each time 
 | Change timeline | Assessment tab; memo head | Versions and diffs |
 | Cost meter | Run panel, case header, Cost tab | Run and case cost |
 
+**What each one replaces.** These are not five more panels on top of the current screens. Each takes the place of something that shows the same records with less structure, so the case gets clearer without getting longer.
+
+| Explainer | Replaces | Net effect on the page |
+| --- | --- | --- |
+| Pipeline rail | The loose status phrases in the case header ("Request awaiting approval", run state) | One row in place of scattered lines |
+| Evidence trail | The plain statement list in an expanded ledger row | Same height, ordered into five columns |
+| Coverage map | Nothing today; it sits above the sources table and doubles as its filter | Adds about 200px; removes the class filter control |
+| Change timeline | `VersionRail` and `VersionDiff` as two separate blocks in `assessment-view.tsx` | Two blocks become one |
+| Cost meter | The plain credit bar in `CostReadout` and the cost panel | Same footprint, segmented |
+
+**Empty and partial states.** Each is a sentence about the record, in the hatch family where work was not done, and never a sample drawing.
+
+| Explainer | State | Reads |
+| --- | --- | --- |
+| Pipeline rail | New case, nothing run | Four open stations; under Verify: "Not started · Run verify" |
+| Evidence trail | Claim Not checked | Claim column filled; the other four are one hatched block: "Not checked · budget reached. No search was run for this claim" with "Run check · about 4 credits" |
+| Evidence trail | Checked, no evidence found | Source nodes dashed, "nothing found"; rule column states the rule; status Cannot verify |
+| Coverage map | No claims yet | "No claims to cover yet. Add seller claims or upload a document" |
+| Coverage map | Identity unresolved | Rows listed, all cells hatched: "Waiting on identity" |
+| Change timeline | One version only | The single node and its state line, then "No later versions. New evidence will be recorded here" |
+| Cost meter | Nothing spent | Empty track, "0 of 150 credits" |
+
 A reader moves between them along real links: a hatched segment on the rail goes to the Not checked claims; a claim's trail names the source class; the coverage map shows that class thin across the category; the timeline shows what a new document changed; the meter shows what the budget left undone. That loop is the explanation of how DealProof works.
 
 ## 3. Rules that keep it from feeling gimmicky
@@ -536,6 +558,22 @@ Delivers: section 2, static first, then the run-time motion from the catalogue o
 ```
 
 Chunk 1 should land its `transitions.ts` change first, as a single small commit, since the other two import from it.
+
+`derive.ts` in chunk 3 should take the types the pages already load (the case detail's `runs`, the cost panel's `CaseCostOut` from `lib/api`, the assessment view's versions and diffs), not new fetches. If a view needs a field the API does not return, it uses the fallback named in section 2 and the gap goes on the follow-up list below.
+
+### If time is short
+
+This is a hackathon build, so the order matters more than completeness. By value to someone watching a demo and to an analyst defending a memo:
+
+1. **Remove mount-time entrances** (section 3, "What to remove"). It is mostly deletion, and it addresses the gimmicky feedback directly.
+2. **Evidence trail.** It is the product's argument in one picture and needs no new API field for a first version.
+3. **Pipeline rail** in the case header. It orients every tab.
+4. **Change timeline**, with the cause on the rail, grouped "As a result" until the causal link exists.
+5. **Cost meter**, segmented, with the hatched checks past the budget.
+6. **Coverage map**, without the "searched, nothing found" state until empty searches are recorded.
+7. **Row-to-case morph and tab crossfade.** Pleasant, and the least informative item here, so it goes last.
+
+Pending buttons, the notice stack and the skeleton delay are small and can ride along with whichever chunk-1 work is in progress.
 
 ### API follow-ups this design depends on
 
