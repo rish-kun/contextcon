@@ -24,6 +24,7 @@ from app.api.schemas.claims import (
     ClaimOrigin,
     ClaimOut,
     NotCheckedReason,
+    SearchedOut,
     StatedInOut,
     SubstantiveResult,
 )
@@ -119,6 +120,16 @@ def _meta(outputs: dict[uuid.UUID, dict[str, Any]], check: ClaimCheck) -> dict[s
     if check.step_id is None:
         return {}
     return ((outputs.get(check.step_id) or {}).get("checks") or {}).get(str(check.claim_id)) or {}
+
+
+def _searched(meta: dict[str, Any]) -> list[SearchedOut]:
+    out = []
+    for entry in meta.get("searched") or []:
+        try:
+            out.append(SearchedOut.model_validate(entry))
+        except ValueError:
+            continue
+    return out
 
 
 async def build_claims_section(
@@ -241,6 +252,7 @@ async def build_claims_section(
                 evidence=[evidence_out(ev, src, case) for ev, src in links.get(current.id, [])]
                 if current
                 else [],
+                searched=_searched(meta),
                 history=[
                     ClaimCheckOut(
                         id=str(c.id),
@@ -254,6 +266,7 @@ async def build_claims_section(
                         else None,
                         settle_with=c.what_would_settle,
                         evidence_ids=[str(e) for e in link_ids.get(c.id, [])],
+                        searched=_searched(_meta(outputs, c)),
                         created_at=c.created_at,
                     )
                     for c in history

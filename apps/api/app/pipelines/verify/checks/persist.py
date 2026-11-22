@@ -101,6 +101,7 @@ async def persist_outcome(
     run_id: uuid.UUID | None = None,
     step_id: uuid.UUID | None = None,
     read_markers: dict[str, uuid.UUID] | None = None,
+    searched: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Append the check row with its evidence links (flushes). Returns step metadata."""
     row = ClaimCheckRow(
@@ -141,6 +142,8 @@ async def persist_outcome(
         else None,
         "substantive_result": substantive_result(outcome, adequate),
         "policy_version": POLICY_VERSION,
+        # Public lookups made for this check (public terms only), for "searched: X, Y".
+        "searched": searched or [],
         "inputs": reproducible_inputs(check),
         "outcome": stored_outcome(outcome),
     }

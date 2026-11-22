@@ -99,6 +99,8 @@ export const CATEGORY_LABEL: Record<ClaimCategory, string> = {
   financials: "Financials",
   debt_security: "Debt and security",
   litigation: "Litigation",
+  compliance: "Certifications",
+  intellectual_property: "Trademarks and IP",
   other: "Other",
 };
 

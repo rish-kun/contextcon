@@ -346,6 +346,7 @@ TEMPLATES: dict[str, str] = {
     "status.ranking_investors": "Grouping investors and ranking by dated comparable rounds",
     "status.waiting_identity": "Waiting for identity",
     "status.searching_news": "Searching news for {name}",
+    "status.searching_public": "Searching {what} for {name}",
     "status.reading_pages": "Reading {n} pages",
     "status.looking_up_leadership": "Looking up leadership at the confirmed company",
     "status.reading_record": "Reading the company record",

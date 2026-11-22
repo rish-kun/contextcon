@@ -20,12 +20,16 @@ from app.domain.enums import (
     ValueKind,
 )
 
-POLICY_VERSION = "2026-11-22.5"
+POLICY_VERSION = "2026-11-22.6"
 
 # Why each policy version changed, used as the reason on refreshed assessments.
 POLICY_CHANGES: dict[str, str] = {
     "2026-11-22.4": "policy fix: country code normalisation",
     "2026-11-22.5": "Discover reads activity and expansion signals; ties break on signals",
+    "2026-11-22.6": (
+        "public lookups for partnerships, certifications, trademarks and customer claims; "
+        "a company's own statement alone gives partially corroborated"
+    ),
 }
 
 # --- Discover: fit -----------------------------------------------------------
@@ -227,7 +231,37 @@ _FUNDING_SOURCES = frozenset(
 _EVENT_HAPPENED_SOURCES = frozenset(
     {R.NEWS, R.REGISTRY, R.SELLER_DOCUMENT, R.COUNTERPARTY_CONFIRMATION}
 )
-_CUSTOMER_SOURCES = frozenset({R.COUNTERPARTY_CONFIRMATION, R.SELLER_DOCUMENT, R.AUDITED_STATEMENT})
+# Since 2026-11-22.6 the company's own page counts for customer and partnership
+# components, but a claim matched by company announcements alone is capped at
+# partially corroborated (SELF_STATEMENT_CAPPED): "the company says so".
+_CUSTOMER_SOURCES = frozenset(
+    {
+        R.COUNTERPARTY_CONFIRMATION,
+        R.SELLER_DOCUMENT,
+        R.AUDITED_STATEMENT,
+        R.COMPANY_ANNOUNCEMENT,
+    }
+)
+# A certification: the certification body's register or announcement
+# (counterparty_confirmation), a public registry or a mirror of it, or the
+# certificate itself; the company's trust page is a self-statement (capped).
+_CERTIFICATION_SOURCES = frozenset(
+    {
+        R.REGISTRY,
+        R.REGISTRY_MIRROR,
+        R.COUNTERPARTY_CONFIRMATION,
+        R.SELLER_DOCUMENT,
+        R.COMPANY_ANNOUNCEMENT,
+    }
+)
+# A trademark: the trademark registry or a public mirror of its records, or the
+# registration certificate; the company's own "registered trademark" line is capped.
+_TRADEMARK_SOURCES = frozenset(
+    {R.REGISTRY, R.REGISTRY_MIRROR, R.SELLER_DOCUMENT, R.COMPANY_ANNOUNCEMENT}
+)
+# A customer count is the company's own figure; only an audited note or a dated
+# customer list from the seller settles it. Case studies name customers, never count them.
+_CUSTOMER_COUNT_SOURCES = frozenset({R.AUDITED_STATEMENT, R.SELLER_DOCUMENT})
 # A listed company's results as filed with an exchange (registry_mirror) are reported,
 # not audited, figures; they answer "what did the company report".
 _FINANCIAL_SOURCES = frozenset({R.AUDITED_STATEMENT, R.REGISTRY, R.REGISTRY_MIRROR})
@@ -255,6 +289,9 @@ DOC_LENDER = "Lender statements"
 DOC_LITIGATION = "Litigation disclosure signed by counsel"
 DOC_FINANCIAL_INPUTS = DOC_FINANCIALS  # one document, so requests dedupe
 DOC_IDENTITY = "Certificate of incorporation showing the CIN and registered office"
+DOC_CERTIFICATION = "Certificate from the certification body, with its number, scope and validity"
+DOC_TRADEMARK = "Trademark registration certificate or IP assignment records"
+DOC_CUSTOMER_LIST = "Dated customer list, or audited revenue by customer"
 
 D = DocumentType
 _PAYROLL_DOCS = {R.SELLER_DOCUMENT: frozenset({D.PAYROLL_RECORD})}
@@ -273,6 +310,9 @@ _OCCURRENCE_DOCS = {R.SELLER_DOCUMENT: frozenset({D.OCCUPANCY_EVIDENCE, D.EVENT_
 _EVENT_DOCS = {R.SELLER_DOCUMENT: frozenset({D.OCCUPANCY_EVIDENCE, D.EVENT_RECORD, D.LEASE})}
 _CUSTOMER_DOCS = {R.SELLER_DOCUMENT: frozenset({D.CUSTOMER_CONTRACT, D.CUSTOMER_CONFIRMATION})}
 _DEBT_DOCS = {R.SELLER_DOCUMENT: frozenset({D.LENDER_STATEMENT})}
+SELF_STATEMENT_CAVEAT = (
+    "The company's own page shows that the company says it, not that the other party confirms it"
+)
 
 COMPONENT_RULES: dict[str, ComponentRule] = {
     # Identity and incorporation: registry questions.
@@ -485,7 +525,6 @@ COMPONENT_RULES: dict[str, ComponentRule] = {
         ValueKind.TEXT,
         _CUSTOMER_SOURCES,
         DOC_CUSTOMER,
-        caveats={R.COMPANY_ANNOUNCEMENT: ANNOUNCEMENT_CAVEAT},
         document_types=_CUSTOMER_DOCS,
     ),
     "relationship": ComponentRule(
@@ -508,6 +547,39 @@ COMPONENT_RULES: dict[str, ComponentRule] = {
         _CUSTOMER_SOURCES,
         DOC_CUSTOMER,
         document_types=_CUSTOMER_DOCS,
+    ),
+    # Compliance: a named certification or standard (since 2026-11-22.6).
+    "certification": ComponentRule(
+        ClaimCategory.COMPLIANCE,
+        ValueKind.TEXT_CONTAINS,
+        _CERTIFICATION_SOURCES,
+        DOC_CERTIFICATION,
+    ),
+    # Intellectual property: a mark and its owner (since 2026-11-22.6).
+    "trademark": ComponentRule(
+        ClaimCategory.INTELLECTUAL_PROPERTY,
+        ValueKind.TEXT,
+        _TRADEMARK_SOURCES,
+        DOC_TRADEMARK,
+    ),
+    "mark_owner": ComponentRule(
+        ClaimCategory.INTELLECTUAL_PROPERTY,
+        ValueKind.TEXT,
+        _TRADEMARK_SOURCES,
+        DOC_TRADEMARK,
+    ),
+    # Customer counts ("trusted by 100+ clients in 20+ countries").
+    "customer_count": ComponentRule(
+        ClaimCategory.CUSTOMER_PARTNERSHIP,
+        ValueKind.COUNT,
+        _CUSTOMER_COUNT_SOURCES,
+        DOC_CUSTOMER_LIST,
+    ),
+    "country_count": ComponentRule(
+        ClaimCategory.CUSTOMER_PARTNERSHIP,
+        ValueKind.COUNT,
+        _CUSTOMER_COUNT_SOURCES,
+        DOC_CUSTOMER_LIST,
     ),
     # Financials: audited statements or registry filings only.
     "revenue": ComponentRule(
@@ -584,6 +656,8 @@ CATEGORY_DOCUMENTS: dict[ClaimCategory, str] = {
     ClaimCategory.FINANCIALS: DOC_FINANCIALS,
     ClaimCategory.DEBT_SECURITY: DOC_LENDER,
     ClaimCategory.LITIGATION: DOC_LITIGATION,
+    ClaimCategory.COMPLIANCE: DOC_CERTIFICATION,
+    ClaimCategory.INTELLECTUAL_PROPERTY: DOC_TRADEMARK,
     ClaimCategory.OTHER: "A dated document that states it directly",
 }
 
@@ -601,6 +675,24 @@ COMPONENT_CRITERION_DIMENSIONS: dict[str, str] = {
     "incorporation_year": "founded_year",
 }
 
+# A claim whose every matched component rests on the company's own announcements
+# (its website, press release or trust page) is at most partially corroborated in
+# these categories: a one-sided statement never makes a relationship, certificate
+# or registration Supported (since 2026-11-22.6).
+SELF_STATEMENT_CAPPED = frozenset(
+    {
+        ClaimCategory.CUSTOMER_PARTNERSHIP,
+        ClaimCategory.COMPLIANCE,
+        ClaimCategory.INTELLECTUAL_PROPERTY,
+    }
+)
+
+# --- Public lookups (ProofGate source layer, since 2026-11-22.6) ---------------
+# At most this many targeted web lookups per claim (one search each, plus at most
+# one page fetch). Hard cap: a source module asking for more gets the first two.
+MAX_LOOKUPS_PER_CLAIM = 2
+MAX_FETCH_PER_LOOKUP = 1
+
 # Coarse effort to obtain each document, for DecisionFlip's tie-break only.
 # Anything not listed is medium; a re-run with no document is low.
 DOCUMENT_EFFORT: dict[str, EffortLevel] = {
@@ -617,6 +709,9 @@ DOCUMENT_EFFORT: dict[str, EffortLevel] = {
     DOC_FACILITY: EffortLevel.MEDIUM,
     DOC_LENDER: EffortLevel.MEDIUM,
     DOC_CUSTOMER: EffortLevel.HIGH,
+    DOC_CERTIFICATION: EffortLevel.LOW,
+    DOC_TRADEMARK: EffortLevel.LOW,
+    DOC_CUSTOMER_LIST: EffortLevel.MEDIUM,
     DOC_FINANCIALS: EffortLevel.HIGH,
     DOC_LITIGATION: EffortLevel.HIGH,
 }

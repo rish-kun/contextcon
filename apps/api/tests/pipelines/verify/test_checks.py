@@ -517,14 +517,10 @@ async def test_budget_exhaustion_marks_not_checked(sm, session):
     crust = pune_crustdata()
     _, ledger, _ = await _verify(sm, session, case, sentences, crust)
     for text, out in ledger.items():
-        if text.startswith("Tata"):
-            # No paid source exists for it in v1: answered, with what would settle it.
-            assert out.status == "cannot_verify"
-            assert out.settle_with == "Customer confirmation or signed contract"
-        else:
-            assert out.status == "not_checked", text
-            assert out.not_checked_reason == "budget_reached"
-            assert "budget" in out.reason
+        # The customer claim now gets a public lookup too, which the budget refuses.
+        assert out.status == "not_checked", text
+        assert out.not_checked_reason == "budget_reached"
+        assert "budget" in out.reason
     assert crust.calls == []  # nothing was paid for
     steps = list((await session.execute(select(Step))).scalars())
     assert {s.state for s in steps} == {"done"}

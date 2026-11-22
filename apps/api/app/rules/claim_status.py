@@ -365,8 +365,16 @@ def decide_claim_status(check: ClaimCheck) -> CheckOutcome:
         notes.append(line + (f". {caveat}." if caveat else ", which does not settle this claim."))
 
     status = _combine([f.state for f in findings])
+    capped = status is ClaimStatus.SUPPORTED and _self_statement_only(claim, findings)
+    if capped:
+        # The company's own page shows that it says so, not that the other party
+        # (partner, certifier, registry) confirms it (policy.SELF_STATEMENT_CAPPED).
+        status = ClaimStatus.PARTIALLY_CORROBORATED
+        notes.append(f"{policy.SELF_STATEMENT_CAVEAT}.")
     unsettled_docs = [
-        document_for(f.component, claim) for f in findings if f.state is not ComponentState.MATCHED
+        document_for(f.component, claim)
+        for f in findings
+        if f.state is not ComponentState.MATCHED or capped
     ]
     if status is ClaimStatus.SUPPORTED:
         settle: list[str] = []
@@ -389,6 +397,13 @@ def decide_claim_status(check: ClaimCheck) -> CheckOutcome:
         components=findings,
         evidence=refs,
     )
+
+
+def _self_statement_only(claim: Claim, findings: list[ComponentFinding]) -> bool:
+    if claim.category not in policy.SELF_STATEMENT_CAPPED:
+        return False
+    matched = [f for f in findings if f.state is ComponentState.MATCHED]
+    return bool(matched) and all(f.announcement_only for f in matched)
 
 
 def _silent_sources(

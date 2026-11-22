@@ -4865,6 +4865,8 @@
           "financials",
           "debt_security",
           "litigation",
+          "compliance",
+          "intellectual_property",
           "other"
         ],
         "title": "ClaimCategory"
@@ -4921,6 +4923,13 @@
             "type": "array",
             "title": "Evidence Ids"
           },
+          "searched": {
+            "items": {
+              "$ref": "#/components/schemas/SearchedOut"
+            },
+            "type": "array",
+            "title": "Searched"
+          },
           "assessment_version": {
             "anyOf": [
               {
@@ -4948,6 +4957,7 @@
           "not_checked_reason",
           "settle_with",
           "evidence_ids",
+          "searched",
           "assessment_version",
           "created_at"
         ],
@@ -5167,6 +5177,14 @@
             "type": "array",
             "title": "Evidence"
           },
+          "searched": {
+            "items": {
+              "$ref": "#/components/schemas/SearchedOut"
+            },
+            "type": "array",
+            "title": "Searched",
+            "description": "Public lookups the current check made; shown as 'searched: X, Y'."
+          },
           "history": {
             "items": {
               "$ref": "#/components/schemas/ClaimCheckOut"
@@ -5206,6 +5224,7 @@
           "substantive_result",
           "settle_with",
           "evidence",
+          "searched",
           "history",
           "changed_in_version"
         ],
@@ -10494,6 +10513,99 @@
           "reasons"
         ],
         "title": "ScreeningDispositionOut"
+      },
+      "SearchedOut": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "What was searched, e.g. \"Microsoft partner directory\"."
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Query"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/SearchedResultOut"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "skipped": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skipped",
+            "description": "Why the lookup did not run: budget, identity, unsafe_query."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label",
+          "query",
+          "results",
+          "skipped"
+        ],
+        "title": "SearchedOut",
+        "description": "One public lookup the check made (public terms only)."
+      },
+      "SearchedResultOut": {
+        "properties": {
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "source_class": {
+            "type": "string",
+            "title": "Source Class"
+          },
+          "attached": {
+            "type": "boolean",
+            "title": "Attached",
+            "description": "False: the page could not be tied to the company."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url",
+          "title",
+          "source_class",
+          "attached"
+        ],
+        "title": "SearchedResultOut"
       },
       "SendIn": {
         "properties": {

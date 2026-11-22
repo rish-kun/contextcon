@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-PROMPT_VERSION = "2026-11-22.2"
+PROMPT_VERSION = "2026-11-22.3"
 
 
 @dataclass(frozen=True)
@@ -152,7 +152,9 @@ For each claim return:
   change, drop or reorder words inside it).
 - category: identity_incorporation, location, team_size, leadership_history,
   funding, dated_event, customer_partnership, financials, debt_security,
-  litigation or other.
+  litigation, compliance (certifications such as ISO 9001, ISO/IEC 27001,
+  SOC 2, CMMI), intellectual_property (trademarks, patents, IP ownership)
+  or other.
 - components: the checkable parts as name/value pairs, for example
   [{"name": "year", "value": "2014"}, {"name": "city", "value": "Pune"}].
   Use simple lowercase names such as year, date, city, country, count,

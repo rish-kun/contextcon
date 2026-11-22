@@ -43,6 +43,24 @@ class StatedInOut(ApiModel):
     typed_at: datetime | None = None
 
 
+class SearchedResultOut(ApiModel):
+    url: str | None = None
+    title: str | None = None
+    source_class: str
+    attached: bool = Field(description="False: the page could not be tied to the company.")
+
+
+class SearchedOut(ApiModel):
+    """One public lookup the check made (public terms only)."""
+
+    label: str = Field(description='What was searched, e.g. "Microsoft partner directory".')
+    query: str | None = None
+    results: list[SearchedResultOut] = Field(default_factory=list)
+    skipped: str | None = Field(
+        default=None, description="Why the lookup did not run: budget, identity, unsafe_query."
+    )
+
+
 class ClaimCheckOut(ApiModel):
     """One append-only status check. The latest row is the current status."""
 
@@ -53,6 +71,7 @@ class ClaimCheckOut(ApiModel):
     not_checked_reason: NotCheckedReason | None = None
     settle_with: str | None = None
     evidence_ids: list[str] = Field(default_factory=list)
+    searched: list[SearchedOut] = Field(default_factory=list)
     assessment_version: int | None = None
     created_at: datetime
 
@@ -78,5 +97,9 @@ class ClaimOut(ApiModel):
         default=None, description="The document that would settle it; feeds the request list."
     )
     evidence: list[EvidenceOut] = Field(default_factory=list)
+    searched: list[SearchedOut] = Field(
+        default_factory=list,
+        description="Public lookups the current check made; shown as 'searched: X, Y'.",
+    )
     history: list[ClaimCheckOut] = Field(default_factory=list, description="Oldest first.")
     changed_in_version: int | None = None

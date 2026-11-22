@@ -75,6 +75,8 @@ class ClaimCategory(StrEnum):
     financials = "financials"
     debt_security = "debt_security"
     litigation = "litigation"
+    compliance = "compliance"
+    intellectual_property = "intellectual_property"
     other = "other"
 
 

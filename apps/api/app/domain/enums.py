@@ -73,6 +73,8 @@ class ClaimCategory(StrEnum):
     FINANCIALS = "financials"
     DEBT_SECURITY = "debt_security"
     LITIGATION = "litigation"
+    COMPLIANCE = "compliance"  # certifications: ISO 9001/27001, SOC 2, CMMI
+    INTELLECTUAL_PROPERTY = "intellectual_property"  # trademarks, patents, IP ownership
     OTHER = "other"
 
 

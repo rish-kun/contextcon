@@ -70,8 +70,103 @@ def build_query(terms: PublicTerms, topic: str, *, city: str | None = None) -> s
     return query
 
 
-def assert_public(query: str, terms: PublicTerms, *, city: str | None = None) -> None:
+def assert_public(
+    query: str,
+    terms: PublicTerms,
+    *,
+    city: str | None = None,
+    extra_terms: tuple[str, ...] = (),
+) -> None:
     allowed = terms.allowed_tokens(city)
+    allowed |= {t.casefold() for p in extra_terms for t in _TOKEN.findall(p)}
     extra = [t for t in _TOKEN.findall(query) if t.casefold() not in allowed]
     if extra:
         raise UnsafeQuery("query contains terms that are not public lookup terms")
+
+
+# --- Targeted lookups (claim-category source modules, since policy 2026-11-22.6) ---
+#
+# A targeted lookup may also carry ONE named public entity from the claim's
+# structured components (the partner, certifier or trademark), never the claim's
+# wording, plus fixed words from `LOOKUP_WORDS` and an optional `site:` host.
+
+LOOKUP_WORDS: frozenset[str] = frozenset(
+    {
+        "partner",
+        "partners",
+        "partnership",
+        "oem",
+        "reseller",
+        "alliance",
+        "customer",
+        "customers",
+        "client",
+        "clients",
+        "case study",
+        "certified",
+        "certification",
+        "certificate",
+        "iso",
+        "trademark",
+        "registered",
+        "owner",
+        "press release",
+    }
+)
+_ENTITY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 &.+/:'-]{0,59}$")
+_HOST = re.compile(r"^[a-z0-9-]+(\.[a-z0-9-]+)+$")
+
+
+def clean_entity(value: str | None, *, deny: tuple[str, ...] = ()) -> str | None:
+    """A short public organisation, standard or mark name, or None.
+
+    Refused: anything long or with sentence punctuation (that is seller wording), and
+    anything sharing a word with `deny` (the name and website typed for the case,
+    which may be a deal code name)."""
+    if not value:
+        return None
+    name = " ".join(str(value).split()).strip(" ,.;")
+    if not _ENTITY.match(name) or len(name.split()) > 6:
+        return None
+    words = {t.casefold() for t in _TOKEN.findall(name)}
+    denied = {t.casefold() for d in deny for t in _TOKEN.findall(d or "") if len(t) > 2}
+    if words & denied:
+        return None
+    return name
+
+
+def build_lookup(
+    terms: PublicTerms,
+    words: str,
+    *,
+    entity: str | None = None,
+    site: str | None = None,
+    deny: tuple[str, ...] = (),
+) -> str:
+    """`"<company>" ["<entity>"] <words> [site:<host>]`, public terms only."""
+    name = " ".join(terms.company_name.split())
+    if not name:
+        raise UnsafeQuery("no company name")
+    allowed_words = {t for w in LOOKUP_WORDS for t in w.split()}
+    if words and not set(words.split()) <= allowed_words:
+        raise UnsafeQuery(f"lookup words {words!r} are not on the allowlist")
+    parts = [f'"{name}"']
+    extra: list[str] = list(LOOKUP_WORDS)
+    if entity is not None:
+        clean = clean_entity(entity, deny=deny)
+        if clean is None:
+            raise UnsafeQuery("the named entity is not a short public name")
+        if clean.casefold() != name.casefold():
+            parts.append(f'"{clean}"')
+            extra.append(clean)
+    if words:
+        parts.append(words)
+    if site:
+        host = site.casefold().removeprefix("www.")
+        if not _HOST.match(host):
+            raise UnsafeQuery("site is not a host name")
+        parts.append(f"site:{host}")
+        extra += ["site", host]
+    query = " ".join(parts)
+    assert_public(query, terms, extra_terms=tuple(extra))
+    return query

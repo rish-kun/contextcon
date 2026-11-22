@@ -4,9 +4,11 @@ A check that cannot run is still recorded, as `not_checked` with the reason:
 - identity is not confirmed (identity-dependent categories only),
 - the case's credit budget is spent (`BudgetExceeded`),
 - a provider is unavailable or failed.
-Categories with no dedicated v1 source (customers, financials, other) and the
-registry-only ones (debt, litigation) run without paid calls; with nothing adequate
-on record the rules answer `cannot_verify` and name what would settle it.
+Customer, partnership, certification and trademark claims run up to two targeted
+public lookups from their source module (`gather.SOURCE_MODULES`); financials one
+results search. The registry-only ones (debt, litigation) and `other` run without
+paid calls. With nothing adequate the rules answer `cannot_verify`, name what would
+settle it and, when a lookup ran, what was searched.
 """
 
 from __future__ import annotations
@@ -21,17 +23,17 @@ from app.clients.crustdata import CrustdataCreditsError, CrustdataError, Crustda
 from app.clients.llm import LLMError
 from app.db.models import Case
 from app.db.models import Claim as ClaimRow
-from app.domain.enums import ClaimCategory, IdentityStatus, NotCheckedReason
+from app.domain.enums import ClaimCategory, ClaimStatus, IdentityStatus, NotCheckedReason
 from app.domain.types import Claim, ClaimCheck
 from app.extraction.llm import LlmOutputError, StructuredLlm
 from app.jobs import BudgetExceeded
 from app.pipelines.verify.checks import activity as check_activity
 from app.pipelines.verify.checks.gather import (
-    GATHERERS,
     IDENTITY_DEPENDENT,
     Budget,
     CheckEnv,
     Gathered,
+    gatherer_for,
 )
 from app.pipelines.verify.checks.persist import persist_outcome
 from app.pipelines.verify.checks.sources import EvidenceStore, domain_source
@@ -40,14 +42,7 @@ from app.rules import decide_all
 
 _ORIGINS = {"deck": "seller_document", "typed": "seller_typed", "profile": "profile"}
 # Categories whose check makes no model call.
-_NO_MODEL = frozenset(
-    {
-        ClaimCategory.TEAM_SIZE,
-        ClaimCategory.CUSTOMER_PARTNERSHIP,
-        ClaimCategory.FINANCIALS,
-        ClaimCategory.OTHER,
-    }
-)
+_NO_MODEL = frozenset({ClaimCategory.TEAM_SIZE, ClaimCategory.OTHER})
 
 
 def domain_claim(row: ClaimRow) -> Claim:
@@ -113,7 +108,7 @@ async def check_claim(
             log=log,
         )
         try:
-            gathered = await GATHERERS[category](env, claim)
+            gathered = await gatherer_for(claim)(env, claim)
             check = ClaimCheck(
                 claim=claim.model_copy(update={"entity_ids": gathered.entity_ids}),
                 facts=gathered.facts,
@@ -156,6 +151,11 @@ async def check_claim(
     if check.ran:
         await check_activity.status("status.comparing_facts", n=len(check.facts))
     [outcome] = decide_all([check])
+    searched = gathered.searched if gathered is not None and check.ran else []
+    if searched and outcome.status is not ClaimStatus.SUPPORTED:
+        outcome = outcome.model_copy(
+            update={"reason": f"{outcome.reason} {searched_sentence(searched)}"}
+        )
     meta = await persist_outcome(
         session,
         claim=claim_row,
@@ -164,5 +164,18 @@ async def check_claim(
         run_id=run_id,
         step_id=step_id,
         read_markers=read_markers,
+        searched=searched,
     )
     return meta
+
+
+def searched_sentence(searched: list[dict[str, Any]]) -> str:
+    """ "Searched: Microsoft partner directory (2 results), ..." for the reason text."""
+    parts = []
+    for entry in searched:
+        if entry.get("skipped"):
+            parts.append(f"{entry['label']} (not run: {entry['skipped'].replace('_', ' ')})")
+        else:
+            n = len(entry.get("results") or [])
+            parts.append(f"{entry['label']} ({n} result{'s' if n != 1 else ''})")
+    return f"Searched: {'; '.join(parts)}."

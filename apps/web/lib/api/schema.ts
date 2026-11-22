@@ -1405,7 +1405,7 @@ export interface components {
          * ClaimCategory
          * @enum {string}
          */
-        ClaimCategory: "identity_incorporation" | "location" | "team_size" | "leadership_history" | "funding" | "dated_event" | "customer_partnership" | "financials" | "debt_security" | "litigation" | "other";
+        ClaimCategory: "identity_incorporation" | "location" | "team_size" | "leadership_history" | "funding" | "dated_event" | "customer_partnership" | "financials" | "debt_security" | "litigation" | "compliance" | "intellectual_property" | "other";
         /**
          * ClaimCheckOut
          * @description One append-only status check. The latest row is the current status.
@@ -1423,6 +1423,8 @@ export interface components {
             settle_with: string | null;
             /** Evidence Ids */
             evidence_ids: string[];
+            /** Searched */
+            searched: components["schemas"]["SearchedOut"][];
             /** Assessment Version */
             assessment_version: number | null;
             /**
@@ -1518,6 +1520,11 @@ export interface components {
             settle_with: string | null;
             /** Evidence */
             evidence: components["schemas"]["EvidenceOut"][];
+            /**
+             * Searched
+             * @description Public lookups the current check made; shown as 'searched: X, Y'.
+             */
+            searched: components["schemas"]["SearchedOut"][];
             /**
              * History
              * @description Oldest first.
@@ -3453,6 +3460,40 @@ export interface components {
             disposition: components["schemas"]["Disposition"];
             /** Reasons */
             reasons: components["schemas"]["DispositionReasonOut"][];
+        };
+        /**
+         * SearchedOut
+         * @description One public lookup the check made (public terms only).
+         */
+        SearchedOut: {
+            /**
+             * Label
+             * @description What was searched, e.g. "Microsoft partner directory".
+             */
+            label: string;
+            /** Query */
+            query: string | null;
+            /** Results */
+            results: components["schemas"]["SearchedResultOut"][];
+            /**
+             * Skipped
+             * @description Why the lookup did not run: budget, identity, unsafe_query.
+             */
+            skipped: string | null;
+        };
+        /** SearchedResultOut */
+        SearchedResultOut: {
+            /** Url */
+            url: string | null;
+            /** Title */
+            title: string | null;
+            /** Source Class */
+            source_class: string;
+            /**
+             * Attached
+             * @description False: the page could not be tied to the company.
+             */
+            attached: boolean;
         };
         /** SendIn */
         SendIn: {
@@ -5722,7 +5763,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Server-sent events. `event: run` carries a RunOut without steps (first, on every run state or cost change, and last once the run is `done` or `failed`); `event: step` carries a StepOut (every step once, then each change); `event: activity` carries an ActivityOut with `id: <seq>` (the backlog after `Last-Event-ID` or `?after=`, then a `: live` comment, then each new one). Other lines starting with `:` are keepalives. */
+            /** @description Server-sent events. `event: run` carries a RunOut without steps (first, on every run state or cost change, and last once the run is `done` or `failed`); `event: step` carries a StepOut (every step once, then each change); `event: activity` carries an ActivityOut with `id: <seq>` (the backlog after `Last-Event-ID` or `?after=`, then a `: live` comment, then each new one). Once the run is finished and every activity has been sent, `event: end` (data `{}`) is the last frame: clients close on it, not on a finished `run`, which a reconnect sends before the backlog. Other lines starting with `:` are keepalives. */
             200: {
                 headers: {
                     [name: string]: unknown;

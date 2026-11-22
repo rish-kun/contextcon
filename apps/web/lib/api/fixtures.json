@@ -2072,6 +2072,7 @@
               "deleted": false
             }
           ],
+          "searched": [],
           "history": [
             {
               "id": "fx-check-1-v1",
@@ -2081,6 +2082,7 @@
               "not_checked_reason": null,
               "settle_with": null,
               "evidence_ids": [],
+              "searched": [],
               "assessment_version": 1,
               "created_at": "2026-11-22T09:40:00Z"
             }
@@ -2166,6 +2168,7 @@
               "deleted": false
             }
           ],
+          "searched": [],
           "history": [
             {
               "id": "fx-check-2-v1",
@@ -2175,6 +2178,7 @@
               "not_checked_reason": null,
               "settle_with": "Dated payroll summary",
               "evidence_ids": [],
+              "searched": [],
               "assessment_version": 1,
               "created_at": "2026-11-22T09:40:00Z"
             },
@@ -2188,6 +2192,7 @@
               "evidence_ids": [
                 "fx-ev-payroll"
               ],
+              "searched": [],
               "assessment_version": 2,
               "created_at": "2026-11-22T19:40:00Z"
             }
@@ -2249,6 +2254,7 @@
               "deleted": false
             }
           ],
+          "searched": [],
           "history": [
             {
               "id": "fx-check-3-v1",
@@ -2258,6 +2264,7 @@
               "not_checked_reason": null,
               "settle_with": null,
               "evidence_ids": [],
+              "searched": [],
               "assessment_version": 1,
               "created_at": "2026-11-22T09:40:00Z"
             }
@@ -2347,6 +2354,7 @@
               "deleted": false
             }
           ],
+          "searched": [],
           "history": [
             {
               "id": "fx-check-4-v1",
@@ -2356,6 +2364,7 @@
               "not_checked_reason": null,
               "settle_with": "Share allotment filing or term sheet",
               "evidence_ids": [],
+              "searched": [],
               "assessment_version": 1,
               "created_at": "2026-11-22T09:40:00Z"
             }
@@ -2417,6 +2426,7 @@
               "deleted": false
             }
           ],
+          "searched": [],
           "history": [
             {
               "id": "fx-check-5-v1",
@@ -2426,6 +2436,7 @@
               "not_checked_reason": null,
               "settle_with": "Lease or occupancy evidence for the facility",
               "evidence_ids": [],
+              "searched": [],
               "assessment_version": 1,
               "created_at": "2026-11-22T09:40:00Z"
             }
@@ -2456,6 +2467,7 @@
           "substantive_result": null,
           "settle_with": null,
           "evidence": [],
+          "searched": [],
           "history": [
             {
               "id": "fx-check-6-v1",
@@ -2465,6 +2477,7 @@
               "not_checked_reason": "budget_reached",
               "settle_with": null,
               "evidence_ids": [],
+              "searched": [],
               "assessment_version": 1,
               "created_at": "2026-11-22T09:40:00Z"
             }
@@ -2524,6 +2537,7 @@
               "deleted": false
             }
           ],
+          "searched": [],
           "history": [
             {
               "id": "fx-check-7-v1",
@@ -2533,6 +2547,7 @@
               "not_checked_reason": null,
               "settle_with": "Certificate of incorporation",
               "evidence_ids": [],
+              "searched": [],
               "assessment_version": 1,
               "created_at": "2026-11-22T09:40:00Z"
             }
@@ -2590,6 +2605,7 @@
               "deleted": false
             }
           ],
+          "searched": [],
           "history": [
             {
               "id": "fx-check-8-v1",
@@ -2599,6 +2615,7 @@
               "not_checked_reason": null,
               "settle_with": "Lender statements",
               "evidence_ids": [],
+              "searched": [],
               "assessment_version": 1,
               "created_at": "2026-11-22T09:40:00Z"
             }
@@ -3019,10 +3036,10 @@
         "analysis_id": "fx-flip-fx-case-harbourline",
         "case_id": "fx-case-harbourline",
         "assessment_version": 2,
-        "policy_version": "2026-11-22.4",
+        "policy_version": "2026-11-22.6",
         "inputs_hash": "fixture-fx-case-harbourline-2",
         "flip_version": "decision-flip-1",
-        "analysis_key": "d28e524a78568b7ad985cfdc5a4ede879792eb6bd273ea3fc0910497a906557b",
+        "analysis_key": "75a89d0ebd897dff7ccb3cd854240a95ed3ab7a3b0bf7736180e8b960146715e",
         "selection_basis": "fewest_checks",
         "selection_label": "Minimum set of checks required to change the screening outcome",
         "state": "has_blockers",
@@ -4305,6 +4322,7 @@
           "substantive_result": null,
           "settle_with": null,
           "evidence": [],
+          "searched": [],
           "history": [
             {
               "id": "fx-check-shree-1",
@@ -4314,6 +4332,7 @@
               "not_checked_reason": "identity_unresolved",
               "settle_with": null,
               "evidence_ids": [],
+              "searched": [],
               "assessment_version": null,
               "created_at": "2026-11-22T10:02:00Z"
             }
@@ -4953,10 +4972,10 @@
       "analysis_id": "fx-flip-fx-case-harbourline",
       "case_id": "fx-case-harbourline",
       "assessment_version": 2,
-      "policy_version": "2026-11-22.4",
+      "policy_version": "2026-11-22.6",
       "inputs_hash": "fixture-fx-case-harbourline-2",
       "flip_version": "decision-flip-1",
-      "analysis_key": "d28e524a78568b7ad985cfdc5a4ede879792eb6bd273ea3fc0910497a906557b",
+      "analysis_key": "75a89d0ebd897dff7ccb3cd854240a95ed3ab7a3b0bf7736180e8b960146715e",
       "selection_basis": "fewest_checks",
       "selection_label": "Minimum set of checks required to change the screening outcome",
       "state": "has_blockers",
@@ -5212,10 +5231,10 @@
       "analysis_id": "fx-flip-fx-case-harbourline",
       "case_id": "fx-case-harbourline",
       "assessment_version": 2,
-      "policy_version": "2026-11-22.4",
+      "policy_version": "2026-11-22.6",
       "inputs_hash": "fixture-fx-case-harbourline-2",
       "flip_version": "decision-flip-1",
-      "analysis_key": "d28e524a78568b7ad985cfdc5a4ede879792eb6bd273ea3fc0910497a906557b",
+      "analysis_key": "75a89d0ebd897dff7ccb3cd854240a95ed3ab7a3b0bf7736180e8b960146715e",
       "selection_basis": "fewest_checks",
       "selection_label": "Minimum set of checks required to change the screening outcome",
       "state": "has_blockers",
@@ -5469,10 +5488,10 @@
       "analysis_id": "fx-flip-fx-case-harbourline-no-blockers",
       "case_id": "fx-case-harbourline",
       "assessment_version": 3,
-      "policy_version": "2026-11-22.4",
+      "policy_version": "2026-11-22.6",
       "inputs_hash": "fixture-fx-case-harbourline-3",
       "flip_version": "decision-flip-1",
-      "analysis_key": "68a118a4d2ed92d6f693fc428b3f589b7efd8b0a8774c642f38c2caf687ba34e",
+      "analysis_key": "b6184fc339c211a243e302505b2c0cc2dec27c9027d85e112918dfc10c7b2c33",
       "selection_basis": "fewest_checks",
       "selection_label": "Minimum set of checks required to change the screening outcome",
       "state": "no_blockers",
@@ -5562,10 +5581,10 @@
       "analysis_id": "fx-flip-fx-case-harbourline-risk",
       "case_id": "fx-case-harbourline",
       "assessment_version": 2,
-      "policy_version": "2026-11-22.4",
+      "policy_version": "2026-11-22.6",
       "inputs_hash": "fixture-fx-case-harbourline-2",
       "flip_version": "decision-flip-1",
-      "analysis_key": "d28e524a78568b7ad985cfdc5a4ede879792eb6bd273ea3fc0910497a906557b",
+      "analysis_key": "75a89d0ebd897dff7ccb3cd854240a95ed3ab7a3b0bf7736180e8b960146715e",
       "selection_basis": "fewest_checks",
       "selection_label": "Minimum set of checks required to change the screening outcome",
       "state": "has_blockers",
@@ -5783,10 +5802,10 @@
       "analysis_id": "fx-flip-fx-case-harbourline-mapped",
       "case_id": "fx-case-harbourline",
       "assessment_version": 2,
-      "policy_version": "2026-11-22.4",
+      "policy_version": "2026-11-22.6",
       "inputs_hash": "fixture-fx-case-harbourline-2",
       "flip_version": "decision-flip-1",
-      "analysis_key": "d3c75c0b1a975cb4407142e94018a9d92bd679b0d5eafa671dae056b2bc1117f",
+      "analysis_key": "57737dd30dc063809d411c34b43447bf99bea5532ca8e52183484a7423ec081c",
       "selection_basis": "fewest_checks",
       "selection_label": "Minimum set of checks required to change the screening outcome",
       "state": "has_blockers",
@@ -5937,10 +5956,10 @@
       "analysis_id": "fx-flip-fx-case-harbourline-threshold",
       "case_id": "fx-case-harbourline",
       "assessment_version": 2,
-      "policy_version": "2026-11-22.4",
+      "policy_version": "2026-11-22.6",
       "inputs_hash": "fixture-fx-case-harbourline-2",
       "flip_version": "decision-flip-1",
-      "analysis_key": "d28e524a78568b7ad985cfdc5a4ede879792eb6bd273ea3fc0910497a906557b",
+      "analysis_key": "75a89d0ebd897dff7ccb3cd854240a95ed3ab7a3b0bf7736180e8b960146715e",
       "selection_basis": "fewest_checks",
       "selection_label": "Minimum set of checks required to change the screening outcome",
       "state": "has_blockers",
@@ -6158,10 +6177,10 @@
       "analysis_id": "fx-flip-fx-case-harbourline-identity",
       "case_id": "fx-case-harbourline",
       "assessment_version": 1,
-      "policy_version": "2026-11-22.4",
+      "policy_version": "2026-11-22.6",
       "inputs_hash": "fixture-fx-case-harbourline-1",
       "flip_version": "decision-flip-1",
-      "analysis_key": "ea1c985ef0ff31b1c6e5bccaee346df23c56349a212f04b106d1f08a5196c466",
+      "analysis_key": "c5567fc5a7b8df414916b3d6fb58f75271d754338c55c19e266819be74f18ae0",
       "selection_basis": "fewest_checks",
       "selection_label": "Minimum set of checks required to change the screening outcome",
       "state": "has_blockers",
@@ -6480,10 +6499,10 @@
       "analysis_id": "fx-flip-fx-case-harbourline-limited",
       "case_id": "fx-case-harbourline",
       "assessment_version": 2,
-      "policy_version": "2026-11-22.4",
+      "policy_version": "2026-11-22.6",
       "inputs_hash": "fixture-fx-case-harbourline-2",
       "flip_version": "decision-flip-1",
-      "analysis_key": "d28e524a78568b7ad985cfdc5a4ede879792eb6bd273ea3fc0910497a906557b",
+      "analysis_key": "75a89d0ebd897dff7ccb3cd854240a95ed3ab7a3b0bf7736180e8b960146715e",
       "selection_basis": "fewest_checks",
       "selection_label": "Minimum set of checks required to change the screening outcome",
       "state": "not_evidence_limited",

@@ -27,7 +27,7 @@ from app.rules import policy
 from app.rules.compare import to_bool, to_month, to_number, to_stage, to_year
 from app.rules.validation import validate_extraction
 
-NORMALISE_PROMPT_VERSION = "2026-11-22.claims-components.1"
+NORMALISE_PROMPT_VERSION = "2026-11-22.claims-components.2"
 
 Op = Literal["eq", "gte", "lte"]
 
@@ -75,6 +75,12 @@ _DESCRIPTIONS: dict[str, str] = {
     "lender": "the named lender",
     "has_litigation": "true or false: whether the company says it is in litigation",
     "case_reference": "a court case reference",
+    "certification": "a named certification or standard, e.g. ISO 9001:2015, ISO/IEC 27001, "
+    "SOC 2 Type II, CMMI Level 3",
+    "trademark": "the trademark or brand name the claim says is registered",
+    "mark_owner": "the legal owner the claim names for the trademark",
+    "customer_count": "number of customers or clients",
+    "country_count": "number of countries the customers are in",
 }
 
 
@@ -171,6 +177,8 @@ _ALIASES: dict[str, dict[str, str]] = {
     "financials": {"revenue": "revenue", "year": "fiscal_year"},
     "debt_security": {"lender": "lender"},
     "litigation": {},
+    "compliance": {"certification": "certification", "standard": "certification"},
+    "intellectual_property": {"trademark": "trademark", "mark": "trademark", "owner": "mark_owner"},
     "other": {},
 }
 

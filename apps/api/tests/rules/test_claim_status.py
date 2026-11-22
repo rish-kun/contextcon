@@ -449,7 +449,8 @@ def test_fact_about_another_entity_is_rejected():
     assert "not to the entity" in o.evidence[0].note
 
 
-def test_customer_claim_needs_counterparty_not_announcement():
+def test_customer_claim_from_the_company_alone_is_partial_not_supported():
+    """Since 2026-11-22.6 the company's own statement counts, capped at partial."""
     pr = src("pr", R.COMPANY_ANNOUNCEMENT)
     c = check(
         ClaimCategory.CUSTOMER_PARTNERSHIP,
@@ -457,8 +458,23 @@ def test_customer_claim_needs_counterparty_not_announcement():
         [fact("a", pr, "counterparty", "Big Retail", "We now serve Big Retail")],
     )
     o = decide_claim_status(c)
-    assert o.status is ClaimStatus.CANNOT_VERIFY
+    assert o.status is ClaimStatus.PARTIALLY_CORROBORATED
+    assert "says it" in o.reason
     assert o.settle_with == ["Customer confirmation or signed contract"]
+
+
+def test_customer_claim_confirmed_by_the_counterparty_is_supported():
+    pr = src("pr", R.COMPANY_ANNOUNCEMENT)
+    cp = src("cp", R.COUNTERPARTY_CONFIRMATION)
+    c = check(
+        ClaimCategory.CUSTOMER_PARTNERSHIP,
+        {"counterparty": "Big Retail"},
+        [
+            fact("a", pr, "counterparty", "Big Retail", "We now serve Big Retail"),
+            fact("b", cp, "counterparty", "Big Retail", "Big Retail partner listing"),
+        ],
+    )
+    assert decide_claim_status(c).status is ClaimStatus.SUPPORTED
 
 
 def test_every_non_supported_status_names_what_would_settle_it():

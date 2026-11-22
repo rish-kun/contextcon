@@ -56,6 +56,8 @@ ClaimCategory = Literal[
     "financials",
     "debt_security",
     "litigation",
+    "compliance",
+    "intellectual_property",
     "other",
 ]
 
@@ -330,6 +332,28 @@ CATEGORY_CUES: dict[str, tuple[str, ...]] = {
         "legal",
         "arbitration",
         "proceeding",
+    ),
+    "compliance": (
+        "iso",
+        "certif",
+        "soc 2",
+        "soc2",
+        "cmmi",
+        "complian",
+        "accredit",
+        "gdpr",
+        "hipaa",
+        "pci",
+    ),
+    "intellectual_property": (
+        "trademark",
+        "registered mark",
+        "patent",
+        "copyright",
+        "intellectual property",
+        "proprietary",
+        "®",
+        "™",
     ),
 }
 

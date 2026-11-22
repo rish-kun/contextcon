@@ -9,7 +9,8 @@
 | identity_incorporation, location | stored registry evidence + enriched HQ / founded year      |
 | debt_security, litigation        | stored registry evidence only (no dedicated v1 check)      |
 | financials                       | one public results search (confirmed name + fixed words)  |
-| customer_partnership             | none in v1: the rules answer cannot_verify + what settles  |
+| customer_partnership, compliance,| up to two targeted public lookups, from the category's     |
+| intellectual_property            | source module `checks/sources/<kind>.py` (SOURCE_MODULES) |
 
 Every record is attached to the confirmed company or person by an identifier, never
 by name alone: people by company id (and name, when the claim names them), web pages
@@ -19,12 +20,18 @@ sources and never become evidence.
 
 Web queries come from `query.build_query` with public terms only: the enriched (or
 identity-confirmed) company name and domain, the enriched HQ city, one allowlisted
-topic word. Claim text and components, and the name or website typed for the case,
-are never sent to a search provider.
+topic word. Claim text, and the name or website typed for the case, are never sent
+to a search provider. Targeted lookups (`query.build_lookup`) may add one named
+public entity taken from the claim's structured components (the partner, certifier
+or mark), checked by `query.clean_entity`, and a `site:` host.
+
+Every lookup is recorded on `Gathered.searched` (what was searched, the query, what
+came back), so a result that is not Supported can say "searched: X, Y".
 """
 
 from __future__ import annotations
 
+import importlib
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import date
@@ -49,7 +56,7 @@ from app.pipelines.verify.checks.facts import (
     facts_from_text,
 )
 from app.pipelines.verify.checks.html import html_to_text, relevant_passages
-from app.pipelines.verify.checks.query import PublicTerms, UnsafeQuery, build_query
+from app.pipelines.verify.checks.query import PublicTerms, UnsafeQuery, build_lookup, build_query
 from app.pipelines.verify.checks.sources import (
     NEWS_CLASSES,
     REGISTRY_CLASSES,
@@ -59,6 +66,7 @@ from app.pipelines.verify.checks.sources import (
     same_site,
     syndication_origin,
 )
+from app.rules import policy
 from app.rules.compare import contains_phrase, normalize_text, to_date, to_month, to_year
 
 R = SourceReliability
@@ -116,6 +124,9 @@ class Gathered:
     rejected: int = 0
     notes: list[str] = field(default_factory=list)
     read_ref: str | None = None  # entity reference for "read, said nothing" markers
+    # One entry per public lookup: {"label", "query", "results": [{"url", "title",
+    # "source_class", "attached"}], "skipped": reason | None}. Public terms only.
+    searched: list[dict[str, Any]] = field(default_factory=list)
 
     def read(self, source: SourceRow, ref: str | None = None) -> None:
         self.read_ref = self.read_ref or ref
@@ -235,6 +246,27 @@ class CheckEnv:
             await self.budget(WEB_SEARCH_CREDITS)
             await check_activity.status("status.searching_news", name=self.public_name())
             result, _ = await self.crustdata.web_search(query, sources=["news", "web"])
+            self._searches[query] = [h for h in result.results if h.url]
+        return self._searches[query]
+
+    def deny_terms(self) -> tuple[str, ...]:
+        """Words a lookup must never carry: the name and website typed for the case
+        (possibly a deal code name), unless they are the confirmed public name."""
+        terms = self.terms()
+        if self.case.website and same_site(self.case.website, terms.domain):
+            return ()  # the analyst typed the real website: the typed name is not a code name
+        public = terms.company_name.casefold()
+        typed = [self.case.company_name or "", host_of(self.case.website) or ""]
+        return tuple(t for t in typed if t and t.casefold() != public)
+
+    async def lookup_search(self, query: str, what: str) -> list[WebSearchHit]:
+        """One paid web search for a targeted lookup (memoised per check)."""
+        if query not in self._searches:
+            await self.budget(WEB_SEARCH_CREDITS)
+            await check_activity.status(
+                "status.searching_public", what=what, name=self.public_name()
+            )
+            result, _ = await self.crustdata.web_search(query, sources=["web", "news"])
             self._searches[query] = [h for h in result.results if h.url]
         return self._searches[query]
 
@@ -834,6 +866,215 @@ async def gather_nothing(env: CheckEnv, claim: Claim) -> Gathered:
     return Gathered(entity_ids=[env.company_entity])
 
 
+# --- Targeted public lookups (policy 2026-11-22.6) ---------------------------------
+
+
+@dataclass(frozen=True)
+class Lookup:
+    """One targeted public search planned by a category source module.
+
+    `words` come from `query.LOOKUP_WORDS`; `entity` is one public name from the
+    claim's structured components (partner, certifier, mark), never claim wording.
+    A page on one of `party_hosts` is the other party's own record (partner
+    directory, certifier register, trademark registry mirror) and gets `party_class`.
+    """
+
+    label: str  # shown as "searched: <label>"
+    words: str
+    entity: str | None = None
+    site: str | None = None
+    party_hosts: tuple[str, ...] = ()
+    # Names of the other party: a page whose host is that name ("tatasteel.com" for
+    # "Tata Steel") is also its own site.
+    party_names: tuple[str, ...] = ()
+    party_class: SourceReliability = R.COUNTERPARTY_CONFIRMATION
+    focus: tuple[str, ...] = ()  # words that pick the relevant passages of a fetched page
+
+
+def classify_hit(
+    hit: WebSearchHit,
+    terms: PublicTerms,
+    corroborators: dict[str, list[str]],
+    lookup: Lookup,
+    page_text: str = "",
+) -> Attachment:
+    """Attach a lookup result to the company. The other party's own page must name
+    the company AND carry a second identifier (its domain or HQ city), like any page;
+    then it is the other party's record (`lookup.party_class`)."""
+    if on_party_site(hit.url, lookup):
+        probe = hit.model_copy(update={"url": "", "content": f"{hit.content or ''}\n{page_text}"})
+        att = attach_hit(probe, terms, corroborators)
+        if att.attached:
+            return Attachment(
+                True, lookup.party_class, ["party_site", *att.matched_on], None, att.ref_prefix
+            )
+        return Attachment(False, lookup.party_class, [], att.reason)
+    if page_text and not same_site(hit.url, terms.domain):
+        hit = hit.model_copy(update={"content": f"{hit.content or ''}\n{page_text}"})
+    return attach_hit(hit, terms, corroborators)
+
+
+def _compact(value: str) -> str:
+    return "".join(ch for ch in value.casefold() if ch.isalnum())
+
+
+def on_party_site(url: str | None, lookup: Lookup) -> bool:
+    """Is this page on the other party's own site?"""
+    if any(same_site(url, h) for h in lookup.party_hosts):
+        return True
+    host = host_of(url) or ""
+    labels = host.split(".")[:-1]  # without the top-level domain
+    names = {_compact(n) for n in lookup.party_names if len(_compact(n)) >= 3}
+    return bool(names) and any(_compact(label) in names for label in labels)
+
+
+def _names_company(hit: WebSearchHit, terms: PublicTerms) -> bool:
+    text = f"{hit.title or ''}\n{hit.snippet or ''}\n{hit.content or ''}"
+    return same_site(hit.url, terms.domain) or contains_phrase(text, terms.company_name)
+
+
+async def run_lookups(env: CheckEnv, claim: Claim, lookups: list[Lookup], out: Gathered) -> None:
+    """Run at most `policy.MAX_LOOKUPS_PER_CLAIM` lookups: one search each and at most
+    one page fetch, then verbatim-span extraction as every check. Each is recorded on
+    `out.searched`. A lookup the budget refuses is skipped; if every lookup was
+    refused, `BudgetExceeded` propagates and the claim reads Not checked (budget)."""
+    from app.jobs import BudgetExceeded
+
+    lookups = lookups[: policy.MAX_LOOKUPS_PER_CLAIM]
+    if env.case.identity_status != IdentityStatus.CONFIRMED or env.company_id is None:
+        for lookup in lookups:
+            out.searched.append(
+                {"label": lookup.label, "query": None, "results": [], "skipped": "identity"}
+            )
+        return
+    record = await env.profile()
+    terms, deny = env.terms(), env.deny_terms()
+    corroborators = {"hq_city": [c for c in [_hq_city(record)] if c]}
+    units: list[TextUnit] = []
+    ran, refused = 0, 0
+    for lookup in lookups:
+        entry: dict[str, Any] = {
+            "label": lookup.label,
+            "query": None,
+            "results": [],
+            "skipped": None,
+        }
+        out.searched.append(entry)
+        try:
+            query = build_lookup(
+                terms, lookup.words, entity=lookup.entity, site=lookup.site, deny=deny
+            )
+        except UnsafeQuery as exc:
+            entry["skipped"] = "unsafe_query"
+            env.log(f"lookup skipped ({lookup.label}): {exc}")
+            continue
+        entry["query"] = query
+        try:
+            hits = (await env.lookup_search(query, lookup.label))[:MAX_HITS]
+            ran += 1
+            # The one page worth reading: the other party's own page first, then the
+            # company's, and only one that names the company.
+            ranked = sorted(
+                (h for h in hits if _names_company(h, terms)),
+                key=lambda h: (
+                    0 if on_party_site(h.url, lookup) else 1,
+                    0 if same_site(h.url, terms.domain) else 1,
+                ),
+            )
+            pages: dict[str, str] = {}
+            if ranked and ranked[0].url:
+                try:
+                    urls = [h.url for h in ranked[: policy.MAX_FETCH_PER_LOOKUP] if h.url]
+                    fetched = await env.fetch(urls)
+                    pages = {u: html_to_text(h) for u, h in fetched.items()}
+                except BudgetExceeded:
+                    env.log(f"page fetch skipped ({lookup.label}): budget")
+        except BudgetExceeded:
+            entry["skipped"] = "budget"
+            refused += 1
+            continue
+        for hit in hits:
+            page = pages.get(hit.url or "", "")
+            att = classify_hit(hit, terms, corroborators, lookup, page)
+            source = await env.store.source(
+                SourceSpec(
+                    provider="web",
+                    endpoint_or_url=hit.url or "",
+                    reliability=att.reliability,
+                    label=hit.title or host_of(hit.url) or "web page",
+                    publisher=host_of(hit.url),
+                    request=env._request(
+                        lookup=lookup.label,
+                        query=query,
+                        matched_on=att.matched_on,
+                        entity_name=terms.company_name,
+                    ),
+                    origin_key=syndication_origin(hit.title, hit.url),
+                    attached=att.attached,
+                    unattached_reason=att.reason,
+                )
+            )
+            entry["results"].append(
+                {
+                    "url": hit.url,
+                    "title": hit.title,
+                    "source_class": att.reliability.value,
+                    "attached": att.attached,
+                }
+            )
+            if not att.attached:
+                env.log(f"unattached lookup record {host_of(hit.url)}: {att.reason}")
+                continue
+            text = ""
+            if page:
+                focus = [terms.company_name, terms.domain or "", lookup.entity or "", *lookup.focus]
+                text = relevant_passages(page, [f for f in focus if f])
+            if not text.strip():
+                text = "\n".join(t for t in (hit.title, hit.snippet) if t)
+            if text.strip():
+                units.append(
+                    TextUnit(
+                        source=source,
+                        text=text,
+                        entity_ref=f"crustdata:{att.ref_prefix}:{env.company_id}",
+                        as_of=hit_date(hit),
+                        label=f"web page ({host_of(hit.url)})",
+                    )
+                )
+    if lookups and ran == 0 and refused:
+        raise BudgetExceeded()
+    await _read_units(env, claim, units, out)
+
+
+# --- Per-category public source modules ----------------------------------------
+# A module `checks/sources/<module>.py` defines
+# `async def gather(env: CheckEnv, claim: Claim) -> Gathered`, usually by planning
+# `Lookup`s and calling `run_lookups`. One line per module here; imported lazily
+# because the modules import this one.
+SOURCE_MODULES: dict[str, str] = {
+    "partnership": "partnership",
+}
+
+
+def source_kind(claim: Claim) -> str:
+    """Which source module a claim goes to: its category, except that a customer
+    count with no named customer is `customers`, and other customer and partner
+    claims are `partnership`."""
+    if claim.category is ClaimCategory.CUSTOMER_PARTNERSHIP:
+        names = {c.name for c in claim.components}
+        if names & {"customer_count", "country_count"} and "counterparty" not in names:
+            return "customers"
+        return "partnership"
+    return claim.category.value
+
+
+def gatherer_for(claim: Claim) -> Callable[[CheckEnv, Claim], Awaitable[Gathered]]:
+    module = SOURCE_MODULES.get(source_kind(claim))
+    if module is not None:
+        return importlib.import_module(f"{__package__}.sources.{module}").gather
+    return GATHERERS[claim.category]
+
+
 GATHERERS: dict[ClaimCategory, Callable[[CheckEnv, Claim], Awaitable[Gathered]]] = {
     ClaimCategory.TEAM_SIZE: gather_team_size,
     ClaimCategory.LEADERSHIP_HISTORY: gather_leadership,
@@ -845,5 +1086,7 @@ GATHERERS: dict[ClaimCategory, Callable[[CheckEnv, Claim], Awaitable[Gathered]]]
     ClaimCategory.LITIGATION: gather_registry_only,
     ClaimCategory.CUSTOMER_PARTNERSHIP: gather_nothing,
     ClaimCategory.FINANCIALS: gather_financials,
+    ClaimCategory.COMPLIANCE: gather_nothing,  # until checks/sources/compliance.py
+    ClaimCategory.INTELLECTUAL_PROPERTY: gather_nothing,  # until its source module
     ClaimCategory.OTHER: gather_nothing,
 }
