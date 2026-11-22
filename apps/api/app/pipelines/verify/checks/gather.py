@@ -30,6 +30,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.clients.crustdata import DEFAULT_ENRICH_FIELDS
 from app.clients.crustdata_models import CompanyRecord, FundingRound, PersonProfile, WebSearchHit
 from app.db.models import Case
 from app.db.models import Evidence as EvidenceRow
@@ -57,17 +58,8 @@ from app.rules.compare import contains_phrase, normalize_text, to_date, to_month
 
 R = SourceReliability
 
-# Same groups CP-19's profile step asks for, so the enrich call is a cache hit.
-PROFILE_FIELDS = (
-    "basic_info",
-    "headcount",
-    "funding",
-    "people",
-    "hiring",
-    "locations",
-    "taxonomy",
-    "news",
-)
+# The same request as CP-19's profile step (`verify.profile`), so it is a cache hit.
+PROFILE_FIELDS = DEFAULT_ENRICH_FIELDS
 ENRICH_CREDITS = 2.0
 PEOPLE_LIMIT = 15
 PEOPLE_CREDITS = 0.25 * PEOPLE_LIMIT  # 0.03 + 0.1 per side for `experience`, per result
@@ -277,7 +269,7 @@ class Attachment:
     reliability: SourceReliability
     matched_on: list[str]
     reason: str | None = None
-    ref_prefix: str | None = None  # `domain` or `hq_city`, see sources._REF_BASIS
+    ref_prefix: str | None = None  # `domain` or `hq_city`: `crustdata:<key>:<id>`
 
 
 def attach_hit(
@@ -353,7 +345,7 @@ async def _hit_units(
                 TextUnit(
                     source=source,
                     text=text,
-                    entity_ref=f"{att.ref_prefix}:{env.company_id}",
+                    entity_ref=f"crustdata:{att.ref_prefix}:{env.company_id}",
                     as_of=hit_date(hit),
                     label=f"web page ({host_of(hit.url)})",
                 )
@@ -723,8 +715,14 @@ async def gather_identity_location(env: CheckEnv, claim: Claim) -> Gathered:
     locations, info = record.locations, record.basic_info
     profile_facts: list[tuple[str, Any, str, str]] = []
     if locations and locations.headquarters:
+        # `headquarters` is a free-text address ("DLF QE, Haryana, India"). An address
+        # that does not name the claimed city does not directly conflict with it, so
+        # it is a fact only when it names the city; otherwise the profile was read
+        # and is silent on the question.
         for component in ("hq_city", "operating_city"):
-            if component in comps:
+            if component in comps and contains_phrase(
+                locations.headquarters, comps[component].value
+            ):
                 profile_facts.append(
                     (component, locations.headquarters, "locations.headquarters", "HQ")
                 )

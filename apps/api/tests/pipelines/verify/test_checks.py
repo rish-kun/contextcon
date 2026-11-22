@@ -607,5 +607,63 @@ async def test_rejected_fact_cannot_drive_a_status(sm, session):
     assert out.status == "cannot_verify"
     check = (await session.execute(select(ClaimCheck))).scalar_one()
     step = await session.get(Step, check.step_id)
-    roles = [r["role"] for r in step.output["checks"][str(check.claim_id)]["outcome"]["evidence"]]
-    assert roles == ["rejected"]
+    # The value never reaches the rules: extraction drops it, and span validation
+    # would reject it if it did.
+    outcome = step.output["checks"][str(check.claim_id)]["outcome"]
+    assert all(r["role"] == "rejected" for r in outcome["evidence"])
+    assert not any(c["state"] == "matched" for c in outcome["components"])
+
+
+async def test_check_waits_for_verify_steps_appended_after_it(sm, session):
+    """CP-19 appends profile/registry steps once identity confirms; checks wait."""
+    from app.jobs import StepSpec, append_steps
+
+    case = await _case(session)
+    sentences = [("We employ 250 people", "team_size", [("employee_count", "250")])]
+    llm = intake_llm(sentences)
+    [claim] = await _claims(session, case, llm, sentences)
+    run = (await session.execute(select(Run))).scalar_one()
+    await append_steps(session, run.id, [StepSpec("verify.profile", "noop")])
+    await session.commit()
+    set_client_factory(FakeFactory(llm_client=llm, crustdata_client=pune_crustdata()))
+    await make_worker(sm, registry).drain()
+    steps = {s.key: s for s in (await session.execute(select(Step))).scalars()}
+    first, later = steps[f"checks.claim:{claim.id}"], steps[f"checks.claim:{claim.id}~1"]
+    assert first.output["deferred_to"] == later.key
+    assert "verify.profile" in later.depends_on and later.state == "done"
+    checks = list((await session.execute(select(ClaimCheck))).scalars())
+    assert len(checks) == 1 and checks[0].step_id == later.id
+
+
+async def test_free_text_hq_address_never_contradicts_a_city(sm, session):
+    """Found live: Crustdata gave `DLF QE, Haryana, India` for a Gurugram company."""
+    case = await _case(session)
+    enrich = {**ENRICH, "locations": {"headquarters": "DLF QE, Haryana, India", "country": "India"}}
+    sentences = [
+        ("We are headquartered in Gurugram", "location", [("hq_city", "Gurugram")]),
+        ("We are headquartered in India", "location", [("country", "India")]),
+    ]
+    _, ledger, _ = await _verify(sm, session, case, sentences, pune_crustdata(enrich=enrich))
+    city = ledger["We are headquartered in Gurugram"]
+    assert city.status == "cannot_verify"
+    assert "was read and does not state it" in city.reason
+    assert ledger["We are headquartered in India"].status == "supported"
+
+
+async def test_recheck_after_identity_pick_gets_new_steps(sm, session):
+    from app.pipelines.verify.claims.intake import schedule_case_checks
+
+    case = await _case(session, identity="ambiguous")
+    sentences = [("We employ 250 people", "team_size", [("employee_count", "250")])]
+    [claim], ledger, llm = await _verify(sm, session, case, sentences, pune_crustdata())
+    assert ledger["We employ 250 people"].not_checked_reason == "identity_unresolved"
+    case.identity_status = "confirmed"
+    run = (await session.execute(select(Run))).scalar_one()
+    [step] = await schedule_case_checks(session, case=case, run_id=run.id)
+    await session.commit()
+    assert step.key == f"checks.claim:{claim.id}@2"
+    await make_worker(sm, registry).drain()
+    session.expire_all()
+    await session.refresh(case)
+    [out] = await build_claims_section(session, case)
+    assert out.status == "cannot_verify" and len(out.history) == 2

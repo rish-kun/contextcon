@@ -443,11 +443,17 @@ async def schedule_claim_checks(
     (`uses_budget=False`), so every claim always gets a ledger row.
     """
     existing = await _run_steps(session, run_id)
+    used = {s.key for s in existing}
     prior = [s.key for s in existing if s.handler != CHECK_HANDLER]
     last_check = next((s.key for s in reversed(existing) if s.handler == CHECK_HANDLER), None)
     specs: list[StepSpec] = []
     for claim in claims:
         key = check_step_key(claim.id)
+        n = 1
+        while key in used:  # a re-check (e.g. after an identity pick) gets a new step
+            n += 1
+            key = f"{check_step_key(claim.id)}@{n}"
+        used.add(key)
         deps = [*prior, *(after or [])]
         if last_check:
             deps.append(last_check)
@@ -464,3 +470,21 @@ async def schedule_claim_checks(
         )
         last_check = key
     return await append_steps(session, run_id, specs)
+
+
+async def schedule_case_checks(
+    session: AsyncSession, *, case: Case, run_id: uuid.UUID
+) -> list[Step]:
+    """Re-check every readable claim of the case in `run_id` (flushes).
+
+    Call after something changes what the checks can see, such as a manual identity
+    pick or a fresh verify run; the new rows supersede the old ones in the ledger.
+    Claims whose text could not be read are left as they are.
+    """
+    rows = await session.execute(
+        select(Claim).where(Claim.case_id == case.id).order_by(Claim.created_at, Claim.id)
+    )
+    claims = [c for c in rows.scalars() if not (c.components or {}).get("intake")]
+    if not claims:
+        return []
+    return await schedule_claim_checks(session, run_id=run_id, claims=claims)

@@ -93,14 +93,14 @@ class SourceSpec:
     unattached_reason: str | None = None
 
 
-# How a stored `evidence.entity_ref` says it was attached (design §5.4), shared with
-# the evaluate reader: `crustdata:company:<id>` / `crustdata:person:<id>` (Crustdata
-# id), `domain:<company id>`, `hq_city:<company id>`, `cin:` / `registry:` (registry
-# identifiers). The suffix after the last colon is the entity's id.
-_REF_BASIS = (
-    ("crustdata:", "crustdata_id"),
+# How a stored `evidence.entity_ref` says it was attached (design §5.4; the format of
+# `app.pipelines.verify.common`, read by the evaluate reader too):
+# `crustdata:<id>`, `crustdata:company:<id>`, `crustdata:person:<id>` (tied by the
+# Crustdata id), `crustdata:<keys>:<id>` (tied by other identifiers, e.g.
+# `crustdata:domain+hq_city:123`), `cin:` / `registry:` / `domain:` prefixes, and
+# `unattached:<reason>` (never evidence). The suffix after the last colon is the id.
+_PREFIX_BASIS = (
     ("domain:", "domain"),
-    ("hq_city:", "hq_city"),
     ("cin:", "cin"),
     ("registry:", "registry_id"),
     ("profile:", "profile_url"),
@@ -108,7 +108,17 @@ _REF_BASIS = (
 
 
 def identity_basis(entity_ref: str, company_id: int | None) -> list[str]:
-    basis = {name for prefix, name in _REF_BASIS if entity_ref.startswith(prefix)}
+    from app.rules.policy import CORROBORATING_IDENTIFIERS
+
+    parts = entity_ref.split(":")
+    if parts[0] == "crustdata":
+        if len(parts) == 3 and parts[1] not in ("company", "person"):
+            keys = {
+                "crustdata_id" if k == "crustdata_company_id" else k for k in parts[1].split("+")
+            }
+            return sorted(keys & CORROBORATING_IDENTIFIERS)
+        return ["crustdata_id"]
+    basis = {name for prefix, name in _PREFIX_BASIS if entity_ref.startswith(prefix)}
     if company_id is not None and entity_ref == str(company_id):
         basis.add("crustdata_id")
     return sorted(basis)

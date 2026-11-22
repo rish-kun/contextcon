@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+import app.pipelines.verify.checks.steps  # noqa: F401  (registers verify.checks.claim)
 from app.db.models import Document
 from app.jobs import StepContext, step_handler
 from app.pipelines.verify.checks.clients import client_factory, close_quietly
