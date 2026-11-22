@@ -6,6 +6,9 @@
   record. The row stays so the case can show "deleted on <date>". The document's
   extracted text goes with it.
 - extracted_texts, confidential api_cache rows: deleted.
+- confidential_payloads (confidential step outputs and assessment-snapshot excerpts,
+  see `app.jobs.retention`): deleted; the step or assessment version that referred to
+  one stays and resolves to "deleted under the retention schedule".
 - evidence spans, document claims, document sources: content scrubbed, row kept, so
   claim histories and assessment versions still resolve.
 
@@ -29,6 +32,7 @@ from app.db.models import (
     ApiCache,
     Case,
     Claim,
+    ConfidentialPayload,
     DeletionRecord,
     Document,
     Evidence,
@@ -80,6 +84,7 @@ class PurgeReport:
     documents_waiting_for_deleter: int = 0
     extracted_texts: int = 0
     cache_rows: int = 0
+    confidential_payloads: int = 0
     evidence_scrubbed: int = 0
     claims_scrubbed: int = 0
     sources_scrubbed: int = 0
@@ -225,6 +230,18 @@ async def purge_expired(
         ).all()
         await _record_by_case(session, "api_cache", [tuple(r) for r in rows])
         report.cache_rows = len(rows)
+
+        # Steps pointing at a payload lose the link (ON DELETE SET NULL) and keep their
+        # `{"_confidential": true}` marker, which readers show as expired.
+        rows = (
+            await session.execute(
+                delete(ConfidentialPayload)
+                .where(ConfidentialPayload.delete_after <= now)
+                .returning(ConfidentialPayload.id, ConfidentialPayload.case_id)
+            )
+        ).all()
+        await _record_by_case(session, "confidential_payload", [tuple(r) for r in rows])
+        report.confidential_payloads = len(rows)
 
         rows = (
             await session.execute(

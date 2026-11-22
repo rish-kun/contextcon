@@ -13,7 +13,7 @@ import logging
 import uuid
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -262,6 +262,9 @@ class StepContext:
     result: str | None = None
     # This claim's fencing token (the recorder checks it before every paid dispatch).
     lease_token: uuid.UUID | None = None
+    # Set by `keep_output_confidential()`: the output goes to an expiring payload.
+    confidential_output: bool = False
+    confidential_output_until: datetime | None = None
 
     async def set_detail(self, detail: str) -> None:
         """Live sub-line while the step runs; visible to the SSE stream at once."""
@@ -287,6 +290,39 @@ class StepContext:
 
     async def append_steps(self, steps: Sequence[StepSpec]) -> list[Step]:
         return await append_steps(self.session, self.run.id, steps)
+
+    def keep_output_confidential(self, delete_after: datetime | None = None) -> None:
+        """This step's output carries confidential (document-derived) text.
+
+        The worker stores the output in an expiring `confidential_payloads` row
+        (default expiry: the earlier of now + UPLOAD_RETENTION_DAYS and the case's next
+        document deletion) and leaves a marker on the step. Dependents still read it
+        via `ctx.dependencies` until then. Case runs only. See `app.jobs.retention`."""
+        if self.run.case_id is None:
+            raise ValueError("confidential outputs need a case run")
+        self.confidential_output = True
+        self.confidential_output_until = delete_after
+
+    async def store_confidential(
+        self, payload: Any, *, kind: str, assessment_version_id: uuid.UUID | None = None
+    ) -> dict[str, str]:
+        """Store confidential JSON apart from a snapshot (e.g. an assessment version's
+        input excerpts) and return the reference to embed instead. Written in the
+        step's session, so it commits with the step."""
+        from app.jobs.retention import confidential_ref, store_confidential
+
+        if self.run.case_id is None:
+            raise ValueError("confidential payloads need a case run")
+        payload_id = await store_confidential(
+            self.session,
+            workspace_id=self.run.workspace_id,
+            case_id=self.run.case_id,
+            kind=kind,
+            payload=payload,
+            run_id=self.run.id,
+            assessment_version_id=assessment_version_id,
+        )
+        return confidential_ref(payload_id)
 
 
 # --- Claiming, leases, completion ----------------------------------------------
@@ -619,19 +655,33 @@ async def dependency_outputs(
     keys = list(keys)
     if not keys:
         return {}
+    from app.jobs.retention import CONFIDENTIAL_MARKER, EXPIRED_OUTPUT, load_confidential
+
     rows = (
         await session.execute(
-            select(Step.key, Step.state, Step.output, Step.skip_reason, Step.error).where(
-                Step.run_id == run_id, Step.key.in_(keys)
-            )
+            select(
+                Step.key,
+                Step.state,
+                Step.output,
+                Step.skip_reason,
+                Step.error,
+                Step.confidential_output_id,
+            ).where(Step.run_id == run_id, Step.key.in_(keys))
         )
     ).all()
-    return {
-        r.key: {
+    out: dict[str, dict[str, Any]] = {}
+    for r in rows:
+        output = r.output
+        if r.output == CONFIDENTIAL_MARKER:
+            # Stored apart; gone once purged (link nulled) or past its expiry.
+            payload = None
+            if r.confidential_output_id is not None:
+                payload = await load_confidential(session, r.confidential_output_id)
+            output = EXPIRED_OUTPUT if payload is None else payload
+        out[r.key] = {
             "state": r.state,
-            "output": r.output,
+            "output": output,
             "skip_reason": r.skip_reason,
             "error": r.error,
         }
-        for r in rows
-    }
+    return out

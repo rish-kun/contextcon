@@ -18,6 +18,15 @@ Register a handler and enqueue a run:
                StepSpec("profile", "verify.profile", depends_on=["identity"])],
     )
     await session.commit()
+
+Paid calls inside a step: pass `ctx.recorder` and `ctx.cache` to the clients. Every
+dispatch is fenced on the step's claim token and reserves credits atomically against
+the owner's budget (`BudgetExceeded` / `LeaseLost` propagate to the worker). LLM calls
+use the case-scoped, expiring cache unless called with `public=True`.
+
+Confidential text: `ctx.keep_output_confidential()` stores the step output in an
+expiring payload; `await ctx.store_confidential(payload, kind=...)` returns a reference
+to embed in snapshots (e.g. an assessment version). See `app.jobs.retention`.
 """
 
 from app.jobs.engine import (

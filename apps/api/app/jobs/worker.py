@@ -41,6 +41,7 @@ from app.jobs.engine import (
 from app.jobs.purge import ObjectDeleter, default_object_deleter, purge_expired
 from app.jobs.registry import StepRegistry
 from app.jobs.registry import registry as default_registry
+from app.jobs.retention import CONFIDENTIAL_MARKER, store_confidential
 
 log = logging.getLogger(__name__)
 
@@ -156,7 +157,26 @@ class Worker:
                 output = await task
                 if ctx.logs:
                     output = {**(output or {}), "_log": ctx.logs}
-                await mark_done(session, step_id, token, output, ctx.result)
+                payload_id = None
+                if ctx.confidential_output and run.case_id is not None:
+                    payload_id = await store_confidential(
+                        session,
+                        workspace_id=run.workspace_id,
+                        case_id=run.case_id,
+                        kind="step_output",
+                        payload=output or {},
+                        delete_after=ctx.confidential_output_until,
+                        run_id=run.id,
+                    )
+                    output = dict(CONFIDENTIAL_MARKER)
+                await mark_done(
+                    session,
+                    step_id,
+                    token,
+                    output,
+                    ctx.result,
+                    confidential_output_id=payload_id,
+                )
                 await session.commit()
             except BudgetExceeded as exc:
                 await session.rollback()

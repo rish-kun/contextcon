@@ -64,6 +64,18 @@ def retention_deadline(now: datetime | None = None) -> datetime:
     return (now or datetime.now(UTC)) + timedelta(days=get_settings().upload_retention_days)
 
 
+def confidential_delete_after_sql(case_id: uuid.UUID) -> Any:
+    """SQL for a confidential derivative's `delete_after`: the earlier of the retention
+    deadline and the case's next pending document deletion (LEAST ignores the NULL
+    when the case has no documents), so a derivative never outlives its source."""
+    next_document = (
+        select(func.min(Document.delete_after))
+        .where(Document.case_id == case_id, Document.deleted_at.is_(None))
+        .scalar_subquery()
+    )
+    return func.least(retention_deadline(), next_document)
+
+
 def _dec(value: float | None) -> Decimal:
     return Decimal(0) if value is None else Decimal(str(value))
 
@@ -433,14 +445,8 @@ class DbCache:
         )
 
     def _default_delete_after(self) -> Any:
-        """SQL: the earlier of the retention deadline and the case's next pending
-        document deletion (LEAST ignores the NULL when the case has no documents)."""
-        next_document = (
-            select(func.min(Document.delete_after))
-            .where(Document.case_id == self.ctx.case_id, Document.deleted_at.is_(None))
-            .scalar_subquery()
-        )
-        return func.least(retention_deadline(), next_document)
+        assert self.ctx.case_id is not None
+        return confidential_delete_after_sql(self.ctx.case_id)
 
     def _same_owner(self, row: ApiCache) -> bool:
         kind, owner_id = self.ctx.owner
