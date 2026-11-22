@@ -1096,8 +1096,10 @@ def source_kind(claim: Claim) -> str:
         return "partnership"
     if claim.category in (ClaimCategory.IDENTITY_INCORPORATION, ClaimCategory.OTHER):
         # A mark read under another category goes to the register lookup, on its
-        # structured components only (never on the claim's wording).
-        if any(c.name in policy.IP_COMPONENTS for c in claim.components):
+        # structured components only (never on the claim's wording), and only when
+        # the claim states nothing else: a CIN, date or city keeps the registry check.
+        names = {c.name for c in claim.components}
+        if names & policy.IP_COMPONENTS and names <= policy.IP_COMPONENTS | {"legal_name"}:
             return ClaimCategory.INTELLECTUAL_PROPERTY.value
     return claim.category.value
 

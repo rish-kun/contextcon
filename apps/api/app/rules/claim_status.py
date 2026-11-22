@@ -61,19 +61,23 @@ def _check_of(component: str, claim: Claim) -> ClaimCategory:
 
 
 def is_ip_claim(claim: Claim) -> bool:
-    """A trademark or other intellectual-property claim, by category, components or words."""
+    """A trademark or other IP claim, by its category or its structured components
+    (never by its wording alone, which the seller controls)."""
     if claim.category is ClaimCategory.INTELLECTUAL_PROPERTY:
         return True
-    if any(c.name in policy.IP_COMPONENTS for c in claim.components):
-        return True
-    text = claim.text.casefold()
-    return any(cue in text for cue in policy.IP_CUES)
+    return any(c.name in policy.IP_COMPONENTS for c in claim.components)
 
 
 def category_document(claim: Claim) -> str:
-    """What settles a claim with no known component (or none still open)."""
+    """What settles a claim with no known component (or none still open). An `other`
+    claim with no components that reads as IP ("PALMS(TM) is ours") asks for the
+    mark's registration: there is no other document it could be steered away from."""
     if is_ip_claim(claim):
         return policy.DOC_TRADEMARK
+    if claim.category is ClaimCategory.OTHER and not claim.components:
+        text = claim.text.casefold()
+        if any(cue in text for cue in policy.IP_CUES):
+            return policy.DOC_TRADEMARK
     return policy.CATEGORY_DOCUMENTS[claim.category]
 
 

@@ -61,65 +61,70 @@ def clean_mark(value: object) -> str | None:
     return " ".join(_MARK_SIGNS.sub(" ", str(value)).split()) or None
 
 
+# The current proprietor's field, at the start of a line or cell ("Proprietor:",
+# "Registrant name:", "Owner:"); "Previous owner:" or "Assignor:" never match.
 _PROPRIETOR = re.compile(
-    r"\b(?:proprietor|applicant|registrant|owner)(?:'s)?(?:\s+name)?\s*[:\-]\s*([^\n|;]{2,200})",
+    r"(?:^|[\n|])[ \t]*(?:proprietor|registrant|owner)(?:'s)?(?:[ \t]+name)?[ \t]*[:\-][ \t]*"
+    r"([^\n|;]{2,200})",
     re.IGNORECASE,
 )
-# Words that start the next field of an entry, after the proprietor's name.
-_NEXT_FIELD = frozenset(
-    {
-        "class",
-        "classes",
-        "address",
-        "status",
-        "date",
-        "filed",
-        "filing",
-        "registered",
-        "mark",
-        "trademark",
-        "application",
-        "valid",
-        "goods",
-        "services",
-        "agent",
-        "jurisdiction",
-    }
+# Where a field's value ends: the next "Label:" on the same line.
+_NEXT_LABEL = re.compile(r"[.,]?\s+(?=[A-Z][A-Za-z ]{0,30}:)")
+# A label that starts one register entry ("Trademark: PALMS", "Word Mark: PALMS").
+# A page listing several marks is split at these; the mark, its proprietor, class and
+# status must all be in the same entry.
+_ENTRY_START = re.compile(
+    r"(?=(?:^|\n)[ \t]*(?:trade\s*mark|word\s*mark|mark)(?:\s+name)?\s*[:\-])", re.IGNORECASE
 )
-# How far apart the mark, the proprietor and the class may be to count as one entry.
-_ENTRY_WINDOW = 600
+# A "registered trademark" claim needs a registered entry; these statuses are not one.
+_NOT_REGISTERED = re.compile(
+    r"\b(?:objected|opposed|abandoned|refused|withdrawn|pending|expired|removed|cancelled|"
+    r"canceled|formalities|accepted\s+and\s+advertised|under\s+examination)\b",
+    re.IGNORECASE,
+)
+_REGISTERED = re.compile(r"\bregistered\b", re.IGNORECASE)
 
 
 def proprietor_is(value: str, owner: str) -> bool:
-    """The labelled field's value is exactly `owner`, then (at most) the next field."""
-    got, want = normalize_text(value).split(), normalize_text(owner).split()
-    if not want or got[: len(want)] != want:
-        return False
-    rest = got[len(want) :]
-    return not rest or rest[0] in _NEXT_FIELD
+    """The labelled field's value, up to the next label, is exactly `owner`."""
+    raw = _NEXT_LABEL.split(value, maxsplit=1)[0]
+    return bool(normalize_text(owner)) and normalize_text(raw) == normalize_text(owner)
+
+
+def entries(text: str) -> list[str]:
+    parts = [p for p in _ENTRY_START.split(text) if p.strip()]
+    return parts or [text]
 
 
 def register_entry_problem(text: str, mark: str, owner: str) -> str | None:
-    """None when the fetched page `text` reads as ONE register entry for `mark`: a
-    labelled proprietor field (Proprietor/Applicant/Owner) whose value is exactly the
-    confirmed company's name, with the mark and a class close to it."""
+    """None when the fetched page `text` holds ONE registered entry for `mark` whose
+    current proprietor field is exactly the confirmed company's name and which states
+    a class. Mark, proprietor, class and status must be in the same entry, and that
+    entry names no other proprietor."""
     if not text.strip():
         return "register page not read"
     if not owner:
         return "no confirmed company name"
-    for field_match in _PROPRIETOR.finditer(text):
-        if not proprietor_is(field_match.group(1), owner):
+    problem = "does not name the mark"
+    for entry in entries(text):
+        if not contains_phrase(entry, mark):
             continue
-        lo = max(0, field_match.start() - _ENTRY_WINDOW)
-        window = text[lo : field_match.end() + _ENTRY_WINDOW]
-        if not contains_phrase(window, mark):
-            return "the proprietor field is not next to the mark"
-        if not _CLASS.search(window):
-            return "states no trademark class"
+        fields = [m.group(1) for m in _PROPRIETOR.finditer(entry)]
+        if not any(proprietor_is(f, owner) for f in fields):
+            problem = "no proprietor field naming the confirmed company"
+            continue
+        if not all(proprietor_is(f, owner) for f in fields):
+            problem = "the entry names another proprietor"
+            continue
+        if not _CLASS.search(entry):
+            problem = "states no trademark class"
+            continue
+        status = _NOT_REGISTERED.search(entry)
+        if status or not _REGISTERED.search(entry):
+            problem = f"not a registered entry ({status.group(0) if status else 'no status'})"
+            continue
         return None
-    if not contains_phrase(text, mark):
-        return "does not name the mark"
-    return "no proprietor field naming the confirmed company"
+    return problem
 
 
 def plan(mark: str) -> list[Lookup]:

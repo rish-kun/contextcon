@@ -40,17 +40,42 @@ def test_trademark_claim_requests_the_registration_not_incorporation():
     assert policy.DOC_INCORPORATION not in outcomes[0].settle_with
 
 
-def test_ip_claim_categorised_as_identity_still_requests_the_registration():
+def test_ip_claim_with_owner_read_as_legal_name_requests_the_registration():
     claim = _claim(
         "c-tm",
         TM_TEXT,
-        ClaimCategory.IDENTITY_INCORPORATION,
+        ClaimCategory.INTELLECTUAL_PROPERTY,
         [("legal_name", "Technoforte Software Private Limited")],
     )
     assert is_ip_claim(claim)
     assert document_for("legal_name", claim) == policy.DOC_TRADEMARK
     _, r = _documents([claim])
     assert [d.document for d in r.documents] == [policy.DOC_TRADEMARK]
+
+
+def test_wording_alone_never_steers_an_identity_request():
+    """A TM sign in an identity claim's wording does not swap the incorporation
+    certificate for a trademark certificate: only category or components do."""
+    claim = _claim(
+        "c-id",
+        TM_TEXT,
+        ClaimCategory.IDENTITY_INCORPORATION,
+        [("legal_name", "Technoforte Software Private Limited")],
+    )
+    assert not is_ip_claim(claim)
+    assert document_for("legal_name", claim) == policy.DOC_INCORPORATION
+
+
+def test_ip_claim_with_other_identity_facts_keeps_incorporation_for_them():
+    claim = _claim(
+        "c-tm",
+        TM_TEXT,
+        ClaimCategory.INTELLECTUAL_PROPERTY,
+        [("trademark", "PALMS"), ("legal_name", "Technoforte"), ("cin", "U72200KA2004PTC0")],
+    )
+    assert document_for("trademark", claim) == policy.DOC_TRADEMARK
+    assert document_for("legal_name", claim) == policy.DOC_INCORPORATION
+    assert document_for("cin", claim) == policy.DOC_INCORPORATION
 
 
 def test_ip_claim_without_components_falls_back_to_the_registration():

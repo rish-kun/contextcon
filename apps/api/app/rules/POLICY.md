@@ -147,12 +147,14 @@ Every status except Supported names what would settle it, as a document or recor
   body's record, or the certificate or auditor's report settle that; the company's own
   page never does. An expired certificate on a register contradicts the claim.
 - Trademarks (since 2026-11-22.9): a register page found by search is a copy of the
-  register's record (`registry_mirror`) and counts only when the fetched page has a
-  labelled proprietor field that is exactly the confirmed company's name, next to the
-  mark and a class, and carries a second identifier (address city or domain). A claim
-  about a trademark or other IP asks for the trademark registration certificate or IP
-  assignment records, not the certificate of incorporation, even when its owner was
-  read as `legal_name`; only a mark component routes it to the register lookup.
+  register's record (`registry_mirror`). It counts only when one entry on the fetched
+  page has the mark, a current-proprietor field that is exactly the confirmed
+  company's name, a class and a registered status (an objected, opposed, pending or
+  abandoned application does not count), and the page carries a second identifier
+  (address city or domain). A trademark claim, by its category or its mark
+  components, asks for the trademark registration certificate or IP assignment
+  records; a CIN, date or city stated beside the mark still asks for the certificate
+  of incorporation. The claim's wording alone never changes the request.
 - Customer counts and satisfaction figures (since 2026-11-22.9): one public lookup for
   the company's customer case studies; named customers found are kept as evidence,
   but no public page counts customers, so the claim stays Cannot verify until a dated

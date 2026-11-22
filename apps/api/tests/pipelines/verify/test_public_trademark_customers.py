@@ -29,7 +29,13 @@ TM_COMPONENTS = [("trademark", MARK), ("mark_owner", NAME)]
 MIRROR_URL = "https://www.quickcompany.in/trademarks/1234567-palms"
 TM_SPAN_MARK = f"Trademark: {MARK}"
 TM_SPAN_OWNER = f"Proprietor: {NAME}"
-TM_LINES = [TM_SPAN_MARK, TM_SPAN_OWNER, "Address: Baner Road, Pune", "Class: 9", "Registered"]
+TM_LINES = [
+    TM_SPAN_MARK,
+    TM_SPAN_OWNER,
+    "Address: Baner Road, Pune",
+    "Class: 9",
+    "Status: Registered",
+]
 TM_RECORD = "\n".join(TM_LINES)
 TM_PAGE = "".join(f"<p>{line}</p>" for line in TM_LINES)
 TM_HITS = [
@@ -90,17 +96,38 @@ def _customer_facts(marker: str):
 
 
 def test_register_entry_needs_mark_owner_and_class():
-    assert register_entry_problem(TM_RECORD, MARK, NAME) is None
-    assert "class" in register_entry_problem(f"{TM_SPAN_MARK}\n{TM_SPAN_OWNER}", MARK, NAME)
-    assert "proprietor" in register_entry_problem(f"{TM_SPAN_MARK}\nClass 9", MARK, NAME)
+    ok = register_entry_problem
+    assert ok(TM_RECORD, MARK, NAME) is None
+    assert "class" in ok(f"{TM_SPAN_MARK}\n{TM_SPAN_OWNER}\nStatus: Registered", MARK, NAME)
+    assert "proprietor" in ok(f"{TM_SPAN_MARK}\nClass 9\nStatus: Registered", MARK, NAME)
+    assert ok("", MARK, NAME) == "register page not read"
+    assert clean_mark("PALMS\u2122") == "PALMS"
+
+
+def test_register_entry_rejects_near_misses():
+    ok = register_entry_problem
+    tail = "Class: 9\nStatus: Registered"
     # The name merely appearing on the page is not the proprietor field.
-    loose = f"{TM_SPAN_MARK}\nClass 9\nSee also {NAME}"
-    assert "proprietor" in register_entry_problem(loose, MARK, NAME)
-    # A longer proprietor name is another company.
-    other = f"{TM_SPAN_MARK}\nProprietor: {NAME} Holdings\nClass: 9"
-    assert register_entry_problem(other, MARK, NAME) is not None
-    assert register_entry_problem("", MARK, NAME) == "register page not read"
-    assert clean_mark("PALMS™") == "PALMS"
+    assert ok(f"{TM_SPAN_MARK}\n{tail}\nSee also {NAME}", MARK, NAME) is not None
+    # A longer proprietor name is another company, even one ending in a field word.
+    for suffix in ("Holdings", "Services", "Trademark"):
+        other = f"{TM_SPAN_MARK}\nProprietor: {NAME} {suffix}\n{tail}"
+        assert ok(other, MARK, NAME) is not None, suffix
+    # A previous owner is not the proprietor.
+    prev = f"{TM_SPAN_MARK}\nPrevious owner: {NAME}\n{tail}"
+    assert ok(prev, MARK, NAME) is not None
+    # An application that is not registered does not settle "registered trademark".
+    objected = f"{TM_SPAN_MARK}\n{TM_SPAN_OWNER}\nClass: 9\nStatus: Objected"
+    assert "not a registered entry" in ok(objected, MARK, NAME)
+    # Two entries on one page: the mark and the company's entry must be the same one.
+    listing = (
+        f"Trademark: OTHERMARK\n{TM_SPAN_OWNER}\n{tail}\n"
+        f"Trademark: {MARK}\nProprietor: Someone Else Ltd\n{tail}"
+    )
+    assert ok(listing, MARK, NAME) is not None
+    # A field value followed by the next label on the same line still matches.
+    inline = f"{TM_SPAN_MARK}\nProprietor: {NAME}. Class: 9\nStatus: Registered"
+    assert ok(inline, MARK, NAME) is None
 
 
 # --- Trademark ------------------------------------------------------------------
@@ -157,12 +184,29 @@ async def test_mirror_page_without_a_class_is_not_a_register_entry(sm, session):
 
 
 @pytest.mark.asyncio
-async def test_ip_claim_read_as_identity_gets_the_register_lookup_and_request(sm, session):
+async def test_mark_read_under_identity_gets_the_register_lookup_and_request(sm, session):
     case = await _case(session)
-    sentences = [(TM_SENTENCE, "identity_incorporation", [("legal_name", NAME)])]
+    sentences = [(TM_SENTENCE, "identity_incorporation", TM_COMPONENTS)]
     crust = pune_crustdata(search_hits={})
     _, ledger, _ = await _verify(sm, session, case, sentences, crust)
     assert ledger[TM_SENTENCE].settle_with == DOC_TRADEMARK
+    assert _queries(crust)[0] == f'"{NAME}" "{MARK}" trademark'
+
+
+@pytest.mark.asyncio
+async def test_identity_facts_beside_a_mark_keep_the_registry_check(sm, session):
+    """A claim that states a CIN or year as well as a mark is not rerouted: the
+    identity components still get the registry and profile check."""
+    case = await _case(session)
+    sentence = f"{NAME}, incorporated in 2014, owns the {MARK}\u2122 trademark"
+    comps = [("trademark", MARK), ("incorporation_year", "2014")]
+    sentences = [(sentence, "identity_incorporation", comps)]
+    crust = pune_crustdata(search_hits={})
+    _, ledger, _ = await _verify(sm, session, case, sentences, crust)
+    assert "web_search" not in crust.names()  # no register lookup took its place
+    assert "enrich_company" in crust.names()  # the identity check ran
+    settle = ledger[sentence].settle_with or ""
+    assert DOC_TRADEMARK in settle and "Certificate of incorporation" in settle
 
 
 # --- Customers ------------------------------------------------------------------
