@@ -1543,9 +1543,9 @@
         "tags": [
           "act"
         ],
-        "summary": "Create Request",
+        "summary": "Create Request List",
         "description": "Build the request list from the latest assessment and draft one consolidated email.",
-        "operationId": "create_request",
+        "operationId": "create_request_list",
         "parameters": [
           {
             "name": "case_id",
@@ -1563,79 +1563,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SellerRequestOut"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No valid session.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found, or not visible to this user.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not implemented yet (stub).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/requests/{request_id}": {
-      "get": {
-        "tags": [
-          "act"
-        ],
-        "summary": "Get Request",
-        "operationId": "get_request",
-        "parameters": [
-          {
-            "name": "request_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Request Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SellerRequestOut"
+                  "$ref": "#/components/schemas/RequestListOut"
                 }
               }
             }
@@ -1682,41 +1610,31 @@
           }
         }
       },
-      "patch": {
+      "get": {
         "tags": [
           "act"
         ],
-        "summary": "Update Request",
-        "description": "Edit recipient, subject or body. Creates a new revision and clears any approval.",
-        "operationId": "update_request",
+        "summary": "Get Request List",
+        "description": "The latest request list for the case.",
+        "operationId": "get_request_list",
         "parameters": [
           {
-            "name": "request_id",
+            "name": "case_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Request Id"
+              "title": "Case Id"
             }
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RequestUpdateIn"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SellerRequestOut"
+                  "$ref": "#/components/schemas/RequestListOut"
                 }
               }
             }
@@ -1750,171 +1668,6 @@
                 }
               }
             }
-          },
-          "409": {
-            "description": "Already sending or sent."
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/requests/{request_id}/approve": {
-      "post": {
-        "tags": [
-          "act"
-        ],
-        "summary": "Approve Request",
-        "description": "Approve one exact revision as the signed-in user (name and time recorded).",
-        "operationId": "approve_request",
-        "parameters": [
-          {
-            "name": "request_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Request Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RequestApproveIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SellerRequestOut"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No valid session.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found, or not visible to this user.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not implemented yet (stub).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Revision is not the current one, or no recipient."
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/requests/{request_id}/send": {
-      "post": {
-        "tags": [
-          "act"
-        ],
-        "summary": "Send Request",
-        "description": "Send the approved revision once. Repeat calls return the existing send state.",
-        "operationId": "send_request",
-        "parameters": [
-          {
-            "name": "request_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Request Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SellerRequestOut"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No valid session.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found, or not visible to this user.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not implemented yet (stub).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Not approved, or the approval is stale."
           },
           "422": {
             "description": "Validation Error",
@@ -2208,6 +1961,375 @@
           }
         }
       }
+    },
+    "/cases/{case_id}/messages": {
+      "post": {
+        "tags": [
+          "act"
+        ],
+        "summary": "Create Message",
+        "operationId": "create_message",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/messages/send-summary": {
+      "get": {
+        "tags": [
+          "act"
+        ],
+        "summary": "Send Summary",
+        "operationId": "send_summary",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SendSummaryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/messages/{message_id}": {
+      "get": {
+        "tags": [
+          "act"
+        ],
+        "summary": "Get Message",
+        "operationId": "get_message",
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Message Id"
+            }
+          },
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/messages/{message_id}/revisions": {
+      "post": {
+        "tags": [
+          "act"
+        ],
+        "summary": "Edit Message",
+        "operationId": "edit_message",
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Message Id"
+            }
+          },
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/messages/{message_id}/approve": {
+      "post": {
+        "tags": [
+          "act"
+        ],
+        "summary": "Approve Message",
+        "operationId": "approve_message",
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Message Id"
+            }
+          },
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/messages/{message_id}/send": {
+      "post": {
+        "tags": [
+          "act"
+        ],
+        "summary": "Send Message",
+        "operationId": "send_message",
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Message Id"
+            }
+          },
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SendOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/messages/{message_id}/reconcile": {
+      "post": {
+        "tags": [
+          "act"
+        ],
+        "summary": "Reconcile Message",
+        "operationId": "reconcile_message",
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Message Id"
+            }
+          },
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SendOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2287,8 +2409,13 @@
             "type": "string",
             "title": "Revision Id"
           },
-          "approved_by": {
-            "$ref": "#/components/schemas/NamedUserOut"
+          "approver_user_id": {
+            "type": "string",
+            "title": "Approver User Id"
+          },
+          "approver_display_name": {
+            "type": "string",
+            "title": "Approver Display Name"
           },
           "approved_at": {
             "type": "string",
@@ -2296,14 +2423,27 @@
             "title": "Approved At"
           }
         },
-        "additionalProperties": false,
         "type": "object",
         "required": [
           "revision_id",
-          "approved_by",
+          "approver_user_id",
+          "approver_display_name",
           "approved_at"
         ],
         "title": "ApprovalOut"
+      },
+      "ApproveIn": {
+        "properties": {
+          "revision_id": {
+            "type": "string",
+            "title": "Revision Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "revision_id"
+        ],
+        "title": "ApproveIn"
       },
       "AssessmentVersionOut": {
         "properties": {
@@ -2632,15 +2772,26 @@
             "type": "array",
             "title": "Risks"
           },
-          "request": {
+          "request_list": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/SellerRequestOut"
+                "$ref": "#/components/schemas/RequestListOut"
               },
               {
                 "type": "null"
               }
             ]
+          },
+          "message": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MessageOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The seller email (revisions, approval, send) from app.act."
           },
           "documents": {
             "items": {
@@ -4132,6 +4283,65 @@
         "title": "DocumentUrlOut",
         "description": "A short-lived, case-scoped signed URL."
       },
+      "DraftEmailOut": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "subject",
+          "body"
+        ],
+        "title": "DraftEmailOut",
+        "description": "LLM draft built from the items. Contains no unverified facts. Editable."
+      },
+      "EditIn": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Subject"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 100000,
+            "title": "Body"
+          },
+          "recipient": {
+            "type": "string",
+            "maxLength": 320,
+            "title": "Recipient",
+            "description": "Typed in by the user; DealProof never scrapes contacts."
+          },
+          "base_revision_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Revision Id",
+            "description": "If set, must be the current revision (optimistic lock)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject",
+          "body",
+          "recipient"
+        ],
+        "title": "EditIn"
+      },
       "EntityAttachment": {
         "properties": {
           "entity_name": {
@@ -5467,68 +5677,75 @@
         ],
         "title": "LoginIn"
       },
-      "MessageRevisionOut": {
+      "MessageOut": {
         "properties": {
           "id": {
             "type": "string",
             "title": "Id"
           },
-          "number": {
-            "type": "integer",
-            "title": "Number"
+          "case_id": {
+            "type": "string",
+            "title": "Case Id"
           },
-          "recipient_email": {
+          "status": {
+            "$ref": "#/components/schemas/MessageStatus"
+          },
+          "current_revision": {
+            "$ref": "#/components/schemas/RevisionOut"
+          },
+          "approval": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/ApprovalOut"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Recipient Email"
+            ]
           },
-          "subject": {
-            "type": "string",
-            "title": "Subject"
-          },
-          "body": {
-            "type": "string",
-            "title": "Body"
-          },
-          "content_hash": {
-            "type": "string",
-            "title": "Content Hash"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "created_by": {
+          "send": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/NamedUserOut"
+                "$ref": "#/components/schemas/SendOut"
               },
               {
                 "type": "null"
               }
-            ],
-            "description": "Null for the LLM draft."
+            ]
+          },
+          "revisions": {
+            "items": {
+              "$ref": "#/components/schemas/RevisionOut"
+            },
+            "type": "array",
+            "title": "Revisions"
           }
         },
-        "additionalProperties": false,
         "type": "object",
         "required": [
           "id",
-          "number",
-          "subject",
-          "body",
-          "content_hash",
-          "created_at"
+          "case_id",
+          "status",
+          "current_revision",
+          "approval",
+          "send",
+          "revisions"
         ],
-        "title": "MessageRevisionOut",
-        "description": "Immutable. Any edit creates a new revision that needs fresh approval."
+        "title": "MessageOut"
+      },
+      "MessageStatus": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "approved",
+          "sending",
+          "sent",
+          "suppressed_test_mode",
+          "failed",
+          "unknown"
+        ],
+        "title": "MessageStatus",
+        "description": "What the UI shows for a message: `draft → approved → <send status>`."
       },
       "NamedUserOut": {
         "properties": {
@@ -5899,21 +6116,6 @@
         ],
         "title": "ReasonOut"
       },
-      "RequestApproveIn": {
-        "properties": {
-          "revision_id": {
-            "type": "string",
-            "title": "Revision Id",
-            "description": "The exact revision the approver read."
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "revision_id"
-        ],
-        "title": "RequestApproveIn"
-      },
       "RequestItemOut": {
         "properties": {
           "id": {
@@ -5959,64 +6161,75 @@
           "reason"
         ],
         "title": "RequestItemOut",
-        "description": "One requested document, linked to every question it resolves."
+        "description": "One requested document, linked to every question it resolves (deduplicated)."
       },
-      "RequestStatus": {
-        "type": "string",
-        "enum": [
-          "draft",
-          "approved",
-          "sending",
-          "sent",
-          "suppressed_test_mode",
-          "failed",
-          "unknown"
-        ],
-        "title": "RequestStatus"
-      },
-      "RequestUpdateIn": {
+      "RequestListOut": {
         "properties": {
-          "recipient_email": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 320
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Recipient Email"
+          "id": {
+            "type": "string",
+            "title": "Id"
           },
-          "subject": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 300
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Subject"
+          "case_id": {
+            "type": "string",
+            "title": "Case Id"
           },
-          "body": {
+          "assessment_version": {
+            "type": "integer",
+            "title": "Assessment Version",
+            "description": "The assessment version the list was built on."
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RequestItemOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "analyst_retries": {
+            "items": {
+              "$ref": "#/components/schemas/AnalystRetryOut"
+            },
+            "type": "array",
+            "title": "Analyst Retries"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/DraftEmailOut"
+          },
+          "message_id": {
             "anyOf": [
               {
-                "type": "string",
-                "maxLength": 20000
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Body"
+            "title": "Message Id",
+            "description": "The Act message created from this draft, once there is one."
+          },
+          "email_send_enabled": {
+            "type": "boolean",
+            "title": "Email Send Enabled",
+            "description": "False means test mode: nothing leaves."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
           }
         },
         "additionalProperties": false,
         "type": "object",
-        "title": "RequestUpdateIn",
-        "description": "Creates a new revision. Allowed only before sending."
+        "required": [
+          "id",
+          "case_id",
+          "assessment_version",
+          "items",
+          "draft",
+          "email_send_enabled",
+          "created_at"
+        ],
+        "title": "RequestListOut"
       },
       "RequiredChecksOut": {
         "properties": {
@@ -6042,6 +6255,77 @@
           "established"
         ],
         "title": "RequiredChecksOut"
+      },
+      "RevisionIn": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Subject"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 100000,
+            "title": "Body"
+          },
+          "recipient": {
+            "type": "string",
+            "maxLength": 320,
+            "title": "Recipient",
+            "description": "Typed in by the user; DealProof never scrapes contacts."
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject",
+          "body",
+          "recipient"
+        ],
+        "title": "RevisionIn"
+      },
+      "RevisionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "recipient": {
+            "type": "string",
+            "title": "Recipient"
+          },
+          "entered_by_user_id": {
+            "type": "string",
+            "title": "Entered By User Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "subject",
+          "body",
+          "recipient",
+          "entered_by_user_id",
+          "created_at"
+        ],
+        "title": "RevisionOut"
       },
       "RiskItemOut": {
         "properties": {
@@ -6299,121 +6583,26 @@
         ],
         "title": "ScreeningDispositionOut"
       },
-      "SellerRequestOut": {
+      "SendOut": {
         "properties": {
           "id": {
             "type": "string",
             "title": "Id"
           },
-          "case_id": {
+          "revision_id": {
             "type": "string",
-            "title": "Case Id"
-          },
-          "assessment_version": {
-            "type": "integer",
-            "title": "Assessment Version"
+            "title": "Revision Id"
           },
           "status": {
-            "$ref": "#/components/schemas/RequestStatus"
+            "$ref": "#/components/schemas/SendStatus"
           },
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/RequestItemOut"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "analyst_retries": {
-            "items": {
-              "$ref": "#/components/schemas/AnalystRetryOut"
-            },
-            "type": "array",
-            "title": "Analyst Retries"
-          },
-          "current_revision": {
-            "$ref": "#/components/schemas/MessageRevisionOut"
-          },
-          "revisions": {
-            "items": {
-              "$ref": "#/components/schemas/MessageRevisionOut"
-            },
-            "type": "array",
-            "title": "Revisions",
-            "description": "Oldest first."
-          },
-          "approval": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ApprovalOut"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Approval of current_revision; null after any edit."
-          },
-          "send": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SendOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "email_send_enabled": {
+          "test_mode": {
             "type": "boolean",
-            "title": "Email Send Enabled",
-            "description": "False means test mode: nothing leaves."
+            "title": "Test Mode"
           },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "case_id",
-          "assessment_version",
-          "status",
-          "items",
-          "current_revision",
-          "revisions",
-          "email_send_enabled",
-          "created_at"
-        ],
-        "title": "SellerRequestOut"
-      },
-      "SendOut": {
-        "properties": {
-          "send_key": {
-            "type": "string",
-            "title": "Send Key",
-            "description": "Request id + approved revision id; provider idempotency key."
-          },
-          "status": {
-            "$ref": "#/components/schemas/RequestStatus"
-          },
-          "attempted_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Attempted At"
-          },
-          "sent_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sent At"
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts"
           },
           "provider_message_id": {
             "anyOf": [
@@ -6436,16 +6625,96 @@
               }
             ],
             "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "dispatched_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dispatched At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
           }
         },
-        "additionalProperties": false,
         "type": "object",
         "required": [
-          "send_key",
+          "id",
+          "revision_id",
           "status",
-          "attempted_at"
+          "test_mode",
+          "attempts",
+          "provider_message_id",
+          "error",
+          "created_at",
+          "dispatched_at",
+          "completed_at"
         ],
         "title": "SendOut"
+      },
+      "SendStatus": {
+        "type": "string",
+        "enum": [
+          "sending",
+          "sent",
+          "suppressed_test_mode",
+          "failed",
+          "unknown"
+        ],
+        "title": "SendStatus"
+      },
+      "SendSummaryOut": {
+        "properties": {
+          "sent": {
+            "type": "integer",
+            "title": "Sent"
+          },
+          "suppressed_test_mode": {
+            "type": "integer",
+            "title": "Suppressed Test Mode"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "unknown": {
+            "type": "integer",
+            "title": "Unknown"
+          },
+          "sending": {
+            "type": "integer",
+            "title": "Sending"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sent",
+          "suppressed_test_mode",
+          "failed",
+          "unknown",
+          "sending"
+        ],
+        "title": "SendSummaryOut",
+        "description": "`sent` counts real provider acceptance only; test-mode suppressions are separate."
       },
       "SettleWithOut": {
         "properties": {

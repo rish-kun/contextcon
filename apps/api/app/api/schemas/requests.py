@@ -1,25 +1,21 @@
-"""Act contract (CP-23): request list, immutable message revisions, approval, send once."""
+"""Act contract, part 1: the request list and the drafted seller email (CP-23 / drafting).
+
+Part 2, the message itself (immutable revisions, approval of one revision, send once,
+reconcile), is the real router in `app.act.router`, mounted under
+`/cases/{case_id}/messages`. Its `MessageOut` is reused in `CaseDetail.message`.
+The UI flow: `POST /cases/{id}/requests` builds the list and a draft, then
+`POST /cases/{id}/messages` turns the (possibly edited) draft into revision 1.
+"""
 
 from datetime import datetime
-from enum import StrEnum
 
 from pydantic import Field
 
-from app.api.schemas.common import ApiModel, ClaimCategory, NamedUserOut
-
-
-class RequestStatus(StrEnum):
-    draft = "draft"
-    approved = "approved"
-    sending = "sending"
-    sent = "sent"
-    suppressed_test_mode = "suppressed_test_mode"
-    failed = "failed"
-    unknown = "unknown"
+from app.api.schemas.common import ApiModel, ClaimCategory
 
 
 class RequestItemOut(ApiModel):
-    """One requested document, linked to every question it resolves."""
+    """One requested document, linked to every question it resolves (deduplicated)."""
 
     id: str
     document: str = Field(description='E.g. "Dated payroll summary".')
@@ -38,60 +34,22 @@ class AnalystRetryOut(ApiModel):
     estimated_credits: float | None = None
 
 
-class MessageRevisionOut(ApiModel):
-    """Immutable. Any edit creates a new revision that needs fresh approval."""
+class DraftEmailOut(ApiModel):
+    """LLM draft built from the items. Contains no unverified facts. Editable."""
 
-    id: str
-    number: int
-    recipient_email: str | None = None
     subject: str
     body: str
-    content_hash: str
-    created_at: datetime
-    created_by: NamedUserOut | None = Field(default=None, description="Null for the LLM draft.")
 
 
-class ApprovalOut(ApiModel):
-    revision_id: str
-    approved_by: NamedUserOut
-    approved_at: datetime
-
-
-class SendOut(ApiModel):
-    send_key: str = Field(
-        description="Request id + approved revision id; provider idempotency key."
-    )
-    status: RequestStatus
-    attempted_at: datetime
-    sent_at: datetime | None = None
-    provider_message_id: str | None = None
-    error: str | None = None
-
-
-class SellerRequestOut(ApiModel):
+class RequestListOut(ApiModel):
     id: str
     case_id: str
-    assessment_version: int
-    status: RequestStatus
+    assessment_version: int = Field(description="The assessment version the list was built on.")
     items: list[RequestItemOut]
     analyst_retries: list[AnalystRetryOut] = Field(default_factory=list)
-    current_revision: MessageRevisionOut
-    revisions: list[MessageRevisionOut] = Field(description="Oldest first.")
-    approval: ApprovalOut | None = Field(
-        default=None, description="Approval of current_revision; null after any edit."
+    draft: DraftEmailOut
+    message_id: str | None = Field(
+        default=None, description="The Act message created from this draft, once there is one."
     )
-    send: SendOut | None = None
     email_send_enabled: bool = Field(description="False means test mode: nothing leaves.")
     created_at: datetime
-
-
-class RequestUpdateIn(ApiModel):
-    """Creates a new revision. Allowed only before sending."""
-
-    recipient_email: str | None = Field(default=None, max_length=320)
-    subject: str | None = Field(default=None, max_length=300)
-    body: str | None = Field(default=None, max_length=20000)
-
-
-class RequestApproveIn(ApiModel):
-    revision_id: str = Field(description="The exact revision the approver read.")

@@ -15,7 +15,6 @@ from app.api.schemas.common import ClaimStatus, FactStr, SourceClass, SourceRef
 from app.main import create_app
 
 CASE = fixtures.CASE_ID
-REQ = fixtures.REQUEST_ID
 RUN = fixtures.VERIFY_RUN_ID
 
 CRITERION = {
@@ -81,14 +80,29 @@ ROUTES: list[tuple[str, str, str, object]] = [
         None,
     ),
     ("POST", "/cases/{case_id}/requests", f"/cases/{CASE}/requests", None),
-    ("GET", "/requests/{request_id}", f"/requests/{REQ}", None),
-    ("PATCH", "/requests/{request_id}", f"/requests/{REQ}", {"recipient_email": "a@b.example"}),
-    ("POST", "/requests/{request_id}/approve", f"/requests/{REQ}/approve", {"revision_id": "r"}),
-    ("POST", "/requests/{request_id}/send", f"/requests/{REQ}/send", None),
+    ("GET", "/cases/{case_id}/requests", f"/cases/{CASE}/requests", None),
     ("GET", "/runs/{run_id}", f"/runs/{RUN}", None),
     ("GET", "/runs/{run_id}/events", f"/runs/{RUN}/events", None),
     ("POST", "/runs/{run_id}/resume", f"/runs/{RUN}/resume", None),
     ("GET", "/policy", "/policy", None),
+]
+
+MSG = f"/cases/{CASE}/messages"
+REVISION = {"subject": "s", "body": "b", "recipient": "a@b.example"}
+# Implemented by app.act (mounted as-is); they fail closed until CP-16 wires auth.
+ACT_ROUTES: list[tuple[str, str, str, object]] = [
+    ("POST", "/cases/{case_id}/messages", MSG, REVISION),
+    ("GET", "/cases/{case_id}/messages/send-summary", f"{MSG}/send-summary", None),
+    ("GET", "/cases/{case_id}/messages/{message_id}", f"{MSG}/m", None),
+    ("POST", "/cases/{case_id}/messages/{message_id}/revisions", f"{MSG}/m/revisions", REVISION),
+    (
+        "POST",
+        "/cases/{case_id}/messages/{message_id}/approve",
+        f"{MSG}/m/approve",
+        {"revision_id": "r"},
+    ),
+    ("POST", "/cases/{case_id}/messages/{message_id}/send", f"{MSG}/m/send", None),
+    ("POST", "/cases/{case_id}/messages/{message_id}/reconcile", f"{MSG}/m/reconcile", None),
 ]
 
 
@@ -116,7 +130,7 @@ def _call(client: TestClient, method: str, path: str, body: object):
 def test_openapi_has_all_routes() -> None:
     spec = create_app().openapi()
     present = {(m.upper(), p) for p, ops in spec["paths"].items() for m in ops}
-    expected = {(m, p) for m, p, _, _ in ROUTES}
+    expected = {(m, p) for m, p, _, _ in ROUTES + ACT_ROUTES}
     assert expected <= present
     # Nothing undocumented sneaks in either: only /health sits outside the contract list.
     assert present - expected == {("GET", "/health")}
@@ -150,6 +164,13 @@ def test_stub_returns_501(client: TestClient, method, template, path, body) -> N
     assert response.status_code == 501, (template, response.text)
     assert "Not implemented" in response.json()["detail"]
     assert FIXTURE_HEADER not in response.headers
+
+
+@pytest.mark.parametrize(("method", "template", "path", "body"), ACT_ROUTES)
+def test_act_routes_fail_closed_until_auth_is_wired(
+    fixture_client: TestClient, method, template, path, body
+) -> None:
+    assert _call(fixture_client, method, path, body).status_code == 501, template
 
 
 def test_fact_schema_requires_source() -> None:

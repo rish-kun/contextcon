@@ -27,7 +27,7 @@ def _mark_fixture(response: Response) -> None:
         response.headers[FIXTURE_HEADER] = "1"
 
 
-def _operation_id(route: APIRoute) -> str:
+def operation_id(route: APIRoute) -> str:
     return route.name
 
 
@@ -44,7 +44,7 @@ def make_router(*, tags: list[str], prefix: str = "") -> APIRouter:
         tags=tags,
         responses=COMMON_RESPONSES,
         dependencies=[Depends(_mark_fixture)],
-        generate_unique_id_function=_operation_id,
+        generate_unique_id_function=operation_id,
     )
 
 

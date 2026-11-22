@@ -5,6 +5,7 @@ from enum import StrEnum
 
 from pydantic import Field, model_validator
 
+from app.act.router import MessageOut
 from app.api.schemas.assessments import AssessmentVersionOut, FitState
 from app.api.schemas.claims import ClaimOut
 from app.api.schemas.common import (
@@ -19,7 +20,7 @@ from app.api.schemas.common import (
 )
 from app.api.schemas.company import CompanyProfileOut
 from app.api.schemas.documents import DeletionRecordOut, DocumentOut
-from app.api.schemas.requests import SellerRequestOut
+from app.api.schemas.requests import RequestListOut
 from app.api.schemas.runs import RunKind, RunOut, RunSummaryOut
 from app.api.schemas.theses import CriterionIn, CriterionOut, CriterionResultOut
 
@@ -212,7 +213,10 @@ class CaseDetail(ApiModel):
         default=None, description="Latest version; history via GET /cases/{id}/assessments."
     )
     risks: list[RiskItemOut] = Field(default_factory=list)
-    request: SellerRequestOut | None = None
+    request_list: RequestListOut | None = None
+    message: MessageOut | None = Field(
+        default=None, description="The seller email (revisions, approval, send) from app.act."
+    )
     documents: list[DocumentOut] = Field(default_factory=list)
     deletions: list[DeletionRecordOut] = Field(default_factory=list)
     sources: list[SourceRecordOut] = Field(default_factory=list)

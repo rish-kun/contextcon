@@ -15,6 +15,8 @@ from datetime import UTC, date, datetime, timedelta
 from functools import cache
 from typing import Any
 
+from app.act.models import MessageStatus, SendStatus
+from app.act.router import ApprovalOut, MessageOut, RevisionOut, SendOut
 from app.api.schemas.assessments import (
     AssessmentVersionOut,
     BusinessAssessmentOut,
@@ -111,12 +113,9 @@ from app.api.schemas.policy import (
 )
 from app.api.schemas.requests import (
     AnalystRetryOut,
-    ApprovalOut,
-    MessageRevisionOut,
+    DraftEmailOut,
     RequestItemOut,
-    RequestStatus,
-    SellerRequestOut,
-    SendOut,
+    RequestListOut,
 )
 from app.api.schemas.runs import RunOut, RunSummaryOut, StepOut
 from app.api.schemas.theses import (
@@ -1357,42 +1356,15 @@ DRAFT_BODY = (
 )
 
 
-def _revision(n: int, recipient: str | None, body: str, by_user: bool) -> MessageRevisionOut:
-    return MessageRevisionOut(
-        id=f"fx-rev-{n}",
-        number=n,
-        recipient_email=recipient,
-        subject="Documents for our screening of Harbourline Warehousing (fixture)",
-        body=body,
-        content_hash=f"sha256:fixture-rev-{n}",
-        created_at=_t(20 + n),
-        created_by=NAMED_USER if by_user else None,
-    )
+SUBJECT = "Documents for our screening of Harbourline Warehousing (fixture)"
+MESSAGE_ID = "fx-message-1"
 
 
-def seller_request(state: str = "suppressed") -> SellerRequestOut:
-    """Fixture request in one of: draft, edited, approved, suppressed."""
-    revs = [_revision(1, None, DRAFT_BODY, by_user=False)]
-    if state != "draft":
-        revs.append(_revision(2, "cfo@harbourline.example", DRAFT_BODY, by_user=True))
-    approval = None
-    send = None
-    status = RequestStatus.draft
-    if state in ("approved", "suppressed"):
-        approval = ApprovalOut(revision_id=revs[-1].id, approved_by=NAMED_USER, approved_at=_t(25))
-        status = RequestStatus.approved
-    if state == "suppressed":
-        status = RequestStatus.suppressed_test_mode
-        send = SendOut(
-            send_key=f"{REQUEST_ID}:{revs[-1].id}",
-            status=status,
-            attempted_at=_t(26),
-        )
-    return SellerRequestOut(
+def request_list() -> RequestListOut:
+    return RequestListOut(
         id=REQUEST_ID,
         case_id=CASE_ID,
         assessment_version=1,
-        status=status,
         items=REQUEST_ITEMS,
         analyst_retries=[
             AnalystRetryOut(
@@ -1402,12 +1374,63 @@ def seller_request(state: str = "suppressed") -> SellerRequestOut:
                 estimated_credits=1.0,
             )
         ],
-        current_revision=revs[-1],
-        revisions=revs,
-        approval=approval,
-        send=send,
+        draft=DraftEmailOut(subject=SUBJECT, body=DRAFT_BODY),
+        message_id=MESSAGE_ID,
         email_send_enabled=False,
         created_at=_t(20),
+    )
+
+
+def _revision(n: int, recipient: str) -> RevisionOut:
+    return RevisionOut(
+        id=f"fx-rev-{n}",
+        number=n,
+        subject=SUBJECT,
+        body=DRAFT_BODY,
+        recipient=recipient,
+        entered_by_user_id=USER_ID,
+        created_at=_t(20 + n),
+    )
+
+
+def message(state: str = "suppressed") -> MessageOut:
+    """The Act message in one of: draft, edited, approved, suppressed (test-mode send)."""
+    revs = [_revision(1, "")]
+    if state != "draft":
+        revs.append(_revision(2, "cfo@harbourline.example"))
+    approval = None
+    send = None
+    status = MessageStatus.DRAFT
+    if state in ("approved", "suppressed"):
+        approval = ApprovalOut(
+            revision_id=revs[-1].id,
+            approver_user_id=USER_ID,
+            approver_display_name=USER.display_name,
+            approved_at=_t(25),
+        )
+        status = MessageStatus.APPROVED
+    if state == "suppressed":
+        status = MessageStatus.SUPPRESSED_TEST_MODE
+        send = SendOut(
+            id="fx-send-1",
+            revision_id=revs[-1].id,
+            status=SendStatus.SUPPRESSED_TEST_MODE,
+            test_mode=True,
+            attempts=1,
+            provider_message_id=None,
+            error=None,
+            created_at=_t(26),
+            dispatched_at=None,
+            completed_at=_t(26),
+        )
+    return MessageOut(
+        id=MESSAGE_ID,
+        case_id=CASE_ID,
+        status=status,
+        current_revision=revs[-1],
+        approval=approval,
+        send=send,
+        revisions=revs,
     )
 
 
@@ -1715,7 +1738,8 @@ def case_detail(case_id: str) -> CaseDetail | None:
                 claim_ids=["fx-claim-6"],
             ),
         ],
-        request=seller_request("suppressed"),
+        request_list=request_list(),
+        message=message("suppressed"),
         documents=documents(),
         sources=[
             SourceRecordOut(
@@ -1922,11 +1946,12 @@ def export() -> dict[str, Any]:
             "caseDetails": {cid: case_detail(cid) for cid in (CASE_ID, CASE_AMBIGUOUS_ID)},
             "assessments": {CASE_ID: assessments(CASE_ID), CASE_AMBIGUOUS_ID: []},
             "runs": runs(),
-            "request": {
-                "draft": seller_request("draft"),
-                "edited": seller_request("edited"),
-                "approved": seller_request("approved"),
-                "suppressed": seller_request("suppressed"),
+            "requestList": request_list(),
+            "message": {
+                "draft": message("draft"),
+                "edited": message("edited"),
+                "approved": message("approved"),
+                "suppressed": message("suppressed"),
             },
             "documents": documents(),
             "policy": policy(),

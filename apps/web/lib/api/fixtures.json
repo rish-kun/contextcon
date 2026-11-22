@@ -2962,11 +2962,10 @@
           ]
         }
       ],
-      "request": {
+      "request_list": {
         "id": "fx-request-1",
         "case_id": "fx-case-harbourline",
         "assessment_version": 1,
-        "status": "suppressed_test_mode",
         "items": [
           {
             "id": "fx-item-payroll",
@@ -3047,62 +3046,65 @@
             "estimated_credits": 1.0
           }
         ],
+        "draft": {
+          "subject": "Documents for our screening of Harbourline Warehousing (fixture)",
+          "body": "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be grateful for the following documents:\n\n1. A dated payroll summary\n2. Lease or occupancy evidence for the Nashik cold-storage facility\n3. Lender statements for the registered charge\n4. The share allotment filing or term sheet for the Series A\n5. The certificate of incorporation\n\nKind regards,\nAsha Analyst"
+        },
+        "message_id": "fx-message-1",
+        "email_send_enabled": false,
+        "created_at": "2026-11-22T09:50:00Z"
+      },
+      "message": {
+        "id": "fx-message-1",
+        "case_id": "fx-case-harbourline",
+        "status": "suppressed_test_mode",
         "current_revision": {
           "id": "fx-rev-2",
           "number": 2,
-          "recipient_email": "cfo@harbourline.example",
           "subject": "Documents for our screening of Harbourline Warehousing (fixture)",
           "body": "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be grateful for the following documents:\n\n1. A dated payroll summary\n2. Lease or occupancy evidence for the Nashik cold-storage facility\n3. Lender statements for the registered charge\n4. The share allotment filing or term sheet for the Series A\n5. The certificate of incorporation\n\nKind regards,\nAsha Analyst",
-          "content_hash": "sha256:fixture-rev-2",
-          "created_at": "2026-11-22T09:52:00Z",
-          "created_by": {
-            "user_id": "fx-user-1",
-            "display_name": "Asha Analyst"
-          }
+          "recipient": "cfo@harbourline.example",
+          "entered_by_user_id": "fx-user-1",
+          "created_at": "2026-11-22T09:52:00Z"
+        },
+        "approval": {
+          "revision_id": "fx-rev-2",
+          "approver_user_id": "fx-user-1",
+          "approver_display_name": "Asha Analyst",
+          "approved_at": "2026-11-22T09:55:00Z"
+        },
+        "send": {
+          "id": "fx-send-1",
+          "revision_id": "fx-rev-2",
+          "status": "suppressed_test_mode",
+          "test_mode": true,
+          "attempts": 1,
+          "provider_message_id": null,
+          "error": null,
+          "created_at": "2026-11-22T09:56:00Z",
+          "dispatched_at": null,
+          "completed_at": "2026-11-22T09:56:00Z"
         },
         "revisions": [
           {
             "id": "fx-rev-1",
             "number": 1,
-            "recipient_email": null,
             "subject": "Documents for our screening of Harbourline Warehousing (fixture)",
             "body": "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be grateful for the following documents:\n\n1. A dated payroll summary\n2. Lease or occupancy evidence for the Nashik cold-storage facility\n3. Lender statements for the registered charge\n4. The share allotment filing or term sheet for the Series A\n5. The certificate of incorporation\n\nKind regards,\nAsha Analyst",
-            "content_hash": "sha256:fixture-rev-1",
-            "created_at": "2026-11-22T09:51:00Z",
-            "created_by": null
+            "recipient": "",
+            "entered_by_user_id": "fx-user-1",
+            "created_at": "2026-11-22T09:51:00Z"
           },
           {
             "id": "fx-rev-2",
             "number": 2,
-            "recipient_email": "cfo@harbourline.example",
             "subject": "Documents for our screening of Harbourline Warehousing (fixture)",
             "body": "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be grateful for the following documents:\n\n1. A dated payroll summary\n2. Lease or occupancy evidence for the Nashik cold-storage facility\n3. Lender statements for the registered charge\n4. The share allotment filing or term sheet for the Series A\n5. The certificate of incorporation\n\nKind regards,\nAsha Analyst",
-            "content_hash": "sha256:fixture-rev-2",
-            "created_at": "2026-11-22T09:52:00Z",
-            "created_by": {
-              "user_id": "fx-user-1",
-              "display_name": "Asha Analyst"
-            }
+            "recipient": "cfo@harbourline.example",
+            "entered_by_user_id": "fx-user-1",
+            "created_at": "2026-11-22T09:52:00Z"
           }
-        ],
-        "approval": {
-          "revision_id": "fx-rev-2",
-          "approved_by": {
-            "user_id": "fx-user-1",
-            "display_name": "Asha Analyst"
-          },
-          "approved_at": "2026-11-22T09:55:00Z"
-        },
-        "send": {
-          "send_key": "fx-request-1:fx-rev-2",
-          "status": "suppressed_test_mode",
-          "attempted_at": "2026-11-22T09:56:00Z",
-          "sent_at": null,
-          "provider_message_id": null,
-          "error": null
-        },
-        "email_send_enabled": false,
-        "created_at": "2026-11-22T09:50:00Z"
+        ]
       },
       "documents": [
         {
@@ -3921,7 +3923,8 @@
           "claim_ids": []
         }
       ],
-      "request": null,
+      "request_list": null,
+      "message": null,
       "documents": [],
       "deletions": [],
       "sources": [],
@@ -5273,523 +5276,254 @@
       ]
     }
   },
-  "request": {
+  "requestList": {
+    "id": "fx-request-1",
+    "case_id": "fx-case-harbourline",
+    "assessment_version": 1,
+    "items": [
+      {
+        "id": "fx-item-payroll",
+        "document": "Dated payroll summary",
+        "reason": "Profile counts under-count warehouse staff",
+        "categories": [
+          "team_size"
+        ],
+        "claim_ids": [
+          "fx-claim-2"
+        ],
+        "questions": [
+          "How many people are on payroll today?"
+        ]
+      },
+      {
+        "id": "fx-item-lease",
+        "document": "Lease or occupancy evidence for the facility",
+        "reason": "The announcement describes a planned facility",
+        "categories": [
+          "dated_event"
+        ],
+        "claim_ids": [
+          "fx-claim-5"
+        ],
+        "questions": [
+          "Is the Nashik cold-storage facility operating?"
+        ]
+      },
+      {
+        "id": "fx-item-lender",
+        "document": "Lender statements",
+        "reason": "A registered charge exists; the balance owed is not on record",
+        "categories": [
+          "debt_security"
+        ],
+        "claim_ids": [
+          "fx-claim-8"
+        ],
+        "questions": [
+          "Is any amount outstanding under the registered charge?"
+        ]
+      },
+      {
+        "id": "fx-item-allotment",
+        "document": "Share allotment filing or term sheet",
+        "reason": "Sources disagree on when the Series A closed",
+        "categories": [
+          "funding"
+        ],
+        "claim_ids": [
+          "fx-claim-4"
+        ],
+        "questions": [
+          "When did the Series A close?"
+        ]
+      },
+      {
+        "id": "fx-item-coi",
+        "document": "Certificate of incorporation",
+        "reason": "The registry gives a different registered office",
+        "categories": [
+          "location"
+        ],
+        "claim_ids": [
+          "fx-claim-7"
+        ],
+        "questions": [
+          "Where is the registered office?"
+        ]
+      }
+    ],
+    "analyst_retries": [
+      {
+        "claim_id": "fx-claim-6",
+        "label": "Check: 40 enterprise customers",
+        "reason": "Budget reached",
+        "estimated_credits": 1.0
+      }
+    ],
     "draft": {
-      "id": "fx-request-1",
+      "subject": "Documents for our screening of Harbourline Warehousing (fixture)",
+      "body": "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be grateful for the following documents:\n\n1. A dated payroll summary\n2. Lease or occupancy evidence for the Nashik cold-storage facility\n3. Lender statements for the registered charge\n4. The share allotment filing or term sheet for the Series A\n5. The certificate of incorporation\n\nKind regards,\nAsha Analyst"
+    },
+    "message_id": "fx-message-1",
+    "email_send_enabled": false,
+    "created_at": "2026-11-22T09:50:00Z"
+  },
+  "message": {
+    "draft": {
+      "id": "fx-message-1",
       "case_id": "fx-case-harbourline",
-      "assessment_version": 1,
       "status": "draft",
-      "items": [
-        {
-          "id": "fx-item-payroll",
-          "document": "Dated payroll summary",
-          "reason": "Profile counts under-count warehouse staff",
-          "categories": [
-            "team_size"
-          ],
-          "claim_ids": [
-            "fx-claim-2"
-          ],
-          "questions": [
-            "How many people are on payroll today?"
-          ]
-        },
-        {
-          "id": "fx-item-lease",
-          "document": "Lease or occupancy evidence for the facility",
-          "reason": "The announcement describes a planned facility",
-          "categories": [
-            "dated_event"
-          ],
-          "claim_ids": [
-            "fx-claim-5"
-          ],
-          "questions": [
-            "Is the Nashik cold-storage facility operating?"
-          ]
-        },
-        {
-          "id": "fx-item-lender",
-          "document": "Lender statements",
-          "reason": "A registered charge exists; the balance owed is not on record",
-          "categories": [
-            "debt_security"
-          ],
-          "claim_ids": [
-            "fx-claim-8"
-          ],
-          "questions": [
-            "Is any amount outstanding under the registered charge?"
-          ]
-        },
-        {
-          "id": "fx-item-allotment",
-          "document": "Share allotment filing or term sheet",
-          "reason": "Sources disagree on when the Series A closed",
-          "categories": [
-            "funding"
-          ],
-          "claim_ids": [
-            "fx-claim-4"
-          ],
-          "questions": [
-            "When did the Series A close?"
-          ]
-        },
-        {
-          "id": "fx-item-coi",
-          "document": "Certificate of incorporation",
-          "reason": "The registry gives a different registered office",
-          "categories": [
-            "location"
-          ],
-          "claim_ids": [
-            "fx-claim-7"
-          ],
-          "questions": [
-            "Where is the registered office?"
-          ]
-        }
-      ],
-      "analyst_retries": [
-        {
-          "claim_id": "fx-claim-6",
-          "label": "Check: 40 enterprise customers",
-          "reason": "Budget reached",
-          "estimated_credits": 1.0
-        }
-      ],
       "current_revision": {
         "id": "fx-rev-1",
         "number": 1,
-        "recipient_email": null,
         "subject": "Documents for our screening of Harbourline Warehousing (fixture)",
         "body": "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be grateful for the following documents:\n\n1. A dated payroll summary\n2. Lease or occupancy evidence for the Nashik cold-storage facility\n3. Lender statements for the registered charge\n4. The share allotment filing or term sheet for the Series A\n5. The certificate of incorporation\n\nKind regards,\nAsha Analyst",
-        "content_hash": "sha256:fixture-rev-1",
-        "created_at": "2026-11-22T09:51:00Z",
-        "created_by": null
+        "recipient": "",
+        "entered_by_user_id": "fx-user-1",
+        "created_at": "2026-11-22T09:51:00Z"
       },
+      "approval": null,
+      "send": null,
       "revisions": [
         {
           "id": "fx-rev-1",
           "number": 1,
-          "recipient_email": null,
           "subject": "Documents for our screening of Harbourline Warehousing (fixture)",
           "body": "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be grateful for the following documents:\n\n1. A dated payroll summary\n2. Lease or occupancy evidence for the Nashik cold-storage facility\n3. Lender statements for the registered charge\n4. The share allotment filing or term sheet for the Series A\n5. The certificate of incorporation\n\nKind regards,\nAsha Analyst",
-          "content_hash": "sha256:fixture-rev-1",
-          "created_at": "2026-11-22T09:51:00Z",
-          "created_by": null
+          "recipient": "",
+          "entered_by_user_id": "fx-user-1",
+          "created_at": "2026-11-22T09:51:00Z"
         }
-      ],
-      "approval": null,
-      "send": null,
-      "email_send_enabled": false,
-      "created_at": "2026-11-22T09:50:00Z"
+      ]
     },
     "edited": {
-      "id": "fx-request-1",
+      "id": "fx-message-1",
       "case_id": "fx-case-harbourline",
-      "assessment_version": 1,
       "status": "draft",
-      "items": [
-        {
-          "id": "fx-item-payroll",
-          "document": "Dated payroll summary",
-          "reason": "Profile counts under-count warehouse staff",
-          "categories": [
-            "team_size"
-          ],
-          "claim_ids": [
-            "fx-claim-2"
-          ],
-          "questions": [
-            "How many people are on payroll today?"
-          ]
-        },
-        {
-          "id": "fx-item-lease",
-          "document": "Lease or occupancy evidence for the facility",
-          "reason": "The announcement describes a planned facility",
-          "categories": [
-            "dated_event"
-          ],
-          "claim_ids": [
-            "fx-claim-5"
-          ],
-          "questions": [
-            "Is the Nashik cold-storage facility operating?"
-          ]
-        },
-        {
-          "id": "fx-item-lender",
-          "document": "Lender statements",
-          "reason": "A registered charge exists; the balance owed is not on record",
-          "categories": [
-            "debt_security"
-          ],
-          "claim_ids": [
-            "fx-claim-8"
-          ],
-          "questions": [
-            "Is any amount outstanding under the registered charge?"
-          ]
-        },
-        {
-          "id": "fx-item-allotment",
-          "document": "Share allotment filing or term sheet",
-          "reason": "Sources disagree on when the Series A closed",
-          "categories": [
-            "funding"
-          ],
-          "claim_ids": [
-            "fx-claim-4"
-          ],
-          "questions": [
-            "When did the Series A close?"
-          ]
-        },
-        {
-          "id": "fx-item-coi",
-          "document": "Certificate of incorporation",
-          "reason": "The registry gives a different registered office",
-          "categories": [
-            "location"
-          ],
-          "claim_ids": [
-            "fx-claim-7"
-          ],
-          "questions": [
-            "Where is the registered office?"
-          ]
-        }
-      ],
-      "analyst_retries": [
-        {
-          "claim_id": "fx-claim-6",
-          "label": "Check: 40 enterprise customers",
-          "reason": "Budget reached",
-          "estimated_credits": 1.0
-        }
-      ],
       "current_revision": {
         "id": "fx-rev-2",
         "number": 2,
-        "recipient_email": "cfo@harbourline.example",
         "subject": "Documents for our screening of Harbourline Warehousing (fixture)",
         "body": "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be grateful for the following documents:\n\n1. A dated payroll summary\n2. Lease or occupancy evidence for the Nashik cold-storage facility\n3. Lender statements for the registered charge\n4. The share allotment filing or term sheet for the Series A\n5. The certificate of incorporation\n\nKind regards,\nAsha Analyst",
-        "content_hash": "sha256:fixture-rev-2",
-        "created_at": "2026-11-22T09:52:00Z",
-        "created_by": {
-          "user_id": "fx-user-1",
-          "display_name": "Asha Analyst"
-        }
+        "recipient": "cfo@harbourline.example",
+        "entered_by_user_id": "fx-user-1",
+        "created_at": "2026-11-22T09:52:00Z"
       },
-      "revisions": [
-        {
-          "id": "fx-rev-1",
-          "number": 1,
-          "recipient_email": null,
-          "subject": "Documents for our screening of Harbourline Warehousing (fixture)",
-          "body": "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be grateful for the following documents:\n\n1. A dated payroll summary\n2. Lease or occupancy evidence for the Nashik cold-storage facility\n3. Lender statements for the registered charge\n4. The share allotment filing or term sheet for the Series A\n5. The certificate of incorporation\n\nKind regards,\nAsha Analyst",
-          "content_hash": "sha256:fixture-rev-1",
-          "created_at": "2026-11-22T09:51:00Z",
-          "created_by": null
-        },
-        {
-          "id": "fx-rev-2",
-          "number": 2,
-          "recipient_email": "cfo@harbourline.example",
-          "subject": "Documents for our screening of Harbourline Warehousing (fixture)",
-          "body": "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be grateful for the following documents:\n\n1. A dated payroll summary\n2. Lease or occupancy evidence for the Nashik cold-storage facility\n3. Lender statements for the registered charge\n4. The share allotment filing or term sheet for the Series A\n5. The certificate of incorporation\n\nKind regards,\nAsha Analyst",
-          "content_hash": "sha256:fixture-rev-2",
-          "created_at": "2026-11-22T09:52:00Z",
-          "created_by": {
-            "user_id": "fx-user-1",
-            "display_name": "Asha Analyst"
-          }
-        }
-      ],
       "approval": null,
       "send": null,
-      "email_send_enabled": false,
-      "created_at": "2026-11-22T09:50:00Z"
-    },
-    "approved": {
-      "id": "fx-request-1",
-      "case_id": "fx-case-harbourline",
-      "assessment_version": 1,
-      "status": "approved",
-      "items": [
-        {
-          "id": "fx-item-payroll",
-          "document": "Dated payroll summary",
-          "reason": "Profile counts under-count warehouse staff",
-          "categories": [
-            "team_size"
-          ],
-          "claim_ids": [
-            "fx-claim-2"
-          ],
-          "questions": [
-            "How many people are on payroll today?"
-          ]
-        },
-        {
-          "id": "fx-item-lease",
-          "document": "Lease or occupancy evidence for the facility",
-          "reason": "The announcement describes a planned facility",
-          "categories": [
-            "dated_event"
-          ],
-          "claim_ids": [
-            "fx-claim-5"
-          ],
-          "questions": [
-            "Is the Nashik cold-storage facility operating?"
-          ]
-        },
-        {
-          "id": "fx-item-lender",
-          "document": "Lender statements",
-          "reason": "A registered charge exists; the balance owed is not on record",
-          "categories": [
-            "debt_security"
-          ],
-          "claim_ids": [
-            "fx-claim-8"
-          ],
-          "questions": [
-            "Is any amount outstanding under the registered charge?"
-          ]
-        },
-        {
-          "id": "fx-item-allotment",
-          "document": "Share allotment filing or term sheet",
-          "reason": "Sources disagree on when the Series A closed",
-          "categories": [
-            "funding"
-          ],
-          "claim_ids": [
-            "fx-claim-4"
-          ],
-          "questions": [
-            "When did the Series A close?"
-          ]
-        },
-        {
-          "id": "fx-item-coi",
-          "document": "Certificate of incorporation",
-          "reason": "The registry gives a different registered office",
-          "categories": [
-            "location"
-          ],
-          "claim_ids": [
-            "fx-claim-7"
-          ],
-          "questions": [
-            "Where is the registered office?"
-          ]
-        }
-      ],
-      "analyst_retries": [
-        {
-          "claim_id": "fx-claim-6",
-          "label": "Check: 40 enterprise customers",
-          "reason": "Budget reached",
-          "estimated_credits": 1.0
-        }
-      ],
-      "current_revision": {
-        "id": "fx-rev-2",
-        "number": 2,
-        "recipient_email": "cfo@harbourline.example",
-        "subject": "Documents for our screening of Harbourline Warehousing (fixture)",
-        "body": "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be grateful for the following documents:\n\n1. A dated payroll summary\n2. Lease or occupancy evidence for the Nashik cold-storage facility\n3. Lender statements for the registered charge\n4. The share allotment filing or term sheet for the Series A\n5. The certificate of incorporation\n\nKind regards,\nAsha Analyst",
-        "content_hash": "sha256:fixture-rev-2",
-        "created_at": "2026-11-22T09:52:00Z",
-        "created_by": {
-          "user_id": "fx-user-1",
-          "display_name": "Asha Analyst"
-        }
-      },
       "revisions": [
         {
           "id": "fx-rev-1",
           "number": 1,
-          "recipient_email": null,
           "subject": "Documents for our screening of Harbourline Warehousing (fixture)",
           "body": "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be grateful for the following documents:\n\n1. A dated payroll summary\n2. Lease or occupancy evidence for the Nashik cold-storage facility\n3. Lender statements for the registered charge\n4. The share allotment filing or term sheet for the Series A\n5. The certificate of incorporation\n\nKind regards,\nAsha Analyst",
-          "content_hash": "sha256:fixture-rev-1",
-          "created_at": "2026-11-22T09:51:00Z",
-          "created_by": null
+          "recipient": "",
+          "entered_by_user_id": "fx-user-1",
+          "created_at": "2026-11-22T09:51:00Z"
         },
         {
           "id": "fx-rev-2",
           "number": 2,
-          "recipient_email": "cfo@harbourline.example",
           "subject": "Documents for our screening of Harbourline Warehousing (fixture)",
           "body": "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be grateful for the following documents:\n\n1. A dated payroll summary\n2. Lease or occupancy evidence for the Nashik cold-storage facility\n3. Lender statements for the registered charge\n4. The share allotment filing or term sheet for the Series A\n5. The certificate of incorporation\n\nKind regards,\nAsha Analyst",
-          "content_hash": "sha256:fixture-rev-2",
-          "created_at": "2026-11-22T09:52:00Z",
-          "created_by": {
-            "user_id": "fx-user-1",
-            "display_name": "Asha Analyst"
-          }
+          "recipient": "cfo@harbourline.example",
+          "entered_by_user_id": "fx-user-1",
+          "created_at": "2026-11-22T09:52:00Z"
         }
-      ],
+      ]
+    },
+    "approved": {
+      "id": "fx-message-1",
+      "case_id": "fx-case-harbourline",
+      "status": "approved",
+      "current_revision": {
+        "id": "fx-rev-2",
+        "number": 2,
+        "subject": "Documents for our screening of Harbourline Warehousing (fixture)",
+        "body": "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be grateful for the following documents:\n\n1. A dated payroll summary\n2. Lease or occupancy evidence for the Nashik cold-storage facility\n3. Lender statements for the registered charge\n4. The share allotment filing or term sheet for the Series A\n5. The certificate of incorporation\n\nKind regards,\nAsha Analyst",
+        "recipient": "cfo@harbourline.example",
+        "entered_by_user_id": "fx-user-1",
+        "created_at": "2026-11-22T09:52:00Z"
+      },
       "approval": {
         "revision_id": "fx-rev-2",
-        "approved_by": {
-          "user_id": "fx-user-1",
-          "display_name": "Asha Analyst"
-        },
+        "approver_user_id": "fx-user-1",
+        "approver_display_name": "Asha Analyst",
         "approved_at": "2026-11-22T09:55:00Z"
       },
       "send": null,
-      "email_send_enabled": false,
-      "created_at": "2026-11-22T09:50:00Z"
-    },
-    "suppressed": {
-      "id": "fx-request-1",
-      "case_id": "fx-case-harbourline",
-      "assessment_version": 1,
-      "status": "suppressed_test_mode",
-      "items": [
-        {
-          "id": "fx-item-payroll",
-          "document": "Dated payroll summary",
-          "reason": "Profile counts under-count warehouse staff",
-          "categories": [
-            "team_size"
-          ],
-          "claim_ids": [
-            "fx-claim-2"
-          ],
-          "questions": [
-            "How many people are on payroll today?"
-          ]
-        },
-        {
-          "id": "fx-item-lease",
-          "document": "Lease or occupancy evidence for the facility",
-          "reason": "The announcement describes a planned facility",
-          "categories": [
-            "dated_event"
-          ],
-          "claim_ids": [
-            "fx-claim-5"
-          ],
-          "questions": [
-            "Is the Nashik cold-storage facility operating?"
-          ]
-        },
-        {
-          "id": "fx-item-lender",
-          "document": "Lender statements",
-          "reason": "A registered charge exists; the balance owed is not on record",
-          "categories": [
-            "debt_security"
-          ],
-          "claim_ids": [
-            "fx-claim-8"
-          ],
-          "questions": [
-            "Is any amount outstanding under the registered charge?"
-          ]
-        },
-        {
-          "id": "fx-item-allotment",
-          "document": "Share allotment filing or term sheet",
-          "reason": "Sources disagree on when the Series A closed",
-          "categories": [
-            "funding"
-          ],
-          "claim_ids": [
-            "fx-claim-4"
-          ],
-          "questions": [
-            "When did the Series A close?"
-          ]
-        },
-        {
-          "id": "fx-item-coi",
-          "document": "Certificate of incorporation",
-          "reason": "The registry gives a different registered office",
-          "categories": [
-            "location"
-          ],
-          "claim_ids": [
-            "fx-claim-7"
-          ],
-          "questions": [
-            "Where is the registered office?"
-          ]
-        }
-      ],
-      "analyst_retries": [
-        {
-          "claim_id": "fx-claim-6",
-          "label": "Check: 40 enterprise customers",
-          "reason": "Budget reached",
-          "estimated_credits": 1.0
-        }
-      ],
-      "current_revision": {
-        "id": "fx-rev-2",
-        "number": 2,
-        "recipient_email": "cfo@harbourline.example",
-        "subject": "Documents for our screening of Harbourline Warehousing (fixture)",
-        "body": "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be grateful for the following documents:\n\n1. A dated payroll summary\n2. Lease or occupancy evidence for the Nashik cold-storage facility\n3. Lender statements for the registered charge\n4. The share allotment filing or term sheet for the Series A\n5. The certificate of incorporation\n\nKind regards,\nAsha Analyst",
-        "content_hash": "sha256:fixture-rev-2",
-        "created_at": "2026-11-22T09:52:00Z",
-        "created_by": {
-          "user_id": "fx-user-1",
-          "display_name": "Asha Analyst"
-        }
-      },
       "revisions": [
         {
           "id": "fx-rev-1",
           "number": 1,
-          "recipient_email": null,
           "subject": "Documents for our screening of Harbourline Warehousing (fixture)",
           "body": "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be grateful for the following documents:\n\n1. A dated payroll summary\n2. Lease or occupancy evidence for the Nashik cold-storage facility\n3. Lender statements for the registered charge\n4. The share allotment filing or term sheet for the Series A\n5. The certificate of incorporation\n\nKind regards,\nAsha Analyst",
-          "content_hash": "sha256:fixture-rev-1",
-          "created_at": "2026-11-22T09:51:00Z",
-          "created_by": null
+          "recipient": "",
+          "entered_by_user_id": "fx-user-1",
+          "created_at": "2026-11-22T09:51:00Z"
         },
         {
           "id": "fx-rev-2",
           "number": 2,
-          "recipient_email": "cfo@harbourline.example",
           "subject": "Documents for our screening of Harbourline Warehousing (fixture)",
           "body": "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be grateful for the following documents:\n\n1. A dated payroll summary\n2. Lease or occupancy evidence for the Nashik cold-storage facility\n3. Lender statements for the registered charge\n4. The share allotment filing or term sheet for the Series A\n5. The certificate of incorporation\n\nKind regards,\nAsha Analyst",
-          "content_hash": "sha256:fixture-rev-2",
-          "created_at": "2026-11-22T09:52:00Z",
-          "created_by": {
-            "user_id": "fx-user-1",
-            "display_name": "Asha Analyst"
-          }
+          "recipient": "cfo@harbourline.example",
+          "entered_by_user_id": "fx-user-1",
+          "created_at": "2026-11-22T09:52:00Z"
         }
-      ],
+      ]
+    },
+    "suppressed": {
+      "id": "fx-message-1",
+      "case_id": "fx-case-harbourline",
+      "status": "suppressed_test_mode",
+      "current_revision": {
+        "id": "fx-rev-2",
+        "number": 2,
+        "subject": "Documents for our screening of Harbourline Warehousing (fixture)",
+        "body": "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be grateful for the following documents:\n\n1. A dated payroll summary\n2. Lease or occupancy evidence for the Nashik cold-storage facility\n3. Lender statements for the registered charge\n4. The share allotment filing or term sheet for the Series A\n5. The certificate of incorporation\n\nKind regards,\nAsha Analyst",
+        "recipient": "cfo@harbourline.example",
+        "entered_by_user_id": "fx-user-1",
+        "created_at": "2026-11-22T09:52:00Z"
+      },
       "approval": {
         "revision_id": "fx-rev-2",
-        "approved_by": {
-          "user_id": "fx-user-1",
-          "display_name": "Asha Analyst"
-        },
+        "approver_user_id": "fx-user-1",
+        "approver_display_name": "Asha Analyst",
         "approved_at": "2026-11-22T09:55:00Z"
       },
       "send": {
-        "send_key": "fx-request-1:fx-rev-2",
+        "id": "fx-send-1",
+        "revision_id": "fx-rev-2",
         "status": "suppressed_test_mode",
-        "attempted_at": "2026-11-22T09:56:00Z",
-        "sent_at": null,
+        "test_mode": true,
+        "attempts": 1,
         "provider_message_id": null,
-        "error": null
+        "error": null,
+        "created_at": "2026-11-22T09:56:00Z",
+        "dispatched_at": null,
+        "completed_at": "2026-11-22T09:56:00Z"
       },
-      "email_send_enabled": false,
-      "created_at": "2026-11-22T09:50:00Z"
+      "revisions": [
+        {
+          "id": "fx-rev-1",
+          "number": 1,
+          "subject": "Documents for our screening of Harbourline Warehousing (fixture)",
+          "body": "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be grateful for the following documents:\n\n1. A dated payroll summary\n2. Lease or occupancy evidence for the Nashik cold-storage facility\n3. Lender statements for the registered charge\n4. The share allotment filing or term sheet for the Series A\n5. The certificate of incorporation\n\nKind regards,\nAsha Analyst",
+          "recipient": "",
+          "entered_by_user_id": "fx-user-1",
+          "created_at": "2026-11-22T09:51:00Z"
+        },
+        {
+          "id": "fx-rev-2",
+          "number": 2,
+          "subject": "Documents for our screening of Harbourline Warehousing (fixture)",
+          "body": "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be grateful for the following documents:\n\n1. A dated payroll summary\n2. Lease or occupancy evidence for the Nashik cold-storage facility\n3. Lender statements for the registered charge\n4. The share allotment filing or term sheet for the Series A\n5. The certificate of incorporation\n\nKind regards,\nAsha Analyst",
+          "recipient": "cfo@harbourline.example",
+          "entered_by_user_id": "fx-user-1",
+          "created_at": "2026-11-22T09:52:00Z"
+        }
+      ]
     }
   },
   "documents": [
