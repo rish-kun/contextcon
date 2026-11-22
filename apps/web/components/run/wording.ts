@@ -15,6 +15,7 @@ export const RUN_KIND_WORD: Record<RunOut["kind"], string> = {
   verify: "Verify",
   evaluate: "Evaluate",
   recheck: "Recheck",
+  org_research: "Organisation research",
 };
 
 export const ENDPOINT_LABEL: Record<string, string> = {
@@ -34,6 +35,7 @@ export const ENDPOINTS_BY_KIND: Record<RunOut["kind"], string[]> = {
   verify: ["company_identify", "company_enrich", "person_search", "job_search", "web_search", "web_fetch"],
   recheck: [],
   evaluate: [],
+  org_research: ["company_identify", "company_enrich", "web_search", "web_fetch"],
 };
 
 /** What one endpoint row returned, in a phrase. Null when the events carried no count. */
