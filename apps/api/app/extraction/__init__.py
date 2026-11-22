@@ -5,19 +5,27 @@ Every function here takes an LLM client that satisfies `StructuredLlm`
 whose quotes or spans are found verbatim in the input text.
 """
 
-from app.extraction.claims import Claim, ClaimsExtraction, PageText, extract_claims
+from app.extraction.claims import (
+    Claim,
+    ClaimReview,
+    ClaimsExtraction,
+    PageText,
+    extract_claims,
+    review_claims,
+)
 from app.extraction.criteria import CriteriaExtraction, Criterion, extract_criteria
 from app.extraction.facts import ClaimRef, EvidenceFacts, Fact, extract_facts
 from app.extraction.investors import BusinessProfile, InvestorSearchSpec, extract_investor_spec
 from app.extraction.llm import DraftingLlm, LlmOutputError, StructuredLlm
 from app.extraction.pii import DocumentRedaction, redact_document, regex_redact
 from app.extraction.prompts import PROMPT_VERSION
-from app.extraction.spans import span_in
+from app.extraction.spans import injected_regions, locate_span, neutralize_tags, span_in
 
 __all__ = [
     "PROMPT_VERSION",
     "BusinessProfile",
     "Claim",
+    "ClaimReview",
     "ClaimRef",
     "ClaimsExtraction",
     "CriteriaExtraction",
@@ -35,6 +43,10 @@ __all__ = [
     "extract_facts",
     "extract_investor_spec",
     "redact_document",
+    "injected_regions",
+    "locate_span",
+    "neutralize_tags",
     "regex_redact",
+    "review_claims",
     "span_in",
 ]

@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from app.extraction.llm import StructuredLlm, run_structured
 from app.extraction.prompts import CRITERIA, PROMPT_VERSION
-from app.extraction.spans import span_in
+from app.extraction.spans import neutralize_tags, span_in
 
 Dimension = Literal[
     "geography",
@@ -164,7 +164,10 @@ async def extract_criteria(llm: StructuredLlm, thesis: str) -> CriteriaExtractio
     if not thesis:
         raise ValueError("thesis is empty")
     draft, record = await run_structured(
-        llm, CRITERIA.system, f"Investment thesis:\n<thesis>\n{thesis}\n</thesis>", CriteriaDraft
+        llm,
+        CRITERIA.system,
+        f"Investment thesis:\n<thesis>\n{neutralize_tags(thesis)}\n</thesis>",
+        CriteriaDraft,
     )
     criteria, dropped = finalize_criteria(draft.criteria, thesis)
     query = draft.activity_query.strip() or thesis

@@ -184,13 +184,16 @@ def infer_kind(name: str, value: Any = None) -> ValueKind:
 
 
 def _value_currency(value: Any, component: str | None) -> str | None:
+    """The currency a value is in: the component's own unit ("amount_usd")
+    first, then a currency written in the value."""
+    if component and "_" in component:
+        code = currency_code(component.rsplit("_", 1)[-1])
+        if code:
+            return code
     if isinstance(value, str):
         q = to_quantity(value)
         if q is not None and q.currency:
             return q.currency
-    if component:
-        tail = component.rsplit("_", 1)[-1]
-        return currency_code(tail) if tail != component else None
     return None
 
 

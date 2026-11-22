@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from app.extraction.criteria import Criterion, CriterionDraft, DroppedItem, finalize_criteria
 from app.extraction.llm import StructuredLlm, run_structured
 from app.extraction.prompts import INVESTOR_SPEC, PROMPT_VERSION
-from app.extraction.spans import normalize, span_in
+from app.extraction.spans import neutralize_tags, normalize, span_in
 
 Instrument = Literal["equity", "debt", "convertible", "grant", "unspecified"]
 
@@ -114,7 +114,7 @@ async def extract_investor_spec(llm: StructuredLlm, profile: BusinessProfile) ->
     draft, record = await run_structured(
         llm,
         INVESTOR_SPEC.system,
-        f"Business description:\n<business>\n{text}\n</business>",
+        f"Business description:\n<business>\n{neutralize_tags(text)}\n</business>",
         InvestorSpecDraft,
     )
     criteria, dropped = finalize_criteria(draft.comparable_criteria, text)
