@@ -12,6 +12,14 @@ import { hasSource, SourceLine, Unsourced } from "./source-line";
 import { StatusMark } from "./status-mark";
 
 /**
+ * On the Assessment tab the rail and the diff are drawn as one joined view,
+ * `ChangeTimeline` in components/explainers, which puts the cause between two versions
+ * and hangs the consequences under the claim that moved. `VersionRail` and `VersionDiff`
+ * stay for places that need one without the other; the timeline reuses the parts
+ * exported below so a change is drawn the same way everywhere.
+ */
+
+/**
  * The version rail: dated nodes, oldest first. The current version is a filled node and
  * says "current" in words. Pass `onOpen` to let a reader open an earlier version read-only.
  */
@@ -132,7 +140,62 @@ function BeforeAfter({
   );
 }
 
-function Because({ change }: { change: AssessmentChange }) {
+/** What a change is about: the claim, the disposition, or the name of a derived figure. */
+export function ChangeHeading({ change }: { change: AssessmentChange }) {
+  if (change.kind === "claim_status") {
+    return (
+      <>
+        <span className="font-mono text-xs text-ink-muted">Claim {change.claim_number}</span>
+        <span className="text-ink">“{change.claim_text}”</span>
+      </>
+    );
+  }
+  return (
+    <span className="text-ink">
+      {change.kind === "disposition" ? "Screening disposition" : change.label}
+    </span>
+  );
+}
+
+/**
+ * Old → new, both drawn in full: the old value keeps its real mark with the label struck
+ * through. An upgrade and a downgrade are drawn the same way.
+ */
+export function ChangeValues({ change }: { change: AssessmentChange }) {
+  if (change.kind === "claim_status") {
+    return (
+      <BeforeAfter
+        srBefore={CLAIM_STATUS_LABEL[change.before]}
+        srAfter={CLAIM_STATUS_LABEL[change.after]}
+        before={<StatusMark status={change.before} struck />}
+        after={<StatusMark status={change.after} />}
+      />
+    );
+  }
+  if (change.kind === "disposition") {
+    return (
+      <BeforeAfter
+        srBefore={DISPOSITION_LABEL[change.before]}
+        srAfter={DISPOSITION_LABEL[change.after]}
+        before={<DispositionStamp disposition={change.before} struck />}
+        after={<DispositionStamp disposition={change.after} />}
+      />
+    );
+  }
+  return (
+    <BeforeAfter
+      srBefore={change.before}
+      srAfter={change.after}
+      before={
+        <span className="px-1 font-mono text-xs text-ink-secondary line-through">{change.before}</span>
+      }
+      after={<span className="px-1 font-mono text-xs font-medium text-ink">{change.after}</span>}
+    />
+  );
+}
+
+/** Why a change happened, with its source. A status or disposition with no cause is a bug. */
+export function ChangeBecause({ change }: { change: AssessmentChange }) {
   const reason = change.reason;
   const evidence = change.evidence ?? [];
   if (!reason) {
@@ -155,6 +218,14 @@ function Because({ change }: { change: AssessmentChange }) {
   );
 }
 
+/**
+ * A claim status is a fact about the record, so a changed one needs its evidence.
+ * Dispositions and derived figures move because a claim did, and may carry none.
+ */
+export function isUnsourcedChange(change: AssessmentChange): boolean {
+  return change.kind === "claim_status" && !hasSource(change.evidence);
+}
+
 const PRODUCTION = process.env.NODE_ENV === "production";
 
 function ChangeRow({ change, highlight }: { change: AssessmentChange; highlight: boolean }) {
@@ -162,57 +233,13 @@ function ChangeRow({ change, highlight }: { change: AssessmentChange; highlight:
   // that is checked before anything is drawn: an unsourced change shows neither status.
   // In production the row is left out and logged; in development it is the error alone.
   // Dispositions and derived figures move because a claim did, and may carry none.
-  if (change.kind === "claim_status" && !hasSource(change.evidence)) {
+  if (isUnsourcedChange(change) && change.kind === "claim_status") {
     const what = `Claim ${change.claim_number} status change`;
     if (PRODUCTION) return <Unsourced what={what} />;
     return (
       <li className="flex flex-col items-start gap-2 px-4 py-3 text-dense">
         <Unsourced what={what} />
       </li>
-    );
-  }
-
-  let heading: React.ReactNode;
-  let body: React.ReactNode;
-
-  if (change.kind === "claim_status") {
-    heading = (
-      <>
-        <span className="font-mono text-xs text-ink-muted">Claim {change.claim_number}</span>
-        <span className="text-ink">“{change.claim_text}”</span>
-      </>
-    );
-    body = (
-      <BeforeAfter
-        srBefore={CLAIM_STATUS_LABEL[change.before]}
-        srAfter={CLAIM_STATUS_LABEL[change.after]}
-        before={<StatusMark status={change.before} struck />}
-        after={<StatusMark status={change.after} />}
-      />
-    );
-  } else if (change.kind === "disposition") {
-    heading = <span className="text-ink">Screening disposition</span>;
-    body = (
-      <BeforeAfter
-        srBefore={DISPOSITION_LABEL[change.before]}
-        srAfter={DISPOSITION_LABEL[change.after]}
-        before={<DispositionStamp disposition={change.before} struck />}
-        after={<DispositionStamp disposition={change.after} />}
-      />
-    );
-  } else {
-    heading = <span className="text-ink">{change.label}</span>;
-    body = (
-      <BeforeAfter
-        srBefore={change.before}
-        srAfter={change.after}
-        before={
-          <span className="px-1 font-mono text-xs text-ink-secondary line-through">
-            {change.before}
-          </span>
-        }
-        after={<span className="px-1 font-mono text-xs font-medium text-ink">{change.after}</span>}
-      />
     );
   }
 
@@ -224,15 +251,15 @@ function ChangeRow({ change, highlight }: { change: AssessmentChange; highlight:
       )}
     >
       <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        {heading}
+        <ChangeHeading change={change} />
         {highlight ? (
           <Badge variant="accent" className="hidden font-mono text-2xs motion-reduce:inline-flex">
             Changed
           </Badge>
         ) : null}
       </p>
-      {body}
-      <Because change={change} />
+      <ChangeValues change={change} />
+      <ChangeBecause change={change} />
     </li>
   );
 }

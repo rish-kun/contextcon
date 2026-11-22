@@ -1,6 +1,8 @@
-import { formatCredits, formatShare, formatShortDateTime, formatUsd, plural } from "@/lib/format";
+import { formatCredits, formatShortDateTime, formatUsd } from "@/lib/format";
 import type { CaseCost } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { CostMeter } from "@/components/explainers/cost-meter";
+import { meterFromCaseCost } from "@/components/explainers/derive";
 import {
   Table,
   TableBody,
@@ -16,7 +18,12 @@ import {
  * never added together. Reaching the budget is a stated limit, not an error, so nothing
  * turns red.
  *
- * variant="compact" is "86 cr · $0.42" for the case header and dashboard rows.
+ * The credit figure and its bar are the cost meter (components/explainers/cost-meter):
+ * one bar segmented by step, with the checks the budget left undone hatched past its
+ * end. This component adds the heading and the table by run and step, which is the
+ * bar's table view.
+ *
+ * variant="compact" is "86 cr · $0.42" with a 48px bar, for the case header and dashboard rows.
  */
 export function CostReadout({
   cost,
@@ -33,71 +40,17 @@ export function CostReadout({
   notCheckedHref?: string;
   className?: string;
 }) {
-  if (variant === "compact") {
-    return (
-      <span
-        className={cn("font-mono text-xs whitespace-nowrap text-ink-secondary", className)}
-        aria-label={`${formatCredits(cost.credits_used)} Crustdata credits and ${formatUsd(
-          cost.model_usd,
-        )} model usage`}
-      >
-        {formatCredits(cost.credits_used)} cr · {formatUsd(cost.model_usd)}
-      </span>
-    );
-  }
+  const meter = meterFromCaseCost(cost);
 
-  const share = cost.credit_budget > 0 ? Math.min(1, cost.credits_used / cost.credit_budget) : 0;
-  const reached = cost.credit_budget > 0 && cost.credits_used >= cost.credit_budget;
-  const notRun = cost.checks_not_run ?? 0;
+  if (variant === "compact") {
+    return <CostMeter model={meter} variant="compact" className={className} />;
+  }
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       <div className="flex flex-col gap-2">
         <h3 className="text-sm font-medium text-ink">{title}</h3>
-        <p className="font-mono text-xl font-medium text-ink">
-          {formatCredits(cost.credits_used)} of {formatCredits(cost.credit_budget)} credits
-          <span className="text-ink-muted"> · </span>
-          {formatUsd(cost.model_usd)} model usage
-        </p>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <div
-            role="meter"
-            aria-label="Crustdata credits used against the budget"
-            aria-valuemin={0}
-            aria-valuemax={cost.credit_budget}
-            aria-valuenow={cost.credits_used}
-            aria-valuetext={`${formatCredits(cost.credits_used)} of ${formatCredits(
-              cost.credit_budget,
-            )} credits`}
-            className="h-2 w-full max-w-md overflow-hidden rounded-xs border border-line-strong bg-surface-sunken"
-          >
-            <div className="h-full bg-ink" style={{ width: `${share * 100}%` }} />
-          </div>
-          <p className="text-xs text-ink-secondary">
-            {reached ? (
-              <>
-                Budget reached
-                {notRun > 0 ? (
-                  <>
-                    {" · "}
-                    {notCheckedHref ? (
-                      <a
-                        href={notCheckedHref}
-                        className="rounded-xs text-accent underline underline-offset-2 transition-colors hover:text-accent-hover"
-                      >
-                        {plural(notRun, "check")} not run
-                      </a>
-                    ) : (
-                      `${plural(notRun, "check")} not run`
-                    )}
-                  </>
-                ) : null}
-              </>
-            ) : (
-              `${formatShare(share)} of the credit budget`
-            )}
-          </p>
-        </div>
+        <CostMeter model={meter} notCheckedHref={notCheckedHref} />
       </div>
 
       <Table>
