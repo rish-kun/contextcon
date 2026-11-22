@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { SearchView } from "@/components/investors";
 import { parseFixtureState } from "@/components/investors/fixture-states";
 
-export const metadata: Metadata = { title: "Investor shortlist · DealProof" };
+export const metadata: Metadata = { title: "Investor shortlist" };
 
 export default async function InvestorSearchPage({
   params,

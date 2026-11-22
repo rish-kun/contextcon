@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { SearchesList } from "@/components/investors";
 
-export const metadata: Metadata = { title: "Investors · DealProof" };
+export const metadata: Metadata = { title: "Investors" };
 
 export default function InvestorsPage() {
   return (

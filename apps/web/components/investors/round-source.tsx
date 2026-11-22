@@ -1,42 +1,41 @@
 "use client";
 
-import { Banknote, ExternalLink, FileText, type LucideIcon } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import type { SourceRef } from "@/lib/api/client";
 import { formatAsOf, formatDateTime } from "@/lib/format";
+import { RELIABILITY_LABEL, RELIABILITY_NOTE } from "@/lib/labels";
+import type { ReliabilityClass } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { SourceClassGlyph } from "@/components/dealproof";
 import { Icon } from "@/components/ui/icon";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 type SourceClass = SourceRef["source_class"];
 
-/** Source classes an investor record can carry, in words. Others fall back to their name. */
-const CLASS_LABEL: Partial<Record<SourceClass, string>> = {
-  funding_database: "Funding database",
-  company_announcement: "Company announcement",
-  news: "News report",
-  data_provider_profile: "Data provider profile",
-};
-
-const CLASS_NOTE: Partial<Record<SourceClass, string>> = {
-  funding_database:
-    "Shows that a round was recorded with this date and these named investors. It is not a filing, and amounts are often missing",
-  company_announcement: "Shows that the company announced something, not that it happened",
-  news: "Shows that something was reported. Accuracy depends on the outlet's own sources",
-};
-
-const CLASS_ICON: Partial<Record<SourceClass, LucideIcon>> = {
-  funding_database: Banknote,
-};
-
-function classLabel(sourceClass: SourceClass): string {
-  const words = sourceClass.replace(/_/g, " ");
-  return CLASS_LABEL[sourceClass] ?? words.charAt(0).toUpperCase() + words.slice(1);
+/** A registry mirror is named as one. Every other class uses the product's shared wording. */
+function describe(sourceClass: SourceClass): {
+  reliability: ReliabilityClass;
+  label: string;
+  note: string;
+} {
+  if (sourceClass === "registry_mirror") {
+    return {
+      reliability: "registry",
+      label: "Registry mirror",
+      note: "A secondary copy of official filings. It shows what the mirror held on the stated date, not the filing itself",
+    };
+  }
+  return {
+    reliability: sourceClass,
+    label: RELIABILITY_LABEL[sourceClass],
+    note: RELIABILITY_NOTE[sourceClass],
+  };
 }
 
 /**
  * The source chip for one funding round: where the record came from and the date of the
- * round, written "as of". It opens the record behind it. Same shape as the shared source
- * chip, drawn from the API's own source reference.
+ * round, written "as of". It opens the record behind it. Same shape and wording as the
+ * shared source chip, drawn from the API's own source reference.
  */
 export function RoundSource({
   source,
@@ -55,9 +54,8 @@ export function RoundSource({
   className?: string;
 }) {
   const asOfText = formatAsOf(asOf);
-  const glyph = CLASS_ICON[source.source_class] ?? FileText;
+  const { reliability, label, note } = describe(source.source_class);
   const isUrl = /^https?:\/\//.test(source.url_or_endpoint);
-  const note = CLASS_NOTE[source.source_class];
 
   return (
     <Popover>
@@ -70,7 +68,7 @@ export function RoundSource({
             className,
           )}
         >
-          <Icon icon={glyph} size={14} className="shrink-0 text-ink-muted" />
+          <SourceClassGlyph reliability={reliability} className="shrink-0 text-ink-muted" />
           <span className="truncate">{source.label}</span>
           <span aria-hidden className="text-ink-muted">
             ·
@@ -89,10 +87,10 @@ export function RoundSource({
         <div className="flex flex-col gap-3 text-dense">
           <div className="flex flex-col gap-1">
             <p className="flex items-center gap-2 text-sm font-medium text-ink">
-              <Icon icon={glyph} className="text-ink-muted" />
-              {classLabel(source.source_class)}
+              <SourceClassGlyph reliability={reliability} size={16} className="text-ink-muted" />
+              {label}
             </p>
-            {note ? <p className="text-xs text-ink-secondary">{note}</p> : null}
+            <p className="text-xs text-ink-secondary">{note}</p>
           </div>
 
           <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">

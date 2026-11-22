@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Principles, ProfileForm } from "@/components/investors";
 
-export const metadata: Metadata = { title: "Find investors · DealProof" };
+export const metadata: Metadata = { title: "Find investors" };
 
 const FIELDS = ["sector", "location", "stage", "size", "funding_sought"] as const;
 
