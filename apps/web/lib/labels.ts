@@ -37,12 +37,14 @@ export const NOT_CHECKED_REASON_LABEL: Record<NotCheckedReason, string> = {
   budget_reached: "budget reached",
   source_unavailable: "source unavailable",
   step_failed: "step failed",
+  identity_unresolved: "identity unresolved",
 };
 
 export const NOT_CHECKED_REASON_DETAIL: Record<NotCheckedReason, string> = {
   budget_reached: "No search was run for this claim",
   source_unavailable: "The source did not respond, so nothing was read",
   step_failed: "The step stopped with an error before it reached this claim",
+  identity_unresolved: "Checks wait until the legal entity is confirmed",
 };
 
 export const DISPOSITION_LABEL: Record<Disposition, string> = {
@@ -76,6 +78,7 @@ export const RELIABILITY_LABEL: Record<ReliabilityClass, string> = {
   news: "News report",
   seller_document: "Seller document",
   seller_statement: "Seller statement",
+  data_provider: "Data provider record",
 };
 
 /** What each class is strong and weak on, shown in the evidence popover. */
@@ -95,6 +98,8 @@ export const RELIABILITY_NOTE: Record<ReliabilityClass, string> = {
     "The seller's own document. Evidence of what the seller states, not independent proof",
   seller_statement:
     "What the seller said. It is the claim under review, not evidence for it",
+  data_provider:
+    "A compiled record from a data provider. Dated, but second-hand: not the registry or the filing itself",
 };
 
 export const VERDICT_LABEL: Record<CriterionVerdict, string> = {

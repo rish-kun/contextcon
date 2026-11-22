@@ -140,6 +140,8 @@ export interface ClaimLedgerRowProps {
   changedHref?: string;
   /** Offers "Run check" on a Not checked row. Running it costs credits, and the button says so. */
   onRunCheck?: (claim: Claim) => void;
+  /** Shown under the record when the row is expanded: evidence spans, dates, history. */
+  detail?: React.ReactNode;
   className?: string;
 }
 
@@ -156,6 +158,7 @@ export function ClaimLedgerRow({
   defaultExpanded = false,
   changedHref,
   onRunCheck,
+  detail,
   className,
 }: ClaimLedgerRowProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -242,13 +245,16 @@ export function ClaimLedgerRow({
         )}
       >
         {pending ? (
-          <span className="inline-flex items-center gap-1 lg:flex-col">
+          <span className="inline-flex animate-fade-in items-center gap-1 motion-reduce:animate-none lg:flex-col">
             <PendingGlyph />
             <span className="text-xs">Checking</span>
           </span>
         ) : (
           <>
-            <span className="hidden lg:contents">
+            <span
+              key={claim.status}
+              className="hidden animate-settle flex-col items-center gap-1 motion-reduce:animate-none lg:flex"
+            >
               <StatusGlyph status={claim.status} />
               <span className="text-xs leading-4 font-medium">
                 {SPINE_LABEL[claim.status].map((word) => (
@@ -274,6 +280,11 @@ export function ClaimLedgerRow({
           ) : (
             <RecordSide claim={claim} expanded={expanded || notChecked} onRunCheck={onRunCheck} />
           )}
+          {expanded && !pending && detail ? (
+            <div className="mt-3 animate-fade-in border-t border-line pt-3 motion-reduce:animate-none">
+              {detail}
+            </div>
+          ) : null}
         </div>
         <Icon
           icon={ChevronDown}

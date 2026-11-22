@@ -23,6 +23,7 @@ export const RELIABILITY_CLASSES = [
   "news",
   "seller_document",
   "seller_statement",
+  "data_provider",
 ] as const;
 export type ReliabilityClass = (typeof RELIABILITY_CLASSES)[number];
 
@@ -80,6 +81,7 @@ export const NOT_CHECKED_REASONS = [
   "budget_reached",
   "source_unavailable",
   "step_failed",
+  "identity_unresolved",
 ] as const;
 export type NotCheckedReason = (typeof NOT_CHECKED_REASONS)[number];
 

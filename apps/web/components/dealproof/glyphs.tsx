@@ -1,4 +1,5 @@
 import {
+  Database,
   FileCheck,
   FileText,
   Handshake,
@@ -146,6 +147,7 @@ const SOURCE_CLASS_ICON: Record<ReliabilityClass, LucideIcon> = {
   news: Newspaper,
   seller_document: FileText,
   seller_statement: Quote,
+  data_provider: Database,
 };
 
 export function SourceClassGlyph({

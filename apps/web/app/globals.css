@@ -193,6 +193,15 @@
   }
   --animate-cell-in: fade-in var(--duration-slow) var(--ease-standard) backwards;
 
+  /* A status settling on the ledger spine when its rule fires during a run */
+  --animate-settle: settle var(--duration-base) var(--ease-standard);
+  @keyframes settle {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+  }
+
   /* One-time highlight on a changed value in the assessment diff */
   --animate-changed: changed-highlight var(--duration-highlight)
     var(--ease-standard);
