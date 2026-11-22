@@ -7,7 +7,9 @@ every approval records a real, named user. Tests may still replace them with
 
 `get_act_service` stores messages in Postgres (`PostgresActRepository`) whenever
 `DATABASE_URL` is set; the in-memory repository is only a local-development fallback
-and is never durable.
+and is never durable. In fixture mode (`DEALPROOF_FIXTURES=1`) Act always uses its own
+in-memory repository with sending off and no email provider, so fixture traffic never
+reaches real persistence or Resend, even when `DATABASE_URL` is set.
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ from app.act.pg_repository import PostgresActRepository
 from app.act.repository import ActRepository, InMemoryActRepository
 from app.act.resend import ResendClient
 from app.act.service import ActService, SendConfig
+from app.api._base import fixtures_enabled
 from app.auth.deps import CurrentUser, check_case_access
 from app.db.session import database_configured, get_sessionmaker
 from app.settings import get_settings
@@ -39,6 +42,8 @@ async def authorize_case(case_id: str, user: CurrentUser) -> str:
 
 
 def default_act_repository() -> ActRepository:
+    if fixtures_enabled():
+        return InMemoryActRepository()
     if database_configured():
         return PostgresActRepository(get_sessionmaker())
     if get_settings().email_send_enabled:
@@ -48,10 +53,20 @@ def default_act_repository() -> ActRepository:
     return InMemoryActRepository()
 
 
-@lru_cache
 def get_act_service() -> ActService:
     """Default service: Postgres storage and Resend from settings. Sending stays off
-    unless `EMAIL_SEND_ENABLED=true`."""
+    unless `EMAIL_SEND_ENABLED=true`. Fixture mode gets an isolated in-memory service."""
+    return fixture_act_service() if fixtures_enabled() else live_act_service()
+
+
+@lru_cache
+def fixture_act_service() -> ActService:
+    """Fixture mode: in-memory messages, no provider, sending off."""
+    return ActService(InMemoryActRepository(), SendConfig(enabled=False, sender=""), None)
+
+
+@lru_cache
+def live_act_service() -> ActService:
     settings = get_settings()
     api_key = settings.resend_api_key.get_secret_value()
     provider = ResendClient(api_key) if api_key else None
