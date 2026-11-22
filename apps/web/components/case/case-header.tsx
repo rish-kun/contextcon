@@ -226,7 +226,7 @@ export function CaseHeader({ detail }: { detail: CaseDetail }) {
           <>
             <StatusCounts counts={counts} />
             <p className="font-mono text-xs text-ink-secondary">
-              {settled} of {plural(detail.claims.length, "check")} settled
+              {settled} of {plural(detail.claims.length, "claim")} settled
               {counts.not_checked > 0 ? ` · ${counts.not_checked} not checked` : null}
             </p>
           </>

@@ -6,5 +6,6 @@ export default async function ClaimsPage({
   searchParams: Promise<{ status?: string }>;
 }) {
   const { status } = await searchParams;
-  return <ClaimsTab initialStatus={status} />;
+  // Keyed by the filter, so a link to another status re-seeds the tab.
+  return <ClaimsTab key={status ?? "all"} initialStatus={status} />;
 }

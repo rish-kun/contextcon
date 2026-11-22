@@ -54,7 +54,7 @@ export interface AnyFact {
 
 const RELIABILITY: Record<SourceClass, ReliabilityClass> = {
   registry: "registry",
-  registry_mirror: "registry",
+  registry_mirror: "registry_mirror",
   audited_statement: "audited_statement",
   counterparty_confirmation: "counterparty_confirmation",
   company_announcement: "company_announcement",
@@ -273,10 +273,14 @@ export function toAssessment(version: AssessmentVersionOut, claims: ClaimOut[]):
     sufficiency: {
       settled: j.evidence_sufficiency.settled.length,
       required: j.evidence_sufficiency.required_categories.length,
-      counts: statusCounts(claims),
-      gaps: j.evidence_sufficiency.gaps.map(
-        (gap) => gap.settle_with ?? CATEGORY_LABEL[gap.category].toLowerCase(),
+      // The required checks as this version recorded them, not the claims' current
+      // statuses, so an older version keeps the numbers it was assessed on.
+      counts: statusCounts(
+        [...j.evidence_sufficiency.settled, ...j.evidence_sufficiency.gaps].flatMap((item) =>
+          item.status ? [{ status: item.status }] : [],
+        ),
       ),
+      gaps: j.evidence_sufficiency.gaps.map((gap) => CATEGORY_LABEL[gap.category].toLowerCase()),
     },
     business: j.business_assessment.signals.map((signal, index) => ({
       id: `${signal.label}-${index}`,

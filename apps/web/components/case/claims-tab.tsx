@@ -2,6 +2,7 @@
 
 import { FileText, Plus, RotateCw } from "lucide-react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   ApiError,
@@ -395,6 +396,8 @@ export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
     return new Set(first ? [first] : []);
   });
   const [category, setCategory] = useState(ALL_CATEGORIES);
+  const router = useRouter();
+  const pathname = usePathname();
 
   const identityOpen = detail.identity.state !== "confirmed";
   const categories = [...new Set(detail.claims.map((claim) => claim.category))];
@@ -411,6 +414,13 @@ export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
   const filtered = statuses.size > 0 || category !== ALL_CATEGORIES;
   const settled = detail.claims.length - counts.not_checked;
 
+  function clearFilters() {
+    setStatuses(new Set());
+    setCategory(ALL_CATEGORIES);
+    // A filter that came in on the address leaves it too, so a reload shows the full ledger.
+    if (initialStatus) router.replace(pathname, { scroll: false });
+  }
+
   function toggle(status: ClaimStatus) {
     setStatuses((current) => {
       const next = new Set(current);
@@ -426,7 +436,7 @@ export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
         title="Claims"
         summary={
           detail.claims.length > 0
-            ? `${settled} of ${plural(detail.claims.length, "check")} settled${
+            ? `${settled} of ${plural(detail.claims.length, "claim")} settled${
                 counts.not_checked > 0 ? ` · ${counts.not_checked} not checked` : ""
               }`
             : "Nothing has been claimed yet"
@@ -486,22 +496,35 @@ export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
                 </SelectContent>
               </Select>
               {filtered ? (
-                <Button
-                  variant="quiet"
-                  size="sm"
-                  onClick={() => {
-                    setStatuses(new Set());
-                    setCategory(ALL_CATEGORIES);
-                  }}
-                >
+                <Button variant="quiet" size="sm" onClick={clearFilters}>
                   Reset filters
                 </Button>
               ) : null}
             </div>
           </div>
-          {statuses.size > 0 && counts.not_checked > 0 && !statuses.has("not_checked") ? (
-            <p className="text-xs text-ink-secondary">
-              Not checked rows stay in view under any status filter
+          {statuses.size > 0 ? (
+            <p
+              role="status"
+              className="flex flex-wrap items-center gap-x-2 gap-y-1 self-start rounded-md border border-accent-line bg-accent-tint px-3 py-1 text-dense text-ink"
+            >
+              <span>
+                <span className="text-ink-secondary">Filtered: </span>
+                {CLAIM_STATUSES.filter((status) => statuses.has(status))
+                  .map((status) => CLAIM_STATUS_LABEL[status])
+                  .join(", ")}
+              </span>
+              {counts.not_checked > 0 && !statuses.has("not_checked") ? (
+                <span className="text-xs text-ink-secondary">
+                  · Not checked rows stay in view
+                </span>
+              ) : null}
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="rounded-xs text-accent underline underline-offset-2 transition-colors hover:text-accent-hover"
+              >
+                Clear
+              </button>
             </p>
           ) : null}
 

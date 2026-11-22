@@ -22,6 +22,7 @@ import {
   StatusDistribution,
   StatusMark,
   VersionDiff,
+  sufficiencyText,
 } from "@/components/dealproof";
 import {
   type AnyFact,
@@ -32,6 +33,7 @@ import {
   factEvidence,
   sourceEvidence,
   statusCounts,
+  toAssessment,
   toDiff,
   toEvidence,
   toFit,
@@ -263,7 +265,7 @@ function Summary({ detail }: { detail: CaseDetail }) {
         ),
     ),
   ];
-  const sufficiency = assessment?.judgments.evidence_sufficiency;
+  const sufficiency = assessment ? toAssessment(assessment, detail.claims).sufficiency : null;
   const scored = detail.opportunity.criterion_results.length > 0;
 
   return (
@@ -313,18 +315,20 @@ function Summary({ detail }: { detail: CaseDetail }) {
         </div>
         <div className="flex flex-col gap-2">
           <p className="text-xs text-ink-muted">Evidence sufficiency</p>
-          <p className="font-mono text-sm font-medium text-ink">
-            {settled} of {plural(detail.claims.length, "check")} settled
+          {sufficiency ? (
+            <>
+              <p className="font-mono text-sm font-medium text-ink">
+                {sufficiencyText(sufficiency)}
+              </p>
+              <StatusDistribution counts={sufficiency.counts} />
+            </>
+          ) : (
+            <p className="font-mono text-sm font-medium text-ink">Not assessed yet</p>
+          )}
+          <p className="text-xs text-ink-secondary">
+            Across the whole ledger: {settled} of {plural(detail.claims.length, "claim")} settled
             {counts.not_checked > 0 ? ` · ${counts.not_checked} not checked` : null}
           </p>
-          {detail.claims.length > 0 ? <StatusDistribution counts={counts} /> : null}
-          {sufficiency ? (
-            <p className="text-xs text-ink-secondary">
-              {sufficiency.settled.length} of{" "}
-              {plural(sufficiency.required_categories.length, "required category", "required categories")}{" "}
-              settled
-            </p>
-          ) : null}
         </div>
       </div>
 
