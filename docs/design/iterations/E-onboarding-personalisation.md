@@ -211,7 +211,7 @@ is wrong or out of date
   Stage             [ Series A        ▾ ]   Latest round on record: Series A, 3 Jun 2025
                                                                   [▤ Funding record · as of 3 Jun 2025]
   What you do       [ Runs warehousing and transport for enterprise customers in western India ]
-  one line, 160 max                                               [✎ Company description · as of Nov 2026]
+  one line, 160 max                                               [▤ Crustdata record · as of Nov 2026]
 
   Revenue           [ Prefer not to say ▾ ]   Optional            Not in the record. DealProof holds
                                                                   no revenue figures
@@ -225,7 +225,7 @@ is wrong or out of date
 - **Editing a value replaces its chip.** The moment the user changes a sourced value, the chip becomes `Stated by you · 22 Nov 2026` in muted ink, and a `Restore` link appears that puts back the record's value and chip. The original is never shown as the user's and the user's value is never shown as the record's.
 - Team size shows the estimate with its `Estimate` tag and basis line, exactly as elsewhere in the product, and maps it to a band in the control. The user may pick a different band; that band is then "Stated by you" and the estimate stays visible beside it.
 - "Funding to date" is read-only here (it is a list of dated rounds; correcting a round is not this form's job). `Stage` is the editable field derived from the latest dated round and says which round it came from.
-- "What you do" is the first sentence of the company description on record, cut at 160 characters at a word boundary. It is not rewritten by a model. Its chip uses the company-announcement class, because a company's description of itself shows what it says, not what is so.
+- "What you do" is the first sentence of the company description on record, cut at 160 characters at a word boundary. It is not rewritten by a model. The evidence popover says what it is: the company's own description as held by the data provider, which shows what the company says of itself.
 - Revenue is never pre-filled. The right-hand note says why. Bands: Prefer not to say · Pre-revenue · Under $1M · $1–5M · $5–25M · $25–100M · Over $100M ([§6](#6-open-decisions) on currency).
 - A field the record lacks is an empty control with `Not in the record` in muted ink where the chip would be. It is not hidden and not guessed.
 - The summary line counts honestly: `6 values from the record · 2 changed by you · 1 added by you`.
@@ -655,7 +655,7 @@ Server events (written by the API in the same transaction as the thing they desc
 | `signup.completed` | Account created | `mode` (`open`, `invite_code`) |
 | `signup.rejected` | Signup refused | `reason` (`rate_limited`, `duplicate`, `honeypot`, `closed`, `invalid`); no workspace |
 | `autofill.lookup` | Lookup returned | `match` as above, `credits` (number), `from_cache` |
-| `run.started` | Any run created | `kind` (`discover`, `investors`, `verify`, `evaluate`, `recheck`), `from_profile` (bool), `nth` (1 for the workspace's first run of that kind) |
+| `run.started` | Any run created | `kind` (the `RunKind` values: `discover`, `investor_discover`, `verify`, `evaluate`, `recheck`), `from_profile` (bool), `nth` (1 for the workspace's first run of that kind) |
 | `run.finished` | Run reaches a final state | `kind`, `state`, `duration_s`, `credits`, `stopped_on_budget` (bool) |
 | `shortlist.ready` | First shortlist of a thesis or investor search | `kind`, `items` (count) |
 | `case.assessed` | A case first reaches `assessed` | `disposition`, `claims` (count), `claims_settled` (count) |
@@ -717,8 +717,8 @@ Product analytics                                Last 30 days ▾     All types 
 │ Headquarters   96%     4%      0%     25   │
 │ Team size      56%    44%      0%     25   │
 │ Stage          80%    13%      7%     15   │
-│ Thesis draft   kept 5 · edited 9 · cleared 1                                            
-│ Criteria split kept 8 · edited 6                                                        
+│ Thesis draft kept 5 · edited 9 · cleared 1 │
+│ Criteria split kept 8 · edited 6           │
 └────────────────────────────────────────────┘
 ```
 
@@ -858,7 +858,7 @@ Protection, layer by layer
 2. **Rate limits.** A second limiter instance built from the same `LoginRateLimiter` class (it is a keyed sliding-window counter; only the keys differ): keys `("signup_ip", ip)` hourly and daily, `("signup_attempt_ip", ip)` and `("signup_global",)`. Client IP comes from `client_ip_info`, and the per-IP keys count only when `ip_trusted` is true, exactly as login does. The same caveat applies: counts are per process, so limits multiply by instance count. Accepted for the demo; the global daily cap is additionally enforced by a `COUNT(*)` over `users.created_at` so it holds across instances.
 3. **Argon2 cost.** Hashing the new password takes a slot from the existing `VerificationSlots`, so signups and sign-ins share one cap on concurrent Argon2 work and a flood of signups cannot starve sign-in beyond the 5-second wait and a 503.
 4. **Honeypot.** A filled `company_url` returns the generic failure with no detail and is counted as an attempt.
-5. **Spend is the real exposure.** A new account can start runs that cost Crustdata credits and model calls. `workspace_starting_credits` is a hard ceiling per self-serve workspace, checked in the recorder before each metered dispatch alongside the existing per-run budget (one more row to lock: the workspace's). When it is reached, runs stop with the existing budget-limit wording, and Settings shows `{used} of {allowance} credits used · ask us to raise it`. CLI-created workspaces have no ceiling unless one is set. Without this, open signup is an open tap on the Crustdata account.
+5. **Spend is the real exposure.** A new account can start runs that cost Crustdata credits and model calls. `workspace_starting_credits` is a hard ceiling per self-serve workspace, checked in the recorder before each metered dispatch alongside the existing per-run budget (one more row to lock: the workspace's). It is stored as `workspaces.credit_allowance numeric null`, set from the setting at signup; null means no ceiling. When it is reached, runs stop with the existing budget-limit wording, and Settings shows `{used} of {allowance} credits used · ask us to raise it`. CLI-created workspaces have no ceiling unless one is set. Without this, open signup is an open tap on the Crustdata account.
 6. **Duplicate emails.** 409 tells the caller the email is registered. A silent success would need a verification email to be honest, and the demo sends none. The disclosure is bounded by the attempt limit (20 per IP per hour) and reveals only that someone has an account. With email verification on, the response becomes a uniform "check your inbox" for both cases.
 7. **No password oracle.** Signup with an existing email never checks or changes that account's password and never signs anyone in.
 8. **Input limits.** The same lengths as the schema; the organisation name is stored as text and escaped on render; the website is parsed to a registrable domain and never fetched by our server (only passed to Crustdata as an identifier).
@@ -914,7 +914,7 @@ Validation is by field key: enums are checked against their lists, text lengths 
    - more than one → `multiple`, return up to five candidates (id, name, HQ, headcount estimate, domain) and stop;
    - none → `none`.
 4. For `single` (or after `/autofill/choose`): `enrich_company(id)` with a reduced field list (basic info, taxonomy, headcount, funding, locations; 2 credits).
-5. Write a `sources` row (`provider = "crustdata"`, `endpoint_or_url = "company_enrich"`, `source_class` = the class the case profile uses for the same record, `case_id = null`, `request` = the identifier used), store the trimmed `record_snapshot`, and return **suggestions**:
+5. Write a `sources` row (`provider = "crustdata"`, `endpoint_or_url = "company_enrich"`, `source_class = data_provider`, as the case profile uses for the same record; the headcount suggestion's `SourceRef` carries `professional_profile_signal`, `case_id = null`, `request` = the identifier used), store the trimmed `record_snapshot`, and return **suggestions**:
 
 ```jsonc
 { "match": "single",
@@ -1111,7 +1111,7 @@ Owner: frontend agent 2. Starts when 1a and chunk 2's `lib/profile.tsx` and `sou
 | 1 | `components/ui/profile-note.tsx` (new) | `From your profile · Edit` |
 | 2 | `components/investors/profile-form.tsx`, `search-view.tsx` | Form pre-fill, section label, `use_own_company` toggle, scope note |
 | 3 | `components/discover/thesis-form.tsx`, `new-thesis.tsx`, `criteria-editor.tsx` | Thesis draft, variation chips, `From your profile` on criteria rows |
-| 4 | `components/dashboard/dashboard.tsx` (Overview), `components/app-shell/sidebar-nav.tsx`, `nav.ts`, `command-menu.tsx`, `top-bar.tsx` | Context line, first actions, setup prompt panel, `New` menu order, workspace name |
+| 4 | `components/dashboard/overview.tsx`, `components/app-shell/sidebar-nav.tsx`, `nav.ts`, `command-menu.tsx`, `top-bar.tsx` | Context line, first actions, setup prompt panel, `New` menu order, workspace name |
 | 5 | Empty states in `components/dashboard`, `components/discover/thesis-list.tsx`, `components/investors/searches-list.tsx` | The table in §2.5 |
 | 6 | `components/case/new-case-form.tsx`, the case criteria editor, Request tab sign-off preview | Default thesis seeding; sign-off shown from the draft |
 | 7 | `components/case/comparables-tab.tsx`, `app/(app)/app/compare/*` | `Your company` reference row and column |
