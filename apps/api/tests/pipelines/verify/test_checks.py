@@ -716,3 +716,68 @@ async def test_claim_checks_end_in_an_assessment_version(sm, session):
     assert [v.version for v in versions] == [1, 2]
     assert versions[1].trigger_document_ids == [str(doc_id)]
     assert versions[1].diff_from_previous is not None
+
+
+# --- Confidentiality canary ---------------------------------------------------------
+
+CANARY = "Project Falcon"
+
+
+async def test_seller_words_never_reach_a_provider_request(sm, session):
+    """A deal code name in the case name, the typed website and every claim component
+    never appears in any request to the data provider (queries, fetches, lookups)."""
+    case = await _case(session, website="https://project-falcon.example")
+    case.company_name = CANARY
+    await session.commit()
+    sentences = [
+        (
+            f"{CANARY} opened a new facility in {CANARY} in October 2026",
+            "dated_event",
+            [
+                ("event", f"{CANARY} facility"),
+                ("event_date", "2026-10"),
+                ("operating_city", CANARY),
+                ("stage", "operating"),
+            ],
+        ),
+        (
+            f"{CANARY} raised growth funding from {CANARY} Capital in 2025",
+            "funding",
+            [("raised", "true"), ("round_year", "2025"), ("investor", f"{CANARY} Capital")],
+        ),
+        (
+            f"{CANARY} is based in {CANARY}",
+            "location",
+            [("hq_city", CANARY), ("operating_city", CANARY)],
+        ),
+        (
+            f"{CANARY} founder ran operations at {CANARY} Logistics",
+            "leadership_history",
+            [("person_name", CANARY), ("employer", f"{CANARY} Logistics"), ("role", "ops")],
+        ),
+        (f"{CANARY} employs 250 people", "team_size", [("employee_count", "250")]),
+    ]
+    crust = pune_crustdata()
+    await _verify(sm, session, case, sentences, crust)
+
+    names = [name for name, _ in crust.calls]
+    assert "web_search" in names and "enrich_company" in names
+    for name, params in crust.calls:
+        assert CANARY.casefold() not in repr(params).casefold(), (name, params)
+        assert "falcon" not in repr(params).casefold(), (name, params)
+    queries = [p["query"] for n, p in crust.calls if n == "web_search"]
+    assert all(NAME in q for q in queries)
+
+
+async def test_registry_and_news_queries_use_the_confirmed_record_name(session):
+    """The verify registry/news steps search by the confirmed record's name only."""
+    from app.pipelines.verify import common
+
+    case = await _case(session)
+    case.company_name = CANARY
+    with pytest.raises(common.IdentityNotConfirmed):  # no public name recorded yet
+        common.PublicTerms.of(common.ConfirmedEntity.of(case))
+    case.identity_identifiers = {"entity": {"name": NAME, "domains": [DOMAIN]}}
+    terms = common.PublicTerms.of(common.ConfirmedEntity.of(case))
+    for query in (common.news_query(terms), common.registry_query(terms)):
+        assert NAME in query and "falcon" not in query.casefold()

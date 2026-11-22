@@ -247,9 +247,9 @@ async def dated_events(ctx: StepContext) -> dict[str, Any]:
     case = await common.load_case(ctx)
     try:
         entity = ConfirmedEntity.of(case)
+        terms = PublicTerms.of(entity)
     except common.IdentityNotConfirmed:
         return common.blocked_output(ctx)
-    terms = PublicTerms.of(entity)
     location = "IN" if (entity.country or "").lower() in {"india", "in", "ind"} else None
 
     await ctx.require_budget(1)

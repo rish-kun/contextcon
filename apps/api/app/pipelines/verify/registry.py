@@ -124,9 +124,9 @@ async def registry_evidence(ctx: StepContext) -> dict[str, Any]:
     case = await common.load_case(ctx)
     try:
         entity = ConfirmedEntity.of(case)
+        terms = PublicTerms.of(entity)
     except common.IdentityNotConfirmed:
         return common.blocked_output(ctx)
-    terms = PublicTerms.of(entity)
 
     await ctx.require_budget(1)
     await ctx.set_detail("Searching public registry records")

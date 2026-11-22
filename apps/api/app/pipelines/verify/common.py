@@ -116,6 +116,9 @@ class ConfirmedEntity:
     founded_year: int | None = None
     cin: str | None = None
     key_people: tuple[str, ...] = ()
+    # The name on the provider record the identity was confirmed on. `name` falls back
+    # to the name typed for the case; only this one may go into a web query.
+    public_name: str | None = None
 
     @classmethod
     def of(cls, case: Case) -> ConfirmedEntity:
@@ -132,6 +135,7 @@ class ConfirmedEntity:
             founded_year=entity.get("founded_year"),
             cin=entity.get("cin"),
             key_people=tuple(entity.get("key_people") or ()),
+            public_name=str(entity["name"]) if entity.get("name") else None,
         )
 
     @property
@@ -437,7 +441,11 @@ class PublicTerms:
 
     @classmethod
     def of(cls, entity: ConfirmedEntity) -> PublicTerms:
-        return cls(name=entity.name, domain=entity.domain, cin=entity.cin)
+        """Raises `IdentityNotConfirmed` when the confirmed record has no public name:
+        a name typed for the case (perhaps a deal code name) is never searched for."""
+        if not entity.public_name:
+            raise IdentityNotConfirmed("no public name on the confirmed record")
+        return cls(name=entity.public_name, domain=entity.domain, cin=entity.cin)
 
     def __post_init__(self) -> None:
         if not self.name or len(self.name) > 120 or not _TERM_OK.match(self.name):

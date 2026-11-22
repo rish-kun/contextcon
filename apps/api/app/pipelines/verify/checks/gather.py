@@ -16,8 +16,10 @@ by the company's domain, or by its name together with a second identifier (HQ ci
 a founder's name, an investor). Pages that only share the name are kept as unattached
 sources and never become evidence.
 
-Web queries come from `query.build_query` (company name, domain, a city, one topic
-word). Claim text is never sent to a search provider.
+Web queries come from `query.build_query` with public terms only: the enriched (or
+identity-confirmed) company name and domain, the enriched HQ city, one allowlisted
+topic word. Claim text and components, and the name or website typed for the case,
+are never sent to a search provider.
 """
 
 from __future__ import annotations
@@ -154,10 +156,24 @@ class CheckEnv:
         return str(self.company_id or self.case.id)
 
     def terms(self) -> PublicTerms:
+        """Public lookup terms from independently sourced identity fields only: the
+        enriched record's name and domain, else the record identity was confirmed on.
+        Never the name or website typed for the case, never claim text. Empty before
+        identity is confirmed (no search is then possible)."""
+        if self.case.identity_status != IdentityStatus.CONFIRMED:
+            return PublicTerms(company_name="")
         info = self._profile.basic_info if self._profile and self._profile.basic_info else None
-        name = (info.name if info and info.name else None) or self.case.company_name
-        domain = (info.primary_domain if info else None) or host_of(self.case.website)
-        return PublicTerms(company_name=name, domain=domain)
+        entity = (self.case.identity_identifiers or {}).get("entity") or {}
+        domains = [d for d in entity.get("domains") or [] if isinstance(d, str) and d]
+        name = (info.name if info and info.name else None) or entity.get("name") or ""
+        domain = (info.primary_domain if info else None) or (
+            host_of(domains[0]) or domains[0] if domains else None
+        )
+        return PublicTerms(company_name=str(name), domain=domain)
+
+    def hq_city(self) -> str | None:
+        """The HQ city from the enriched record (call after `profile()`)."""
+        return _hq_city(self._profile)
 
     def public_name(self) -> str:
         """The confirmed public entity name for activity lines; "the company" before."""
@@ -201,9 +217,15 @@ class CheckEnv:
         self._people = list(result.profiles)
         return self._people
 
-    async def search(self, topic: str, *, city: str | None = None) -> list[WebSearchHit]:
+    async def search(self, topic: str, *, hq_city: bool = False) -> list[WebSearchHit]:
+        """A web search on public terms and one allowlisted topic word. The only place
+        may be the enriched HQ city: a city named in a claim is the seller's words."""
+        if self.case.identity_status != IdentityStatus.CONFIRMED or self.company_id is None:
+            self.log("web search skipped: identity not confirmed")
+            return []
+        await self.profile()  # the public name, domain and HQ come from the record
         try:
-            query = build_query(self.terms(), topic, city=city)
+            query = build_query(self.terms(), topic, city=self.hq_city() if hq_city else None)
         except UnsafeQuery as exc:
             self.log(f"web search skipped: {exc}")
             return []
@@ -712,8 +734,9 @@ async def gather_dated_event(env: CheckEnv, claim: Claim) -> Gathered:
     comps = _components(claim)
     units = await stored_units(env, NEWS_CLASSES)
     topic = event_topic(claim)
-    city = str(comps["operating_city"].value) if "operating_city" in comps else None
-    hits = await env.search(topic, city=city)
+    # Narrow by the enriched HQ city when the claim is about a place; the claim's own
+    # city never goes into the query.
+    hits = await env.search(topic, hq_city="operating_city" in comps)
     units += await _hit_units(env, hits, topic, fetch=True)
     await _read_units(env, claim, units, out)
     return out
