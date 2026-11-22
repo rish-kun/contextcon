@@ -116,6 +116,7 @@ export function SearchView({
     }, 1000);
 
     const stop = subscribeRun(run.id, (event) => {
+      if (event.event === "activity" || event.event === "live") return;
       if (event.event === "step") {
         current = mergeStep(current ?? { ...run, state: "running", steps: [] }, event.data);
       } else {

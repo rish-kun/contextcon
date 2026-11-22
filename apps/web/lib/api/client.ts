@@ -13,6 +13,7 @@
  * "(fixture)" companies) without touching the network. The fixtures module is loaded
  * with a dynamic import only in that mode.
  */
+import type { Activity, ActivityPage } from "@/lib/run/types";
 import type { components } from "./schema";
 
 /* ───────────────────────── Types ───────────────────────── */
@@ -65,10 +66,18 @@ export type RunOut = Schemas["RunOut"];
 export type StepOut = Schemas["StepOut"];
 export type PolicyOut = Schemas["PolicyOut"];
 
-/** One server-sent event from `GET /runs/{id}/events`, or a polling snapshot. */
+export type { Activity, ActivityPage };
+
+/**
+ * One server-sent event from `GET /runs/{id}/events`, or a polling snapshot.
+ * `activity` is one stored fact about what the run did, ordered by `seq`. `live` marks the
+ * end of the backlog: everything before it is history and is drawn without animation.
+ */
 export type RunStreamEvent =
   | { event: "step"; data: StepOut }
-  | { event: "run"; data: RunOut };
+  | { event: "run"; data: RunOut }
+  | { event: "activity"; data: Activity }
+  | { event: "live" };
 
 /* ───────────────────────── Transport ───────────────────────── */
 
@@ -375,18 +384,58 @@ export async function resumeRun(id: string): Promise<RunOut> {
   return call("POST", `/runs/${enc(id)}/resume`);
 }
 
+/**
+ * One page of a run's stored activity, oldest first. An API that predates the activity
+ * feature answers 404; that reads as "nothing recorded", not as an error.
+ */
+export async function listRunActivity(
+  id: string,
+  after = 0,
+  init?: RequestInit,
+): Promise<ActivityPage> {
+  if (isFixtureMode) return (await fx()).listRunActivity(id, after);
+  try {
+    return await call("GET", `/runs/${enc(id)}/activity?after=${after}&limit=500`, { init });
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return { items: [], next_after: null };
+    throw error;
+  }
+}
+
+/** Every stored activity of a run, following `next_after` to the end. */
+export async function listAllRunActivity(id: string): Promise<Activity[]> {
+  const all: Activity[] = [];
+  let after = 0;
+  // 2,000 events is the server's cap per run; ten pages is past it.
+  for (let page = 0; page < 10; page += 1) {
+    const { items, next_after } = await listRunActivity(id, after);
+    all.push(...items);
+    if (next_after === null || items.length === 0) break;
+    after = next_after;
+  }
+  return all;
+}
+
 const POLL_MS = 2000;
 const isTerminal = (run: RunOut) => run.state === "done" || run.state === "failed";
 
 /**
  * Follow a run. Uses server-sent events through the proxy and falls back to polling
- * `GET /runs/{id}` every 2 s if the stream fails. Polling emits `run` events that
- * include every step. Returns an unsubscribe function. Browser only.
+ * `GET /runs/{id}` and `GET /runs/{id}/activity` every 2 s if the stream fails. Polling
+ * emits `run` events that include every step. Returns an unsubscribe function. Browser only.
+ *
+ * `after` is the last activity `seq` the caller already holds; the stream resumes from it.
  */
-export function subscribeRun(runId: string, onEvent: (event: RunStreamEvent) => void): () => void {
+export function subscribeRun(
+  runId: string,
+  onEvent: (event: RunStreamEvent) => void,
+  after = 0,
+): () => void {
   let stopped = false;
   let source: EventSource | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let lastSeq = after;
+  let live = false;
   const stop = () => {
     stopped = true;
     source?.close();
@@ -395,18 +444,35 @@ export function subscribeRun(runId: string, onEvent: (event: RunStreamEvent) => 
 
   if (isFixtureMode) {
     void fx().then((f) => {
-      if (!stopped) timer = f.replayRun(runId, onEvent, () => stopped);
+      if (!stopped) f.replayRun(runId, onEvent, () => stopped);
     });
     return stop;
   }
 
+  const emitActivity = (activity: Activity) => {
+    if (activity.seq <= lastSeq) return;
+    lastSeq = activity.seq;
+    onEvent({ event: "activity", data: activity });
+  };
+  const goLive = () => {
+    if (live) return;
+    live = true;
+    onEvent({ event: "live" });
+  };
+
   const poll = async () => {
     if (stopped) return;
     try {
-      const run = await getRun(runId);
+      const [run, page] = await Promise.all([
+        getRun(runId),
+        listRunActivity(runId, lastSeq).catch(() => null),
+      ]);
       if (stopped) return;
+      for (const activity of page?.items ?? []) emitActivity(activity);
+      // The first poll is the backlog; what later polls bring is new.
+      if (!page || page.next_after === null) goLive();
       onEvent({ event: "run", data: run });
-      if (isTerminal(run)) return stop();
+      if (isTerminal(run) && (!page || page.next_after === null)) return stop();
     } catch {
       /* keep polling through transient errors */
     }
@@ -418,10 +484,17 @@ export function subscribeRun(runId: string, onEvent: (event: RunStreamEvent) => 
     return stop;
   }
 
-  source = new EventSource(`/api/runs/${enc(runId)}/events`);
+  const query = after > 0 ? `?after=${after}` : "";
+  source = new EventSource(`/api/runs/${enc(runId)}/events${query}`);
   source.addEventListener("step", (e) => {
     onEvent({ event: "step", data: JSON.parse((e as MessageEvent<string>).data) as StepOut });
   });
+  source.addEventListener("activity", (e) => {
+    emitActivity(JSON.parse((e as MessageEvent<string>).data) as Activity);
+  });
+  // The server writes `: live` as a comment, which EventSource does not surface, so the
+  // API also names it as an event. Until either is seen, age decides (see the run feed).
+  source.addEventListener("live", goLive);
   source.addEventListener("run", (e) => {
     const run = JSON.parse((e as MessageEvent<string>).data) as RunOut;
     onEvent({ event: "run", data: run });

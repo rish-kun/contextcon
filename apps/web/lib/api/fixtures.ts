@@ -34,6 +34,8 @@ import type {
   ClaimOut,
 } from "./client";
 import { ApiError } from "./client";
+import { buildFixtureActivities } from "@/lib/run/fixture-activity";
+import type { Activity, ActivityPage } from "@/lib/run/types";
 
 interface FixtureData {
   me: UserOut;
@@ -49,6 +51,8 @@ interface FixtureData {
   message: Record<"draft" | "edited" | "approved" | "suppressed", MessageOut>;
   documents: DocumentOut[];
   policy: PolicyOut;
+  /** Recorded activity per run, once the API's fixtures carry it. */
+  activities?: Record<string, Activity[]>;
 }
 
 const fixtures = data as unknown as FixtureData;
@@ -269,33 +273,102 @@ export const getRun = async (id: string) => lookup(fixtures.runs, id, "Run");
 
 export const getPolicy = async () => clone(fixtures.policy);
 
+const activityCache = new Map<string, Activity[]>();
+
+/** The recorded activity of a fixture run, oldest first, with its recorded times. */
+export function fixtureActivities(runId: string): Activity[] {
+  const cached = activityCache.get(runId);
+  if (cached) return cached;
+  const run = fixtures.runs[runId];
+  const events =
+    fixtures.activities?.[runId] ?? (run ? buildFixtureActivities(clone(run), fixtures) : []);
+  activityCache.set(runId, events);
+  return events;
+}
+
+export async function listRunActivity(runId: string, after = 0): Promise<ActivityPage> {
+  if (!fixtures.runs[runId]) notFound("Run");
+  return { items: clone(fixtureActivities(runId).filter((e) => e.seq > after)), next_after: null };
+}
+
+/** The longest a replayed fixture run waits between two events. */
+const MAX_GAP_MS = 600;
+const ZERO_COST = {
+  crustdata_credits: 0,
+  llm_usd: 0,
+  input_tokens: 0,
+  output_tokens: 0,
+  unknown_cost_calls: 0,
+};
+
 /**
- * Replay a fixture run the way the SSE stream would: each step goes running → done,
- * then a final `run` event. Returns the pending timer so the caller can cancel it.
+ * Replay a fixture run the way the SSE stream would: the run starts, each step goes
+ * running, emits its recorded activity and settles, then a final `run` event. Gaps keep
+ * their recorded proportions, compressed to 600 ms at most. Activity is stamped with the
+ * time it is replayed, so "read 2 s ago" is true on screen.
  */
 export function replayRun(
   runId: string,
   onEvent: (event: RunStreamEvent) => void,
   isStopped: () => boolean,
-  stepMs = 450,
-): ReturnType<typeof setTimeout> | null {
+): void {
   const run = fixtures.runs[runId];
-  if (!run) return null;
-  const events: RunStreamEvent[] = [
-    { event: "run", data: { ...clone(run), state: "running", steps: [] } },
+  if (!run) return;
+  const activities = fixtureActivities(runId);
+  const timeline: { wait: number; event: () => RunStreamEvent }[] = [
+    {
+      wait: 0,
+      event: () => ({
+        event: "run",
+        data: { ...clone(run), state: "running", steps: [], cost: { ...ZERO_COST }, finished_at: null },
+      }),
+    },
+    { wait: 0, event: () => ({ event: "live" }) },
   ];
+  // Every step is listed as pending first: the plan exists before the work does.
   for (const step of run.steps) {
-    events.push({ event: "step", data: { ...clone(step), state: "running", result: null } });
-    events.push({ event: "step", data: clone(step) });
+    timeline.push({
+      wait: 0,
+      event: () => ({
+        event: "step",
+        data: { ...clone(step), state: "pending", result: null, detail: null, cost: { ...ZERO_COST } },
+      }),
+    });
   }
-  events.push({ event: "run", data: { ...clone(run), steps: [] } });
+  let previousAt: number | null = null;
+  for (const step of [...run.steps].sort((a, b) => a.position - b.position)) {
+    const own = activities.filter((activity) => activity.step_id === step.id);
+    timeline.push({
+      wait: 350,
+      event: () => ({
+        event: "step",
+        data: { ...clone(step), state: "running", result: null, cost: { ...ZERO_COST } },
+      }),
+    });
+    for (const activity of own) {
+      const at = Date.parse(activity.at);
+      const gap: number = previousAt === null ? 300 : at - previousAt;
+      previousAt = at;
+      timeline.push({
+        wait: Math.min(MAX_GAP_MS, Math.max(120, gap / 3)),
+        event: () => ({
+          event: "activity",
+          data: { ...clone(activity), at: new Date().toISOString() },
+        }),
+      });
+    }
+    timeline.push({ wait: 400, event: () => ({ event: "step", data: clone(step) }) });
+  }
+  timeline.push({ wait: 500, event: () => ({ event: "run", data: { ...clone(run), steps: [] } }) });
 
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  const next = (i: number) => {
-    if (isStopped() || i >= events.length) return;
-    onEvent(events[i]);
-    timer = setTimeout(() => next(i + 1), stepMs);
+  const next = (index: number) => {
+    if (isStopped() || index >= timeline.length) return;
+    const { wait, event } = timeline[index];
+    setTimeout(() => {
+      if (isStopped()) return;
+      onEvent(event());
+      next(index + 1);
+    }, wait);
   };
   next(0);
-  return timer;
 }

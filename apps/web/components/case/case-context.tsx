@@ -90,6 +90,7 @@ function describe(error: unknown): string {
 const SETTLED_STEP = new Set(["done", "failed", "skipped_budget"]);
 
 function mergeEvent(current: RunOut | null, event: RunStreamEvent): RunOut | null {
+  if (event.event === "activity" || event.event === "live") return current;
   if (event.event === "run") {
     // The stream's closing `run` event may carry no steps; keep the ones already seen.
     const steps = event.data.steps.length > 0 ? event.data.steps : (current?.steps ?? []);

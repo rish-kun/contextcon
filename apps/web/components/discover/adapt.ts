@@ -175,6 +175,7 @@ export function asLiveSeed(run: RunOut): RunOut {
 
 /** Folds one stream event into the run. A `run` event without steps keeps the ones seen. */
 export function mergeRunEvent(run: RunOut, event: RunStreamEvent): RunOut {
+  if (event.event === "activity" || event.event === "live") return run;
   if (event.event === "run") {
     return {
       ...event.data,
