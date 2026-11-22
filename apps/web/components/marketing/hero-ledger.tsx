@@ -1,6 +1,6 @@
 "use client";
 
-import { useInView, useReducedMotion } from "motion/react";
+import { useInView } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { ClaimLedgerRow } from "@/components/dealproof";
 import { duration } from "@/lib/transitions";
@@ -10,6 +10,7 @@ import {
   ILLUSTRATION_LABEL,
 } from "./content";
 import { IllustrationLabel } from "./primitives";
+import { useReducedMotionPreference } from "./use-reduced-motion";
 
 /** Rows enter first; then the marks settle one by one, 200ms apart. */
 const SETTLE_START_MS = 600;
@@ -19,15 +20,20 @@ const SETTLE_GAP_MS = duration.base * 1000;
  * The hero's product window: the first claims of the PRD's Pune example in the real
  * ledger rows. Each row starts as a running check and settles in order, once.
  * Always labelled as an illustration. Under reduced motion it is drawn settled.
+ *
+ * The server cannot know the preference, so it and the hydrating client both draw the
+ * pending rows. The preference is read once mounted, and only then does the sequence
+ * start or get skipped.
  */
 export function HeroLedger() {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, amount: 0.15 });
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotionPreference();
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    if (!inView || reduce) return;
+    // null: the preference is not known yet. true: nothing to play.
+    if (!inView || reduce !== false) return;
     let n = 0;
     let timer: ReturnType<typeof setTimeout>;
     const tick = () => {

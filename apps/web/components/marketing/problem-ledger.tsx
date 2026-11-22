@@ -1,9 +1,10 @@
 "use client";
 
-import { motion, useReducedMotion, useScroll } from "motion/react";
+import { motion, useScroll } from "motion/react";
 import { useRef } from "react";
 import { PROBLEMS } from "./content";
 import { Reveal } from "./reveal";
+import { useReducedMotionPreference } from "./use-reduced-motion";
 
 /**
  * What goes wrong on one side, what DealProof does on the other, with a spine
@@ -12,7 +13,8 @@ import { Reveal } from "./reveal";
  */
 export function ProblemLedger() {
   const ref = useRef<HTMLOListElement>(null);
-  const reduce = useReducedMotion();
+  // null through hydration, so the spine's first client render matches the server's.
+  const reduce = useReducedMotionPreference();
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ["start 0.75", "end 0.6"],
