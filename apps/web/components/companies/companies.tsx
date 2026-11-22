@@ -30,6 +30,7 @@ import {
   Tooltip,
 } from "@/components/ui";
 import { FilterSelect } from "@/components/workspace/filter-select";
+import { FitBar } from "@/components/workspace/fit-bar";
 import { createCase } from "@/lib/api/client";
 import { companyRows, SCREENING_DETAIL_LIMIT, useScreenings, type CompanyRow } from "@/lib/directory";
 import { formatDate } from "@/lib/format";
@@ -83,18 +84,7 @@ function FitCell({ row }: { row: CompanyRow }) {
       </span>
     );
   }
-  const pct = Math.round(row.assessablePct);
-  return (
-    <span className="flex min-w-0 flex-col gap-1">
-      <span className="font-mono text-xs font-medium whitespace-nowrap text-ink">
-        Fit {Math.round(row.fit)} · {pct}% assessable
-      </span>
-      <span aria-hidden className="flex h-1.5 w-full max-w-40 gap-0.5">
-        {pct > 0 ? <span className="h-full bg-ink" style={{ width: `${pct}%` }} /> : null}
-        {pct < 100 ? <span className="hatch-dense h-full flex-1 border border-dashed border-not-checked-line" /> : null}
-      </span>
-    </span>
-  );
+  return <FitBar fit={row.fit} pct={row.assessablePct} />;
 }
 
 function CaseCell({ row }: { row: CompanyRow }) {
