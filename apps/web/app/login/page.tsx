@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SIGNUP_ENABLED } from "@/lib/signup";
 import Link from "next/link";
 import { Suspense } from "react";
 import { buttonVariants } from "@/components/ui/button";
@@ -31,12 +32,14 @@ export default function LoginPage() {
             <Suspense fallback={<div className="h-56" aria-hidden />}>
               <LoginForm />
             </Suspense>
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-              <p className="text-dense text-ink-secondary">New to DealProof?</p>
-              <Link href="/signup" className={buttonVariants({ variant: "secondary", size: "sm" })}>
-                Sign up
-              </Link>
-            </div>
+            {SIGNUP_ENABLED && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+                <p className="text-dense text-ink-secondary">New to DealProof?</p>
+                <Link href="/signup" className={buttonVariants({ variant: "secondary", size: "sm" })}>
+                  Sign up
+                </Link>
+              </div>
+            )}
           </div>
         </main>
       </div>

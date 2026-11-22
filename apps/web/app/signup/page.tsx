@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SIGNUP_ENABLED } from "@/lib/signup";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -38,7 +39,14 @@ export default async function SignupPage() {
                 One workspace for your organisation. You can change all of this later
               </p>
             </div>
-            <SignupForm />
+            {SIGNUP_ENABLED ? (
+              <SignupForm />
+            ) : (
+              <p className="text-sm text-ink-secondary">
+                Sign-up opens soon. Until then, use the demo login.{" "}
+                <TextLink href="/login">Go to the login page</TextLink>
+              </p>
+            )}
             <p className="border-t border-line pt-4 text-dense text-ink-secondary">
               Already have an account? <TextLink href="/login">Log in</TextLink>
               <span className="mt-2 block text-xs text-ink-muted">

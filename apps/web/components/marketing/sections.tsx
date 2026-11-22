@@ -5,6 +5,7 @@
  * Section shapes alternate on purpose: window, tabs, two-sided list, ledger with a legend
  * and two unequal cells, paired readouts, panel, split, numbered list, table.
  */
+import { SIGNUP_ENABLED } from "@/lib/signup";
 import { Menu } from "lucide-react";
 import Link from "next/link";
 import {
@@ -67,7 +68,9 @@ import { Steps } from "./steps";
 const SECTION = "py-16 md:py-24 lg:py-32";
 const BAND = "border-y border-line bg-surface";
 /** Sign-up sends a visitor who already has a session on to the app. */
-const SIGNUP_HREF = "/signup";
+const SIGNUP_HREF = SIGNUP_ENABLED ? "/signup" : "/login";
+/** With sign-up off, every sign-up button becomes the demo login. */
+const SIGNUP_LABEL = SIGNUP_ENABLED ? NAV.signup : NAV.login;
 
 const primary = buttonVariants({ variant: "primary", size: "lg" });
 const secondary = buttonVariants({ variant: "secondary", size: "lg" });
@@ -91,14 +94,16 @@ export function SiteHeader() {
           ))}
         </nav>
         <div className="flex items-center gap-2 md:gap-5">
-          <Link href="/login" className={cn(link, "hidden md:inline")}>
-            {NAV.login}
-          </Link>
+          {SIGNUP_ENABLED && (
+            <Link href="/login" className={cn(link, "hidden md:inline")}>
+              {NAV.login}
+            </Link>
+          )}
           <Link
             href={SIGNUP_HREF}
             className={buttonVariants({ variant: "primary", size: "md" })}
           >
-            {NAV.signup}
+            {SIGNUP_LABEL}
           </Link>
           <details className="relative md:hidden">
             <summary className="flex size-11 cursor-pointer list-none items-center justify-center rounded-md text-ink transition-colors hover:bg-surface-raised [&::-webkit-details-marker]:hidden">
@@ -109,7 +114,7 @@ export function SiteHeader() {
               aria-label="Sections"
               className="absolute top-full right-0 mt-2 grid w-56 animate-overlay-in rounded-lg border border-line bg-surface p-2 shadow-md"
             >
-              {[...NAV.links, { href: "/login", label: NAV.login }, { href: SIGNUP_HREF, label: NAV.signup }].map((l) => (
+              {[...NAV.links, { href: "/login", label: NAV.login }, ...(SIGNUP_ENABLED ? [{ href: SIGNUP_HREF, label: NAV.signup }] : [])].map((l) => (
                 <a
                   key={l.label}
                   href={l.href}
@@ -142,7 +147,7 @@ export function Hero() {
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Link href={SIGNUP_HREF} className={primary}>
-              {HERO.primary}
+              {SIGNUP_ENABLED ? HERO.primary : NAV.login}
             </Link>
             <a href="#case" className={secondary}>
               {HERO.secondary}
@@ -677,7 +682,7 @@ export function CtaSection() {
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Link href={SIGNUP_HREF} className={primary}>
-              {CTA.primary}
+              {SIGNUP_ENABLED ? CTA.primary : NAV.login}
             </Link>
             <a href="#case" className={secondary}>
               {CTA.secondary}
