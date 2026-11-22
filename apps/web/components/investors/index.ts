@@ -1,5 +1,5 @@
 /** Investor discovery (plan CP-28). Import from "@/components/investors". */
-export * from "./investor-entry";
+export * from "./investor-detail";
 export * from "./principles";
 export * from "./profile-form";
 export * from "./round-axis";

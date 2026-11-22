@@ -1,9 +1,13 @@
+"use client";
+
+import { useState } from "react";
 import type { InvestorSearchOut } from "@/lib/api/client";
 import { formatDate, plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { sentence } from "./format";
-import { InvestorEntry } from "./investor-entry";
-import { buildAxis, RoundAxisHeader } from "./round-axis";
+import { KpiRow, RankedDetail, StatTile } from "@/components/insight";
+import { InvestorDetail, InvestorRow } from "./investor-detail";
+import { buildAxis } from "./round-axis";
 
 /** "Searched 22 Nov 2026 across 40 comparable companies", from the API's own scope note. */
 export function scopeLine(search: InvestorSearchOut): string {
@@ -28,14 +32,18 @@ export function RankingCaveat({ className }: { className?: string }) {
 }
 
 /**
- * The ranked investors of one search. Every entry is here because a dated funding record
- * connects it to a comparable company; the order is a count of those records weighted
- * toward recent ones, and nothing more.
+ * The ranked investors of one search: the list on the left, the selected investor's
+ * record on the right. Every entry is here because a dated funding record connects it to
+ * a comparable company; the order is a count of those records weighted toward recent
+ * ones, and nothing more. No score is shown, because the order is not a prediction.
  */
 export function Shortlist({ search }: { search: InvestorSearchOut }) {
   const entries = [...search.entries].sort((a, b) => a.rank - b.rank);
+  const [selectedId, setSelectedId] = useState<string | null>(entries[0]?.id ?? null);
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
-  const companies = new Set(entries.flatMap((e) => e.comparable_rounds.map((r) => r.company_id)));
+  const rounds = entries.flatMap((entry) => entry.comparable_rounds);
+  const companies = new Set(rounds.map((round) => round.company_id));
+  const latestRound = rounds.map((round) => round.date).sort().at(-1) ?? null;
   const axis = buildAxis(entries, search.searched_at ?? search.created_at);
   const scope = scopeLine(search);
 
@@ -64,30 +72,53 @@ export function Shortlist({ search }: { search: InvestorSearchOut }) {
         </p>
       </div>
 
-      <div className="rounded-lg border border-line bg-surface">
-        {axis ? (
-          <div className="hidden grid-cols-[2rem_minmax(0,1fr)] gap-x-3 rounded-t-lg border-b border-line bg-surface-sunken px-5 py-2 lg:grid">
-            <span />
-            <div className="grid items-end gap-x-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-              <span className="text-xs text-ink-muted">Investor</span>
-              <RoundAxisHeader axis={axis} />
-            </div>
-          </div>
-        ) : null}
-        <ol>
-          {entries.map((entry, index) => (
-            <InvestorEntry
-              key={entry.id}
-              entry={entry}
-              axis={axis}
-              fundingSought={search.profile.funding_sought}
-              scope={scope}
-              duplicates={duplicatesOf(entry.id)}
-              index={index}
-            />
-          ))}
-        </ol>
-      </div>
+      <KpiRow label="Investor search summary">
+        <StatTile label="Investors" value={entries.length} note="Each named in a dated funding record" />
+        <StatTile
+          label="Comparable companies"
+          value={companies.size}
+          note={`Of ${search.comparables_considered} read in this search`}
+        />
+        <StatTile label="Dated rounds" value={rounds.length} note="Counted once per investor named" />
+        {latestRound ? (
+          <StatTile
+            label="Latest round found"
+            value={<span className="font-mono text-lg">{formatDate(latestRound)}</span>}
+            note="Within the scope of this search"
+          />
+        ) : (
+          <StatTile label="Latest round found" missing="None found" />
+        )}
+      </KpiRow>
+
+      <RankedDetail
+        items={entries}
+        getId={(entry) => entry.id}
+        selectedId={selectedId}
+        onSelect={setSelectedId}
+        label="Investors, ranked by comparable investments found in the record"
+        listHeader={
+          <p className="flex items-baseline justify-between gap-3 text-xs text-ink-muted">
+            <span>Investor · dated comparable rounds</span>
+            {axis ? (
+              <span className="font-mono text-2xs">
+                {axis.years[0]} to {formatDate(axis.searchedOn)}
+              </span>
+            ) : null}
+          </p>
+        }
+        renderRow={(entry) => <InvestorRow entry={entry} axis={axis} />}
+        renderDetail={(entry) => (
+          <InvestorDetail
+            entry={entry}
+            axis={axis}
+            fundingSought={search.profile.funding_sought}
+            scope={scope}
+            duplicates={duplicatesOf(entry.id)}
+            onSelect={setSelectedId}
+          />
+        )}
+      />
     </section>
   );
 }

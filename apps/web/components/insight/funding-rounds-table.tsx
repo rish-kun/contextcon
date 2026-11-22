@@ -70,7 +70,7 @@ export function FundingRoundsTable({
             <th scope="col" className={head}>
               Date
             </th>
-            <th scope="col" className={cn(head, "w-2/5")}>
+            <th scope="col" className={head}>
               Amount
             </th>
             {showInvestors ? (
@@ -90,15 +90,15 @@ export function FundingRoundsTable({
               className="border-b border-line transition-colors last:border-b-0 hover:bg-surface-raised max-sm:flex max-sm:flex-col max-sm:gap-1 max-sm:px-3 max-sm:py-3"
             >
               {showCompany ? (
-                <td className={cn(cell, "font-medium")}>{row.company ?? "Company not recorded"}</td>
+                <td className={cn(cell, "font-medium sm:min-w-40")}>{row.company ?? "Company not recorded"}</td>
               ) : null}
-              <td className={cn(cell, row.round ? "text-ink" : "text-ink-muted")}>
+              <td className={cn(cell, "sm:whitespace-nowrap", row.round ? "text-ink" : "text-ink-muted")}>
                 {row.round ?? "Round type not recorded"}
               </td>
               <td className={cn(cell, "font-mono text-xs whitespace-nowrap", !row.date && "text-ink-muted")}>
                 {formatDate(row.date) ?? "date unknown"}
               </td>
-              <td className={cell}>
+              <td className={cn(cell, "sm:w-1/4 sm:min-w-36")}>
                 {row.amountUsd == null ? (
                   <span className="text-ink-muted">Amount not recorded</span>
                 ) : (
@@ -124,7 +124,7 @@ export function FundingRoundsTable({
                   )}
                 </td>
               ) : null}
-              <td className={cn(cell, "max-sm:pt-1")}>{row.source}</td>
+              <td className={cn(cell, "max-sm:pt-1 sm:w-56 sm:max-w-56")}>{row.source}</td>
             </tr>
           ))}
         </tbody>
