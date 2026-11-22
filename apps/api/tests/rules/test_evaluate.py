@@ -16,6 +16,7 @@ from app.domain import (
     CriterionOperator,
     DatedEvent,
     Disposition,
+    DocumentType,
     Evidence,
     ExtractedFact,
     FieldFact,
@@ -298,6 +299,7 @@ def _supported_startup_checks():
         label="Payroll summary",
         retrieved_at=datetime(2026, 11, 1),
         reliability=SourceReliability.SELLER_DOCUMENT,
+        document_type=DocumentType.PAYROLL_RECORD,
     )
 
     def f(id, src, comp, val, quote):
@@ -305,7 +307,14 @@ def _supported_startup_checks():
             id=id,
             component=comp,
             value=val,
-            evidence=Evidence(id=f"ev-{id}", source=src, entity_id=prd.COMPANY, quote=quote),
+            evidence=Evidence(
+                id=f"ev-{id}",
+                source=src,
+                entity_id=prd.COMPANY,
+                quote=quote,
+                as_of=date(2026, 10, 31),
+                identity_basis=["case_upload"],
+            ),
         )
 
     inc = prd.INCORPORATION
@@ -347,6 +356,7 @@ def test_conflicting_required_check_blocks_prioritise():
             source=news,
             entity_id=prd.COMPANY,
             quote="The company raised its round in 2024",
+            identity_basis=["domain"],
         ),
     )
     funding = prd.FUNDING.model_copy(update={"facts": [*prd.FUNDING.facts, clash]})

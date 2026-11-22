@@ -1,7 +1,13 @@
 """The PRD's Pune illustration ("An example"), as rule inputs.
 
 This is an illustration, not a real company. Each claim must produce exactly the
-status the PRD reports.
+status the PRD reports. The claims carry their decisive qualifiers: the round
+is "growth" funding, and the founder's employer is identified (bound to its
+own record) and shown to be a *national* logistics firm by a record about that
+firm, not by the word "National" in its name.
+
+Every piece of evidence records the corroborating identifier it was attached
+on (design §5.4); none is attached on a name alone.
 """
 
 from datetime import date, datetime
@@ -20,6 +26,7 @@ from app.domain import (
 
 COMPANY = "co-pune"
 FOUNDER = "person-founder"
+EMPLOYER = "co-national-freight"  # the founder's former employer
 RETRIEVED = datetime(2026, 11, 20, 10, 0, 0)
 
 REGISTRY = Source(
@@ -59,6 +66,13 @@ FUNDING_PR = Source(
     retrieved_at=RETRIEVED,
     reliability=SourceReliability.COMPANY_ANNOUNCEMENT,
 )
+EMPLOYER_RECORD = Source(
+    id="src-employer",
+    provider="crustdata:company_enrich",
+    label="Employer company record",
+    retrieved_at=RETRIEVED,
+    reliability=SourceReliability.DATA_PROVIDER,
+)
 FACILITY_PR = Source(
     id="src-facility-pr",
     provider="web",
@@ -69,7 +83,17 @@ FACILITY_PR = Source(
 )
 
 
-def ev(id, source, *, quote=None, field_path=None, field_value=None, entity=COMPANY, as_of=None):
+def ev(
+    id,
+    source,
+    *,
+    quote=None,
+    field_path=None,
+    field_value=None,
+    entity=COMPANY,
+    as_of=None,
+    basis=("crustdata_id",),
+):
     return Evidence(
         id=id,
         source=source,
@@ -78,6 +102,7 @@ def ev(id, source, *, quote=None, field_path=None, field_value=None, entity=COMP
         field_path=field_path,
         field_value=field_value,
         as_of=as_of,
+        identity_basis=list(basis),
     )
 
 
@@ -91,6 +116,7 @@ REGISTRY_EV = ev(
     quote="Date of Incorporation: 12/06/2014. Registered Office: Baner Road, Pune, "
     "Maharashtra 411045.",
     as_of=date(2026, 11, 1),
+    basis=("cin",),
 )
 HEADCOUNT_EV = ev(
     "ev-headcount",
@@ -105,6 +131,14 @@ FOUNDER_EV = ev(
     quote="Head of Operations, National Freight Logistics Ltd, 2008 - 2013",
     entity=FOUNDER,
 )
+# The employment entry links to the employer's own company record by id.
+EMPLOYER_EV = ev(
+    "ev-employer",
+    EMPLOYER_RECORD,
+    quote="National Freight Logistics Ltd is a national logistics firm with warehouses "
+    "in 22 states.",
+    entity=EMPLOYER,
+)
 FUNDING_EV = ev(
     "ev-funding",
     FUNDING_DB,
@@ -112,17 +146,26 @@ FUNDING_EV = ev(
     field_value="2025-03-14",
     as_of=date(2025, 3, 14),
 )
+FUNDING_TYPE_EV = ev(
+    "ev-funding-type",
+    FUNDING_DB,
+    field_path="funding_milestones[0].funding_round",
+    field_value="Growth Equity",
+    as_of=date(2025, 3, 14),
+)
 FUNDING_PR_EV = ev(
     "ev-funding-pr",
     FUNDING_PR,
     quote="On 14 March 2025 the company announced it has raised growth funding.",
     as_of=date(2025, 3, 14),
+    basis=("domain",),
 )
 FACILITY_EV = ev(
     "ev-facility",
     FACILITY_PR,
     quote="The company plans to open a new warehouse facility in Chakan in October 2026.",
     as_of=date(2026, 6, 2),
+    basis=("domain",),
 )
 CHARGE_EV = ev(
     "ev-charge",
@@ -130,6 +173,7 @@ CHARGE_EV = ev(
     quote="Charge ID 100234567 created 01/08/2023, charge holder: a scheduled bank, "
     "amount 12 crore, status: open.",
     as_of=date(2026, 11, 1),
+    basis=("cin",),
 )
 
 
@@ -170,15 +214,17 @@ FOUNDER_HISTORY = ClaimCheck(
         "c-founder",
         "Our founder ran operations at a national logistics firm",
         ClaimCategory.LEADERSHIP_HISTORY,
-        {"role": "operations", "employer_industry": "logistics"},
-        entity_ids=(FOUNDER,),
+        {"role": "operations", "employer_industry": "logistics", "employer_scope": "national"},
+        entity_ids=(FOUNDER, EMPLOYER),
     ),
     facts=[
         fact("f-founder-role", FOUNDER_EV, "role", "Head of Operations"),
-        fact("f-founder-industry", FOUNDER_EV, "employer_industry", "Logistics"),
+        fact("f-founder-employer", FOUNDER_EV, "employer", "National Freight Logistics Ltd"),
         fact("f-founder-start", FOUNDER_EV, "start_year", 2008),
+        fact("f-employer-industry", EMPLOYER_EV, "employer_industry", "logistics"),
+        fact("f-employer-scope", EMPLOYER_EV, "employer_scope", "national"),
     ],
-    sources_read=[FOUNDER_PROFILE],
+    sources_read=[FOUNDER_PROFILE, EMPLOYER_RECORD],
 )
 
 FUNDING = ClaimCheck(
@@ -186,13 +232,15 @@ FUNDING = ClaimCheck(
         "c-funding",
         "We raised growth funding in 2025",
         ClaimCategory.FUNDING,
-        {"raised": True, "round_year": 2025},
+        {"raised": True, "round_year": 2025, "round_type": "growth"},
     ),
     facts=[
         fact("f-fund-raised", FUNDING_EV, "raised", True),
         fact("f-fund-year", FUNDING_EV, "round_year", 2025),
+        fact("f-fund-type", FUNDING_TYPE_EV, "round_type", "Growth Equity"),
         fact("f-pr-raised", FUNDING_PR_EV, "raised", True),
         fact("f-pr-year", FUNDING_PR_EV, "round_year", 2025),
+        fact("f-pr-type", FUNDING_PR_EV, "round_type", "growth funding"),
     ],
     sources_read=[FUNDING_DB, FUNDING_PR],
 )

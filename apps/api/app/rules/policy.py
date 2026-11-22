@@ -9,9 +9,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from app.domain.enums import ClaimCategory, CompanyType, CriterionKind, SourceReliability, ValueKind
+from app.domain.enums import (
+    ClaimCategory,
+    CompanyType,
+    CriterionKind,
+    DocumentType,
+    SourceReliability,
+    ValueKind,
+)
 
-POLICY_VERSION = "2026-11-22.1"
+POLICY_VERSION = "2026-11-22.2"
 
 # --- Discover: fit -----------------------------------------------------------
 
@@ -23,10 +30,47 @@ CRITERION_WEIGHTS: dict[CriterionKind, int] = {
 # --- Evaluate: disposition thresholds ----------------------------------------
 
 PRIORITISE_MIN_FIT = 70
+# Kept for callers that display it. Since 2026-11-22.2 prioritise needs every
+# v1-covered required check complete (V1_COVERED_CHECKS), not a share.
 PRIORITISE_MIN_SUFFICIENCY = 80
 DEPRIORITISE_MAX_FIT = 40  # strictly below this...
 DEPRIORITISE_MIN_ASSESSABLE = 60  # ...on at least this share of verified criteria
 CANNOT_ASSESS_MAX_ASSESSABLE = 30  # strictly below this share of criteria assessable
+
+# A sourced field older than this (by its as_of date) is stale: it still counts
+# toward fit, but a fail on it is not verified, so it never excludes a company
+# or triggers deprioritise.
+FIELD_STALE_AFTER_DAYS = 730
+
+# The checks the first version actually runs (PRD "First version": identity,
+# team, leadership, funding and dated events). Prioritise needs every one of
+# these that is required for the company type to be complete.
+V1_COVERED_CHECKS = frozenset(
+    {
+        ClaimCategory.IDENTITY_INCORPORATION,
+        ClaimCategory.LOCATION,
+        ClaimCategory.TEAM_SIZE,
+        ClaimCategory.LEADERSHIP_HISTORY,
+        ClaimCategory.FUNDING,
+        ClaimCategory.DATED_EVENT,
+    }
+)
+
+# --- Identity guard (design §5.4) ---------------------------------------------
+# Evidence is attached to an entity only on one of these. A name match alone
+# is never enough. "case_upload" is a document the seller uploaded to this case.
+CORROBORATING_IDENTIFIERS = frozenset(
+    {
+        "crustdata_id",
+        "domain",
+        "profile_url",
+        "registry_id",
+        "cin",
+        "hq_city",
+        "founded_year",
+        "case_upload",
+    }
+)
 
 # --- Company type ------------------------------------------------------------
 
@@ -73,6 +117,13 @@ class ComponentRule:
     # another component of the same check (for example a registered charge
     # next to a "no debt" claim).
     related_caveat: str = ""
+    # For classes listed here, the source must also be one of these document
+    # types (a generic seller deck never settles a payroll count).
+    document_types: dict[SourceReliability, frozenset[DocumentType]] = field(default_factory=dict)
+    # Classes whose evidence must carry a date (as_of) to settle the question.
+    needs_date: frozenset[SourceReliability] = frozenset()
+    # Whether a document from the seller can resolve it.
+    seller_resolvable: bool = True
 
 
 _IDENTITY_SOURCES = frozenset({R.REGISTRY, R.REGISTRY_MIRROR, R.AUDITED_STATEMENT})
@@ -110,7 +161,7 @@ DOC_INCORPORATION = "Certificate of incorporation"
 DOC_REGISTERED_OFFICE = "Registered-office filing or premises lease"
 DOC_PAYROLL = "Dated payroll summary"
 DOC_CV = "Founder CV with dates, or an employer's confirmation"
-DOC_FUNDING = "Share allotment filing or signed term sheet"
+DOC_FUNDING = "Share allotment filing, closing statement or bank receipt of the funds"
 DOC_FACILITY = "Lease or occupancy evidence for the facility"
 DOC_EVENT = "Dated document showing the event took place"
 DOC_CUSTOMER = "Customer confirmation or signed contract"
@@ -119,6 +170,24 @@ DOC_LENDER = "Lender statements"
 DOC_LITIGATION = "Litigation disclosure signed by counsel"
 DOC_FINANCIAL_INPUTS = DOC_FINANCIALS  # one document, so requests dedupe
 DOC_IDENTITY = "Certificate of incorporation showing the CIN and registered office"
+
+D = DocumentType
+_PAYROLL_DOCS = {R.SELLER_DOCUMENT: frozenset({D.PAYROLL_RECORD})}
+_PREMISES_DOCS = {
+    R.SELLER_DOCUMENT: frozenset({D.LEASE, D.OCCUPANCY_EVIDENCE, D.INCORPORATION_CERTIFICATE})
+}
+_CAREER_DOCS = {R.SELLER_DOCUMENT: frozenset({D.CV, D.EMPLOYER_CONFIRMATION})}
+# A completed round needs closing, allotment or receipt of funds. A term sheet
+# is only an offer.
+_FUNDING_DOCS = {
+    R.SELLER_DOCUMENT: frozenset({D.SHARE_ALLOTMENT, D.FUNDING_CLOSING, D.FUNDS_RECEIPT})
+}
+# That an event happened, or a facility operates: occupancy evidence or a
+# record of the event itself. A deck or announcement never shows it.
+_OCCURRENCE_DOCS = {R.SELLER_DOCUMENT: frozenset({D.OCCUPANCY_EVIDENCE, D.EVENT_RECORD})}
+_EVENT_DOCS = {R.SELLER_DOCUMENT: frozenset({D.OCCUPANCY_EVIDENCE, D.EVENT_RECORD, D.LEASE})}
+_CUSTOMER_DOCS = {R.SELLER_DOCUMENT: frozenset({D.CUSTOMER_CONTRACT, D.CUSTOMER_CONFIRMATION})}
+_DEBT_DOCS = {R.SELLER_DOCUMENT: frozenset({D.LENDER_STATEMENT})}
 
 COMPONENT_RULES: dict[str, ComponentRule] = {
     # Identity and incorporation: registry questions.
@@ -151,6 +220,7 @@ COMPONENT_RULES: dict[str, ComponentRule] = {
             {R.REGISTRY, R.REGISTRY_MIRROR, R.AUDITED_STATEMENT, R.DATA_PROVIDER, R.SELLER_DOCUMENT}
         ),
         DOC_REGISTERED_OFFICE,
+        document_types=_PREMISES_DOCS,
     ),
     "country": ComponentRule(
         ClaimCategory.LOCATION,
@@ -163,6 +233,7 @@ COMPONENT_RULES: dict[str, ComponentRule] = {
         ValueKind.TEXT,
         frozenset({R.REGISTRY, R.NEWS, R.SELLER_DOCUMENT, R.COUNTERPARTY_CONFIRMATION}),
         DOC_REGISTERED_OFFICE,
+        document_types=_PREMISES_DOCS,
     ),
     # Team size: profiles and data providers are signals and never adequate.
     "employee_count": ComponentRule(
@@ -174,6 +245,8 @@ COMPONENT_RULES: dict[str, ComponentRule] = {
             R.PROFESSIONAL_PROFILE_SIGNAL: HEADCOUNT_SIGNAL_CAVEAT,
             R.DATA_PROVIDER: HEADCOUNT_SIGNAL_CAVEAT,
         },
+        document_types=_PAYROLL_DOCS,
+        needs_date=frozenset({R.SELLER_DOCUMENT}),
     ),
     "headcount_growth_pct": ComponentRule(
         ClaimCategory.TEAM_SIZE,
@@ -184,28 +257,60 @@ COMPONENT_RULES: dict[str, ComponentRule] = {
             R.PROFESSIONAL_PROFILE_SIGNAL: HEADCOUNT_SIGNAL_CAVEAT,
             R.DATA_PROVIDER: HEADCOUNT_SIGNAL_CAVEAT,
         },
+        document_types=_PAYROLL_DOCS,
+        needs_date=frozenset({R.SELLER_DOCUMENT}),
     ),
     # Leadership and founder history: a professional record shows role and years.
     "person_name": ComponentRule(
-        ClaimCategory.LEADERSHIP_HISTORY, ValueKind.TEXT, _CAREER_SOURCES, DOC_CV
+        ClaimCategory.LEADERSHIP_HISTORY,
+        ValueKind.TEXT,
+        _CAREER_SOURCES,
+        DOC_CV,
+        document_types=_CAREER_DOCS,
     ),
     "role": ComponentRule(
-        ClaimCategory.LEADERSHIP_HISTORY, ValueKind.TEXT_CONTAINS, _CAREER_SOURCES, DOC_CV
+        ClaimCategory.LEADERSHIP_HISTORY,
+        ValueKind.TEXT_CONTAINS,
+        _CAREER_SOURCES,
+        DOC_CV,
+        document_types=_CAREER_DOCS,
     ),
     "employer": ComponentRule(
-        ClaimCategory.LEADERSHIP_HISTORY, ValueKind.TEXT, _CAREER_SOURCES, DOC_CV
+        ClaimCategory.LEADERSHIP_HISTORY,
+        ValueKind.TEXT,
+        _CAREER_SOURCES,
+        DOC_CV,
+        document_types=_CAREER_DOCS,
     ),
     "employer_industry": ComponentRule(
         ClaimCategory.LEADERSHIP_HISTORY,
         ValueKind.TEXT_CONTAINS,
         _CAREER_SOURCES | {R.DATA_PROVIDER},
         DOC_CV,
+        document_types=_CAREER_DOCS,
+    ),
+    # The scope of the employer itself (local, regional, national,
+    # international) is a fact about the employer company, so it needs a
+    # record about that company, not the person's profile.
+    "employer_scope": ComponentRule(
+        ClaimCategory.LEADERSHIP_HISTORY,
+        ValueKind.ENUM,
+        frozenset({R.DATA_PROVIDER, R.NEWS, R.REGISTRY, R.REGISTRY_MIRROR, R.AUDITED_STATEMENT}),
+        DOC_CV,
     ),
     "start_year": ComponentRule(
-        ClaimCategory.LEADERSHIP_HISTORY, ValueKind.YEAR, _CAREER_SOURCES, DOC_CV
+        ClaimCategory.LEADERSHIP_HISTORY,
+        ValueKind.YEAR,
+        _CAREER_SOURCES,
+        DOC_CV,
+        document_types=_CAREER_DOCS,
     ),
     "end_year": ComponentRule(
-        ClaimCategory.LEADERSHIP_HISTORY, ValueKind.YEAR, _CAREER_SOURCES, DOC_CV
+        ClaimCategory.LEADERSHIP_HISTORY,
+        ValueKind.YEAR,
+        _CAREER_SOURCES,
+        DOC_CV,
+        document_types=_CAREER_DOCS,
     ),
     # Funding.
     "raised": ComponentRule(
@@ -214,6 +319,7 @@ COMPONENT_RULES: dict[str, ComponentRule] = {
         _FUNDING_SOURCES,
         DOC_FUNDING,
         caveats={R.COMPANY_ANNOUNCEMENT: ANNOUNCEMENT_CAVEAT},
+        document_types=_FUNDING_DOCS,
     ),
     "round_year": ComponentRule(
         ClaimCategory.FUNDING,
@@ -221,6 +327,7 @@ COMPONENT_RULES: dict[str, ComponentRule] = {
         _FUNDING_SOURCES,
         DOC_FUNDING,
         caveats={R.COMPANY_ANNOUNCEMENT: ANNOUNCEMENT_CAVEAT},
+        document_types=_FUNDING_DOCS,
     ),
     "round_date": ComponentRule(
         ClaimCategory.FUNDING,
@@ -228,14 +335,29 @@ COMPONENT_RULES: dict[str, ComponentRule] = {
         _FUNDING_SOURCES,
         DOC_FUNDING,
         caveats={R.COMPANY_ANNOUNCEMENT: ANNOUNCEMENT_CAVEAT},
+        document_types=_FUNDING_DOCS,
     ),
     "round_type": ComponentRule(
-        ClaimCategory.FUNDING, ValueKind.TEXT_CONTAINS, _FUNDING_SOURCES, DOC_FUNDING
+        ClaimCategory.FUNDING,
+        ValueKind.ROUND_TYPE,
+        _FUNDING_SOURCES,
+        DOC_FUNDING,
+        document_types=_FUNDING_DOCS,
     ),
     "amount_usd": ComponentRule(
-        ClaimCategory.FUNDING, ValueKind.MONEY, _FUNDING_SOURCES, DOC_FUNDING
+        ClaimCategory.FUNDING,
+        ValueKind.MONEY,
+        _FUNDING_SOURCES,
+        DOC_FUNDING,
+        document_types=_FUNDING_DOCS,
     ),
-    "investor": ComponentRule(ClaimCategory.FUNDING, ValueKind.TEXT, _FUNDING_SOURCES, DOC_FUNDING),
+    "investor": ComponentRule(
+        ClaimCategory.FUNDING,
+        ValueKind.TEXT,
+        _FUNDING_SOURCES,
+        DOC_FUNDING,
+        document_types=_FUNDING_DOCS,
+    ),
     "announced": ComponentRule(
         ClaimCategory.FUNDING,
         ValueKind.BOOL,
@@ -249,6 +371,7 @@ COMPONENT_RULES: dict[str, ComponentRule] = {
         ValueKind.TEXT_CONTAINS,
         _EVENT_HAPPENED_SOURCES | {R.COMPANY_ANNOUNCEMENT},
         DOC_EVENT,
+        document_types=_EVENT_DOCS,
     ),
     "event_date": ComponentRule(
         ClaimCategory.DATED_EVENT,
@@ -256,6 +379,7 @@ COMPONENT_RULES: dict[str, ComponentRule] = {
         _EVENT_HAPPENED_SOURCES,
         DOC_EVENT,
         caveats={R.COMPANY_ANNOUNCEMENT: ANNOUNCEMENT_CAVEAT},
+        document_types=_OCCURRENCE_DOCS,
     ),
     "stage": ComponentRule(
         ClaimCategory.DATED_EVENT,
@@ -263,6 +387,7 @@ COMPONENT_RULES: dict[str, ComponentRule] = {
         _EVENT_HAPPENED_SOURCES,
         DOC_EVENT,
         caveats={R.COMPANY_ANNOUNCEMENT: ANNOUNCEMENT_CAVEAT},
+        document_types=_OCCURRENCE_DOCS,
     ),
     # Customers and partnerships: the counterparty's own confirmation.
     "counterparty": ComponentRule(
@@ -271,15 +396,28 @@ COMPONENT_RULES: dict[str, ComponentRule] = {
         _CUSTOMER_SOURCES,
         DOC_CUSTOMER,
         caveats={R.COMPANY_ANNOUNCEMENT: ANNOUNCEMENT_CAVEAT},
+        document_types=_CUSTOMER_DOCS,
     ),
     "relationship": ComponentRule(
-        ClaimCategory.CUSTOMER_PARTNERSHIP, ValueKind.TEXT_CONTAINS, _CUSTOMER_SOURCES, DOC_CUSTOMER
+        ClaimCategory.CUSTOMER_PARTNERSHIP,
+        ValueKind.TEXT_CONTAINS,
+        _CUSTOMER_SOURCES,
+        DOC_CUSTOMER,
+        document_types=_CUSTOMER_DOCS,
     ),
     "since_year": ComponentRule(
-        ClaimCategory.CUSTOMER_PARTNERSHIP, ValueKind.YEAR, _CUSTOMER_SOURCES, DOC_CUSTOMER
+        ClaimCategory.CUSTOMER_PARTNERSHIP,
+        ValueKind.YEAR,
+        _CUSTOMER_SOURCES,
+        DOC_CUSTOMER,
+        document_types=_CUSTOMER_DOCS,
     ),
     "contract_value": ComponentRule(
-        ClaimCategory.CUSTOMER_PARTNERSHIP, ValueKind.MONEY, _CUSTOMER_SOURCES, DOC_CUSTOMER
+        ClaimCategory.CUSTOMER_PARTNERSHIP,
+        ValueKind.MONEY,
+        _CUSTOMER_SOURCES,
+        DOC_CUSTOMER,
+        document_types=_CUSTOMER_DOCS,
     ),
     # Financials: audited statements or registry filings only.
     "revenue": ComponentRule(
@@ -300,10 +438,18 @@ COMPONENT_RULES: dict[str, ComponentRule] = {
     # Debt and security. Owing money is a lender/accounts question; a registry
     # charge only answers "was security given".
     "has_debt": ComponentRule(
-        ClaimCategory.DEBT_SECURITY, ValueKind.BOOL, _DEBT_SOURCES, DOC_LENDER
+        ClaimCategory.DEBT_SECURITY,
+        ValueKind.BOOL,
+        _DEBT_SOURCES,
+        DOC_LENDER,
+        document_types=_DEBT_DOCS,
     ),
     "debt_amount": ComponentRule(
-        ClaimCategory.DEBT_SECURITY, ValueKind.MONEY, _DEBT_SOURCES, DOC_LENDER
+        ClaimCategory.DEBT_SECURITY,
+        ValueKind.MONEY,
+        _DEBT_SOURCES,
+        DOC_LENDER,
+        document_types=_DEBT_DOCS,
     ),
     "security_registered": ComponentRule(
         ClaimCategory.DEBT_SECURITY,
@@ -311,12 +457,14 @@ COMPONENT_RULES: dict[str, ComponentRule] = {
         frozenset({R.REGISTRY, R.REGISTRY_MIRROR}),
         "Registry charge record",
         related_caveat=CHARGE_CAVEAT,
+        seller_resolvable=False,
     ),
     "lender": ComponentRule(
         ClaimCategory.DEBT_SECURITY,
         ValueKind.TEXT,
         _DEBT_SOURCES | {R.REGISTRY, R.REGISTRY_MIRROR},
         DOC_LENDER,
+        document_types=_DEBT_DOCS,
     ),
     # Litigation: court or registry records and audited disclosures.
     "has_litigation": ComponentRule(
@@ -326,7 +474,11 @@ COMPONENT_RULES: dict[str, ComponentRule] = {
         DOC_LITIGATION,
     ),
     "case_reference": ComponentRule(
-        ClaimCategory.LITIGATION, ValueKind.TEXT, frozenset({R.REGISTRY}), DOC_LITIGATION
+        ClaimCategory.LITIGATION,
+        ValueKind.TEXT,
+        frozenset({R.REGISTRY}),
+        DOC_LITIGATION,
+        seller_resolvable=False,
     ),
 }
 
@@ -382,6 +534,7 @@ STAGE_CUES: dict[str, tuple[str, ...]] = {
         "started operations",
         "now live",
         "began operations",
+        "launched",
     ),
     "closed": ("closed", "shut", "ceased"),
 }

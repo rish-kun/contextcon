@@ -5,6 +5,7 @@ from __future__ import annotations
 import calendar
 import re
 import unicodedata
+from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Literal
 
@@ -47,6 +48,7 @@ _MULTIPLIERS = {
     "lakh": 1e5,
     "lakhs": 1e5,
     "lac": 1e5,
+    "lacs": 1e5,
     "crore": 1e7,
     "crores": 1e7,
     "cr": 1e7,
@@ -57,40 +59,160 @@ _MULTIPLIERS = {
     "billion": 1e9,
     "b": 1e9,
 }
-_NUMBER_RE = re.compile(
-    r"(?<![\w.])(\d[\d,]*(?:\.\d+)?)\s*("
-    + "|".join(sorted(_MULTIPLIERS, key=len, reverse=True))
-    + r")?(?![a-z])",
+_INR_SCALES = frozenset({"lakh", "lakhs", "lac", "lacs", "crore", "crores", "cr"})
+
+# A number token: Indian or western digit grouping, optional decimals. It must
+# start a token (no letter, digit or decimal point straight before it), so
+# "250" is never read inside "1250", "1,250" or "12.250".
+_NUMBER_TOKEN = re.compile(
+    r"(?<![\w])(?<!\d[.,])(\d{1,3}(?:,\d{2,3})+(?:\.\d+)?|\d+(?:\.\d+)?)(?!\d)"
+)
+_SCALE_AFTER = re.compile(
+    r"\s*(" + "|".join(sorted(_MULTIPLIERS, key=len, reverse=True)) + r")\b(?![.\-]?\d)",
     re.IGNORECASE,
 )
+_PERCENT_AFTER = re.compile(r"\s*(%|percent\b|per\s+cent\b|pc\b)", re.IGNORECASE)
+_CURRENCY_AFTER = re.compile(r"\s*(inr|rupees?|usd|dollars?|eur|euros?|gbp)\b", re.IGNORECASE)
+_CURRENCY_BEFORE = re.compile(r"(₹|rs\.?|inr|us\$|\$|usd|€|eur|£|gbp)\s*$", re.IGNORECASE)
+_CURRENCY_CODES = {
+    "₹": "INR",
+    "rs": "INR",
+    "rs.": "INR",
+    "inr": "INR",
+    "rupee": "INR",
+    "rupees": "INR",
+    "us$": "USD",
+    "$": "USD",
+    "usd": "USD",
+    "dollar": "USD",
+    "dollars": "USD",
+    "€": "EUR",
+    "eur": "EUR",
+    "euro": "EUR",
+    "euros": "EUR",
+    "£": "GBP",
+    "gbp": "GBP",
+}
+_MINUS = frozenset({"-", "−"})
 
 
-def parse_numbers(text: str) -> list[float]:
-    """Every number in the text, both as written and with its multiplier applied."""
-    out: list[float] = []
-    for raw, unit in _NUMBER_RE.findall(text):
+@dataclass(frozen=True)
+class Quantity:
+    """A number as the text states it: sign, scale, unit and currency kept.
+
+    ``value`` is the signed, scaled amount ("-5 million" → -5_000_000.0);
+    ``written`` is the bare figure as printed (5.0). Offsets are into the text
+    that was parsed.
+    """
+
+    value: float
+    written: float
+    scale: float = 1.0
+    percent: bool = False
+    currency: str | None = None
+    start: int = 0
+    end: int = 0
+
+
+def currency_code(text: str | None) -> str | None:
+    if not text:
+        return None
+    return _CURRENCY_CODES.get(text.strip().casefold())
+
+
+def parse_quantities(text: str) -> list[Quantity]:
+    """Every number in ``text`` with its sign, scale, percent unit and currency.
+
+    A scale word ("5 million", "12 crore") is always applied: the bare "5" is
+    not a separate reading. A minus counts as a sign only when it is attached
+    to the number and does not follow a digit (so "2008-2013" is a range).
+    Lakh and crore imply rupees when no currency is written.
+    """
+    out: list[Quantity] = []
+    for m in _NUMBER_TOKEN.finditer(text):
+        raw = m.group(1)
         try:
-            base = float(raw.replace(",", ""))
-        except ValueError:
+            written = float(raw.replace(",", ""))
+        except ValueError:  # pragma: no cover - the pattern only admits digits
             continue
-        out.append(base)
-        if unit:
-            out.append(base * _MULTIPLIERS[unit.lower()])
+        start, end = m.start(1), m.end(1)
+        rest = text[end:]
+        scale = 1.0
+        scale_word = None
+        sm = _SCALE_AFTER.match(rest)
+        if sm:
+            scale_word = sm.group(1).casefold()
+            scale = _MULTIPLIERS[scale_word]
+            end += sm.end()
+            rest = text[end:]
+        percent = False
+        pm = _PERCENT_AFTER.match(rest)
+        if pm and scale_word is None:
+            percent = True
+            end += pm.end()
+            rest = text[end:]
+        currency = None
+        cm = _CURRENCY_BEFORE.search(text[max(0, start - 6) : start])
+        sign_at = start
+        if cm:
+            currency = currency_code(cm.group(1))
+            sign_at = max(0, start - 6) + cm.start()
+        elif not percent:
+            am = _CURRENCY_AFTER.match(rest)
+            if am:
+                currency = currency_code(am.group(1))
+                end += am.end()
+        if currency is None and scale_word in _INR_SCALES:
+            currency = "INR"
+        negative = False
+        before = text[:sign_at].rstrip(" ") if cm else text[:sign_at]
+        if before and before[-1] in _MINUS:
+            prev = before[:-1]
+            if not prev or not (prev[-1].isdigit() or prev[-1].isalpha()):
+                negative = True
+                start = len(before) - 1
+        value = written * scale * (-1 if negative else 1)
+        out.append(
+            Quantity(
+                value=value,
+                written=written,
+                scale=scale,
+                percent=percent,
+                currency=currency,
+                start=start,
+                end=end,
+            )
+        )
     return out
 
 
-def to_number(value: Any) -> float | None:
+def parse_numbers(text: str) -> list[float]:
+    """Every number in the text, signed and with its scale applied.
+
+    "5 million" gives 5_000_000.0 only; the bare 5 is not a reading of it.
+    """
+    return [q.value for q in parse_quantities(text)]
+
+
+def to_quantity(value: Any) -> Quantity | None:
     if isinstance(value, bool):
         return None
     if isinstance(value, int | float):
-        return float(value)
+        return Quantity(value=float(value), written=abs(float(value)))
     if isinstance(value, str):
-        nums = parse_numbers(value)
-        if not nums:
-            return None
-        # Prefer the multiplied reading when a unit is present.
-        return nums[1] if len(nums) > 1 and _NUMBER_RE.search(value).group(2) else nums[0]
+        qs = parse_quantities(value)
+        return qs[0] if qs else None
     return None
+
+
+def to_number(value: Any) -> float | None:
+    q = to_quantity(value)
+    return q.value if q is not None else None
+
+
+def same_number(a: float, b: float) -> bool:
+    """Exact equality for parsed figures, allowing only float rounding."""
+    return abs(a - b) <= 1e-9 * max(1.0, abs(a), abs(b))
 
 
 # --- Dates -------------------------------------------------------------------
@@ -200,6 +322,27 @@ def to_stage(value: Any) -> str | None:
     return v if v in policy.STAGE_ORDER else None
 
 
+_GROWTH_ROUNDS = ("growth", "private equity", "pre ipo", "buyout", "pe")
+_VENTURE_ROUNDS = ("pre seed", "seed", "angel", "venture", "series")
+_DEBT_ROUNDS = ("debt", "loan", "credit facility", "debenture")
+
+
+def round_kind(value: Any) -> str | None:
+    """Broad kind of a funding round: growth, venture, debt or grant."""
+    if value is None:
+        return None
+    text = f" {normalize_text(value)} "
+    if " grant " in text:
+        return "grant"
+    if any(f" {w} " in text for w in _DEBT_ROUNDS):
+        return "debt"
+    if any(f" {w} " in text for w in _GROWTH_ROUNDS):
+        return "growth"
+    if any(f" {w} " in text for w in _VENTURE_ROUNDS):
+        return "venture"
+    return None
+
+
 # --- Comparison --------------------------------------------------------------
 
 
@@ -284,6 +427,14 @@ def compare(
 
     if kind is ValueKind.ENUM:
         return "match" if normalize_text(claimed) == normalize_text(fact_value) else "conflict"
+
+    if kind is ValueKind.ROUND_TYPE:
+        if contains_phrase(fact_value, claimed):
+            return "match"
+        ck, fk = round_kind(claimed), round_kind(fact_value)
+        if ck is None or fk is None:
+            return "insufficient"
+        return "match" if ck == fk else "conflict"
 
     if kind is ValueKind.STAGE:
         c, f = to_stage(claimed), to_stage(fact_value)

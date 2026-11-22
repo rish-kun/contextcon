@@ -22,6 +22,7 @@ from app.domain.enums import (
     CriterionOperator,
     CriterionResult,
     Disposition,
+    DocumentType,
     FundingKind,
     IdentityStatus,
     NotCheckedReason,
@@ -46,6 +47,10 @@ class Source(Model):
     # Syndicated copies of one announcement share an origin_key, so they count
     # as one origin. Defaults to the URL, then the source id.
     origin_key: str | None = None
+    # For seller-provided documents: what kind of document it is. Some
+    # questions need a specific record (a dated payroll record, a share
+    # allotment) and a generic deck never settles them.
+    document_type: DocumentType | None = None
 
     @property
     def origin(self) -> str:
@@ -63,6 +68,11 @@ class Evidence(Model):
     field_value: Any = None
     page: int | None = None
     as_of: dt.date | None = None  # when the underlying fact was true, not retrieval
+    # How the record was tied to ``entity_id`` (design §5.4): the corroborating
+    # identifiers that matched, for example ["crustdata_id"], ["domain"],
+    # ["cin"] or ["case_upload"]. A name match alone ("name") is not enough,
+    # and evidence without a corroborating identifier never decides anything.
+    identity_basis: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _has_span_or_field(self) -> Evidence:
@@ -98,6 +108,8 @@ class Claim(Model):
     # Empty means the caller has already guarded identity.
     entity_ids: list[str] = Field(default_factory=list)
     origin: Literal["seller_document", "seller_typed", "profile"] = "seller_document"
+    # A material claim that is contradicted or conflicting blocks "prioritise".
+    material: bool = True
 
 
 class ClaimCheck(Model):
@@ -144,6 +156,10 @@ class ComponentFinding(Model):
     state: ComponentState
     decisive_evidence_ids: list[str] = Field(default_factory=list)
     note: str = ""
+    # Source classes of the decisive origins, so an announcement-only match
+    # stays visibly an announcement downstream (memo, UI).
+    provenance: list[SourceReliability] = Field(default_factory=list)
+    announcement_only: bool = False
 
 
 class CheckOutcome(Model):
@@ -178,12 +194,22 @@ class FieldFact(Model):
     evidence_id: str | None = None
     as_of: dt.date | None = None
     is_estimate: bool = False
+    # Entity binding for case evaluation (design §5.4). When ``evidence_id``
+    # names an Evidence passed to the assessment, that evidence's binding is
+    # used instead.
+    entity_id: str | None = None
+    identity_basis: list[str] = Field(default_factory=list)
+    # Another adequate source disagrees: the criterion is unknown, never fail.
+    disputed: bool = False
 
 
 class CompanyRecord(Model):
     entity_id: str
     name: str
     fields: dict[str, FieldFact] = Field(default_factory=dict)
+    # Other sourced values for the same field (from other origins). When they
+    # lead to a different criterion result, the criterion is disputed.
+    field_alternatives: dict[str, list[FieldFact]] = Field(default_factory=dict)
 
 
 class CriterionEvaluation(Model):
@@ -241,6 +267,9 @@ class CheckSufficiency(Model):
     claim_ids: list[str] = Field(default_factory=list)
     gap: str | None = None
     settle_with: list[str] = Field(default_factory=list)
+    # Whether v1 has a check for this question. Prioritise needs every covered
+    # required check complete; uncovered ones stay listed as gaps.
+    covered_in_v1: bool = True
 
 
 class EvidenceSufficiency(Model):
@@ -330,6 +359,9 @@ class AssessmentInputs(Model):
     claim_checks: list[ClaimCheck]
     business: BusinessInputs = Field(default_factory=BusinessInputs)
     financial_facts: list[ExtractedFact] = Field(default_factory=list)
+    # Evidence behind CompanyRecord fields, so criteria are recomputed from
+    # entity-bound evidence through the same screen as claims.
+    evidence: list[Evidence] = Field(default_factory=list)
 
 
 class RequestQuestion(Model):
@@ -337,6 +369,12 @@ class RequestQuestion(Model):
     text: str
     claim_id: str | None = None
     kind: Literal["claim", "identity", "financial_inputs", "unrun_check"]
+    # The precise unresolved component of the claim this question is about.
+    component: str | None = None
+    # Whether a document from the seller can resolve it, tracked apart from
+    # the claim status. Questions only the analyst can resolve never go to
+    # the seller.
+    seller_resolvable: bool = True
 
 
 class RequestItem(Model):
@@ -355,6 +393,9 @@ class RequestList(Model):
     questions: list[RequestQuestion]
     documents: list[RequestItem]
     analyst_retries: list[AnalystRetry]
+    # Open questions the seller cannot resolve (for example a registry charge
+    # record): the analyst follows them up; they are not in the seller list.
+    analyst_questions: list[RequestQuestion] = Field(default_factory=list)
 
 
 class AssessmentVersion(Model):

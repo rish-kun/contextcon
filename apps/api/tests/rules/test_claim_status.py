@@ -11,6 +11,7 @@ from app.domain import (
     ClaimComponent,
     ClaimStatus,
     ComponentState,
+    DocumentType,
     Evidence,
     ExtractedFact,
     NotCheckedReason,
@@ -24,7 +25,7 @@ R = SourceReliability
 NOW = datetime(2026, 11, 20)
 
 
-def src(id, reliability, origin=None, label=None):
+def src(id, reliability, origin=None, label=None, document_type=None):
     return Source(
         id=id,
         provider="test",
@@ -32,21 +33,29 @@ def src(id, reliability, origin=None, label=None):
         retrieved_at=NOW,
         reliability=reliability,
         origin_key=origin,
+        document_type=document_type,
     )
 
 
-def fact(id, source, component, value, quote, entity="co", as_of=None):
-    e = Evidence(id=f"ev-{id}", source=source, entity_id=entity, quote=quote, as_of=as_of)
+def fact(id, source, component, value, quote, entity="co", as_of=None, basis=("crustdata_id",)):
+    e = Evidence(
+        id=f"ev-{id}",
+        source=source,
+        entity_id=entity,
+        quote=quote,
+        as_of=as_of,
+        identity_basis=list(basis),
+    )
     return ExtractedFact(id=id, evidence=e, component=component, value=value)
 
 
-def check(category, components, facts, **kw):
+def check(category, components, facts, text="claim", entity_ids=("co",), **kw):
     claim = Claim(
         id="c",
-        text="claim",
+        text=text,
         category=category,
         components=[ClaimComponent(name=k, value=v) for k, v in components.items()],
-        entity_ids=["co"],
+        entity_ids=list(entity_ids),
     )
     return ClaimCheck(claim=claim, facts=facts, **kw)
 
@@ -82,8 +91,10 @@ def test_prd_founder_supported_by_professional_record():
 def test_prd_funding_supported_and_announcement_not_decisive():
     o = decide_claim_status(prd.FUNDING)
     decisive = {r.evidence_id for r in o.evidence if r.role == "decisive"}
-    assert decisive == {"ev-funding"}
+    assert decisive == {"ev-funding", "ev-funding-type"}
     assert any(r.evidence_id == "ev-funding-pr" and r.role == "not_adequate" for r in o.evidence)
+    rt = next(f for f in o.components if f.component == "round_type")
+    assert rt.state is ComponentState.MATCHED
 
 
 def test_prd_facility_partially_corroborated_lease_request():
@@ -142,7 +153,7 @@ def test_contradicted_by_registry_year():
     assert o.settle_with == ["Certificate of incorporation"]
 
 
-def test_more_authoritative_source_outranks_mirror():
+def test_registry_and_mirror_that_disagree_are_conflicting_not_ranked_away():
     official = src("official", R.REGISTRY)
     mirror = src("mirror", R.REGISTRY_MIRROR)
     c = check(
@@ -154,8 +165,37 @@ def test_more_authoritative_source_outranks_mirror():
         ],
     )
     o = decide_claim_status(c)
-    assert o.status is ClaimStatus.SUPPORTED
-    assert any(r.note == "outranked by a more authoritative source" for r in o.evidence)
+    assert o.status is ClaimStatus.CONFLICTING_EVIDENCE
+    assert {r.evidence_id for r in o.evidence if r.role == "decisive"} == {"ev-a", "ev-b"}
+
+
+def test_adequate_origins_that_conflict_with_each_other_are_conflicting():
+    # Both disagree with the claim, and with each other.
+    official = src("official", R.REGISTRY)
+    mirror = src("mirror", R.REGISTRY_MIRROR)
+    c = check(
+        ClaimCategory.IDENTITY_INCORPORATION,
+        {"incorporation_year": 2012},
+        [
+            fact("a", official, "incorporation_year", 2014, "Incorporated on 12 June 2014"),
+            fact("b", mirror, "incorporation_year", 2015, "Incorporation year 2015"),
+        ],
+    )
+    assert decide_claim_status(c).status is ClaimStatus.CONFLICTING_EVIDENCE
+
+
+def test_adequate_origins_that_agree_against_the_claim_contradict():
+    official = src("official", R.REGISTRY)
+    mirror = src("mirror", R.REGISTRY_MIRROR)
+    c = check(
+        ClaimCategory.IDENTITY_INCORPORATION,
+        {"incorporation_year": 2012},
+        [
+            fact("a", official, "incorporation_year", 2014, "Incorporated on 12 June 2014"),
+            fact("b", mirror, "incorporation_year", 2014, "Incorporation year 2014"),
+        ],
+    )
+    assert decide_claim_status(c).status is ClaimStatus.CONTRADICTED
 
 
 def test_conflicting_sources_of_equal_authority():
@@ -172,20 +212,24 @@ def test_conflicting_sources_of_equal_authority():
     assert decide_claim_status(c).status is ClaimStatus.CONFLICTING_EVIDENCE
 
 
-def test_contradicted_outranks_conflicting_and_partial():
+def test_conflicting_outranks_contradicted_and_partial_in_compound_claims():
     reg = src("reg", R.REGISTRY)
     db = src("db", R.DATA_PROVIDER)
-    news = src("news", R.NEWS)
+    mirror = src("mirror", R.REGISTRY_MIRROR)
     c = check(
         ClaimCategory.IDENTITY_INCORPORATION,
         {"incorporation_year": 2012, "country": "India"},
         [
             fact("a", reg, "incorporation_year", 2014, "Incorporated 2014"),
             fact("b", db, "country", "India", "Country: India"),
-            fact("c", news, "country", "Singapore", "Singapore-based firm"),
+            fact("c", mirror, "country", "Singapore", "Registered in Singapore"),
         ],
     )
-    assert decide_claim_status(c).status is ClaimStatus.CONTRADICTED
+    o = decide_claim_status(c)
+    states = {f.component: f.state for f in o.components}
+    assert states["incorporation_year"] is ComponentState.CONTRADICTED
+    assert states["country"] is ComponentState.CONFLICTING
+    assert o.status is ClaimStatus.CONFLICTING_EVIDENCE
 
 
 def test_syndicated_copies_count_as_one_origin_and_do_not_upgrade_announcement():
@@ -299,14 +343,48 @@ def test_profile_headcount_never_supports_even_when_equal():
     assert decide_claim_status(c).status is ClaimStatus.CANNOT_VERIFY
 
 
+PAYROLL_QUOTE = "Total employees on payroll, 30 Sep 2026: 246"
+
+
 def test_payroll_summary_supports_within_tolerance():
-    payroll = src("payroll", R.SELLER_DOCUMENT)
+    payroll = src("payroll", R.SELLER_DOCUMENT, document_type=DocumentType.PAYROLL_RECORD)
     c = check(
         ClaimCategory.TEAM_SIZE,
         {"employee_count": 250},
-        [fact("a", payroll, "employee_count", 246, "Total employees on payroll, 30 Sep 2026: 246")],
+        [
+            fact(
+                "a",
+                payroll,
+                "employee_count",
+                246,
+                PAYROLL_QUOTE,
+                as_of=date(2026, 9, 30),
+                basis=("case_upload",),
+            )
+        ],
     )
     assert decide_claim_status(c).status is ClaimStatus.SUPPORTED
+
+
+@pytest.mark.parametrize(
+    ("document_type", "as_of", "why"),
+    [
+        (None, date(2026, 9, 30), "generic document"),
+        (DocumentType.PITCH_DECK, date(2026, 9, 30), "pitch_deck"),
+        (DocumentType.PAYROLL_RECORD, None, "must be dated"),
+    ],
+)
+def test_generic_or_undated_seller_doc_cannot_settle_payroll(document_type, as_of, why):
+    doc = src("doc", R.SELLER_DOCUMENT, document_type=document_type)
+    c = check(
+        ClaimCategory.TEAM_SIZE,
+        {"employee_count": 250},
+        [fact("a", doc, "employee_count", 246, PAYROLL_QUOTE, as_of=as_of, basis=("case_upload",))],
+    )
+    o = decide_claim_status(c)
+    assert o.status is ClaimStatus.CANNOT_VERIFY
+    assert o.settle_with == ["Dated payroll summary"]
+    assert why in o.evidence[0].note
 
 
 def test_lender_statement_contradicts_no_debt():
@@ -330,6 +408,33 @@ def test_rejected_fact_cannot_drive_status():
     o = decide_claim_status(c)
     assert o.status is ClaimStatus.CANNOT_VERIFY
     assert o.evidence[0].role == "rejected"
+
+
+def test_fact_attached_on_name_alone_is_rejected():
+    reg = src("reg", R.REGISTRY)
+    c = check(
+        ClaimCategory.IDENTITY_INCORPORATION,
+        {"incorporation_year": 2014},
+        [fact("a", reg, "incorporation_year", 2014, "Incorporated 2014", basis=("name",))],
+    )
+    o = decide_claim_status(c)
+    assert o.status is ClaimStatus.CANNOT_VERIFY
+    assert o.evidence[0].role == "rejected"
+    assert "name alone" in o.evidence[0].note
+
+
+def test_claim_without_corroborated_entity_accepts_no_facts():
+    reg = src("reg", R.REGISTRY)
+    c = check(
+        ClaimCategory.IDENTITY_INCORPORATION,
+        {"incorporation_year": 2014},
+        [fact("a", reg, "incorporation_year", 2014, "Incorporated 2014")],
+        entity_ids=(),
+    )
+    o = decide_claim_status(c)
+    assert o.status is ClaimStatus.NOT_CHECKED
+    assert o.not_checked_reason is NotCheckedReason.IDENTITY_UNRESOLVED
+    assert [r.role for r in o.evidence] == ["rejected"]
 
 
 def test_fact_about_another_entity_is_rejected():
@@ -368,3 +473,163 @@ def test_fact_order_does_not_change_outcome():
     random.Random(7).shuffle(facts)
     shuffled = prd.FUNDING.model_copy(update={"facts": facts})
     assert decide_claim_status(shuffled) == base
+
+
+# --- Question-specific proof ----------------------------------------------------
+
+OPENED = "We opened a new facility in October 2026"
+
+
+def test_opening_claim_without_stage_is_partial_on_announcement_only():
+    pr = src("pr", R.COMPANY_ANNOUNCEMENT, label="Company announcement")
+    quote = "We are pleased to announce our new warehouse facility in Chakan, October 2026"
+    c = check(
+        ClaimCategory.DATED_EVENT,
+        {"event": "facility"},
+        [fact("pr-event", pr, "event", "warehouse facility", quote, basis=("domain",))],
+        text=OPENED,
+    )
+    o = decide_claim_status(c)
+    assert o.status is ClaimStatus.PARTIALLY_CORROBORATED
+    by = {f.component: f for f in o.components}
+    assert by["stage"].state is ComponentState.UNSETTLED  # occurrence is required
+    assert by["event"].announcement_only is True
+    assert by["event"].provenance == [R.COMPANY_ANNOUNCEMENT]
+    assert "announced only" in o.reason
+    decisive = next(r for r in o.evidence if r.role == "decisive")
+    assert "not that it happened" in decisive.note
+
+
+def test_seller_deck_cannot_prove_an_event_happened():
+    deck = src("deck", R.SELLER_DOCUMENT, document_type=DocumentType.PITCH_DECK)
+    quote = "Our new warehouse facility in Chakan opened in October 2026"
+    c = check(
+        ClaimCategory.DATED_EVENT,
+        {"event": "facility", "event_date": "2026-10", "stage": "operating"},
+        [
+            fact("d-event", deck, "event", "warehouse facility", quote, basis=("case_upload",)),
+            fact("d-date", deck, "event_date", "2026-10", quote, basis=("case_upload",)),
+            fact("d-stage", deck, "stage", "operating", quote, basis=("case_upload",)),
+        ],
+        text=OPENED,
+    )
+    o = decide_claim_status(c)
+    assert o.status is ClaimStatus.CANNOT_VERIFY
+    assert o.settle_with == ["Lease or occupancy evidence for the facility"]
+
+
+def test_occupancy_evidence_proves_operation():
+    occ = src("occ", R.SELLER_DOCUMENT, document_type=DocumentType.OCCUPANCY_EVIDENCE)
+    quote = "Occupancy certificate: warehouse facility at Chakan, operational from 3 October 2026"
+    c = check(
+        ClaimCategory.DATED_EVENT,
+        {"event": "facility", "event_date": "2026-10", "stage": "operating"},
+        [
+            fact("o-event", occ, "event", "warehouse facility", quote, basis=("case_upload",)),
+            fact("o-date", occ, "event_date", "2026-10-03", quote, basis=("case_upload",)),
+            fact("o-stage", occ, "stage", "operating", quote, basis=("case_upload",)),
+        ],
+        text=OPENED,
+    )
+    assert decide_claim_status(c).status is ClaimStatus.SUPPORTED
+
+
+def test_term_sheet_does_not_prove_a_completed_round():
+    ts = src("ts", R.SELLER_DOCUMENT, document_type=DocumentType.TERM_SHEET)
+    quote = "Term sheet dated 2 February 2025 for a growth funding round"
+    c = check(
+        ClaimCategory.FUNDING,
+        {"raised": True, "round_year": 2025},
+        [
+            fact("t-raised", ts, "raised", True, quote, basis=("case_upload",)),
+            fact("t-year", ts, "round_year", 2025, quote, basis=("case_upload",)),
+        ],
+    )
+    o = decide_claim_status(c)
+    assert o.status is ClaimStatus.CANNOT_VERIFY
+    assert o.settle_with == [
+        "Share allotment filing, closing statement or bank receipt of the funds"
+    ]
+
+
+def test_share_allotment_proves_a_completed_round():
+    allot = src("allot", R.SELLER_DOCUMENT, document_type=DocumentType.SHARE_ALLOTMENT)
+    quote = "Allotment of 1,20,000 equity shares on 14 March 2025 against growth funding received"
+    c = check(
+        ClaimCategory.FUNDING,
+        {"raised": True, "round_year": 2025},
+        [
+            fact("a-raised", allot, "raised", True, quote, basis=("case_upload",)),
+            fact("a-year", allot, "round_year", 2025, quote, basis=("case_upload",)),
+        ],
+    )
+    assert decide_claim_status(c).status is ClaimStatus.SUPPORTED
+
+
+# --- Pune negatives: the qualifiers decide ---------------------------------------
+
+
+def _founder_with(employer_quote, *, basis=("crustdata_id",), scope_value=None):
+    employer_ev = prd.ev(
+        "ev-employer-alt",
+        prd.EMPLOYER_RECORD,
+        quote=employer_quote,
+        entity=prd.EMPLOYER,
+        basis=basis,
+    )
+    facts = [f for f in prd.FOUNDER_HISTORY.facts if f.evidence.id != "ev-employer"]
+    facts.append(prd.fact("f-alt-industry", employer_ev, "employer_industry", "logistics"))
+    if scope_value:
+        facts.append(prd.fact("f-alt-scope", employer_ev, "employer_scope", scope_value))
+    return prd.FOUNDER_HISTORY.model_copy(update={"facts": facts})
+
+
+def test_founder_at_a_regional_firm_is_contradicted():
+    c = _founder_with(
+        "National Freight Logistics Ltd is a regional logistics firm in Maharashtra.",
+        scope_value="regional",
+    )
+    o = decide_claim_status(c)
+    assert o.status is ClaimStatus.CONTRADICTED
+    scope = next(f for f in o.components if f.component == "employer_scope")
+    assert scope.state is ComponentState.CONTRADICTED
+
+
+def test_national_in_the_employer_name_is_not_evidence_of_national_scope():
+    c = _founder_with("National Freight Logistics Ltd provides logistics services.")
+    o = decide_claim_status(c)
+    assert o.status is ClaimStatus.PARTIALLY_CORROBORATED
+    scope = next(f for f in o.components if f.component == "employer_scope")
+    assert scope.state is ComponentState.UNSETTLED
+
+
+def test_employer_record_bound_by_name_only_is_rejected():
+    c = _founder_with(
+        "National Freight Logistics Ltd is a national logistics firm with warehouses in 22 states.",
+        basis=("name",),
+        scope_value="national",
+    )
+    o = decide_claim_status(c)
+    assert o.status is ClaimStatus.PARTIALLY_CORROBORATED
+    assert {r.evidence_id for r in o.evidence if r.role == "rejected"} == {"ev-employer-alt"}
+
+
+def test_seed_round_contradicts_growth_funding():
+    seed_ev = prd.ev(
+        "ev-funding-seed",
+        prd.FUNDING_DB,
+        field_path="funding_milestones[0].funding_round",
+        field_value="Seed",
+        as_of=date(2025, 3, 14),
+    )
+    facts = [f for f in prd.FUNDING.facts if f.id != "f-fund-type"]
+    facts.append(prd.fact("f-fund-seed", seed_ev, "round_type", "Seed"))
+    o = decide_claim_status(prd.FUNDING.model_copy(update={"facts": facts}))
+    assert o.status is ClaimStatus.CONTRADICTED
+
+
+def test_announcement_alone_does_not_support_the_funding_claim():
+    facts = [f for f in prd.FUNDING.facts if f.evidence.id == "ev-funding-pr"]
+    o = decide_claim_status(prd.FUNDING.model_copy(update={"facts": facts}))
+    assert o.status is ClaimStatus.CANNOT_VERIFY
+    assert "announced it, not that it happened" in o.reason

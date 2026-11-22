@@ -1,6 +1,6 @@
 # DealProof scoring and verification policy
 
-Policy version: **2026-11-22.1** (`POLICY_VERSION` in `app/rules/policy.py`).
+Policy version: **2026-11-22.2** (`POLICY_VERSION` in `app/rules/policy.py`).
 
 DealProof's rules decide every status, score and recommendation. The AI only reads
 documents and pulls out values; it never decides. The same records under the same
@@ -37,26 +37,41 @@ against the kinds of source that can answer that question (table below).
 1. Facts are screened first. A value is rejected when it cannot be read from its
    quoted text or record field, or when the record is about a different company or
    person. Rejected facts are listed but never decide anything.
+   - **Identity binding.** A record counts only when it is attached to one of the
+     claim's entities on a corroborating identifier: `case_upload`, `cin`,
+     `crustdata_id`, `domain`, `founded_year`, `hq_city`, `profile_url` or
+     `registry_id`. A matching name alone is never enough. A claim with no
+     corroborated entity accepts no facts and stays Not checked (identity unresolved).
+   - **Exact reading.** Values are read with their sign, scale, unit and currency:
+     "5 million" is not 5, "-12%" is not 12, and "250" is never read inside "1250".
+     Dates may not be more precise than the source: a month or day the source does
+     not state is rejected. Yes/no values must match the wording's polarity ("no
+     debt"), and negated or future wording ("has not opened", "will be operational")
+     never shows that something is operating. No tolerance applies here;
+     tolerances belong to comparing a fact with a claim.
 2. Copies of the same item (the same press release on several sites) count as
    **one origin**. A set of copies is only as strong as its weakest copy, so a
    republished announcement is still an announcement.
-3. Only adequate sources can settle a component. Among those, the most
-   authoritative tier present decides:
-   tier 1 registry, audited statement, counterparty confirmation;
-   tier 2 registry mirror, seller document;
-   tier 3 data provider, news, professional profile;
-   tier 4 company announcement; tier 5 seller statement.
-   Agreement in the deciding tier = **matched**, disagreement with the claim =
-   **contradicted**, disagreement among sources in that tier = **conflicting**.
-   No adequate source = **unsettled**.
+3. Only adequate sources can settle a component. A seller document is adequate
+   only when it is the right kind of document for the question (see the table),
+   and a payroll count also needs a dated payroll record. A pitch deck or other
+   generic document never settles anything.
+4. Every adequate independent origin counts, whatever its tier. When they all
+   agree with the claim the component is **matched**. When some agree and others
+   disagree, or when they disagree with each other, it is **conflicting**: a
+   registry and a registry mirror that disagree are conflicting, never ranked
+   away. When they agree with each other against the claim it is
+   **contradicted**. No adequate source = **unsettled**.
+5. A component matched only by company announcements is marked *announced only*,
+   so later steps (the memo, the request list) keep saying it was announced.
 
 **Combining components (first that applies wins)**
 
 | Order | Status | When |
 | --- | --- | --- |
-| 1 | Not checked | The check did not run. A reason is always given (budget, source error, source unavailable, no source in scope, identity unresolved). |
-| 2 | Contradicted | Any component is contradicted. |
-| 3 | Conflicting evidence | Any component has sources that disagree. |
+| 1 | Not checked | The check did not run, or the claim has no corroborated entity. A reason is always given (budget, source error, source unavailable, no source in scope, identity unresolved). |
+| 2 | Conflicting evidence | Any component has adequate sources that disagree. |
+| 3 | Contradicted | Any component is contradicted. |
 | 4 | Supported | Every component is matched. |
 | 5 | Partially corroborated | Some components matched, the rest unsettled. |
 | 6 | Cannot verify | Nothing adequate settles any component. |
@@ -68,6 +83,16 @@ Every status except Supported names what would settle it, as a document or recor
 - A company announcement shows that the company announced something, not that it
   happened. It can establish *what was announced*, never *when or whether it happened*.
   A planned facility in an announcement makes "we opened a facility" Partially corroborated.
+- A dated-event claim always asserts whether the event happened. When it has no
+  stage component, one is added from its wording ("opened" → operating), so it can
+  be Supported only by evidence that the event happened or the facility operates.
+  A seller deck or an announcement never shows that.
+- A completed funding round needs a share allotment, a closing statement or a
+  receipt of the funds. A term sheet is only an offer.
+- The round type is part of a funding claim: a seed round does not support "growth
+  funding". The scope of a founder's former employer ("a national logistics firm")
+  needs a record about that employer, bound to it by an identifier; the word
+  "National" in its name is not evidence of national scope.
 - Headcount from professional profiles or data providers is a signal. It can never
   support or contradict a payroll count.
 - A registered charge shows that security was given, not that money is owed. It is
@@ -75,53 +100,57 @@ Every status except Supported names what would settle it, as a document or recor
 - An adequate source that was read and says nothing gives Cannot verify, never Supported.
 - A record showing an earlier stage ("planned") contradicts "it is operating" only
   if it is dated after the claimed date.
-- Tolerances: headcounts within 5%, money within 2%, percentages within 2 points.
+- Tolerances when comparing with a claim: headcounts within 5%, money within 2%,
+  percentages within 2 points.
 
 **Which sources are adequate for which question**
 
-| Component | Check | Adequate source classes | What would settle it |
-| --- | --- | --- | --- |
-| `legal_name` | identity incorporation | audited_statement, registry, registry_mirror | Certificate of incorporation |
-| `cin` | identity incorporation | registry, registry_mirror | Certificate of incorporation |
-| `incorporation_year` | identity incorporation | audited_statement, registry, registry_mirror | Certificate of incorporation |
-| `incorporation_date` | identity incorporation | audited_statement, registry, registry_mirror | Certificate of incorporation |
-| `registered_city` | location | registry, registry_mirror | Certificate of incorporation |
-| `hq_city` | location | audited_statement, data_provider, registry, registry_mirror, seller_document | Registered-office filing or premises lease |
-| `country` | location | audited_statement, data_provider, registry, registry_mirror | Certificate of incorporation |
-| `operating_city` | location | counterparty_confirmation, news, registry, seller_document | Registered-office filing or premises lease |
-| `employee_count` | team size | audited_statement, registry, seller_document | Dated payroll summary |
-| `headcount_growth_pct` | team size | audited_statement, seller_document | Dated payroll summaries for both dates |
-| `person_name` | leadership history | news, professional_profile_signal, registry, registry_mirror, seller_document | Founder CV with dates, or an employer's confirmation |
-| `role` | leadership history | news, professional_profile_signal, registry, registry_mirror, seller_document | Founder CV with dates, or an employer's confirmation |
-| `employer` | leadership history | news, professional_profile_signal, registry, registry_mirror, seller_document | Founder CV with dates, or an employer's confirmation |
-| `employer_industry` | leadership history | data_provider, news, professional_profile_signal, registry, registry_mirror, seller_document | Founder CV with dates, or an employer's confirmation |
-| `start_year` | leadership history | news, professional_profile_signal, registry, registry_mirror, seller_document | Founder CV with dates, or an employer's confirmation |
-| `end_year` | leadership history | news, professional_profile_signal, registry, registry_mirror, seller_document | Founder CV with dates, or an employer's confirmation |
-| `raised` | funding | audited_statement, counterparty_confirmation, data_provider, news, registry, registry_mirror, seller_document | Share allotment filing or signed term sheet |
-| `round_year` | funding | audited_statement, counterparty_confirmation, data_provider, news, registry, registry_mirror, seller_document | Share allotment filing or signed term sheet |
-| `round_date` | funding | audited_statement, counterparty_confirmation, data_provider, news, registry, registry_mirror, seller_document | Share allotment filing or signed term sheet |
-| `round_type` | funding | audited_statement, counterparty_confirmation, data_provider, news, registry, registry_mirror, seller_document | Share allotment filing or signed term sheet |
-| `amount_usd` | funding | audited_statement, counterparty_confirmation, data_provider, news, registry, registry_mirror, seller_document | Share allotment filing or signed term sheet |
-| `investor` | funding | audited_statement, counterparty_confirmation, data_provider, news, registry, registry_mirror, seller_document | Share allotment filing or signed term sheet |
-| `announced` | funding | company_announcement, news | Dated company announcement |
-| `event` | dated event | company_announcement, counterparty_confirmation, news, registry, seller_document | Dated document showing the event took place |
-| `event_date` | dated event | counterparty_confirmation, news, registry, seller_document | Dated document showing the event took place |
-| `stage` | dated event | counterparty_confirmation, news, registry, seller_document | Dated document showing the event took place |
-| `counterparty` | customer partnership | audited_statement, counterparty_confirmation, seller_document | Customer confirmation or signed contract |
-| `relationship` | customer partnership | audited_statement, counterparty_confirmation, seller_document | Customer confirmation or signed contract |
-| `since_year` | customer partnership | audited_statement, counterparty_confirmation, seller_document | Customer confirmation or signed contract |
-| `contract_value` | customer partnership | audited_statement, counterparty_confirmation, seller_document | Customer confirmation or signed contract |
-| `revenue` | financials | audited_statement, registry | Audited financial statements |
-| `profit` | financials | audited_statement, registry | Audited financial statements |
-| `ebitda` | financials | audited_statement, registry | Audited financial statements |
-| `revenue_growth_pct` | financials | audited_statement, registry | Audited financial statements |
-| `fiscal_year` | financials | audited_statement, registry | Audited financial statements |
-| `has_debt` | debt security | audited_statement, counterparty_confirmation, seller_document | Lender statements |
-| `debt_amount` | debt security | audited_statement, counterparty_confirmation, seller_document | Lender statements |
-| `security_registered` | debt security | registry, registry_mirror | Registry charge record |
-| `lender` | debt security | audited_statement, counterparty_confirmation, registry, registry_mirror, seller_document | Lender statements |
-| `has_litigation` | litigation | audited_statement, registry | Litigation disclosure signed by counsel |
-| `case_reference` | litigation | registry | Litigation disclosure signed by counsel |
+A seller document counts only when it is one of the document types listed; "dated" means it must also carry a date. Questions marked "analyst" cannot be resolved by the seller and are followed up by the analyst.
+
+| Component | Check | Adequate source classes | Seller documents accepted | What would settle it |
+| --- | --- | --- | --- | --- |
+| `legal_name` | identity incorporation | audited_statement, registry, registry_mirror | none | Certificate of incorporation |
+| `cin` | identity incorporation | registry, registry_mirror | none | Certificate of incorporation |
+| `incorporation_year` | identity incorporation | audited_statement, registry, registry_mirror | none | Certificate of incorporation |
+| `incorporation_date` | identity incorporation | audited_statement, registry, registry_mirror | none | Certificate of incorporation |
+| `registered_city` | location | registry, registry_mirror | none | Certificate of incorporation |
+| `hq_city` | location | audited_statement, data_provider, registry, registry_mirror, seller_document | incorporation_certificate, lease, occupancy_evidence | Registered-office filing or premises lease |
+| `country` | location | audited_statement, data_provider, registry, registry_mirror | none | Certificate of incorporation |
+| `operating_city` | location | counterparty_confirmation, news, registry, seller_document | incorporation_certificate, lease, occupancy_evidence | Registered-office filing or premises lease |
+| `employee_count` | team size | audited_statement, registry, seller_document | payroll_record (dated) | Dated payroll summary |
+| `headcount_growth_pct` | team size | audited_statement, seller_document | payroll_record (dated) | Dated payroll summaries for both dates |
+| `person_name` | leadership history | news, professional_profile_signal, registry, registry_mirror, seller_document | cv, employer_confirmation | Founder CV with dates, or an employer's confirmation |
+| `role` | leadership history | news, professional_profile_signal, registry, registry_mirror, seller_document | cv, employer_confirmation | Founder CV with dates, or an employer's confirmation |
+| `employer` | leadership history | news, professional_profile_signal, registry, registry_mirror, seller_document | cv, employer_confirmation | Founder CV with dates, or an employer's confirmation |
+| `employer_industry` | leadership history | data_provider, news, professional_profile_signal, registry, registry_mirror, seller_document | cv, employer_confirmation | Founder CV with dates, or an employer's confirmation |
+| `employer_scope` | leadership history | audited_statement, data_provider, news, registry, registry_mirror | none | Founder CV with dates, or an employer's confirmation |
+| `start_year` | leadership history | news, professional_profile_signal, registry, registry_mirror, seller_document | cv, employer_confirmation | Founder CV with dates, or an employer's confirmation |
+| `end_year` | leadership history | news, professional_profile_signal, registry, registry_mirror, seller_document | cv, employer_confirmation | Founder CV with dates, or an employer's confirmation |
+| `raised` | funding | audited_statement, counterparty_confirmation, data_provider, news, registry, registry_mirror, seller_document | funding_closing, funds_receipt, share_allotment | Share allotment filing, closing statement or bank receipt of the funds |
+| `round_year` | funding | audited_statement, counterparty_confirmation, data_provider, news, registry, registry_mirror, seller_document | funding_closing, funds_receipt, share_allotment | Share allotment filing, closing statement or bank receipt of the funds |
+| `round_date` | funding | audited_statement, counterparty_confirmation, data_provider, news, registry, registry_mirror, seller_document | funding_closing, funds_receipt, share_allotment | Share allotment filing, closing statement or bank receipt of the funds |
+| `round_type` | funding | audited_statement, counterparty_confirmation, data_provider, news, registry, registry_mirror, seller_document | funding_closing, funds_receipt, share_allotment | Share allotment filing, closing statement or bank receipt of the funds |
+| `amount_usd` | funding | audited_statement, counterparty_confirmation, data_provider, news, registry, registry_mirror, seller_document | funding_closing, funds_receipt, share_allotment | Share allotment filing, closing statement or bank receipt of the funds |
+| `investor` | funding | audited_statement, counterparty_confirmation, data_provider, news, registry, registry_mirror, seller_document | funding_closing, funds_receipt, share_allotment | Share allotment filing, closing statement or bank receipt of the funds |
+| `announced` | funding | company_announcement, news | none | Dated company announcement |
+| `event` | dated event | company_announcement, counterparty_confirmation, news, registry, seller_document | event_record, lease, occupancy_evidence | Dated document showing the event took place |
+| `event_date` | dated event | counterparty_confirmation, news, registry, seller_document | event_record, occupancy_evidence | Dated document showing the event took place |
+| `stage` | dated event | counterparty_confirmation, news, registry, seller_document | event_record, occupancy_evidence | Dated document showing the event took place |
+| `counterparty` | customer partnership | audited_statement, counterparty_confirmation, seller_document | customer_confirmation, customer_contract | Customer confirmation or signed contract |
+| `relationship` | customer partnership | audited_statement, counterparty_confirmation, seller_document | customer_confirmation, customer_contract | Customer confirmation or signed contract |
+| `since_year` | customer partnership | audited_statement, counterparty_confirmation, seller_document | customer_confirmation, customer_contract | Customer confirmation or signed contract |
+| `contract_value` | customer partnership | audited_statement, counterparty_confirmation, seller_document | customer_confirmation, customer_contract | Customer confirmation or signed contract |
+| `revenue` | financials | audited_statement, registry | none | Audited financial statements |
+| `profit` | financials | audited_statement, registry | none | Audited financial statements |
+| `ebitda` | financials | audited_statement, registry | none | Audited financial statements |
+| `revenue_growth_pct` | financials | audited_statement, registry | none | Audited financial statements |
+| `fiscal_year` | financials | audited_statement, registry | none | Audited financial statements |
+| `has_debt` | debt security | audited_statement, counterparty_confirmation, seller_document | lender_statement | Lender statements |
+| `debt_amount` | debt security | audited_statement, counterparty_confirmation, seller_document | lender_statement | Lender statements |
+| `security_registered` | debt security | registry, registry_mirror | none | Registry charge record (analyst) |
+| `lender` | debt security | audited_statement, counterparty_confirmation, registry, registry_mirror, seller_document | lender_statement | Lender statements |
+| `has_litigation` | litigation | audited_statement, registry | none | Litigation disclosure signed by counsel |
+| `case_reference` | litigation | registry | none | Litigation disclosure signed by counsel (analyst) |
 
 ## 3. Evaluate: five separate judgments
 

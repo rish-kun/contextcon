@@ -117,6 +117,33 @@ class ValueKind(StrEnum):
     BOOL = "bool"
     ENUM = "enum"
     STAGE = "stage"
+    ROUND_TYPE = "round_type"
+
+
+class DocumentType(StrEnum):
+    """What a seller-provided document is. A generic deck or memo
+    (``pitch_deck``, ``other``) never settles a question that needs a specific
+    record, such as a payroll count or a completed funding round."""
+
+    PAYROLL_RECORD = "payroll_record"
+    LEASE = "lease"
+    OCCUPANCY_EVIDENCE = "occupancy_evidence"
+    SHARE_ALLOTMENT = "share_allotment"
+    FUNDING_CLOSING = "funding_closing"
+    FUNDS_RECEIPT = "funds_receipt"
+    TERM_SHEET = "term_sheet"
+    CV = "cv"
+    EMPLOYER_CONFIRMATION = "employer_confirmation"
+    CUSTOMER_CONTRACT = "customer_contract"
+    CUSTOMER_CONFIRMATION = "customer_confirmation"
+    LENDER_STATEMENT = "lender_statement"
+    AUDITED_FINANCIALS = "audited_financials"
+    MANAGEMENT_ACCOUNTS = "management_accounts"
+    INCORPORATION_CERTIFICATE = "incorporation_certificate"
+    LITIGATION_DISCLOSURE = "litigation_disclosure"
+    EVENT_RECORD = "event_record"
+    PITCH_DECK = "pitch_deck"
+    OTHER = "other"
 
 
 class CriterionOperator(StrEnum):

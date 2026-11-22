@@ -3,6 +3,7 @@ from datetime import date, datetime
 from app.domain import (
     ClaimStatus,
     Disposition,
+    DocumentType,
     Evidence,
     ExtractedFact,
     Source,
@@ -19,6 +20,7 @@ LEASE = Source(
     label="Seller document: facility lease and occupancy certificate",
     retrieved_at=datetime(2026, 11, 25),
     reliability=SourceReliability.SELLER_DOCUMENT,
+    document_type=DocumentType.OCCUPANCY_EVIDENCE,
 )
 LEASE_QUOTE = (
     "Occupancy certificate issued 1 October 2026. The warehouse facility at Chakan "
@@ -33,6 +35,7 @@ def lease_fact(id, component, value):
         entity_id=prd.COMPANY,
         quote=LEASE_QUOTE,
         as_of=date(2026, 10, 3),
+        identity_basis=["case_upload"],
     )
     return ExtractedFact(id=id, evidence=ev, component=component, value=value)
 
