@@ -389,7 +389,7 @@ const ALL_CATEGORIES = "all";
  */
 export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
   const detail = useCaseDetail();
-  const { basePath, verify, runActive } = useCase();
+  const { basePath, verify, checkClaim, runActive } = useCase();
   const counts = useMemo(() => statusCounts(detail.claims), [detail.claims]);
   const [statuses, setStatuses] = useState<Set<ClaimStatus>>(() => {
     const first = CLAIM_STATUSES.find((status) => status === initialStatus);
@@ -540,7 +540,9 @@ export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
                   index={index}
                   claim={{ ...toClaim(claim), retry_credits_estimate: retryCredits.get(claim.id) }}
                   changedHref={`${basePath}/assessment`}
-                  onRunCheck={identityOpen || runActive ? undefined : () => void verify()}
+                  onRunCheck={
+                    identityOpen || runActive ? undefined : () => void checkClaim(claim.id)
+                  }
                   detail={<ClaimDetail claim={claim} />}
                 />
               ))}

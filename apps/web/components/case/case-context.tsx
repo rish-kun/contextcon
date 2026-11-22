@@ -27,6 +27,7 @@ import {
   type RunOut,
   type RunStreamEvent,
   getCase,
+  checkClaim as checkClaimApi,
   getRun,
   isFixtureMode,
   startVerify,
@@ -60,6 +61,8 @@ export interface CaseContextValue {
   runError: string | null;
   /** `POST /cases/{id}/verify`, then follow the run. Costs credits. */
   verify: () => Promise<void>;
+  /** `POST /cases/{id}/claims/{claim_id}/check`: one claim only, then follow the run. */
+  checkClaim: (claimId: string) => Promise<void>;
   /** Follow a run started elsewhere, for example by a document upload. */
   followRun: (run: RunOut) => void;
   /** True while a live run has not yet settled this claim. Drives the ledger's pending rows. */
@@ -105,6 +108,12 @@ function describe(error: unknown): string {
 }
 
 const SETTLED_STEP = new Set(["done", "failed", "skipped_budget"]);
+
+/** The claim id a step key checks (`checks.claim:<id>`, `…@2`, `…~1`), or null. */
+function claimOfStep(key: string): string | null {
+  const match = /(?:^|\.)claim:([^@~:]+)(?:[@~]\d+)?$/.exec(key);
+  return match ? match[1] : null;
+}
 
 /** A finding that changes what `GET /cases/{id}` returns: a claim settling, identity, the assessment. */
 function settlesSomething(event: Activity): boolean {
@@ -187,10 +196,14 @@ export function CaseProvider({
     (next: RunOut) => {
       stopRef.current?.();
       setRunError(null);
-      setRunActive(true);
-      // A fixture replay carries the recorded run's old timestamps; clock it from now.
+      setRunActive(isFixtureMode || isRunActive(next));
+      // A fixture replay carries the recorded run's old timestamps; clock it from now and
+      // replay it from the start. A real run keeps its snapshot (steps done so far, state),
+      // so a reload mid-run shows exactly the progress it had.
       const startedAt = isFixtureMode ? new Date().toISOString() : next.created_at;
-      const seed: RunOut = { ...next, state: "running", steps: [], created_at: startedAt, finished_at: null };
+      const seed: RunOut = isFixtureMode
+        ? { ...next, state: "running", steps: [], created_at: startedAt, finished_at: null }
+        : withStepSpend(next);
       setRun(seed);
       const runFeed = new RunFeed(seed, {
         onEvent: (raw) => {
@@ -228,6 +241,18 @@ export function CaseProvider({
       };
     },
     [reload, softReload],
+  );
+
+  const checkClaim = useCallback(
+    async (claimId: string) => {
+      setRunError(null);
+      try {
+        followRun(await checkClaimApi(caseId, claimId));
+      } catch (cause) {
+        setRunError(describe(cause));
+      }
+    },
+    [caseId, followRun],
   );
 
   const verify = useCallback(async () => {
@@ -279,10 +304,12 @@ export function CaseProvider({
   const isClaimPending = useCallback(
     (claimId: string) => {
       if (!runActive || !run) return false;
-      const step = run.steps.find((s) => s.key.endsWith(`:${claimId}`));
-      if (step) return !SETTLED_STEP.has(step.state);
-      // A verify run checks every claim; a recheck touches only the claims it names.
-      return run.kind === "verify" || run.kind === "evaluate";
+      // A claim is pending while one of its own check steps is unsettled. Re-checks
+      // carry a suffix: `checks.claim:<id>@2` (after a pick), `…~1` (deferred).
+      const steps = run.steps.filter((s) => claimOfStep(s.key) === claimId);
+      if (steps.length > 0) return steps.some((s) => !SETTLED_STEP.has(s.state));
+      // A fixture replay starts with no steps; its verify run checks every claim.
+      return isFixtureMode && (run.kind === "verify" || run.kind === "evaluate");
     },
     [run, runActive],
   );
@@ -309,6 +336,7 @@ export function CaseProvider({
       runActive,
       runError,
       verify,
+      checkClaim,
       followRun,
       isClaimPending,
       feed,
@@ -316,7 +344,7 @@ export function CaseProvider({
       setFeedPaused,
       claimLive,
     }),
-    [caseId, detail, state, error, reload, mutate, run, runActive, runError, verify, followRun, isClaimPending, feed, activity, setFeedPaused, claimLive],
+    [caseId, detail, state, error, reload, mutate, run, runActive, runError, verify, checkClaim, followRun, isClaimPending, feed, activity, setFeedPaused, claimLive],
   );
 
   return <CaseContext.Provider value={value}>{children}</CaseContext.Provider>;

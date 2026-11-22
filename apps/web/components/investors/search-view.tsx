@@ -94,7 +94,9 @@ export function SearchView({
     [data, demo],
   );
   const run = search?.run ?? null;
-  const wantsReplay = fresh || refollow || demo === "running";
+  // A finished production run is shown as it ended; replaying it from empty is a fixture
+  // demo only. A run still going is always followed, so a reload mid-run re-attaches.
+  const wantsReplay = (isFixtureMode && (fresh || refollow)) || demo === "running";
   const following =
     run !== null && (!isTerminal(run) || (wantsReplay && followed !== run.id));
 

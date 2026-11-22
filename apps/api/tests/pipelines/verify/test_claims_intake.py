@@ -307,3 +307,46 @@ async def test_document_url_is_scoped_to_the_workspace(api, client, session, sm)
     await login(client, other.email)
     assert (await client.get(f"/documents/{doc_id}/url")).status_code == 404
     assert (await client.get(f"/documents/{uuid.uuid4()}/url")).status_code == 404
+
+
+async def test_check_one_claim_queues_only_that_claim_then_assesses(api, client, session):
+    """`POST /cases/{id}/claims/{claim_id}/check` (a row's "Run check"): only that claim
+    gets a new check step, followed by evaluate → request list. Other workspaces 404."""
+    acct = await _signed_in(client, session)
+    case_id = acct.case.id
+    sentences = ["Incorporated in 2014, based in Pune", "We employ 250 people"]
+    ids = []
+    for sentence in sentences:
+        api.dependency_overrides[typed_claim_llm] = lambda s=sentence: (
+            lambda case: _typed_llm(
+                s,
+                "team_size",
+                [{"name": "n", "value": "250"}],
+                [{"name": "employee_count", "value": "250"}],
+            )
+        )
+        response = await client.post(f"/cases/{case_id}/claims", json={"text": sentence})
+        assert response.status_code == 201, response.text
+        ids.append(response.json()["id"])
+    before = {s.key for s in (await session.execute(select(Step))).scalars()}
+
+    response = await client.post(f"/cases/{case_id}/claims/{ids[0]}/check")
+    assert response.status_code == 202, response.text
+    run = response.json()
+    session.expire_all()
+    added = [
+        s.key
+        for s in (await session.execute(select(Step).order_by(Step.position))).scalars()
+        if s.key not in before
+    ]
+    assert added == [f"checks.claim:{ids[0]}@2"]  # joins the pending evaluate
+    assert run["state"] in ("pending", "running") and run["case_id"] == str(case_id)
+    keys = {s["key"] for s in run["steps"]}
+    assert {"evaluate", "request_list", f"checks.claim:{ids[0]}@2"} <= keys
+    assert f"checks.claim:{ids[1]}@2" not in keys
+
+    missing = await client.post(f"/cases/{case_id}/claims/{uuid.uuid4()}/check")
+    assert missing.status_code == 404
+    await _signed_in(client, session, "ravi")  # this client is now ravi, in another workspace
+    foreign = await client.post(f"/cases/{case_id}/claims/{ids[0]}/check")
+    assert foreign.status_code == 404

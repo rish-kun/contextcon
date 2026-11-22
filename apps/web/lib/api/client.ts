@@ -242,6 +242,12 @@ export async function startVerify(caseId: string): Promise<RunOut> {
   return call("POST", `/cases/${enc(caseId)}/verify`);
 }
 
+/** Check one claim again (its row's "Run check"), then re-assess the case. */
+export async function checkClaim(caseId: string, claimId: string): Promise<RunOut> {
+  if (isFixtureMode) return (await fx()).startVerify(caseId);
+  return call("POST", `/cases/${enc(caseId)}/claims/${enc(claimId)}/check`);
+}
+
 export async function setCaseCriteria(caseId: string, body: CaseCriteriaIn): Promise<CaseOut> {
   if (isFixtureMode) return (await fx()).caseOut(caseId);
   return call("PUT", `/cases/${enc(caseId)}/criteria`, { json: body });
@@ -417,6 +423,7 @@ export async function listAllRunActivity(id: string): Promise<Activity[]> {
 }
 
 const POLL_MS = 2000;
+const SSE_RECONNECTS = 3;
 const isTerminal = (run: RunOut) => run.state === "done" || run.state === "failed";
 
 /**
@@ -484,28 +491,43 @@ export function subscribeRun(
     return stop;
   }
 
-  const query = after > 0 ? `?after=${after}` : "";
-  source = new EventSource(`/api/runs/${enc(runId)}/events${query}`);
-  source.addEventListener("step", (e) => {
-    onEvent({ event: "step", data: JSON.parse((e as MessageEvent<string>).data) as StepOut });
-  });
-  source.addEventListener("activity", (e) => {
-    emitActivity(JSON.parse((e as MessageEvent<string>).data) as Activity);
-  });
-  // The server writes `: live` as a comment, which EventSource does not surface, so the
-  // API also names it as an event. Until either is seen, age decides (see the run feed).
-  source.addEventListener("live", goLive);
-  source.addEventListener("run", (e) => {
-    const run = JSON.parse((e as MessageEvent<string>).data) as RunOut;
-    onEvent({ event: "run", data: run });
-    if (isTerminal(run)) stop();
-  });
-  source.onerror = () => {
+  // A dropped stream reconnects from the last activity seen (`?after=`, the same as
+  // `Last-Event-ID`); the server re-sends the run and every step, so nothing is missed.
+  // After a few failed reconnects it falls back to polling.
+  let reconnects = 0;
+  const connect = () => {
     if (stopped) return;
-    source?.close();
-    source = null;
-    void poll();
+    const query = lastSeq > 0 ? `?after=${lastSeq}` : "";
+    const es = new EventSource(`/api/runs/${enc(runId)}/events${query}`);
+    source = es;
+    es.addEventListener("step", (e) => {
+      onEvent({ event: "step", data: JSON.parse((e as MessageEvent<string>).data) as StepOut });
+    });
+    es.addEventListener("activity", (e) => {
+      emitActivity(JSON.parse((e as MessageEvent<string>).data) as Activity);
+    });
+    // The server writes `: live` as a comment, which EventSource does not surface, so the
+    // API also names it as an event. Until either is seen, age decides (see the run feed).
+    es.addEventListener("live", goLive);
+    es.addEventListener("run", (e) => {
+      reconnects = 0;
+      const run = JSON.parse((e as MessageEvent<string>).data) as RunOut;
+      onEvent({ event: "run", data: run });
+      if (isTerminal(run)) stop();
+    });
+    es.onerror = () => {
+      if (stopped) return;
+      es.close();
+      source = null;
+      if (reconnects < SSE_RECONNECTS) {
+        timer = setTimeout(connect, 1000 * 2 ** reconnects);
+        reconnects += 1;
+      } else {
+        void poll();
+      }
+    };
   };
+  connect();
   return stop;
 }
 

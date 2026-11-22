@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
   getThesis,
+  isFixtureMode,
   resumeRun,
   type CriterionOut,
   type RunOut,
@@ -121,7 +122,9 @@ export function ThesisView({ thesisId, live }: { thesisId: string; live: boolean
       if (cancelled) return;
       setLoad(next);
       const run = next.status === "ready" ? next.thesis.run : null;
-      if (run && (!isTerminal(run) || startLive)) setLiveSeed(asLiveSeed(run));
+      // A run still going is re-attached (a reload mid-run keeps its progress). A finished
+      // run is shown as it ended; only fixture mode replays it for a just-started search.
+      if (run && (!isTerminal(run) || (startLive && isFixtureMode))) setLiveSeed(asLiveSeed(run));
     });
     return () => {
       cancelled = true;
