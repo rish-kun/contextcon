@@ -4,6 +4,7 @@ import { Download } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { Schemas } from "@/lib/api/client";
 import { formatDateTime, plural } from "@/lib/format";
+import { RELIABILITY_LABEL, RELIABILITY_NOTE } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import { SourceClassGlyph } from "@/components/dealproof/glyphs";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { SOURCE_CLASS_LABEL, reliabilityOf, type SourceClass } from "./adapt";
+import type { SourceClass } from "./adapt";
 
 type SourceRecord = Schemas["SourceRecordOut"];
 
@@ -82,7 +83,7 @@ export function SourcesTable({
       counts.set(source.source_class, (counts.get(source.source_class) ?? 0) + 1);
     }
     return [...counts].sort((a, b) =>
-      SOURCE_CLASS_LABEL[a[0]].localeCompare(SOURCE_CLASS_LABEL[b[0]]),
+      RELIABILITY_LABEL[a[0]].localeCompare(RELIABILITY_LABEL[b[0]]),
     );
   }, [sources]);
 
@@ -120,8 +121,8 @@ export function SourcesTable({
               onClick={() => setFilter(filter === sourceClass ? null : sourceClass)}
               count={count}
             >
-              <SourceClassGlyph reliability={reliabilityOf(sourceClass)} />
-              {SOURCE_CLASS_LABEL[sourceClass]}
+              <SourceClassGlyph reliability={sourceClass} />
+              {RELIABILITY_LABEL[sourceClass]}
             </FilterChip>
           ))}
         </div>
@@ -159,11 +160,8 @@ export function SourcesTable({
                 </TableCell>
                 <TableCell className="align-top whitespace-nowrap">
                   <span className="inline-flex items-center gap-2 text-ink-secondary">
-                    <SourceClassGlyph
-                      reliability={reliabilityOf(source.source_class)}
-                      className="text-ink-muted"
-                    />
-                    {SOURCE_CLASS_LABEL[source.source_class]}
+                    <SourceClassGlyph reliability={source.source_class} className="text-ink-muted" />
+                    {RELIABILITY_LABEL[source.source_class]}
                   </span>
                 </TableCell>
                 <TableCell className="align-top whitespace-nowrap text-ink-secondary">
@@ -218,7 +216,7 @@ export function SourcesTable({
       <p className="text-xs text-ink-secondary" aria-live="polite">
         {filter === null
           ? `${plural(sources.length, "source")}, oldest retrieval first`
-          : `${rows.length} of ${plural(sources.length, "source")} · ${SOURCE_CLASS_LABEL[filter]}`}
+          : `${rows.length} of ${plural(sources.length, "source")} · ${RELIABILITY_LABEL[filter]}. ${RELIABILITY_NOTE[filter]}`}
       </p>
     </div>
   );

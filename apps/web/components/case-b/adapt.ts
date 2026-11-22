@@ -26,7 +26,6 @@ import {
   type ClaimStatusCounts,
   type Disposition,
   type Evidence,
-  type ReliabilityClass,
   type SellerRequest,
   type Source,
 } from "@/lib/types";
@@ -36,48 +35,6 @@ export type ClaimCategory = Schemas["ClaimCategory"];
 export type CompanyType = Schemas["CompanyType"];
 
 /* ───────────────────────── Wording ───────────────────────── */
-
-/** The API's source classes, in the product's words. */
-export const SOURCE_CLASS_LABEL: Record<SourceClass, string> = {
-  registry_official: "Official registry",
-  registry_mirror: "Registry mirror",
-  audited_statement: "Audited statement",
-  counterparty_confirmation: "Counterparty confirmation",
-  company_announcement: "Company announcement",
-  funding_database: "Funding database",
-  professional_profile: "Professional profile",
-  headcount_estimate: "Headcount estimate",
-  data_provider_profile: "Data provider profile",
-  news: "News report",
-  seller_document: "Seller document",
-  seller_statement: "Seller statement",
-  user_typed: "Typed by a user",
-};
-
-/**
- * The shared source chip knows eight reliability classes; the API has thirteen. Each API
- * class is drawn with the glyph of its nearest family. The exact class is always named in
- * words on the Sources tab.
- */
-const CLASS_TO_RELIABILITY: Record<SourceClass, ReliabilityClass> = {
-  registry_official: "registry",
-  registry_mirror: "registry",
-  audited_statement: "audited_statement",
-  counterparty_confirmation: "counterparty_confirmation",
-  company_announcement: "company_announcement",
-  funding_database: "news",
-  professional_profile: "professional_profile_signal",
-  headcount_estimate: "professional_profile_signal",
-  data_provider_profile: "professional_profile_signal",
-  news: "news",
-  seller_document: "seller_document",
-  seller_statement: "seller_statement",
-  user_typed: "seller_statement",
-};
-
-export function reliabilityOf(sourceClass: SourceClass): ReliabilityClass {
-  return CLASS_TO_RELIABILITY[sourceClass];
-}
 
 export const CATEGORY_LABEL: Record<ClaimCategory, string> = {
   identity_incorporation: "Identity and incorporation",
@@ -128,7 +85,7 @@ export function toSource(source: SourceRef, asOf: string | null): Source {
     request: web ? null : source.url_or_endpoint,
     retrieved_at: source.retrieved_at,
     as_of: asOf,
-    reliability: reliabilityOf(source.source_class),
+    reliability: source.source_class,
   };
 }
 
