@@ -224,3 +224,16 @@ class SelectionBasis(StrEnum):
     minimum-total-effort selection would add a value here."""
 
     FEWEST_CHECKS = "fewest_checks"
+
+
+class PriorityReason(StrEnum):
+    """Why a requested document sits where it does in the request list (DecisionFlip).
+    A decision blocker settles an item that stands between the case and the next
+    disposition; a disqualifier risk settles an item that, contradicted, would give
+    Deprioritise; ``analyst_retry`` marks a document whose only open items are checks
+    to re-run on our side."""
+
+    DECISION_BLOCKER = "decision_blocker"
+    DISQUALIFIER_RISK = "disqualifier_risk"
+    NON_BLOCKING = "non_blocking"
+    ANALYST_RETRY = "analyst_retry"

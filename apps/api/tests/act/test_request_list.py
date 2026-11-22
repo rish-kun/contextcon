@@ -49,7 +49,12 @@ class FakeLlm:
         self.calls += 1
         payload = json.loads(user.split("\n", 1)[1])
         lines = ["Subject: Documents for our review", "", "Hello,", ""]
-        lines += [f"- {d['document']}" for d in payload["documents"]]
+        group = None
+        for d in payload["documents"]:
+            if payload["headings"] and d["group"] != group:
+                group = d["group"]
+                lines += ["", f"{group}:"]
+            lines.append(f"- {d['document']}")
         lines += ["", "Thank you."]
         return "\n".join(lines), None
 
@@ -235,6 +240,13 @@ async def test_post_and_get_requests_routes(session, sm, monkeypatch) -> None:
         assert body["message_id"] == body["id"]
         assert body["email_send_enabled"] is False
         assert body["items"] and all(i["questions"] for i in body["items"])
+        assert [i["priority"] for i in body["items"]] == sorted(
+            i["priority"] for i in body["items"]
+        )
+        assert all(
+            i["group_label"] in ("Needed to complete our screening", "Also helpful")
+            for i in body["items"]
+        )
         claim_items = [i for i in body["items"] if i["claim_ids"]]
         assert any('"We have 250 employees"' in q for i in claim_items for q in i["questions"])
         assert body["draft"]["subject"] and body["draft"]["body"]

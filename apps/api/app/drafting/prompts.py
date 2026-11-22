@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from app.extraction.prompts import Prompt
 
-PROMPT_VERSION = "2026-11-22.1"
+PROMPT_VERSION = "2026-11-23.1"
 
 SELLER_EMAIL = Prompt(
     name="seller_email",
@@ -24,6 +24,12 @@ The body:
 - Lists every requested document as a numbered item, using the document name
   exactly as given. Under each, say which of the listed questions it would
   resolve, in plain words.
+- When "headings" is true, lists the documents whose group is "Needed to
+  complete our screening" first, under that exact heading on its own line,
+  then the rest under the exact heading "Also helpful". Keep the order given.
+  When "headings" is false, use one numbered list with no headings.
+- For a document with "either_way" sentences, state both outcomes as given:
+  the document settles the question whichever way it turns out.
 - Ends with one line inviting them to say if something is not available, then
   "Best regards," and the sender details exactly as given. If no sender name
   is given, end with "Best regards," only.
@@ -31,6 +37,8 @@ The body:
 Never:
 - promise anything (an investment, a deal, a timeline, an outcome) or hint
   at one;
+- suggest that sending a document will make the company qualify, pass, or
+  move forward, or mention any internal screening outcome;
 - use legal language (no "hereby", "shall", "binding", "warrant",
   "indemnify", "without prejudice", "confidentiality obligations");
 - state facts about the company beyond what the request list says;

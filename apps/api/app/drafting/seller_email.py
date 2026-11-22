@@ -4,7 +4,13 @@ One email for the whole request list. The model drafts; code checks that every
 requested document is named, that nothing is promised, that there is no legal
 language, links, contact details or placeholders. If the draft still fails
 after one corrective retry, a plain deterministic template is used instead.
-The analyst can edit either before approving.
+The analyst can edit either before approving; nothing is sent from here.
+
+Blocker-first: documents marked ``needed`` (they settle a decision blocker) are listed
+first under "Needed to complete our screening", the rest under "Also helpful". With
+no needed document the list is one plain numbered list, as before. Items with
+``conditions`` (financial or threshold questions) state both outcomes; nothing may
+suggest that sending a document makes the company qualify.
 """
 
 from __future__ import annotations
@@ -19,6 +25,7 @@ from app.drafting._loop import draft_until_valid
 from app.drafting.prompts import PROMPT_VERSION, SELLER_EMAIL
 from app.extraction.llm import DraftingLlm
 from app.extraction.spans import normalize
+from app.rules.request_priority import ALSO_HELPFUL_HEADING, NEEDED_HEADING
 
 
 class RequestItem(BaseModel):
@@ -26,6 +33,10 @@ class RequestItem(BaseModel):
     document: str  # e.g. "Dated payroll summary"
     reason: str = ""  # why it is needed, from the rules table
     questions: list[str] = Field(default_factory=list)  # the claims/questions it resolves
+    needed: bool = False  # settles a decision blocker: listed first, under NEEDED_HEADING
+    # Both outcomes for a financial or threshold question ("If the verified figures
+    # match the claim, it is supported; otherwise it is contradicted.").
+    conditions: list[str] = Field(default_factory=list)
 
 
 class SellerEmailRequest(BaseModel):
@@ -68,9 +79,27 @@ BANNED_PHRASES: tuple[str, ...] = (
     "liabilities",
     "legal obligation",
     "confidentiality obligation",
+    # A document settles a question either way; it never makes the company qualify,
+    # and the internal disposition is not the seller's business.
+    "qualif",
+    "prioriti",
+    "deprioriti",
+    "prioritiz",
+    "deprioritiz",
 )
 # Phrases matched as word prefixes ("indemnify", "warranty"); the rest as whole words.
-_PREFIX_PHRASES = frozenset({"guarantee", "indemn", "warrant"})
+_PREFIX_PHRASES = frozenset(
+    {
+        "guarantee",
+        "indemn",
+        "warrant",
+        "qualif",
+        "prioriti",
+        "deprioriti",
+        "prioritiz",
+        "deprioritiz",
+    }
+)
 _URL = re.compile(r"https?://|www\.", re.I)
 _EMAIL = re.compile(r"\b[\w.%+\-]+@[\w.\-]+\.[a-z]{2,}\b", re.I)
 _PHONE = re.compile(r"\+?\d[\d\s\-()]{8,}\d")
@@ -93,8 +122,37 @@ def _given_text(request: SellerEmailRequest) -> str:
     parts = [request.company_name, request.recipient_name or "", request.sender_name or ""]
     parts.append(request.sender_organisation or "")
     for item in request.items:
-        parts.extend([item.document, item.reason, *item.questions])
+        parts.extend([item.document, item.reason, *item.questions, *item.conditions])
     return normalize(" ".join(parts))
+
+
+def _groups(request: SellerEmailRequest) -> tuple[list[RequestItem], list[RequestItem]]:
+    """(needed, also helpful) in request order; ([], all) when nothing is needed."""
+    needed = [i for i in request.items if i.needed]
+    if not needed:
+        return [], list(request.items)
+    return needed, [i for i in request.items if not i.needed]
+
+
+def _check_groups(norm_body: str, request: SellerEmailRequest) -> list[str]:
+    needed, rest = _groups(request)
+    if not needed:
+        return []
+    issues: list[str] = []
+    head = norm_body.find(normalize(NEEDED_HEADING))
+    if head < 0:
+        return [f'needed documents must be listed under "{NEEDED_HEADING}"']
+    also = norm_body.find(normalize(ALSO_HELPFUL_HEADING), head) if rest else len(norm_body)
+    if rest and also < 0:
+        return [f'other documents must be listed under "{ALSO_HELPFUL_HEADING}"']
+    for item in needed:
+        at = norm_body.find(normalize(item.document), head)
+        if at < 0 or at > also:
+            issues.append(f'document "{item.document}" must be under "{NEEDED_HEADING}"')
+    for item in rest:
+        if norm_body.find(normalize(item.document), also) < 0:
+            issues.append(f'document "{item.document}" must be under "{ALSO_HELPFUL_HEADING}"')
+    return issues
 
 
 def validate_email(text: str, request: SellerEmailRequest) -> list[str]:
@@ -109,6 +167,7 @@ def validate_email(text: str, request: SellerEmailRequest) -> list[str]:
     for item in request.items:
         if normalize(item.document) not in norm_body:
             issues.append(f'document "{item.document}" is not named exactly')
+    issues += _check_groups(norm_body, request)
     full = normalize(f"{subject}\n{body}")
     for phrase in BANNED_PHRASES:
         tail = "" if phrase in _PREFIX_PHRASES else r"\b"
@@ -134,12 +193,31 @@ def fallback_email(request: SellerEmailRequest) -> tuple[str, str]:
         f"{request.company_name}, could you share the following documents?",
         "",
     ]
-    for n, item in enumerate(request.items, 1):
-        lines.append(f"{n}. {item.document}")
-        if item.questions:
-            lines.append(f"   This would help us confirm: {'; '.join(item.questions)}.")
-        elif item.reason:
-            lines.append(f"   This would help us with: {item.reason}.")
+    needed, rest = _groups(request)
+    n = 0
+
+    def listed(items: list[RequestItem]) -> None:
+        nonlocal n
+        for item in items:
+            n += 1
+            lines.append(f"{n}. {item.document}")
+            # A conditional question is checked, not "confirmed": either outcome counts.
+            verb = "check" if item.conditions else "confirm"
+            if item.questions:
+                asked = "; ".join(q.rstrip(".") for q in item.questions)
+                lines.append(f"   This would help us {verb}: {asked}.")
+            elif item.reason and not item.conditions:
+                lines.append(f"   This would help us with: {item.reason}.")
+            lines.extend(f"   {c}" for c in item.conditions)
+
+    if needed:
+        lines += [f"{NEEDED_HEADING}:", ""]
+        listed(needed)
+        if rest:
+            lines += ["", f"{ALSO_HELPFUL_HEADING}:", ""]
+            listed(rest)
+    else:
+        listed(rest)
     lines += ["", "If any of these are not available, a short note saying so is also helpful."]
     lines += ["", "Best regards,"]
     lines += [x for x in (request.sender_name, request.sender_organisation) if x]
@@ -158,9 +236,16 @@ async def draft_seller_email(
         "sender_name": request.sender_name,
         "sender_organisation": request.sender_organisation,
         "documents": [
-            {"document": i.document, "why_needed": i.reason, "questions_it_resolves": i.questions}
+            {
+                "document": i.document,
+                "why_needed": i.reason,
+                "questions_it_resolves": i.questions,
+                "group": NEEDED_HEADING if i.needed else ALSO_HELPFUL_HEADING,
+                "either_way": i.conditions,
+            }
             for i in request.items
         ],
+        "headings": bool(_groups(request)[0]),
     }
     user = "Request list:\n" + json.dumps(payload, ensure_ascii=False, indent=1)
     attempts = await draft_until_valid(

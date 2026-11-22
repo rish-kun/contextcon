@@ -46,6 +46,7 @@ from app.db.enums import (
     CriterionResult,
     Disposition,
     IdentityStatus,
+    PriorityReason,
     RunKind,
     RunState,
     SendStatus,
@@ -559,8 +560,21 @@ class RequestItem(IdMixin, Base):
     category: Mapped[str] = mapped_column(String(64))
     document_requested: Mapped[str] = mapped_column(Text)
     reason: Mapped[str] = mapped_column(Text, default="")
+    # Blocker-first order from the version's DecisionFlip (`rules.request_priority`):
+    # 0 minimum evidence, 1 other blocker, 2 disqualifier risk, 3 non-blocking,
+    # 4 analyst re-run only. `position` holds the final order.
+    priority: Mapped[int] = mapped_column(Integer, default=3, server_default=text("3"))
+    priority_reason: Mapped[str] = mapped_column(
+        String(32),
+        default=PriorityReason.NON_BLOCKING.value,
+        server_default=text("'non_blocking'"),
+    )
 
     claim_links: Mapped[list["RequestItemClaim"]] = relationship(cascade="all, delete-orphan")
+
+    __table_args__ = (
+        CheckConstraint(check_in("priority_reason", PriorityReason), name="priority_reason"),
+    )
 
 
 class RequestItemClaim(Base):

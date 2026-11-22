@@ -3016,6 +3016,12 @@ export interface components {
             /** Preference */
             preference: number;
         };
+        /**
+         * PriorityReason
+         * @description Why a requested document sits where it does (DecisionFlip, blocker-first).
+         * @enum {string}
+         */
+        PriorityReason: "decision_blocker" | "disqualifier_risk" | "non_blocking" | "analyst_retry";
         /** ProgressOut */
         ProgressOut: {
             /** Done */
@@ -3035,6 +3041,8 @@ export interface components {
         /**
          * RequestItemOut
          * @description One requested document, linked to every question it resolves (deduplicated).
+         *     Items come blocker-first: the version's DecisionFlip minimum evidence, other
+         *     decision blockers, disqualifier risks, then the rest; ties by estimated effort.
          */
         RequestItemOut: {
             /** Id */
@@ -3052,6 +3060,27 @@ export interface components {
             claim_ids: string[];
             /** Questions */
             questions: string[];
+            /**
+             * Priority
+             * @description 0 minimum evidence set, 1 other decision blocker, 2 disqualifier risk, 3 non-blocking, 4 analyst re-run only. Lower comes first.
+             * @default 3
+             */
+            priority: number;
+            /** @default non_blocking */
+            priority_reason: components["schemas"]["PriorityReason"];
+            /**
+             * Group
+             * @description Decision blockers are needed; everything else is also helpful.
+             * @default also_helpful
+             * @enum {string}
+             */
+            group: "needed" | "also_helpful";
+            /**
+             * Group Label
+             * @description "Needed to complete our screening" or "Also helpful", as in the email.
+             * @default Also helpful
+             */
+            group_label: string;
         };
         /** RequestListItemOut */
         RequestListItemOut: {

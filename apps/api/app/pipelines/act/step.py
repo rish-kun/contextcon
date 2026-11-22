@@ -53,6 +53,8 @@ async def build_request_list_step(ctx: StepContext) -> dict:
         ctx.result = "Request list already drafted for this assessment"
     elif rl.status == "nothing_to_request":
         ctx.result = "Nothing to request from the seller"
+    elif built.blocker_count:
+        ctx.result = f"Request list drafted, {built.blocker_count} needed first"
     else:
         ctx.result = "Request list drafted"
     if built.created:
@@ -68,8 +70,12 @@ async def build_request_list_step(ctx: StepContext) -> dict:
         )
     if built.used_fallback:
         ctx.log("seller email drafted from the template")
+    if built.created:
+        ctx.log(f"ordered by the DecisionFlip analysis: {built.analysis_source}")
     return {
         "request_list_id": str(rl.id),
         "created": built.created,
         "items": built.item_count if built.created else None,
+        "blocker_items": built.blocker_count if built.created else None,
+        "analysis": built.analysis_source if built.created else None,
     }

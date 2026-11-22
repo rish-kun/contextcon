@@ -115,6 +115,7 @@ from app.api.schemas.policy import (
 from app.api.schemas.requests import (
     AnalystRetryOut,
     DraftEmailOut,
+    PriorityReason,
     RequestItemOut,
     RequestListOut,
 )
@@ -1371,6 +1372,11 @@ def assessments(case_id: str) -> list[AssessmentVersionOut]:
 # ---------------------------------------------------------------- case: act
 
 
+NEEDED = {"group": "needed", "group_label": "Needed to complete our screening"}
+ALSO_HELPFUL = {"group": "also_helpful", "group_label": "Also helpful"}
+
+# Blocker-first, as `act.request_list` orders them from the version's DecisionFlip:
+# the minimum evidence set, other decision blockers, then the rest by effort.
 REQUEST_ITEMS = [
     RequestItemOut(
         id="fx-item-payroll",
@@ -1379,22 +1385,9 @@ REQUEST_ITEMS = [
         categories=[ClaimCategory.team_size],
         claim_ids=["fx-claim-2"],
         questions=["How many people are on payroll today?"],
-    ),
-    RequestItemOut(
-        id="fx-item-lease",
-        document="Lease or occupancy evidence for the facility",
-        reason="The announcement describes a planned facility",
-        categories=[ClaimCategory.dated_event],
-        claim_ids=["fx-claim-5"],
-        questions=["Is the Nashik cold-storage facility operating?"],
-    ),
-    RequestItemOut(
-        id="fx-item-lender",
-        document="Lender statements",
-        reason="A registered charge exists; the balance owed is not on record",
-        categories=[ClaimCategory.debt_security],
-        claim_ids=["fx-claim-8"],
-        questions=["Is any amount outstanding under the registered charge?"],
+        priority=0,
+        priority_reason=PriorityReason.decision_blocker,
+        **NEEDED,
     ),
     RequestItemOut(
         id="fx-item-allotment",
@@ -1403,6 +1396,9 @@ REQUEST_ITEMS = [
         categories=[ClaimCategory.funding],
         claim_ids=["fx-claim-4"],
         questions=["When did the Series A close?"],
+        priority=1,
+        priority_reason=PriorityReason.decision_blocker,
+        **NEEDED,
     ),
     RequestItemOut(
         id="fx-item-coi",
@@ -1411,17 +1407,44 @@ REQUEST_ITEMS = [
         categories=[ClaimCategory.location],
         claim_ids=["fx-claim-7"],
         questions=["Where is the registered office?"],
+        priority=3,
+        priority_reason=PriorityReason.non_blocking,
+        **ALSO_HELPFUL,
+    ),
+    RequestItemOut(
+        id="fx-item-lease",
+        document="Lease or occupancy evidence for the facility",
+        reason="The announcement describes a planned facility",
+        categories=[ClaimCategory.dated_event],
+        claim_ids=["fx-claim-5"],
+        questions=["Is the Nashik cold-storage facility operating?"],
+        priority=3,
+        priority_reason=PriorityReason.non_blocking,
+        **ALSO_HELPFUL,
+    ),
+    RequestItemOut(
+        id="fx-item-lender",
+        document="Lender statements",
+        reason="A registered charge exists; the balance owed is not on record",
+        categories=[ClaimCategory.debt_security],
+        claim_ids=["fx-claim-8"],
+        questions=["Is any amount outstanding under the registered charge?"],
+        priority=3,
+        priority_reason=PriorityReason.non_blocking,
+        **ALSO_HELPFUL,
     ),
 ]
 
 DRAFT_BODY = (
     "Hello,\n\nThank you for the meeting. To complete our first-pass screening we would be "
     "grateful for the following documents:\n\n"
+    "Needed to complete our screening:\n\n"
     "1. A dated payroll summary\n"
-    "2. Lease or occupancy evidence for the Nashik cold-storage facility\n"
-    "3. Lender statements for the registered charge\n"
-    "4. The share allotment filing or term sheet for the Series A\n"
-    "5. The certificate of incorporation\n\nKind regards,\nAsha Analyst"
+    "2. The share allotment filing or term sheet for the Series A\n\n"
+    "Also helpful:\n\n"
+    "3. The certificate of incorporation\n"
+    "4. Lease or occupancy evidence for the Nashik cold-storage facility\n"
+    "5. Lender statements for the registered charge\n\nKind regards,\nAsha Analyst"
 )
 
 

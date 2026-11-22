@@ -24,6 +24,7 @@ from app.api._base import fixtures_enabled, make_router, not_found
 from app.api.schemas.requests import (
     AnalystRetryOut,
     DraftEmailOut,
+    PriorityReason,
     RequestItemOut,
     RequestListOut,
 )
@@ -88,6 +89,10 @@ def present(stored: StoredRequestList) -> RequestListOut:
                 categories=view.categories,
                 claim_ids=view.claim_ids,
                 questions=view.questions,
+                priority=view.priority,
+                priority_reason=PriorityReason(view.priority_reason.value),
+                group="needed" if view.needed else "also_helpful",
+                group_label=view.group,
             )
             for row, view in stored.items
         ],

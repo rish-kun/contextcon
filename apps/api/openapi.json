@@ -9365,6 +9365,17 @@
         ],
         "title": "PolicyWeightsOut"
       },
+      "PriorityReason": {
+        "type": "string",
+        "enum": [
+          "decision_blocker",
+          "disqualifier_risk",
+          "non_blocking",
+          "analyst_retry"
+        ],
+        "title": "PriorityReason",
+        "description": "Why a requested document sits where it does (DecisionFlip, blocker-first)."
+      },
       "ProgressOut": {
         "properties": {
           "done": {
@@ -9453,6 +9464,32 @@
             },
             "type": "array",
             "title": "Questions"
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority",
+            "description": "0 minimum evidence set, 1 other decision blocker, 2 disqualifier risk, 3 non-blocking, 4 analyst re-run only. Lower comes first.",
+            "default": 3
+          },
+          "priority_reason": {
+            "$ref": "#/components/schemas/PriorityReason",
+            "default": "non_blocking"
+          },
+          "group": {
+            "type": "string",
+            "enum": [
+              "needed",
+              "also_helpful"
+            ],
+            "title": "Group",
+            "description": "Decision blockers are needed; everything else is also helpful.",
+            "default": "also_helpful"
+          },
+          "group_label": {
+            "type": "string",
+            "title": "Group Label",
+            "description": "\"Needed to complete our screening\" or \"Also helpful\", as in the email.",
+            "default": "Also helpful"
           }
         },
         "additionalProperties": false,
@@ -9463,10 +9500,14 @@
           "reason",
           "categories",
           "claim_ids",
-          "questions"
+          "questions",
+          "priority",
+          "priority_reason",
+          "group",
+          "group_label"
         ],
         "title": "RequestItemOut",
-        "description": "One requested document, linked to every question it resolves (deduplicated)."
+        "description": "One requested document, linked to every question it resolves (deduplicated).\nItems come blocker-first: the version's DecisionFlip minimum evidence, other\ndecision blockers, disqualifier risks, then the rest; ties by estimated effort."
       },
       "RequestListItemOut": {
         "properties": {

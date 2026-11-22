@@ -13,6 +13,7 @@ from app.domain.enums import (
     CriterionResult,
     Disposition,
     IdentityStatus,
+    PriorityReason,
 )
 
 __all__ = [
@@ -23,6 +24,7 @@ __all__ = [
     "CriterionResult",
     "Disposition",
     "IdentityStatus",
+    "PriorityReason",
     "RunKind",
     "RunState",
     "SendStatus",
