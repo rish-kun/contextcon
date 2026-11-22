@@ -11,6 +11,7 @@ import { CriteriaStripLegend, Fact, SourceLine } from "@/components/dealproof";
 import { factEstimate, factEvidence, toEvidence } from "./adapt";
 import { EmptyState } from "./notice";
 import { Marker, NoExcerpt, ShortlistCard } from "./shortlist-card";
+import { ShortlistOverview } from "./shortlist-overview";
 
 /** A company removed because a record verifiably failed a must-have. */
 function ExcludedRow({ item }: { item: ShortlistItemOut }) {
@@ -185,6 +186,8 @@ export function Shortlist({
           <CriteriaStripLegend className="pt-1" />
         </div>
       </div>
+
+      <ShortlistOverview ranked={ranked} removed={removed} />
 
       <div className="flex flex-col gap-4">
         {ranked.map((item, index) => (

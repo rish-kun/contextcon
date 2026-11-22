@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { CriteriaStrip, Fact, SourceLine } from "@/components/dealproof";
+import { seriesSummary, Sparkline } from "@/components/insight";
 import {
   errorText,
   evidenceIndex,
@@ -146,14 +147,27 @@ function OperatingSignals({ item }: { item: ShortlistItemOut }) {
   const postings = hiring?.postings.slice(0, LIST_LIMIT) ?? [];
   const morePostings = (hiring?.postings.length ?? 0) - postings.length;
   const hasHiring = Boolean(hiring && (hiring.openings || hiring.recent_titles || postings.length));
+  const trend = (card.headcount_series?.points ?? []).map((point) => ({
+    date: point.date,
+    value: point.employee_count,
+  }));
 
   return (
     <dl className="flex flex-col gap-3">
       <FactRow label="Size">
         {card.headcount ? (
-          <Fact evidence={factEvidence(card.headcount)} estimate={factEstimate(card.headcount)}>
-            <span className="font-mono">{card.headcount.value.toLocaleString("en-US")}</span> people
-          </Fact>
+          <span className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-1">
+            <Fact evidence={factEvidence(card.headcount)} estimate={factEstimate(card.headcount)}>
+              <span className="font-mono">{card.headcount.value.toLocaleString("en-US")}</span> people
+            </Fact>
+            {trend.length > 1 ? (
+              <Sparkline
+                points={trend}
+                estimate
+                label={`Estimated headcount, ${seriesSummary(trend, "people")}`}
+              />
+            ) : null}
+          </span>
         ) : (
           <Missing />
         )}
@@ -336,11 +350,12 @@ export function ShortlistCard({
 
   return (
     <motion.article
+      id={`company-${item.id}`}
       aria-labelledby={headingId}
       initial={{ opacity: 0, y: rise }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ ...transition.slow, delay: staggerDelay(index) }}
-      className="rounded-lg border border-line bg-surface"
+      className="scroll-mt-24 rounded-lg border border-line bg-surface"
     >
       <header className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6 sm:p-5">
         <div className="flex min-w-0 gap-3">
