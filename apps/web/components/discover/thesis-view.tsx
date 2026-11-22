@@ -284,6 +284,7 @@ export function ThesisView({ thesisId, live }: { thesisId: string; live: boolean
           <Shortlist
             items={thesis.shortlist}
             thesisId={thesis.id}
+            run={run}
             onEditCriteria={() => setEditing(true)}
           />
         </div>

@@ -350,11 +350,14 @@ export function ShortlistCard({
   thesisId,
   index,
   arrived = false,
+  position = null,
 }: {
   item: ShortlistItemOut;
   thesisId: string;
   /** True when the card appeared during a search the reader is watching. Only then does it rise in. */
   arrived?: boolean;
+  /** Set when fit is tied across the list: the place in the list, shown instead of a rank. */
+  position?: number | null;
   /** Position in the list, for the entrance stagger. */
   index: number;
 }) {
@@ -375,7 +378,11 @@ export function ShortlistCard({
     >
       <header className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6 sm:p-5">
         <div className="flex min-w-0 gap-3">
-          {item.rank !== null ? (
+          {position !== null ? (
+            <span className="pt-1 font-mono text-sm text-ink-muted" aria-label={`Number ${position} in the list`}>
+              {String(position).padStart(2, "0")}
+            </span>
+          ) : item.rank !== null ? (
             <span
               className="pt-1 font-mono text-sm text-ink-muted"
               aria-label={`Rank ${item.rank}`}

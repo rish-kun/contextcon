@@ -2,7 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import { useId, useState } from "react";
-import { isFixtureMode, type ShortlistItemOut } from "@/lib/api/client";
+import { isFixtureMode, type RunOut, type ShortlistItemOut } from "@/lib/api/client";
 import { plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,8 @@ import { CriteriaStripLegend, Fact, SourceLine } from "@/components/dealproof";
 import { factEstimate, factEvidence, toEvidence } from "./adapt";
 import { EmptyState } from "./notice";
 import { Marker, NoExcerpt, ShortlistCard } from "./shortlist-card";
-import { ShortlistOverview } from "./shortlist-overview";
+import { median } from "@/components/insight";
+import { fitIsTied, ShortlistOverview } from "./shortlist-overview";
 
 /** Fixture mode keeps the thesis you typed, but the companies are a fixed example. Said once, here. */
 function FixedExample({ what }: { what: string }) {
@@ -91,18 +92,29 @@ function ExcludedRow({ item }: { item: ShortlistItemOut }) {
 export function Shortlist({
   items,
   thesisId,
+  run,
   onEditCriteria,
 }: {
   items: ShortlistItemOut[];
   thesisId: string;
+  /** The search run, for its cost in the summary row. */
+  run?: RunOut | null;
   onEditCriteria: () => void;
 }) {
   const [showRemoved, setShowRemoved] = useState(false);
   const removedId = useId();
 
-  const ranked = items
-    .filter((item) => !item.excluded)
-    .sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity));
+  const unsorted = items.filter((item) => !item.excluded);
+  // When every fit is the same, the rank says nothing. Order by how much could be assessed,
+  // then by name, and say so.
+  const tied = fitIsTied(unsorted);
+  const ranked = [...unsorted].sort((a, b) =>
+    tied
+      ? b.assessable_pct - a.assessable_pct || a.name.localeCompare(b.name)
+      : (a.rank ?? Infinity) - (b.rank ?? Infinity),
+  );
+  const tiedFit = tied ? (ranked.find((item) => item.fit !== null)?.fit ?? null) : null;
+  const medianAssessable = Math.round(median(ranked.map((item) => item.assessable_pct)) ?? 0);
   const removed = items.filter((item) => item.excluded);
 
   const removedSection =
@@ -182,27 +194,44 @@ export function Shortlist({
             {ranked.length === 1 ? "company" : "companies"}
           </h2>
           <p className="text-xs text-ink-muted">
-            Sorted by fit score, with ties broken by share of criteria assessable
+            {tied
+              ? "Fit is the same for all, so sorted by share of criteria assessable, then name"
+              : "Sorted by fit score, with ties broken by share of criteria assessable"}
           </p>
         </div>
         <FixedExample what="these companies are fictional and do not change with the thesis or criteria you enter" />
-        <div className="flex flex-col gap-2 rounded-md border border-line bg-surface-raised px-4 py-3">
-          <p className="text-sm text-ink">
-            Fit measures match to your criteria. It says nothing about returns.
-          </p>
-          <p className="text-xs text-ink-secondary">
-            Hiring and headcount change are operating signals. They are never treated as proof of
-            revenue.
-          </p>
-          <CriteriaStripLegend className="pt-1" />
-        </div>
       </div>
 
-      <ShortlistOverview ranked={ranked} removed={removed} />
+      <ShortlistOverview ranked={ranked} removed={removed} run={run} />
+
+      {tied && tiedFit !== null ? (
+        <p className="rounded-md border border-line-strong bg-surface px-4 py-3 text-sm text-ink">
+          {tiedFit === 100
+            ? `All ${ranked.length} candidates meet every criterion that could be assessed.`
+            : `All ${ranked.length} candidates have the same fit, ${tiedFit}.`}{" "}
+          {medianAssessable < 100 ? (
+            <>
+              <span className="font-mono">{100 - medianAssessable}%</span> of criteria could not be
+              assessed for the typical candidate, so fit does not separate them yet. Opening a case
+              checks the criteria that need evidence.
+            </>
+          ) : (
+            "Fit does not separate them."
+          )}
+        </p>
+      ) : null}
+
+      <div className="flex flex-col gap-1">
+        <p className="text-xs text-ink-secondary">
+          Fit measures match to your criteria and says nothing about returns. Hiring and headcount
+          change are operating signals, never proof of revenue
+        </p>
+        <CriteriaStripLegend />
+      </div>
 
       <div className="flex flex-col gap-4">
         {ranked.map((item, index) => (
-          <ShortlistCard key={item.id} item={item} thesisId={thesisId} index={index} />
+          <ShortlistCard key={item.id} item={item} thesisId={thesisId} index={index} position={tied ? index + 1 : null} />
         ))}
       </div>
 
