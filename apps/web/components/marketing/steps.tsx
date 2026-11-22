@@ -7,6 +7,8 @@ import {
   JudgmentPanel,
   SourceLine,
   StatusMark,
+  Unsourced,
+  hasSource,
 } from "@/components/dealproof";
 import { Icon } from "@/components/ui/icon";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -207,8 +209,14 @@ function VerifyPreview() {
           >
             <p className="text-ink">&ldquo;{claim.text}&rdquo;</p>
             <StatusMark status={claim.status} />
-            <p className="text-ink-secondary">{claim.record[0].text}</p>
-            <SourceLine evidence={claim.record[0].evidence} />
+            {hasSource(claim.record[0].evidence) ? (
+              <>
+                <p className="text-ink-secondary">{claim.record[0].text}</p>
+                <SourceLine evidence={claim.record[0].evidence} />
+              </>
+            ) : (
+              <Unsourced what={claim.record[0].text} />
+            )}
           </li>
         ))}
       </ul>

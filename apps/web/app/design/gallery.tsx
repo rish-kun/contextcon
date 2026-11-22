@@ -513,7 +513,10 @@ function SourceLineSection() {
         <Specimen label="Unknown date" note="says so; never left blank">
           <SourceChip evidence={sample.ev.undated} />
         </Specimen>
-        <Specimen label="SourceLine with several sources" note="two visible, then +N">
+        <Specimen
+          label="SourceLine with several sources"
+          note="two visible, then +N; the button stays and keeps focus, and closes the list again"
+        >
           <SourceLine
             evidence={[sample.ev.fundingAnnouncement, sample.ev.news, sample.ev.newsLater, sample.ev.deck(8)]}
           />
@@ -703,6 +706,15 @@ function IdentitySection() {
           </Specimen>
         </div>
       </div>
+      <Specimen
+        label="A key with no source"
+        note="development shows the error in place of the value; production leaves the whole key out, label included, and logs it"
+      >
+        <div className="flex flex-col items-start gap-3">
+          <IdentityBadge identity={sample.identityUnsourcedKey} className="w-full" />
+          <IdentityBadge identity={sample.identityUnsourcedKey} variant="inline" />
+        </div>
+      </Specimen>
       <Specimen label="Unresolved, band">
         <div className="flex flex-col gap-2">
           <IdentityBadge identity={sample.identityUnresolved} onChoose={(candidate) => setChosen(candidate.name)} />
@@ -919,6 +931,12 @@ function DiffSection() {
       </div>
       <Specimen label="A downgrade, and a change with no stated cause" note="the second is a bug in the data and renders as one">
         <VersionDiff diff={sample.diffDowngrade} />
+      </Specimen>
+      <Specimen
+        label="A changed claim status with no source"
+        note="neither status is drawn. Development shows the error as the row; production leaves the row out and logs it"
+      >
+        <VersionDiff diff={sample.diffUnsourced} />
       </Specimen>
     </Section>
   );

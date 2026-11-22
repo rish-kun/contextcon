@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { RuleBreakBlock } from "./blocks";
 import { DispositionStamp } from "./disposition-stamp";
-import { SourceLine } from "./source-line";
+import { hasSource, SourceLine, Unsourced } from "./source-line";
 import { StatusMark } from "./status-mark";
 
 /**
@@ -138,15 +138,28 @@ function Because({ change }: { change: AssessmentChange }) {
         <span className="text-ink-muted">Because: </span>
         {reason}
       </p>
-      {evidence.length > 0 ? <SourceLine evidence={evidence} /> : null}
-      {change.kind === "claim_status" && evidence.length === 0 ? (
-        <RuleBreakBlock title="Unsourced">A changed claim status needs its evidence.</RuleBreakBlock>
-      ) : null}
+      {hasSource(evidence) ? <SourceLine evidence={evidence} /> : null}
     </div>
   );
 }
 
+const PRODUCTION = process.env.NODE_ENV === "production";
+
 function ChangeRow({ change, highlight }: { change: AssessmentChange; highlight: boolean }) {
+  // A claim status is a fact about the record, so a changed one needs its evidence, and
+  // that is checked before anything is drawn: an unsourced change shows neither status.
+  // In production the row is left out and logged; in development it is the error alone.
+  // Dispositions and derived figures move because a claim did, and may carry none.
+  if (change.kind === "claim_status" && !hasSource(change.evidence)) {
+    const what = `Claim ${change.claim_number} status change`;
+    if (PRODUCTION) return <Unsourced what={what} />;
+    return (
+      <li className="flex flex-col items-start gap-2 px-4 py-3 text-dense">
+        <Unsourced what={what} />
+      </li>
+    );
+  }
+
   let heading: React.ReactNode;
   let body: React.ReactNode;
 

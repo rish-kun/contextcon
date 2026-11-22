@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { formatAsOf, formatDateTime } from "@/lib/format";
 import { RELIABILITY_LABEL, RELIABILITY_NOTE } from "@/lib/labels";
 import type { EstimateMeta, Evidence } from "@/lib/types";
@@ -126,9 +126,15 @@ export function EvidenceDetail({ evidence }: { evidence: Evidence }) {
   );
 }
 
+/** True when a fact carries at least one evidence reference. Check it before drawing the value. */
+export function hasSource(evidence: Evidence[] | null | undefined): evidence is Evidence[] {
+  return Array.isArray(evidence) && evidence.length > 0;
+}
+
 /**
  * The source line: the chips that end every fact. At most `max` are visible; the rest
- * open in place behind "+N".
+ * open in place behind "+N". That button stays where it is once opened and becomes
+ * "Show fewer", so keyboard focus is never left on a control that has gone.
  */
 export function SourceLine({
   evidence,
@@ -140,24 +146,33 @@ export function SourceLine({
   className?: string;
 }) {
   const [showAll, setShowAll] = useState(false);
-  if (evidence.length === 0) return <Unsourced />;
+  const id = useId();
+  if (!hasSource(evidence)) return <Unsourced />;
 
+  const extra = Math.max(evidence.length - max, 0);
   const visible = showAll ? evidence : evidence.slice(0, max);
-  const hidden = evidence.length - visible.length;
 
   return (
-    <span className={cn("inline-flex max-w-full flex-wrap items-center gap-1", className)}>
+    <span
+      id={id}
+      className={cn("inline-flex max-w-full flex-wrap items-center gap-1", className)}
+    >
       {visible.map((item, index) => (
         <SourceChip key={item.id ?? `${item.source.label}-${index}`} evidence={item} />
       ))}
-      {hidden > 0 ? (
+      {extra > 0 ? (
         <button
           type="button"
-          onClick={() => setShowAll(true)}
-          aria-label={`Show ${hidden} more ${hidden === 1 ? "source" : "sources"}`}
-          className="inline-flex h-5.5 items-center rounded-xs border border-line bg-surface px-1.5 font-mono text-2xs text-ink-secondary transition-colors hover:bg-surface-raised"
+          onClick={() => setShowAll((value) => !value)}
+          aria-expanded={showAll}
+          aria-controls={id}
+          aria-label={`${extra} more ${extra === 1 ? "source" : "sources"}`}
+          className={cn(
+            "inline-flex h-5.5 items-center rounded-xs border border-line bg-surface px-1.5 text-2xs text-ink-secondary transition-colors hover:bg-surface-raised",
+            !showAll && "font-mono",
+          )}
         >
-          +{hidden}
+          {showAll ? "Show fewer" : `+${extra}`}
         </button>
       ) : null}
     </span>
@@ -208,7 +223,7 @@ export function Fact({
   layout?: "inline" | "stacked";
   className?: string;
 }) {
-  if (!evidence || evidence.length === 0) {
+  if (!hasSource(evidence)) {
     return <Unsourced what={typeof children === "string" ? children : undefined} />;
   }
   return (

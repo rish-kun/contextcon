@@ -379,6 +379,14 @@ export const identityConfirmed: Identity = {
   ],
 };
 
+/** A rule break: the founded year arrived with no evidence reference. */
+export const identityUnsourcedKey: Identity = {
+  ...identityConfirmed,
+  keys: identityConfirmed.keys.map((item) =>
+    item.key === "founded_year" ? { ...item, evidence: [] } : item,
+  ),
+};
+
 export const identityUnresolved: Identity = {
   state: "unresolved",
   candidates: [
@@ -522,6 +530,25 @@ export const diffDowngrade: AssessmentDiff = {
       after: "investigate_further",
       reason: "",
     },
+  ],
+};
+
+/** A rule break: the claim status moved and no evidence came with it. */
+export const diffUnsourced: AssessmentDiff = {
+  from_version: 2,
+  to_version: 3,
+  unchanged_claims: 10,
+  changes: [
+    {
+      kind: "claim_status",
+      claim_number: 6,
+      claim_text: "Our occupancy is above 90%",
+      before: "cannot_verify",
+      after: "supported",
+      reason: "the seller confirmed it on a call",
+      evidence: [],
+    },
+    diffDowngrade.changes[0],
   ],
 };
 

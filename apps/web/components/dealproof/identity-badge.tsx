@@ -4,27 +4,38 @@ import type { Identity, IdentityCandidate, IdentityKey } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
-import { SourceLine } from "./source-line";
+import { Fact, hasSource, Unsourced } from "./source-line";
 
+const PRODUCTION = process.env.NODE_ENV === "production";
+
+/**
+ * A key is checked for a source before any of it is drawn. In production an unsourced
+ * key is left out whole, label included; in development its row shows the Unsourced
+ * error in place of the value.
+ */
 function KeyRows({ keys }: { keys: IdentityKey[] }) {
   return (
     <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-4 gap-y-2 text-dense">
-      {keys.map((item) => (
-        <div key={item.key} className="contents">
-          <dt className="text-ink-muted">{item.label}</dt>
-          <dd className="flex flex-wrap items-center gap-x-2 gap-y-1 text-ink">
-            <span>{item.value}</span>
-            <SourceLine evidence={item.evidence} />
-          </dd>
-        </div>
-      ))}
+      {keys.map((item) =>
+        PRODUCTION && !hasSource(item.evidence) ? (
+          <Unsourced key={item.key} what={item.label} />
+        ) : (
+          <div key={item.key} className="contents">
+            <dt className="text-ink-muted">{item.label}</dt>
+            <dd className="min-w-0">
+              <Fact evidence={item.evidence}>{item.value}</Fact>
+            </dd>
+          </div>
+        ),
+      )}
     </dl>
   );
 }
 
 /**
  * Identity comes first. Confirmed shows the matching keys, each with its source line:
- * the keys are the proof, so there is no green wash. Unresolved lists the candidates
+ * the keys are the proof, so there is no green wash. A confirmation with no sourced key
+ * has no proof and is treated as an unsourced fact. Unresolved lists the candidates
  * side by side with the keys that match and the keys that differ, and offers one action.
  *
  * variant="inline" is the one-line form for the case header and dashboard rows.
@@ -41,6 +52,10 @@ export function IdentityBadge({
   onChoose?: (candidate: IdentityCandidate) => void;
   className?: string;
 }) {
+  if (identity.state === "confirmed" && !identity.keys.some((key) => hasSource(key.evidence))) {
+    return <Unsourced what={`Identity confirmed: ${identity.entity_name}`} />;
+  }
+
   if (variant === "inline") {
     return identity.state === "confirmed" ? (
       <span className={cn("inline-flex items-center gap-1 text-dense text-ink", className)}>
@@ -49,7 +64,11 @@ export function IdentityBadge({
           Identity confirmed
           <span className="text-ink-secondary">
             {" "}
-            · {identity.keys.map((key) => key.label.toLowerCase()).join(", ")}
+            ·{" "}
+            {identity.keys
+              .filter((key) => hasSource(key.evidence))
+              .map((key) => key.label.toLowerCase())
+              .join(", ")}
           </span>
         </span>
       </span>
