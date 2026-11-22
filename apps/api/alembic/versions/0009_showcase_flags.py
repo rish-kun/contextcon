@@ -5,8 +5,8 @@ one real discovery thesis, one real verified case and one real investor search, 
 the real pipelines on public information. Nothing else is ever served without a session.
 Flags are set by an operator, never by the API.
 
-Revision ID: 0008
-Revises: 0007
+Revision ID: 0009
+Revises: 0008
 Create Date: 2026-11-22 23:55:00
 """
 
@@ -16,8 +16,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "0008"
-down_revision: str | None = "0007"
+revision: str = "0009"
+down_revision: str | None = "0008"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

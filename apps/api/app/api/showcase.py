@@ -1,7 +1,7 @@
 """Public, read-only showcase: one real worked example, served without a session.
 
 An operator flags one thesis (its discovery run), one case and one investor search with
-`is_showcase` (migration 0008). These routes read those rows live from the database,
+`is_showcase` (migration 0009). These routes read those rows live from the database,
 through the same response builders the signed-in routes use, so the shapes match the
 contract exactly. Nothing that is not flagged is ever reachable here:
 
