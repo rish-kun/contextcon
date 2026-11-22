@@ -26,6 +26,7 @@ function toStepOut(step: RunStep, position: number, runId: string): StepOut {
     error: step.error ?? null,
     from_cache: step.from_cache ?? false,
     cost: { crustdata_credits: step.credits_used ?? 0, llm_usd: step.model_usd ?? 0, ...NO_TOKENS },
+    reserved_credits: 0,
     started_at: null,
     finished_at: null,
   };
@@ -47,6 +48,7 @@ function toRunOut(run: Run): RunOut {
       llm_usd: steps.reduce((sum, step) => sum + step.cost.llm_usd, 0),
       ...NO_TOKENS,
     },
+    reserved_credits: 0,
     checks_not_run: run.checks_not_run ?? 0,
     created_at: "",
     finished_at: null,

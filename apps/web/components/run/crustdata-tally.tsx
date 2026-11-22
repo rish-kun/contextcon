@@ -199,7 +199,7 @@ export function CrustdataTally({ kind, view, form = "panel", className }: Crustd
         </div>
       ) : (
         <p className="px-4 py-3 text-dense text-ink-muted">
-          0 calls. A recheck reads seller documents, not Crustdata
+          0 calls · a recheck reads seller documents, not Crustdata
         </p>
       )}
       {model ? (

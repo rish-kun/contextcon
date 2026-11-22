@@ -60,8 +60,10 @@ export function StepMark({
   fromCache?: boolean;
   className?: string;
 }) {
+  const reduced = useReducedMotion();
   const [mountedAs] = useState(state);
-  const changed = state !== mountedAs;
+  // Under reduced motion every mark is simply in its state: no fade, and the check is not drawn.
+  const changed = state !== mountedAs && !reduced;
   const settle = changed
     ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: duration.base, ease } }
     : {};

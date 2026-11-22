@@ -1,6 +1,6 @@
 # D. The live run experience
 
-Design iteration · 2026-11-22 · docs only, nothing here is built yet
+Design iteration · 2026-11-22 · F1 and F2 are built; see [§7](#7-as-built) for where and for what differs
 
 The user's top UX priority, in their words: "The feel that the application is working should come from the website. If I give it a task I should be able to feel that something is going on in the background — the agent is researching something. I should see some of the live results, parts of it."
 
@@ -991,3 +991,30 @@ Done when: each of the four run kinds, in fixture mode and against the real API,
 4. **"Live cues" sound level.** Recommended: build it, leave it off, turn it on for the demo if the room suits it.
 5. **Replay default speed.** 8× is a guess. Pick after watching a real 3-minute Verify run replayed.
 6. **Dropped companies during Discover.** Shown in a collapsed group with reasons. If that reads as noise in the demo, show the count only and keep the reasons for the run log.
+
+---
+
+## 7. As built
+
+Where the pieces are, and where the build differs from the sections above.
+
+| Piece | Where |
+| --- | --- |
+| Event types, store, pacing, feed, replay | `apps/web/lib/run/` (`types.ts` aliases `schema.ts`; `activity-store.ts`; `reveal-queue.ts`; `use-run-activity.ts`) |
+| Run view and its parts, run log, replay | `apps/web/components/run/` |
+| Favicon proxy and its host rules | `apps/web/app/api/favicon/route.ts`, `apps/web/lib/run/favicon-rules.ts` |
+| Discover findings | `components/discover/candidate-stream.tsx`, `LiveRun` in `run-panel.tsx` |
+| Investor findings | `components/investors/investor-stream.tsx`, `search-view.tsx` |
+| Case: run band, right rail, live ledger rows, recheck rows | `components/case/case-run.tsx`, `claim-live.tsx`, `claim-live-state.ts`, `claim-stream.tsx`, `recheck-stream.tsx` |
+| Run log routes | `/app/cases/{id}/log` (a case tab), `/app/discover/{thesisId}/log`, `/app/investors/{id}/log` |
+| Gallery | `/design/run` in fixture mode: each fixture run followed live, then as a log with replay |
+
+Differences from the design:
+
+- **The case layout ([§1.7](#17-findings-stream-verify-a-case-run)).** The case is tabbed, so the run is split across the frame: a compact run band in the case header on every tab (now line, elapsed, cost, steps on one line), the claim ledger on the Claims tab as the findings, and from `xl` the steps, tally and sources in the right rail in place of the assessment rail while the run is going. A recheck shows its before → after rows in the header band.
+- **A claim row's phases.** A row shows queued → gathering → reading → deciding → settled only when claim-scoped events exist. With steps alone it shows queued → checking → settled, because nothing says which part of the check is running. With identity open a row says "Waiting for identity" and never "Checking".
+- **`: live`.** `EventSource` does not surface comment lines, so the client tells backlog from live by the event's own age (older than 3 s on arrival is backlog), which §3.2 already allows.
+- **Explained rows ([§1.6](#16-findings-stream-discover)).** The `explained` item carries no text, so the row says the reason was written and the text appears on the card when the shortlist folds in.
+- **Investor fold ([§1.11](#111-finishing-how-the-live-view-becomes-the-result)).** The run view stays mounted and folds, but the ranked shortlist is a list-and-detail component, so it takes the stream's place with a fade; its rows are not the stream's rows. Discover's rows do become their cards in place.
+- **Not built:** the three-level sound setting of [§3.5](#35-sound) (sound is unchanged: off by default, the existing run-finished and error cues), the shared-layout morph from the start button into the header ([§1.10](#110-starting-a-run)), and the tab-count tweens and disposition-stamp placeholder of §1.7.
+

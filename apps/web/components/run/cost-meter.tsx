@@ -83,7 +83,7 @@ export function CostMeter({ credits, budget, usd, delta = null, compact = false,
               <span
                 key={index}
                 className={cn(
-                  "h-3 w-1.5 rounded-[1px] border transition-colors duration-(--duration-base)",
+                  "h-3 w-1.5 border transition-colors duration-(--duration-base)",
                   reached
                     ? "hatch-dense border-dashed border-not-checked-line"
                     : on

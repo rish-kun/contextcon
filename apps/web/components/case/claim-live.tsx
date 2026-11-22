@@ -255,7 +255,7 @@ const CLAIM_STATUS_SET = new Set<string>([
  * the evidence follows; the row keeps its place and nothing is swapped out.
  */
 export function LiveClaimRow(props: ClaimLedgerRowProps) {
-  const { claimLive, feed, basePath } = useCase();
+  const { claimLive, feed, basePath, runActive } = useCase();
   const claimId = props.claim.id;
   const live = claimLive(claimId);
   if (!live) return <ClaimLedgerRow {...props} />;
@@ -265,7 +265,8 @@ export function LiveClaimRow(props: ClaimLedgerRowProps) {
     const status =
       live.status && CLAIM_STATUS_SET.has(live.status) ? (live.status as ClaimStatus) : props.claim.status;
     // Until the reloaded case agrees with the event, the event's own evidence line is shown.
-    const stale = props.claim.status !== status;
+    // Once the run has ended the stored case is the record, and the row shows that.
+    const stale = runActive && props.claim.status !== status;
     return (
       <ClaimLedgerRow
         {...props}

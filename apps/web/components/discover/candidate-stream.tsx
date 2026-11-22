@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 import { CriteriaStripLegend } from "@/components/dealproof";
 import { NumberTween } from "@/components/dealproof/number-tween";
 import type { FindingsContext } from "@/components/run/run-view";
-import { ArcSpinner } from "@/components/run/step-mark";
 import { Icon } from "@/components/ui/icon";
 import { ShortlistCard } from "./shortlist-card";
 import { ShortlistOverview } from "./shortlist-overview";
@@ -34,11 +33,12 @@ function EnrichMark({ label, none, state }: { label: string; none: string; state
         found ? "text-ink" : "text-ink-muted",
       )}
     >
-      {state === "pending" ? (
-        <ArcSpinner className="size-3" />
-      ) : (
+      {
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
-          {found ? (
+          {state === "pending" ? (
+            // Being read: an open ring, still. Only steps and claims being checked spin.
+            <circle cx="6" cy="6" r="4" stroke="currentColor" strokeWidth="1.5" />
+          ) : found ? (
             <path d="M2.5 6.3 5 8.6l4.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           ) : state === "not_checked" ? (
             <circle cx="6" cy="6" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 1.6" />
@@ -46,7 +46,7 @@ function EnrichMark({ label, none, state }: { label: string; none: string; state
             <path d="M3 6h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           )}
         </svg>
-      )}
+      }
       {state === "none" ? none : state === "not_checked" ? `${label} not checked` : label}
     </span>
   );
@@ -261,7 +261,7 @@ export function CandidateStream({ context, thesisId, settled, run }: CandidateSt
         <ul className="flex flex-col gap-1 text-xs text-ink-secondary">
           {unlisted > 0 ? (
             <li>
-              {unlisted} more in play. The run names the first rows of each batch and counts the rest
+              {unlisted} more in play · the run names the first rows of each batch and counts the rest
             </li>
           ) : null}
           {enrichedCount > enrichedRows ? (
