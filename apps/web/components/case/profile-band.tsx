@@ -96,7 +96,7 @@ export function ProfileBand({ detail }: { detail: CaseDetail }) {
           estimate={factEstimate(profile.headcount)}
           note={
             growth
-              ? `${growth.value > 0 ? "+" : growth.value < 0 ? "−" : ""}${Math.abs(growth.value)}% vs 12 months earlier`
+              ? `${growth.value > 0 ? "+" : growth.value < 0 ? "−" : ""}${percent(growth.value)}% vs 12 months earlier`
               : undefined
           }
           evidence={factEvidence(profile.headcount)}
@@ -134,6 +134,21 @@ export function ProfileBand({ detail }: { detail: CaseDetail }) {
   );
 }
 
+/** A percentage to one decimal at most: 4.374 reads 4.4, 50 reads 50. */
+export const percent = (value: number): string => String(Math.round(Math.abs(value) * 10) / 10);
+
+/**
+ * A scraped description often arrives with its sentences glued together
+ * ("precision.Our approach"). Only the spacing is restored: a break where a sentence
+ * ends straight against the next capital, or where the text already had a line break.
+ */
+export function descriptionParagraphs(text: string): string[] {
+  return text
+    .split(/\n+|(?<=[a-z0-9)][.!?:;])(?=[A-Z])/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 /** The company's own description, two lines until asked for more, with where it came from. */
 function About({ profile }: { profile: Profile }) {
   const [open, setOpen] = useState(false);
@@ -149,7 +164,13 @@ function About({ profile }: { profile: Profile }) {
         {profile.description ? (
           <div className="flex min-w-0 flex-col items-start gap-1">
             <dt className="text-xs text-ink-muted">In the company&apos;s own words</dt>
-            <dd className={cn("text-ink", !open && "line-clamp-2")}>{profile.description.value}</dd>
+            <dd className={cn("flex flex-col gap-2 text-ink", !open && "line-clamp-2 block")}>
+              {open
+                ? descriptionParagraphs(profile.description.value).map((paragraph) => (
+                    <p key={paragraph}>{paragraph}</p>
+                  ))
+                : descriptionParagraphs(profile.description.value).join(" ")}
+            </dd>
             {long ? (
               <button
                 type="button"

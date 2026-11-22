@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { AssessmentVersionOut, ClaimOut, DocumentOut, PolicyOut } from "@/lib/api/client";
 import { plural } from "@/lib/format";
-import type { ClaimStatus } from "@/lib/types";
+import { CLAIM_STATUSES, type ClaimStatus } from "@/lib/types";
 import { JudgmentPanel } from "@/components/dealproof/judgment-panel";
 import { StatusMark } from "@/components/dealproof/status-mark";
 import { ReadingOldVersionBanner } from "@/components/dealproof/version-diff";
@@ -18,56 +18,52 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CATEGORY_LABEL } from "@/components/case/adapt";
+import { TextLink } from "@/components/ui/link";
 import {
+  CATEGORY_LABEL,
   COMPANY_TYPE_LABEL,
   claimNumbers,
   toAssessment,
   toDiff,
   toVersionMeta,
 } from "./adapt";
-import { Section, TextLink } from "./parts";
+import { TabSection, TabStack, Why } from "./parts";
 
-const SEEN_KEY = "dealproof:seen-assessment-version";
-
-function readSeen(): Record<string, number> {
-  try {
-    return JSON.parse(window.localStorage.getItem(SEEN_KEY) ?? "{}") as Record<string, number>;
-  } catch {
-    return {};
-  }
+/**
+ * The version that arrived while this view was open, or null. The one-time highlight on a
+ * diff reports an arrival the reader watched; the version the view opened on is recorded
+ * silently, so reopening the page never plays a change that already happened.
+ */
+function useArrivedVersion(latest: number): number | null {
+  const [opened] = useState(latest);
+  return latest > opened ? latest : null;
 }
 
 /**
- * The version this reader has not seen before, or null. The one-time highlight on a diff
- * reports that a version arrived since the reader last looked, so it is taken from a
- * record kept in the browser and never from a mount: a first visit records the version
- * silently, and reopening the same diff later shows it still.
+ * The status a claim held at an assessment version, read from that version's own record:
+ * the claim's checks up to it, or the outcome the version stored for its required checks.
+ * Null when nothing shows the claim existed then, so a claim added in version 3 is not
+ * drawn into version 1.
  */
-function useUnseenVersion(caseId: string, latest: number): number | null {
-  const [unseen, setUnseen] = useState<number | null>(null);
-  useEffect(() => {
-    const seen = readSeen();
-    const before = seen[caseId];
-    if (before === latest) return;
-    try {
-      window.localStorage.setItem(SEEN_KEY, JSON.stringify({ ...seen, [caseId]: latest }));
-    } catch {
-      /* storage unavailable: nothing is highlighted, nothing is lost */
-    }
-    // Reading the browser's record is the external sync this effect exists for.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (before !== undefined && latest > before) setUnseen(latest);
-  }, [caseId, latest]);
-  return unseen;
-}
-
-/** The status a claim held at a given assessment version. */
-function statusAt(claim: ClaimOut, version: number): ClaimStatus {
-  const earlier = claim.history
-    .filter((check) => check.assessment_version != null && check.assessment_version <= version)
-    .sort((a, b) => (b.assessment_version ?? 0) - (a.assessment_version ?? 0))[0];
-  return earlier?.status ?? claim.status;
+function statusAt(claim: ClaimOut, version: AssessmentVersionOut, isLatest: boolean): ClaimStatus | null {
+  const upTo = claim.history
+    .filter((check) =>
+      check.assessment_version != null
+        ? check.assessment_version <= version.version
+        : check.created_at <= version.created_at,
+    )
+    .sort(
+      (a, b) =>
+        (b.assessment_version ?? 0) - (a.assessment_version ?? 0) || b.created_at.localeCompare(a.created_at),
+    )[0];
+  if (upTo) return upTo.status;
+  const sufficiency = version.judgments.evidence_sufficiency;
+  const recorded = [...sufficiency.settled, ...sufficiency.gaps].find((item) => item.claim_ids.includes(claim.id));
+  if (recorded?.status) return recorded.status;
+  const line = (version.diff_from_previous ?? []).find((l) => l.kind === "claim" && l.subject_id === claim.id);
+  if (line && (CLAIM_STATUSES as readonly string[]).includes(line.after ?? "")) return line.after as ClaimStatus;
+  // The current version is what the ledger shows today.
+  return isLatest ? claim.status : null;
 }
 
 /**
@@ -93,30 +89,32 @@ function ProfileChecks({
     return { category, item, settled: Boolean(settled) };
   });
   const type = version.company_type;
+  const settledCount = rows.filter((row) => row.settled).length;
 
   return (
-    <Section
-      title={type ? `${COMPANY_TYPE_LABEL[type]} profile` : "Company-type profile"}
-      meta={`${plural(rows.length, "required check")}`}
-      lead={
+    <TabSection
+      title="Required checks"
+      meta={`${type ? `${COMPANY_TYPE_LABEL[type]} profile · ` : ""}${settledCount} of ${rows.length} settled`}
+      why={
         type ? (
           <>
-            {typeReason ? `${typeReason}. ` : null}
-            The profile decides which checks are required before a case can be prioritised.
-            {typeRule ? ` Rule: ${typeRule}.` : null}
+            {typeReason ? <p>{typeReason}</p> : null}
+            <p>The profile decides which checks are required before a case can be prioritised.</p>
+            {typeRule ? <p>Rule: {typeRule}</p> : null}
           </>
         ) : (
-          "No company-type profile was applied to this version."
+          <p>No company-type profile was applied to this version.</p>
         )
       }
+      flush
     >
-      <Table>
+      <Table density="compact" flush>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead>Required check</TableHead>
-            <TableHead>Where it stands</TableHead>
+            <TableHead>Check</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead>Claims</TableHead>
-            <TableHead>What would settle it</TableHead>
+            <TableHead>Settled by</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -132,21 +130,21 @@ function ProfileChecks({
                       reason={claims.find((c) => item.claim_ids.includes(c.id))?.not_checked_reason}
                     />
                   ) : (
-                    <span className="text-ink-secondary">No claim was made on this</span>
+                    <span className="text-ink-secondary">No claim made</span>
                   )}
                 </TableCell>
                 <TableCell className="font-mono text-xs text-ink-secondary">
-                  {numbers.length ? numbers.map((n) => `Claim ${n}`).join(", ") : "–"}
+                  {numbers.length ? numbers.join(", ") : "–"}
                 </TableCell>
                 <TableCell className="text-ink-secondary">
-                  {settled ? "Settled" : (item?.settle_with ?? item?.note ?? "Not stated by the policy")}
+                  {settled ? "Settled" : (item?.settle_with ?? item?.note ?? "–")}
                 </TableCell>
               </TableRow>
             );
           })}
         </TableBody>
       </Table>
-    </Section>
+    </TabSection>
   );
 }
 
@@ -155,7 +153,6 @@ function ProfileChecks({
  * the history. Any version opens read-only; the page says so while an old one is open.
  */
 export function AssessmentView({
-  caseId,
   basePath: base,
   versions,
   claims,
@@ -163,9 +160,10 @@ export function AssessmentView({
   viewing,
   typeReason,
   policy,
+  decisionFlip,
 }: {
-  /** Keys the reader's record of versions already seen. */
-  caseId: string;
+  /** The DecisionFlip panel, drawn under the judgments of the current version. */
+  decisionFlip?: React.ReactNode;
   /** `/app/cases/{id}/assessment` */
   basePath: string;
   /** Oldest first. */
@@ -183,16 +181,24 @@ export function AssessmentView({
   const latest = versions[versions.length - 1];
   const version = versions.find((item) => item.version === viewing) ?? latest;
   const isCurrent = version.version === latest.version;
-  const unseen = useUnseenVersion(caseId, latest.version);
+  const arrived = useArrivedVersion(latest.version);
+
+  // The claims a version covers, each with the status that version recorded for it.
+  const claimsAt = (item: AssessmentVersionOut) =>
+    claims.flatMap((claim) => {
+      const status = statusAt(claim, item, item.version === latest.version);
+      return status ? [{ claim, status }] : [];
+    });
 
   // One entry per version: its state, what arrived before it, and what that changed.
   const entries: TimelineEntry[] = versions.map((item) => {
-    const diff = toDiff(item, claims);
+    const then = claimsAt(item);
+    const diff = toDiff(item, then.map((row) => row.claim));
     const meta = toVersionMeta(item);
     return {
       meta,
       state: versionState(
-        claims.map((claim) => statusAt(claim, item.version)),
+        then.map((row) => row.status),
         item.judgments.screening_disposition.disposition,
       ),
       cause: diff ? timelineCause(meta.trigger, item.trigger_document_ids, diff, documents) : null,
@@ -201,39 +207,41 @@ export function AssessmentView({
   });
 
   const unchangedFor = (n: number): UnchangedClaim[] => {
+    const at = versions.find((item) => item.version === n);
+    if (!at) return [];
     const changed = new Set(
-      (versions.find((item) => item.version === n)?.diff_from_previous ?? [])
-        .filter((line) => line.kind === "claim")
-        .map((line) => line.subject_id),
+      (at.diff_from_previous ?? []).filter((line) => line.kind === "claim").map((line) => line.subject_id),
     );
-    return claims
-      .filter((claim) => !changed.has(claim.id))
-      .map((claim) => ({
+    return claimsAt(at)
+      .filter((row) => !changed.has(row.claim.id))
+      .map(({ claim, status }) => ({
         number: claim.number,
         text: claim.original_text,
-        status: statusAt(claim, n),
-        not_checked_reason: claim.not_checked_reason,
+        status,
+        not_checked_reason: status === "not_checked" ? claim.not_checked_reason : null,
       }));
   };
 
   return (
-    <div className="flex flex-col gap-8">
+    <TabStack>
       {isCurrent ? null : (
         <ReadingOldVersionBanner reading={version.version} current={latest.version}>
           <TextLink href={base}>Open current version</TextLink>
         </ReadingOldVersionBanner>
       )}
 
-      <div className="flex flex-col gap-3">
-        <JudgmentPanel assessment={toAssessment(version, claims)} />
-        <p className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 text-xs text-ink-secondary">
-          <span>
-            Five judgments, kept apart. DealProof never blends them into one score. Fit measures
-            match to your criteria and says nothing about returns
-          </span>
-          <TextLink href="/app/policy">Read scoring policy</TextLink>
-        </p>
-      </div>
+      <JudgmentPanel assessment={toAssessment(version, claims)} />
+      <p className="flex flex-wrap items-center justify-end gap-x-4 px-1 text-xs text-ink-muted">
+        <Why label="Why five judgments?">
+          <p>
+            The five judgments are kept apart and never blended into one score. Fit measures the match to
+            your criteria and says nothing about returns.
+          </p>
+        </Why>
+        <TextLink href="/app/policy">Scoring policy</TextLink>
+      </p>
+
+      {isCurrent ? decisionFlip : null}
 
       <ProfileChecks
         version={version}
@@ -242,22 +250,28 @@ export function AssessmentView({
         typeRule={policy?.company_type_rule ?? null}
       />
 
-      <Section
-        title="Assessment history"
+      <TabSection
+        title="History"
         meta={plural(versions.length, "version")}
-        lead="New evidence updates the assessment in the open. What arrived sits between two versions; under the newer one, each claim that moved is followed by what moved because of it. Earlier versions stay readable."
+        why={
+          <p>
+            New evidence updates the assessment in the open. What arrived sits between two versions; under
+            the newer one, each claim that moved is followed by what moved because of it. Earlier versions
+            stay readable.
+          </p>
+        }
       >
         <ChangeTimeline
           entries={entries}
           current={latest.version}
           viewing={version.version}
-          highlightVersion={unseen}
+          highlightVersion={arrived}
           unchangedFor={unchangedFor}
           onOpen={(n) =>
             router.push(n === latest.version ? base : `${base}?v=${n}`, { scroll: false })
           }
         />
-      </Section>
-    </div>
+      </TabSection>
+    </TabStack>
   );
 }

@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { SourceClass } from "./adapt";
+import { TabSection } from "./parts";
 
 type SourceRecord = Schemas["SourceRecordOut"];
 
@@ -85,40 +86,37 @@ export function SourcesTable({
   };
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-dense text-ink-secondary" aria-live="polite">
-          {filter ? (
-            <>
-              <span className="inline-flex items-center gap-2 text-ink">
-                <SourceClassGlyph reliability={filter.sourceClass} className="text-ink-muted" />
-                {filter.category ? `${filter.category} · ` : null}
-                {RELIABILITY_LABEL[filter.sourceClass]}
-              </span>
-              <span className="font-mono text-xs">
-                {rows.length} of {plural(sources.length, "source")}
-              </span>
-              {onClearFilter ? (
-                <Button variant="link" size="inline" className="text-dense font-normal" onClick={onClearFilter}>
-                  Show all sources
-                </Button>
-              ) : null}
-            </>
-          ) : (
-            <span className="font-mono text-xs">{plural(sources.length, "source")}</span>
-          )}
-        </p>
-        <Button size="sm" onClick={exportRecord}>
+    <TabSection
+      title="Source record"
+      meta={filter ? `${rows.length} of ${plural(sources.length, "source")}` : `${plural(sources.length, "source")} · oldest first`}
+      why={<p>Everything read for this case: where it came from, the exact page or request, when it was retrieved and which facts rest on it. Enough to repeat the work and reach the same record.</p>}
+      action={
+        <Button size="sm" className="h-11 md:h-7" onClick={exportRecord}>
           <Icon icon={Download} />
-          Export source record
+          Export
         </Button>
-      </div>
-
-      <Table>
+      }
+      flush
+    >
+      {filter ? (
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-4 py-2 text-dense text-ink" aria-live="polite">
+          <span className="inline-flex items-center gap-2" title={RELIABILITY_NOTE[filter.sourceClass]}>
+            <SourceClassGlyph reliability={filter.sourceClass} className="text-ink-muted" />
+            {filter.category ? `${filter.category} · ` : null}
+            {RELIABILITY_LABEL[filter.sourceClass]}
+          </span>
+          {onClearFilter ? (
+            <Button variant="link" size="inline" className="text-dense font-normal" onClick={onClearFilter}>
+              Show all
+            </Button>
+          ) : null}
+        </p>
+      ) : null}
+      <Table density="compact" flush className="max-md:hidden">
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead>Source</TableHead>
-            <TableHead>Reliability class</TableHead>
+            <TableHead>Class</TableHead>
             <TableHead>Provider</TableHead>
             <TableHead>URL or request</TableHead>
             <TableHead>Retrieved</TableHead>
@@ -179,7 +177,7 @@ export function SourcesTable({
                     usedFor.length ? (
                       <span className="text-ink">{usedFor.join(", ")}</span>
                     ) : (
-                      <span className="text-ink-secondary">Read, no fact taken from it</span>
+                      <span className="text-ink-secondary">Read, no fact taken</span>
                     )
                   ) : (
                     <span className="flex flex-col gap-1">
@@ -195,16 +193,46 @@ export function SourcesTable({
           })}
         </TableBody>
       </Table>
+      {/* Below md the six columns become a stacked list: the source, its class, when, and what for. */}
+      <ul className="flex flex-col divide-y divide-line text-dense md:hidden">
+        {rows.map((source) => {
+          const usedFor = uses[source.source_id] ?? [];
+          return (
+            <li key={source.source_id} className="flex flex-col gap-1 px-4 py-3">
+              <span className="font-medium text-ink">{source.label}</span>
+              <span className="inline-flex items-center gap-2 text-xs text-ink-secondary">
+                <SourceClassGlyph reliability={source.source_class} className="text-ink-muted" />
+                {RELIABILITY_LABEL[source.source_class]}
+              </span>
+              {isUrl(source.url_or_endpoint) ? (
+                <a
+                  href={source.url_or_endpoint}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="rounded-xs font-mono text-xs break-all text-accent underline underline-offset-2"
+                >
+                  {source.url_or_endpoint}
+                </a>
+              ) : (
+                <span className="font-mono text-xs break-all text-ink">{source.url_or_endpoint}</span>
+              )}
+              <span className="font-mono text-xs text-ink-muted">
+                {formatDateTime(source.retrieved_at) ?? "time not recorded"}
+              </span>
+              <span className="text-xs text-ink-secondary">
+                {source.attached
+                  ? usedFor.length
+                    ? usedFor.join(", ")
+                    : "Read, no fact taken"
+                  : `Not attached · ${source.unattached_reason ?? "no reason recorded"}`}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
       {rows.length === 0 ? (
-        <p className="text-dense text-ink-secondary">
-          No source on the record matches. The facts in that cell came from a source that is
-          not listed here
-        </p>
+        <p className="px-4 py-3 text-dense text-ink-secondary">No source on the record matches this cell</p>
       ) : null}
-      <p className="text-xs text-ink-secondary">
-        Oldest retrieval first
-        {filter ? `. ${RELIABILITY_LABEL[filter.sourceClass]}: ${RELIABILITY_NOTE[filter.sourceClass]}` : null}
-      </p>
-    </div>
+    </TabSection>
   );
 }

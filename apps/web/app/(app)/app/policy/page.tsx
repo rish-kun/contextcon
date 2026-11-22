@@ -7,10 +7,9 @@ import {
   RELIABILITY_LABEL,
 } from "@/lib/labels";
 import { CLAIM_STATUSES } from "@/lib/types";
-import { CATEGORY_LABEL } from "@/components/case/adapt";
-import { COMPANY_TYPE_LABEL } from "@/components/case-b/adapt";
-import { load } from "@/components/case-b/load";
-import { LoadError } from "@/components/case-b/parts";
+import { CATEGORY_LABEL, COMPANY_TYPE_LABEL } from "@/components/case/adapt";
+import { load } from "@/components/case/load";
+import { ErrorState } from "@/components/ui/states";
 import { DispositionStamp } from "@/components/dealproof/disposition-stamp";
 import { SourceClassGlyph, StatusGlyph } from "@/components/dealproof/glyphs";
 import { StatusMark } from "@/components/dealproof/status-mark";
@@ -328,7 +327,7 @@ export default async function PolicyPage() {
           </nav>
         </div>
       ) : (
-        <LoadError what="the scoring policy" status={policy.status} />
+        <ErrorState what="The scoring policy" status={policy.status} size="page" />
       )}
     </div>
   );

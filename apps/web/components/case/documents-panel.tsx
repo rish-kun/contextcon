@@ -9,7 +9,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DocumentDownload } from "./document-download";
-import { Section, TextLink } from "./parts";
+import { TextLink } from "@/components/ui/link";
+import { TabSection, TabStack } from "./parts";
 
 type DeletionRecord = Schemas["DeletionRecordOut"];
 
@@ -81,13 +82,15 @@ export function DocumentsPanel({
     versions.find((version) => version.trigger_document_ids.includes(documentId))?.version;
 
   return (
-    <div className="flex flex-col gap-8">
-      <Section
+    <TabStack>
+      <TabSection
         title="Uploaded files"
         meta={documents.length}
-        lead="Used only for this case. Each file, the text read from it and the quotes kept from it are deleted on the date shown."
+        whyLabel="Retention"
+        why={<p>Used only for this case. Each file, the text read from it and the quotes kept from it are deleted on the date shown.</p>}
+        flush
       >
-        <Table>
+        <Table density="two-line" flush className="max-md:hidden">
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead>File</TableHead>
@@ -149,7 +152,7 @@ export function DocumentsPanel({
                           href={`${basePath}/assessment?v=${version}`}
                           className="text-xs"
                         >
-                          View v{version} diff
+                          v{version} diff
                         </TextLink>
                       ) : null}
                     </span>
@@ -169,7 +172,7 @@ export function DocumentsPanel({
                   </TableCell>
                   <TableCell numeric className="align-top font-sans">
                     {purged ? (
-                      <span className="text-xs text-ink-secondary">No file to download</span>
+                      <span className="text-xs text-ink-muted">–</span>
                     ) : (
                       <DocumentDownload documentId={doc.id} filename={doc.filename} />
                     )}
@@ -179,19 +182,46 @@ export function DocumentsPanel({
             })}
           </TableBody>
         </Table>
-      </Section>
+        <ul className="flex flex-col divide-y divide-line text-dense md:hidden">
+          {documents.map((doc) => {
+            const deletion = deletionFor(doc.id);
+            const purged = doc.purged || Boolean(deletion);
+            const version = versionFrom(doc.id);
+            return (
+              <li key={doc.id} className="flex flex-col gap-1 px-4 py-3">
+                <span className={purged ? "text-ink-secondary line-through" : "font-medium text-ink"}>{doc.filename}</span>
+                <span className="font-mono text-xs text-ink-secondary">
+                  {KIND_LABEL[doc.kind]} · {fileSize(doc.size_bytes)} · {formatDateTime(doc.uploaded_at)}
+                </span>
+                <span className="text-xs text-ink-secondary">
+                  {purged
+                    ? deletedLine(deletion?.deleted_at ?? doc.delete_after)
+                    : `Deletes on ${formatDate(doc.delete_after) ?? "an unrecorded date"}`}
+                </span>
+                <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                  {version ? (
+                    <TextLink href={`${basePath}/assessment?v=${version}`} className="text-xs">
+                      v{version} diff
+                    </TextLink>
+                  ) : null}
+                  {purged ? null : <DocumentDownload documentId={doc.id} filename={doc.filename} />}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </TabSection>
 
-      <Section
+      <TabSection
         title="Deletion record"
         meta={deletions.length}
-        lead="Every deletion is written down with its date and reason, including text and quotes derived from a file."
+        why={<p>Every deletion is written down with its date and reason, including text and quotes derived from a file.</p>}
+        flush
       >
         {deletions.length === 0 ? (
-          <p className="rounded-lg border border-line bg-surface px-4 py-3 text-dense text-ink-secondary">
-            Nothing has been deleted from this case yet.
-          </p>
+          <p className="px-4 py-3 text-dense text-ink-secondary">Nothing deleted yet</p>
         ) : (
-          <ul className="flex flex-col divide-y divide-line rounded-lg border border-line bg-surface text-dense">
+          <ul className="flex flex-col divide-y divide-line text-dense">
             {deletions.map((record) => (
               <li
                 key={`${record.artifact_kind}:${record.artifact_id}`}
@@ -213,7 +243,7 @@ export function DocumentsPanel({
             ))}
           </ul>
         )}
-      </Section>
-    </div>
+      </TabSection>
+    </TabStack>
   );
 }

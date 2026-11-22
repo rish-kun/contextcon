@@ -101,9 +101,21 @@ export function claimLiveState(
   const steps = run.steps.filter((s) => stepClaimId(s.key) === claimId);
   const step =
     steps.find((s) => s.state === "running") ?? steps.find((s) => s.state === "pending") ?? steps.at(-1);
-  const act = view.claims.get(claimId);
-  const own = events.filter((event) => claimOfEvent(event) === claimId);
-  const sources = view.sources.filter((row) => row.claimId === claimId);
+  const found = view.claims.get(claimId);
+  const all = events.filter((event) => claimOfEvent(event) === claimId);
+  // A finding from an earlier attempt (`checks.claim:{id}` when `…@2` is now the step to
+  // settle) is history: it must not mask the check that is running or waiting now.
+  const foundBy = found ? events.find((event) => event.seq === found.seq) : undefined;
+  const open = step !== undefined && !SETTLED_STEP.has(step.state);
+  const stale =
+    found !== undefined &&
+    open &&
+    foundBy?.step_key != null &&
+    stepClaimId(foundBy.step_key) === claimId &&
+    foundBy.step_key !== step.key;
+  const act = stale ? undefined : found;
+  const own = stale ? all.filter((event) => event.seq > found.seq) : all;
+  const sources = view.sources.filter((row) => row.claimId === claimId && (!stale || row.seq > found.seq));
 
   let factCount = 0;
   let rejected = 0;
@@ -155,7 +167,9 @@ export function claimLiveState(
   // The step settled and no finding said how: the case reload carries the result.
   if (step && SETTLED_STEP.has(step.state)) return null;
 
-  const running = step?.state === "running" || act?.stage === "checking";
+  // Progress is the current step's to state. A `checking` finding stands in only while
+  // the run is going and no step exists yet; replayed after the run, it says nothing.
+  const running = runActive && (step ? step.state === "running" : act?.stage === "checking");
   if (running) {
     // The furthest point the events show: a page read, then a model read of what was found.
     const read = own.some(

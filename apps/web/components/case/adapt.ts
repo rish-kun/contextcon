@@ -10,6 +10,7 @@ import type {
   CaseCostOut,
   CaseDetail,
   ClaimOut,
+  DiffLineOut,
   EvidenceOut,
   IdentityOut,
   RunOut,
@@ -21,6 +22,7 @@ import type {
   Assessment,
   AssessmentChange,
   AssessmentDiff,
+  AssessmentVersionMeta,
   CaseCost,
   Claim,
   ClaimStatus,
@@ -35,9 +37,11 @@ import type {
   Run,
   RunStep,
 } from "@/lib/types";
+import { CLAIM_STATUS_LABEL, DISPOSITION_LABEL } from "@/lib/labels";
 import { CLAIM_STATUSES, DISPOSITIONS } from "@/lib/types";
 
-type SourceClass = Schemas["SourceClass"];
+export type SourceClass = Schemas["SourceClass"];
+export type CompanyType = Schemas["CompanyType"];
 type ClaimCategory = Schemas["ClaimCategory"];
 type IdentityKeyOut = Schemas["IdentityKeyOut"];
 type OpportunityOut = Schemas["OpportunityOut"];
@@ -77,6 +81,11 @@ export const SOURCE_CLASS_LABEL: Record<SourceClass, string> = {
   data_provider: "Data provider record",
   seller_document: "Seller document",
   seller_statement: "Seller statement",
+};
+
+export const COMPANY_TYPE_LABEL: Record<CompanyType, string> = {
+  startup: "Startup",
+  established: "Established company",
 };
 
 export const CATEGORY_LABEL: Record<ClaimCategory, string> = {
@@ -197,6 +206,8 @@ export function toClaim(claim: ClaimOut): Claim {
     not_checked_reason: reason && KNOWN_REASONS.includes(reason) ? reason : null,
     // The API states one finding per claim, resting on all of its evidence.
     record: evidence.length > 0 ? [{ text: claim.reason, evidence }] : [],
+    // With no evidence attached, the finding still says why: it is the row's note.
+    note: evidence.length === 0 && claim.status !== "not_checked" ? claim.reason : undefined,
     what_would_settle: claim.settle_with,
     changed_in_version: claim.changed_in_version,
   };
@@ -206,6 +217,25 @@ export function statusCounts(claims: { status: ClaimStatus }[]): ClaimStatusCoun
   const counts = Object.fromEntries(CLAIM_STATUSES.map((s) => [s, 0])) as ClaimStatusCounts;
   for (const claim of claims) counts[claim.status] += 1;
   return counts;
+}
+
+/**
+ * The ledger in one line: "3 checked · 0 supported · 3 need evidence". A claim that was
+ * checked and could not be settled is never counted as resolved, and a check that did
+ * not run is counted apart.
+ */
+export function claimTally(counts: ClaimStatusCounts): string {
+  const total = CLAIM_STATUSES.reduce((sum, status) => sum + counts[status], 0);
+  const open = counts.partially_corroborated + counts.conflicting_evidence + counts.cannot_verify;
+  return [
+    `${total - counts.not_checked} checked`,
+    `${counts.supported} supported`,
+    counts.contradicted > 0 ? `${counts.contradicted} contradicted` : null,
+    open > 0 ? `${open} need evidence` : null,
+    counts.not_checked > 0 ? `${counts.not_checked} not checked` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 /* ───────────────────────── Identity ───────────────────────── */
@@ -235,6 +265,8 @@ export function toIdentity(identity: IdentityOut): Identity {
 
 /* ───────────────────────── Fit and assessment ───────────────────────── */
 
+const lowerFirst = (c: string) => c.toLowerCase();
+
 const VERDICT = { pass: "met", fail: "not_met", unknown: "unknown" } as const;
 
 export function toFit(
@@ -254,16 +286,19 @@ export function toFit(
   };
 }
 
+/** The ledger numbers of the given claim ids, ascending. */
+export function claimNumbers(ids: string[], claims: ClaimOut[]): number[] {
+  return ids
+    .map((id) => claims.find((claim) => claim.id === id)?.number)
+    .filter((number): number is number => number !== undefined)
+    .sort((a, b) => a - b);
+}
+
 export function toAssessment(version: AssessmentVersionOut, claims: ClaimOut[]): Assessment {
   const j = version.judgments;
-  const numberOf = new Map(claims.map((claim) => [claim.id, claim.number]));
   const restsOn = [
-    ...new Set(
-      j.screening_disposition.reasons.flatMap((reason) =>
-        reason.claim_ids.flatMap((id) => numberOf.get(id) ?? []),
-      ),
-    ),
-  ].sort((a, b) => a - b);
+    ...new Set(claimNumbers(j.screening_disposition.reasons.flatMap((reason) => reason.claim_ids), claims)),
+  ];
 
   return {
     version: version.version,
@@ -300,8 +335,11 @@ export function toAssessment(version: AssessmentVersionOut, claims: ClaimOut[]):
         }
       : {
           state: "not_assessed",
-          reason: j.financial_assessment.reason ?? "No reliable financial inputs",
-          would_need: j.financial_assessment.would_need,
+          // Both follow "Not assessed · " and "Would need: " mid-sentence.
+          reason: (j.financial_assessment.reason ?? "No reliable financial inputs").replace(/^./, lowerFirst),
+          would_need: j.financial_assessment.would_need.length
+            ? j.financial_assessment.would_need.map((item) => item.replace(/^./, lowerFirst))
+            : ["audited financial statements"],
         },
     disposition: {
       disposition: j.screening_disposition.disposition,
@@ -320,51 +358,83 @@ const JUDGMENT_LABEL: Record<string, string> = {
   screening_disposition: "Screening disposition",
 };
 
-const isStatus = (value: string | null): value is ClaimStatus =>
+const isClaimStatus = (value: string | null): value is ClaimStatus =>
   value !== null && (CLAIM_STATUSES as readonly string[]).includes(value);
 const isDisposition = (value: string | null): value is Disposition =>
   value !== null && (DISPOSITIONS as readonly string[]).includes(value);
 
-/** The "what changed" list of a version, in the shape `VersionDiff` draws. Null for version 1. */
+function toChange(line: DiffLineOut, claims: ClaimOut[]): AssessmentChange {
+  const evidence = line.evidence.map(toEvidence);
+
+  if (line.kind === "claim" && isClaimStatus(line.before) && isClaimStatus(line.after)) {
+    const claim = claims.find((item) => item.id === line.subject_id);
+    return {
+      kind: "claim_status",
+      claim_number: claim?.number ?? 0,
+      claim_text: line.subject,
+      before: line.before,
+      after: line.after,
+      reason: line.because,
+      evidence,
+    };
+  }
+  if (line.kind === "disposition" && isDisposition(line.before) && isDisposition(line.after)) {
+    return { kind: "disposition", before: line.before, after: line.after, reason: line.because, evidence };
+  }
+
+  // A judgment that moved, or a claim or disposition with no earlier value to compare.
+  const words = (value: string | null): string => {
+    if (value === null) return "not in the earlier version";
+    if (isClaimStatus(value)) return CLAIM_STATUS_LABEL[value];
+    if (isDisposition(value)) return DISPOSITION_LABEL[value];
+    return line.subject === "evidence_sufficiency" && /^\d+$/.test(value)
+      ? `${value}% of required checks settled`
+      : value;
+  };
+  return {
+    kind: "value",
+    label:
+      line.kind === "claim" ? `Claim: “${line.subject}”` : (JUDGMENT_LABEL[line.subject] ?? line.subject),
+    before: words(line.before),
+    after: words(line.after),
+    reason: line.because,
+    evidence,
+  };
+}
+
+/**
+ * The "what changed" list of a version, in the shape `VersionDiff` and the change timeline
+ * draw. Null for version 1. A line with no earlier value to compare is kept as a value
+ * change, in words.
+ */
 export function toDiff(version: AssessmentVersionOut, claims: ClaimOut[]): AssessmentDiff | null {
   const lines = version.diff_from_previous;
   if (!lines || version.version < 2) return null;
-  const changes: AssessmentChange[] = [];
-  for (const line of lines) {
-    const evidence = line.evidence.map(toEvidence);
-    if (line.kind === "claim" && isStatus(line.before) && isStatus(line.after)) {
-      const claim = claims.find((c) => c.id === line.subject_id);
-      changes.push({
-        kind: "claim_status",
-        claim_number: claim?.number ?? 0,
-        claim_text: line.subject,
-        before: line.before,
-        after: line.after,
-        reason: line.because,
-        evidence,
-      });
-    } else if (line.kind === "disposition" && isDisposition(line.before) && isDisposition(line.after)) {
-      changes.push({ kind: "disposition", before: line.before, after: line.after, reason: line.because, evidence });
-    } else {
-      const pct = line.subject === "evidence_sufficiency" ? "%" : "";
-      changes.push({
-        kind: "value",
-        label: JUDGMENT_LABEL[line.subject] ?? line.subject,
-        before: line.before === null ? "not set" : `${line.before}${pct}`,
-        after: `${line.after}${pct}`,
-        reason: line.because,
-        evidence,
-      });
-    }
-  }
   const changed = new Set(lines.filter((l) => l.kind === "claim").map((l) => l.subject_id));
   return {
     from_version: version.version - 1,
     to_version: version.version,
-    changes,
+    changes: lines.map((line) => toChange(line, claims)),
     unchanged_claims: claims.filter((c) => !changed.has(c.id)).length,
   };
 }
+
+/** `initial screening`, or `after "Lease agreement.pdf" from seller`. */
+export function triggerLabel(trigger: string): string {
+  if (/^initial\b/i.test(trigger)) return "initial screening";
+  const fromSeller = /^seller documents?\s+(.+)$/i.exec(trigger);
+  if (fromSeller) return `after "${fromSeller[1]}" from seller`;
+  return trigger;
+}
+
+export function toVersionMeta(version: AssessmentVersionOut): AssessmentVersionMeta {
+  return {
+    version: version.version,
+    created_at: version.created_at,
+    trigger: triggerLabel(version.trigger),
+  };
+}
+
 
 /* ───────────────────────── Runs and cost ───────────────────────── */
 
@@ -447,3 +517,56 @@ export { EVENT_NATURE_MEANING } from "@/components/insight/event-timeline";
 /** True when the case can attach records: the legal entity is confirmed. */
 export const identityResolved = (detail: CaseDetail): boolean =>
   detail.identity.state === "confirmed";
+
+/* ───────────────────────── Sources ───────────────────────── */
+
+/**
+ * What each source was used for, found by walking the case for every fact that cites it.
+ * Keyed by source id; each value is a short list such as ["Claim 1", "Fit criteria"].
+ */
+export function usesBySource(detail: CaseDetail): Map<string, string[]> {
+  const uses = new Map<string, Set<string>>();
+
+  const walk = (node: unknown, use: string) => {
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item, use);
+      return;
+    }
+    if (node === null || typeof node !== "object") return;
+    const record = node as Record<string, unknown>;
+    const source = record.source as { source_id?: unknown } | undefined;
+    if (source && typeof source.source_id === "string") {
+      const set = uses.get(source.source_id) ?? new Set<string>();
+      set.add(use);
+      uses.set(source.source_id, set);
+    }
+    for (const value of Object.values(record)) walk(value, use);
+  };
+
+  walk(detail.identity, "Identity");
+  walk(detail.profile, "Company profile");
+  walk(detail.opportunity, "Fit criteria");
+  for (const claim of detail.claims) walk(claim, `Claim ${claim.number}`);
+  walk(detail.events, "Dated events");
+  walk(detail.comparables, "Comparables");
+  if (detail.assessment) {
+    const { judgments } = detail.assessment;
+    walk(judgments.opportunity_fit, "Fit criteria");
+    walk(judgments.business_assessment, "Operating signals");
+    walk(judgments.financial_assessment, "Financial assessment");
+  }
+
+  // A seller file is where claims were stated, even when no fact was taken from it.
+  for (const source of detail.sources) {
+    const stated = detail.claims.filter(
+      (claim) =>
+        claim.stated_in.filename && source.url_or_endpoint === `upload:${claim.stated_in.filename}`,
+    ).length;
+    if (stated > 0) {
+      const set = uses.get(source.source_id) ?? new Set<string>();
+      uses.set(source.source_id, new Set([`Where ${stated} of the seller's claims were stated`, ...set]));
+    }
+  }
+
+  return new Map([...uses].map(([id, set]) => [id, [...set]]));
+}

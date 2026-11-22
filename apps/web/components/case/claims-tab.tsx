@@ -1,7 +1,6 @@
 "use client";
 
 import { FileText, Plus, RotateCw } from "lucide-react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
@@ -15,7 +14,7 @@ import {
   uploadDocument,
 } from "@/lib/api/client";
 import { formatAsOf, formatDate, formatDateTime, plural } from "@/lib/format";
-import { CLAIM_STATUS_LABEL, RELIABILITY_NOTE } from "@/lib/labels";
+import { CLAIM_STATUS_LABEL, CLAIM_STATUS_MEANING, RELIABILITY_NOTE } from "@/lib/labels";
 import { CLAIM_STATUSES } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
@@ -27,17 +26,20 @@ import {
 import { STATUS_INK } from "@/components/dealproof/status-mark";
 import {
   Button,
+  EmptyState,
   Icon,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  TextLink,
   Textarea,
 } from "@/components/ui";
 import {
   CATEGORY_LABEL,
   SOURCE_CLASS_LABEL,
+  claimTally,
   isRunActive,
   statusCounts,
   toClaim,
@@ -51,7 +53,7 @@ import {
   claimLines,
   formatBytes,
 } from "./intake";
-import { EmptyState, TabHeading } from "./parts";
+import { BlockedByIdentity, TabSection, TabStack } from "./parts";
 
 const RESULT_WORDS: Record<NonNullable<ClaimOut["substantive_result"]>, string> = {
   supports: "it supports the claim",
@@ -134,12 +136,7 @@ function ClaimDetail({ claim }: { claim: ClaimOut }) {
           <span className="text-ink-muted">What would settle it: </span>
           {claim.settle_with}
           {" · "}
-          <Link
-            href={`${basePath}/request`}
-            className="rounded-xs text-accent underline underline-offset-2 transition-colors hover:text-accent-hover"
-          >
-            Request list
-          </Link>
+          <TextLink href={`${basePath}/request`}>Request list</TextLink>
         </p>
       ) : null}
 
@@ -247,14 +244,12 @@ function AddClaims() {
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <label htmlFor="add-claims" className="text-sm font-medium text-ink">
-          Add a claim
-        </label>
-        <p id="add-claims-hint" className="text-xs text-ink-secondary">
-          Type one claim per line, in the seller&rsquo;s words. Each is recorded as typed by you
-        </p>
-      </div>
+      <label htmlFor="add-claims" className="flex flex-wrap items-baseline gap-x-2 text-dense font-medium text-ink">
+        Type claims
+        <span id="add-claims-hint" className="text-xs font-normal text-ink-muted">
+          one per line, in the seller&rsquo;s words
+        </span>
+      </label>
       <Textarea
         id="add-claims"
         aria-describedby="add-claims-hint"
@@ -278,9 +273,6 @@ function AddClaims() {
           <Icon icon={Plus} />
           {busy ? "Adding" : lines.length > 1 ? `Add ${lines.length} claims` : "Add claim"}
         </Button>
-        <p className="text-xs text-ink-secondary">
-          A new claim stays Not checked until verification runs
-        </p>
       </div>
     </form>
   );
@@ -337,12 +329,10 @@ function SellerDocuments({ documents }: { documents: DocumentOut[] }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <h3 className="text-sm font-medium text-ink">Upload documents</h3>
-        <p className="text-xs text-ink-secondary">
-          Factual claims are extracted from the seller&rsquo;s deck and added to the ledger
-        </p>
-      </div>
+      <h3 className="flex flex-wrap items-baseline gap-x-2 text-dense font-medium text-ink">
+        Upload seller documents
+        <span className="text-xs font-normal text-ink-muted">claims are read from them</span>
+      </h3>
       <DocumentDropzone onFiles={(files) => void upload(files)} disabled={uploading.length > 0} />
       <ConfidentialityStrip deleteAfter={latestDeletion} />
       {uploading.length > 0 ? (
@@ -389,7 +379,7 @@ const ALL_CATEGORIES = "all";
  */
 export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
   const detail = useCaseDetail();
-  const { basePath, verify, checkClaim, runActive, readOnly } = useCase();
+  const { basePath, verify, checkClaim, runActive } = useCase();
   const counts = useMemo(() => statusCounts(detail.claims), [detail.claims]);
   const [statuses, setStatuses] = useState<Set<ClaimStatus>>(() => {
     const first = CLAIM_STATUSES.find((status) => status === initialStatus);
@@ -412,7 +402,6 @@ export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
     return statuses.has(claim.status) || claim.status === "not_checked";
   });
   const filtered = statuses.size > 0 || category !== ALL_CATEGORIES;
-  const settled = detail.claims.length - counts.not_checked;
 
   function clearFilters() {
     setStatuses(new Set());
@@ -430,148 +419,105 @@ export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
     });
   }
 
-  return (
-    <div className="flex flex-col gap-6">
-      <TabHeading
-        title="Claims"
-        summary={
-          detail.claims.length > 0
-            ? `${settled} of ${plural(detail.claims.length, "claim")} settled${
-                counts.not_checked > 0 ? ` · ${counts.not_checked} not checked` : ""
-              }`
-            : "Nothing has been claimed yet"
-        }
+  const actions = (
+    <>
+      <Button asChild size="sm" className="h-11 md:h-7">
+        <a href="#add-to-ledger">
+          <Icon icon={Plus} />
+          Add
+        </a>
+      </Button>
+      <Button
+        variant="primary"
+        size="sm"
+        className="h-11 md:h-7"
+        onClick={() => void verify()}
+        disabled={runActive || identityOpen || detail.claims.length === 0}
       >
-        {readOnly ? null : (
+        <Icon icon={RotateCw} />
+        {runActive ? "Running" : "Re-run verification"}
+      </Button>
+    </>
+  );
+
+  return (
+    <TabStack>
+      {identityOpen ? <BlockedByIdentity what="Claims can be added now. Checks run once the legal entity is confirmed" /> : null}
+
+      <TabSection
+        title="Claim ledger"
+        meta={detail.claims.length > 0 ? claimTally(counts) : undefined}
+        whyLabel="Statuses"
+        why={
+          <dl className="flex flex-col gap-2">
+            {CLAIM_STATUSES.map((status) => (
+              <div key={status} className="flex flex-col">
+                <dt className="font-medium text-ink">{CLAIM_STATUS_LABEL[status]}</dt>
+                <dd>{CLAIM_STATUS_MEANING[status]}</dd>
+              </div>
+            ))}
+          </dl>
+        }
+        action={actions}
+        flush
+      >
+        {detail.claims.length === 0 ? (
+          <EmptyState title="No claims yet">
+            Upload a seller document or type a claim below
+          </EmptyState>
+        ) : (
           <>
-            <Button asChild className="h-11 md:h-9">
-              <a href="#add-to-ledger">
-                <Icon icon={Plus} />
-                Add claims or documents
-              </a>
-            </Button>
-            <Button
-              variant="primary"
-              className="h-11 md:h-9"
-              onClick={() => void verify()}
-              disabled={runActive || identityOpen || detail.claims.length === 0}
-            >
-              <Icon icon={RotateCw} />
-              {runActive ? "Verification running" : "Run verification again"}
-            </Button>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line px-4 py-2">
+              <StatusFilter counts={counts} active={statuses} onToggle={toggle} />
+              <div className="flex items-center gap-2">
+                {categories.length > 1 ? (
+                  <Select value={category} onValueChange={setCategory}>
+                    <SelectTrigger aria-label="Filter by category" className="h-11 w-40 md:h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_CATEGORIES}>All categories</SelectItem>
+                      {categories.map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {CATEGORY_LABEL[value]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : null}
+                {filtered ? (
+                  <Button variant="quiet" size="sm" onClick={clearFilters}>
+                    Reset
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+            {visible.length === 0 ? (
+              <EmptyState title="No claims match these filters" />
+            ) : (
+              <ClaimLedger legend={false} flush label={`Claim ledger, ${plural(visible.length, "claim")}`}>
+                {visible.map((claim, index) => (
+                  <LiveClaimRow
+                    key={claim.id}
+                    index={index}
+                    claim={{ ...toClaim(claim), retry_credits_estimate: retryCredits.get(claim.id) }}
+                    changedHref={`${basePath}/assessment`}
+                    onRunCheck={
+                      identityOpen || runActive ? undefined : () => void checkClaim(claim.id)
+                    }
+                    detail={<ClaimDetail claim={claim} />}
+                  />
+                ))}
+              </ClaimLedger>
+            )}
           </>
         )}
-      </TabHeading>
+      </TabSection>
 
-      {identityOpen ? (
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-cannot-verify bg-cannot-verify-tint px-4 py-3 text-dense text-ink">
-          <span className="font-medium text-cannot-verify">Checks are blocked.</span>
-          Claims can be added now, and they are checked once the legal entity is confirmed.
-          <Link
-            href={`${basePath}/identity`}
-            className="rounded-xs text-accent underline underline-offset-2 transition-colors hover:text-accent-hover"
-          >
-            Resolve identity
-          </Link>
-        </p>
-      ) : null}
-
-      {detail.claims.length === 0 ? (
-        <EmptyState title="No claims on file yet">
-          Upload the seller&rsquo;s presentation or documents, or type individual claims to
-          check them against independent evidence.
-        </EmptyState>
-      ) : (
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-            <StatusFilter counts={counts} active={statuses} onToggle={toggle} />
-            <div className="flex items-center gap-2">
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger aria-label="Filter by category" className="h-8 w-44">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_CATEGORIES}>All categories</SelectItem>
-                  {categories.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {CATEGORY_LABEL[value]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {filtered ? (
-                <Button variant="quiet" size="sm" onClick={clearFilters}>
-                  Reset filters
-                </Button>
-              ) : null}
-            </div>
-          </div>
-          {statuses.size > 0 ? (
-            <p
-              role="status"
-              className="flex flex-wrap items-center gap-x-2 gap-y-1 self-start rounded-md border border-accent-line bg-accent-tint px-3 py-1 text-dense text-ink"
-            >
-              <span>
-                <span className="text-ink-secondary">Filtered: </span>
-                {CLAIM_STATUSES.filter((status) => statuses.has(status))
-                  .map((status) => CLAIM_STATUS_LABEL[status])
-                  .join(", ")}
-              </span>
-              {counts.not_checked > 0 && !statuses.has("not_checked") ? (
-                <span className="text-xs text-ink-secondary">
-                  · Not checked rows stay in view
-                </span>
-              ) : null}
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="rounded-xs text-accent underline underline-offset-2 transition-colors hover:text-accent-hover"
-              >
-                Clear
-              </button>
-            </p>
-          ) : null}
-
-          {visible.length === 0 ? (
-            <EmptyState title="No claims match these filters">
-              Change the status or category filter to see the rest of the ledger.
-            </EmptyState>
-          ) : (
-            <ClaimLedger label={`Claim ledger, ${plural(visible.length, "claim")}`}>
-              {visible.map((claim, index) => (
-                <LiveClaimRow
-                  key={claim.id}
-                  index={index}
-                  claim={{ ...toClaim(claim), retry_credits_estimate: retryCredits.get(claim.id) }}
-                  changedHref={`${basePath}/assessment`}
-                  onRunCheck={
-                    readOnly || identityOpen || runActive
-                      ? undefined
-                      : () => void checkClaim(claim.id)
-                  }
-                  detail={<ClaimDetail claim={claim} />}
-                />
-              ))}
-            </ClaimLedger>
-          )}
-          <p className="text-xs text-ink-secondary">
-            Cannot verify is a finished result: the records available cannot settle the
-            question. Not checked means a check did not run, and it is never counted as
-            settled.
-          </p>
-        </div>
-      )}
-
-      {readOnly ? null : (
-        <section
-          id="add-to-ledger"
-          aria-label="Add to the ledger"
-          className="grid scroll-mt-6 gap-x-8 gap-y-6 rounded-lg border border-line bg-surface p-5 lg:grid-cols-2"
-        >
-          <AddClaims />
-          <SellerDocuments documents={detail.documents} />
-        </section>
-      )}
-    </div>
+      <TabSection title="Add to the ledger" id="add-to-ledger" bodyClassName="grid gap-x-8 gap-y-6 lg:grid-cols-2">
+        <AddClaims />
+        <SellerDocuments documents={detail.documents} />
+      </TabSection>
+    </TabStack>
   );
 }

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useCase, useCaseDetail } from "./case-context";
+import { DecisionFlipCompact } from "./decision-flip/panel";
 import { Memo } from "./memo";
 import { ProfilePanels } from "./profile-band";
 import { CasePipelineRail } from "@/components/explainers/case-pipeline-rail";
@@ -33,6 +34,7 @@ export function OverviewTab({ autoPrint = false }: { autoPrint?: boolean }) {
   return (
     <div className="flex flex-col gap-8">
       <CasePipelineRail className="print:hidden" />
+      <DecisionFlipCompact detail={detail} basePath={basePath} />
       <ProfilePanels detail={detail} />
       <Memo detail={detail} />
     </div>

@@ -33,7 +33,6 @@ import {
   toEvidence,
 } from "./adapt";
 import { useCase, useCaseDetail } from "./case-context";
-import { TabHeading } from "./parts";
 
 type Candidate = Schemas["IdentityCandidateOut"];
 type IdentityKeyOut = Schemas["IdentityKeyOut"];
@@ -85,10 +84,6 @@ function Confirmed({ detail }: { detail: CaseDetail }) {
             Identity confirmed
             <span className="font-normal text-ink-secondary">{identity.entity_name}</span>
           </h3>
-          <p className="max-w-(--layout-prose-max) text-dense text-ink-secondary">
-            Every record in this case is attached using these identifiers, never on a
-            matching name alone
-          </p>
         </div>
 
         <div className="overflow-hidden rounded-lg border border-line bg-surface">
@@ -131,7 +126,9 @@ function Confirmed({ detail }: { detail: CaseDetail }) {
         {neverVerified && !readOnly ? (
           <div className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3">
             <p className="text-dense text-ink">
-              Identity-dependent checks are unblocked. Nothing has been checked yet
+              {detail.claims.length > 0
+                ? `Identity is confirmed. ${plural(detail.claims.length, "claim check")} and the assessment are still pending`
+                : "Identity is confirmed. The assessment is still pending, and no claims are on file"}
             </p>
             <Button variant="primary" size="sm" onClick={() => void verify()} disabled={runActive}>
               <Icon icon={RotateCw} />
@@ -198,10 +195,6 @@ function Confirmed({ detail }: { detail: CaseDetail }) {
               </li>
             ))}
           </ul>
-          <p className="max-w-(--layout-prose-max) text-xs text-ink-secondary">
-            Career records are attached only where both the person&rsquo;s name and the
-            company identifier match. A name-only match is left out
-          </p>
         </section>
       ) : null}
     </div>
@@ -423,9 +416,6 @@ function Unresolved({ detail }: { detail: CaseDetail }) {
       <section aria-label="Blocked until identity is resolved" className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
           <h3 className="text-sm font-medium text-ink">Blocked until identity is resolved</h3>
-          <p className="max-w-(--layout-prose-max) text-dense text-ink-secondary">
-            These checks depend on knowing the legal entity. None of them has run
-          </p>
         </div>
         <HatchedBlock innerClassName="p-0">
           <ul className="divide-y divide-dashed divide-not-checked-line">
@@ -499,14 +489,6 @@ export function IdentityTab() {
   const confirmed = detail.identity.state === "confirmed";
   return (
     <div className="flex flex-col gap-6">
-      <TabHeading
-        title="Identity"
-        summary={
-          confirmed
-            ? `${plural(detail.identity.keys.length, "matching identifier")} on record`
-            : "Records are not attached until the legal entity is confirmed"
-        }
-      />
       {detail.identity.note && !confirmed ? (
         <p className="text-dense text-ink-secondary">{detail.identity.note}</p>
       ) : null}

@@ -67,3 +67,26 @@ test("a re-check step with a suffix is still this claim's step", () => {
   assert.deepEqual([state.phase, state.line], ["gathering", "Checking: funding"]);
   assert.deepEqual([live("b", { steps: [done, again, deferred] }).phase, live("b", { steps: [done, again, deferred] }).ahead], ["queued", 1]);
 });
+
+test("a replayed checking finding says nothing once the run has ended", () => {
+  const ref = { type: "claim", id: "a" };
+  const events = [{ ...base, seq: 1, kind: "finding", label: "Checking", subject: "claim", items: [{ id: "a", stage: "checking" }], ref }];
+  assert.equal(live("a", { events, runActive: false }), null);
+  assert.equal(live("a", { events, runActive: false, steps: [step("a", "running", 1)] }), null);
+  // While the run is going and no step exists yet, the finding is all there is.
+  assert.equal(live("a", { events }).phase, "gathering");
+});
+
+test("an earlier attempt's settled finding does not mask the check running now", () => {
+  const ref = { type: "claim", id: "a" };
+  const first = step("a", "done", 1);
+  const again = { ...step("a", "running", 5, "Checking: funding"), id: "s-a2", key: "checks.claim:a@2" };
+  const events = [
+    { ...base, seq: 1, kind: "source", label: "Read example.org", step_key: "checks.claim:a", ref, source: { type: "web_page", domain: "example.org", url: "https://example.org/a", title: "Old", source_class: "news", as_of: null, state: "read", reason: null } },
+    { ...base, seq: 2, kind: "finding", label: "Settled", subject: "claim", step_key: "checks.claim:a", items: [{ id: "a", stage: "settled", status: "cannot_verify" }], ref },
+  ];
+  const state = live("a", { statuses: { a: "cannot_verify" }, steps: [first, again], events });
+  assert.deepEqual([state.phase, state.line, state.sources.length], ["gathering", "Checking: funding", 0]);
+  // The same finding stands once its own step is the latest.
+  assert.equal(live("a", { statuses: { a: "cannot_verify" }, steps: [first], events }).phase, "settled");
+});

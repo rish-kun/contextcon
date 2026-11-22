@@ -69,7 +69,7 @@ export function StatTile({
 }) {
   const figure = (
     <>
-      <span className="text-lg font-semibold text-ink">{value}</span>
+      <span className="text-lg font-semibold wrap-anywhere text-ink">{value}</span>
       {unit ? <span className="text-dense font-normal text-ink-secondary"> {unit}</span> : null}
     </>
   );

@@ -14,7 +14,6 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
-import { RuleBreakBlock } from "./blocks";
 import { PendingGlyph, StatusGlyph } from "./glyphs";
 import { Fact, SourceLine } from "./source-line";
 import { STATUS_INK, StatusLegend, StatusMark } from "./status-mark";
@@ -73,11 +72,20 @@ function RecordSide({
     );
   }
 
+  // A result with nothing attached is a result: the search found no record. It says so
+  // plainly, with what would settle the claim.
   if (claim.record.length === 0) {
     return (
-      <RuleBreakBlock title="No record attached">
-        A settled status needs at least one sourced statement.
-      </RuleBreakBlock>
+      <div className="flex flex-col items-start gap-2">
+        <p className="font-medium text-ink">No public record found</p>
+        {claim.note ? <p className="text-ink-secondary">{claim.note}</p> : null}
+        {claim.what_would_settle ? (
+          <p className="text-ink">
+            <span className="text-ink-muted">Would settle it: </span>
+            {claim.what_would_settle}
+          </p>
+        ) : null}
+      </div>
     );
   }
 
@@ -117,13 +125,9 @@ function RecordSide({
       {expanded && claim.note ? <p className="text-ink-secondary">{claim.note}</p> : null}
       {claim.what_would_settle ? (
         <p className="text-ink">
-          <span className="text-ink-muted">What would settle it: </span>
+          <span className="text-ink-muted">Would settle it: </span>
           {claim.what_would_settle}
         </p>
-      ) : claim.status === "cannot_verify" ? (
-        <RuleBreakBlock title="Missing: what would settle it">
-          Cannot verify must name the document that would settle the claim.
-        </RuleBreakBlock>
       ) : null}
     </div>
   );
@@ -348,19 +352,28 @@ function lgSurface(status: Claim["status"]): string {
 export function ClaimLedger({
   children,
   label = "Claim ledger",
+  legend = true,
+  flush = false,
   className,
 }: {
   children: React.ReactNode;
   label?: string;
+  /** Off where the status filter above the ledger already names every glyph. */
+  legend?: boolean;
+  /** No frame of its own, for a ledger inside a flush panel body. */
+  flush?: boolean;
   className?: string;
 }) {
   return (
     <div className={cn("flex flex-col gap-3", className)}>
-      <StatusLegend />
+      {legend ? <StatusLegend /> : null}
       <div
         role="grid"
         aria-label={label}
-        className="overflow-hidden rounded-lg border border-line bg-surface [&>[data-ledger-row]:last-child]:border-b-0"
+        className={cn(
+          "overflow-hidden bg-surface [&>[data-ledger-row]:last-child]:border-b-0",
+          !flush && "rounded-lg border border-line",
+        )}
       >
         <div
           role="row"

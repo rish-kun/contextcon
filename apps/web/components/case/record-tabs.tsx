@@ -16,30 +16,23 @@ import {
   type PolicyOut,
 } from "@/lib/api/client";
 import { plural } from "@/lib/format";
-import { identityResolved, toClaim } from "@/components/case/adapt";
 import { CoverageMap, type CoverageSelection } from "@/components/explainers/coverage-map";
 import { coverageFromClaims } from "@/components/explainers/derive";
-import { useCase, useCaseDetail } from "@/components/case/case-context";
-import { BlockedByIdentity, EmptyState, TabHeading } from "@/components/case/parts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { claimNumbers, usesBySource } from "./adapt";
+import { TextLink } from "@/components/ui/link";
+import { claimNumbers, identityResolved, toClaim, usesBySource } from "./adapt";
 import { AssessmentView } from "./assessment-view";
 import { BuildRequestList } from "./build-request-list";
+import { useCase, useCaseDetail } from "./case-context";
 import { CostPanel } from "./cost-panel";
+import { readDecisionFlip } from "./decision-flip/adapt";
+import { DecisionFlipPanel } from "./decision-flip/panel";
 import { DocumentsPanel } from "./documents-panel";
-import { Section, TextLink } from "./parts";
+import { AssessmentPending, BlockedByIdentity, TabEmpty, TabSection, TabStack } from "./parts";
 import { RequestApproval } from "./request-approval";
 import { RequestList } from "./request-list";
 import { SourcesTable } from "./sources-table";
-
-function LinkButton({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <Button asChild size="sm">
-      <Link href={href}>{children}</Link>
-    </Button>
-  );
-}
 
 /* ───────────────────────── Assessment history ───────────────────────── */
 
@@ -110,14 +103,9 @@ export function AssessmentTab() {
 
   if (!latest) {
     return identityResolved(detail) ? (
-      <EmptyState
-        title="Not assessed yet"
-        actions={<LinkButton href={`${basePath}/claims`}>Go to claims</LinkButton>}
-      >
-        The five judgments appear here once verification has run on this case.
-      </EmptyState>
+      <AssessmentPending what="The five judgments" />
     ) : (
-      <BlockedByIdentity what="DealProof does not judge a company it has not identified." />
+      <BlockedByIdentity what="A company is judged only once it is identified" />
     );
   }
 
@@ -137,15 +125,13 @@ export function AssessmentTab() {
   const viewing = versions.some((item) => item.version === asked) ? asked : latest.version;
 
   return (
-    <div className="flex flex-col gap-4">
+    <TabStack>
       {historyFailed ? (
         <p role="alert" className="rounded-md border border-line-strong bg-surface px-3 py-2 text-dense text-ink">
-          Earlier versions could not be loaded. The current version is shown; the history below
-          is incomplete until the page is reloaded.
+          Earlier versions did not load. Reload to see the full history
         </p>
       ) : null}
       <AssessmentView
-        caseId={caseId}
         basePath={`${basePath}/assessment`}
         versions={versions}
         claims={detail.claims}
@@ -153,8 +139,9 @@ export function AssessmentTab() {
         viewing={viewing}
         typeReason={detail.profile?.company_type_reason ?? null}
         policy={policy}
+        decisionFlip={<DecisionFlipPanel detail={detail} basePath={basePath} />}
       />
-    </div>
+    </TabStack>
   );
 }
 
@@ -184,28 +171,9 @@ function previewMessage(message: MessageOut | null, state: PreviewState): Messag
   };
 }
 
-/** The drafted email as it stands on the public showcase: never approved, never sent. */
-function ShowcaseDraft({ subject, body }: { subject: string; body: string }) {
-  return (
-    <Section title="Drafted email">
-      <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
-        <p className="text-dense text-ink">
-          <span className="text-ink-secondary">Subject: </span>
-          {subject}
-        </p>
-        <pre className="whitespace-pre-wrap font-sans text-dense text-ink">{body}</pre>
-      </div>
-      <p className="rounded-lg border border-dashed border-line-strong px-4 py-3 font-mono text-xs text-ink-secondary">
-        Draft · not approved · not sent. DealProof drafted this during the run and did not
-        contact the company.
-      </p>
-    </Section>
-  );
-}
-
 export function RequestTab() {
   const detail = useCaseDetail();
-  const { caseId, basePath, mutate, reload, readOnly } = useCase();
+  const { caseId, basePath, mutate, reload } = useCase();
   const preview = useSearchParams().get("preview");
   const { request_list: list, claims, documents, assessment } = detail;
   const { history } = useAssessmentHistory(caseId, assessment?.version);
@@ -213,23 +181,14 @@ export function RequestTab() {
 
   if (!list) {
     if (!identityResolved(detail)) {
-      return <BlockedByIdentity what="A request is built from an assessment." />;
+      return <BlockedByIdentity what="A request is built from an assessment" />;
     }
     return assessment ? (
-      <EmptyState
-        title="No request list yet"
-        actions={readOnly ? undefined : <BuildRequestList caseId={caseId} onBuilt={reload} />}
-      >
-        DealProof can list the documents that would settle this case&apos;s open claims and draft
-        the email to the seller. You review, edit and approve before anything is sent.
-      </EmptyState>
+      <TabEmpty title="No request list yet" actions={<BuildRequestList caseId={caseId} onBuilt={reload} />}>
+        Lists the documents that would settle the open claims and drafts the email
+      </TabEmpty>
     ) : (
-      <EmptyState
-        title="Nothing to request right now"
-        actions={<LinkButton href={`${basePath}/claims`}>Go to claims</LinkButton>}
-      >
-        A request list is built from an assessment, and this case has not been assessed yet.
-      </EmptyState>
+      <AssessmentPending what="A request list is built from the assessment, and" />
     );
   }
 
@@ -249,33 +208,32 @@ export function RequestTab() {
   const responses = documents.filter((doc) => doc.kind === "seller_response");
 
   return (
-    <div className="flex flex-col gap-8">
-      <TabHeading
-        title="Request to seller"
-        summary="The documents that would settle what is still open, and one email asking for them. A named person approves the exact wording, and it is sent once."
-      >
-        {previewState ? (
-          <Badge variant="outline" className="border-dashed">
-            Fixture preview · {previewState}
-          </Badge>
-        ) : null}
-        {testMode ? <Badge variant="test-mode">Test mode</Badge> : null}
-      </TabHeading>
+    <TabStack>
+      {previewState || testMode ? (
+        <p className="flex flex-wrap items-center gap-2">
+          {previewState ? (
+            <Badge variant="outline" className="border-dashed">
+              Fixture preview · {previewState}
+            </Badge>
+          ) : null}
+          {testMode ? <Badge variant="test-mode">Test mode</Badge> : null}
+        </p>
+      ) : null}
 
       {list.items.length === 0 && list.analyst_retries.length === 0 ? (
-        <EmptyState
-          title="Nothing to request right now"
-          actions={<LinkButton href={`${basePath}/claims`}>Go to claims</LinkButton>}
+        <TabEmpty
+          title="Nothing to request"
+          actions={
+            <Button asChild size="sm">
+              <Link href={`${basePath}/claims`}>Open claims</Link>
+            </Button>
+          }
         >
-          All checked claims are settled, or no open claim requires a document from the seller.
-          You can still select a claim from the ledger to add a document request.
-        </EmptyState>
+          No open claim needs a document from the seller
+        </TabEmpty>
       ) : (
-        <div className="grid gap-8 2xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-          <RequestList list={list} claims={claims} basePath={basePath} />
-          {readOnly ? (
-            <ShowcaseDraft subject={list.draft.subject} body={list.draft.body} />
-          ) : (
+        <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+          <RequestList list={list} claims={claims} basePath={basePath} flip={readDecisionFlip(detail)} />
           <RequestApproval
             key={previewState ?? "record"}
             caseId={caseId}
@@ -286,43 +244,36 @@ export function RequestTab() {
             // The case header and the tab row read the message from the shared case.
             onChange={previewState ? undefined : (next) => mutate((d) => ({ ...d, message: next }))}
           />
-          )}
         </div>
       )}
 
       {responses.length > 0 ? (
-        <Section
+        <TabSection
           title="Seller documents"
           meta={responses.length}
-          lead="Documents the seller sent back. DealProof rechecks the claims each one bears on and records a new assessment version."
+          why={<p>Each document the seller sends back is rechecked against the claims it bears on, and a new assessment version is recorded.</p>}
+          action={<TextLink href={`${basePath}/documents`}>All files</TextLink>}
+          flush
         >
-          <ul className="flex flex-col divide-y divide-line rounded-lg border border-line bg-surface text-dense">
+          <ul className="flex flex-col divide-y divide-line text-dense">
             {responses.map((doc) => {
               // The version this upload caused, matched by document id.
               const version =
                 versions.find((item) => item.trigger_document_ids.includes(doc.id))?.version ?? null;
               return (
-                <li key={doc.id} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-4 py-3">
+                <li key={doc.id} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-4 py-2">
                   <span className="text-ink">{doc.filename}</span>
-                  <span className="text-ink-secondary">
-                    Affected {plural(doc.claims_extracted, "claim")}
-                  </span>
+                  <span className="text-ink-secondary">{plural(doc.claims_extracted, "claim")} affected</span>
                   {version ? (
-                    <TextLink href={`${basePath}/assessment?v=${version}`}>
-                      View v{version} diff
-                    </TextLink>
+                    <TextLink href={`${basePath}/assessment?v=${version}`}>v{version} diff</TextLink>
                   ) : null}
                 </li>
               );
             })}
           </ul>
-          <p className="text-xs text-ink-secondary">
-            Files and their deletion dates are on the{" "}
-            <TextLink href={`${basePath}/documents`}>Documents tab</TextLink>.
-          </p>
-        </Section>
+        </TabSection>
       ) : null}
-    </div>
+    </TabStack>
   );
 }
 
@@ -339,25 +290,18 @@ export function SourcesTab() {
   );
 
   if (detail.sources.length === 0) {
-    return (
-      <EmptyState title="No sources recorded yet">
-        Sources appear here with their dates and retrieval times as soon as verification begins.
-      </EmptyState>
-    );
+    return <TabEmpty title="No sources yet">Sources are recorded as soon as verification reads one</TabEmpty>;
   }
   return (
-    <div className="flex flex-col gap-6">
-      <TabHeading
-        title="Source record"
-        summary="Everything DealProof read for this case: where it came from, the exact page or request, when it was retrieved and which facts rest on it. Enough to repeat the work and reach the same record."
-      />
-      <Section
-        title="What the evidence rests on"
+    <TabStack>
+      <TabSection
+        title="Coverage"
         meta={plural(coverage.rows.length, "kind of claim", "kinds of claim")}
-        lead="Each kind of claim against each class of source. Pick a cell or a column head to narrow the record below to those sources."
+        why={<p>Each kind of claim against each class of source. Pick a cell or a column head to narrow the table below to those sources.</p>}
+        whyLabel="How to read"
       >
         <CoverageMap model={coverage} selection={selection} onSelect={setSelection} />
-      </Section>
+      </TabSection>
       <SourcesTable
         sources={detail.sources}
         uses={Object.fromEntries(usesBySource(detail))}
@@ -380,7 +324,7 @@ export function SourcesTab() {
         }
         onClearFilter={() => setSelection(null)}
       />
-    </div>
+    </TabStack>
   );
 }
 
@@ -393,13 +337,16 @@ export function DocumentsTab() {
 
   if (detail.documents.length === 0 && detail.deletions.length === 0) {
     return (
-      <EmptyState
-        title="No files on this case"
-        actions={<LinkButton href={`${basePath}/claims`}>Go to claims</LinkButton>}
+      <TabEmpty
+        title="No files yet"
+        actions={
+          <Button asChild size="sm">
+            <Link href={`${basePath}/claims#add-to-ledger`}>Upload a document</Link>
+          </Button>
+        }
       >
-        Seller documents you upload appear here with the date they will be deleted. They are
-        used only for this case.
-      </EmptyState>
+        Uploads are used only for this case and carry their deletion date
+      </TabEmpty>
     );
   }
   return (
@@ -427,11 +374,7 @@ export function CostTab() {
     !cost.shared_discovery;
 
   if (nothingYet) {
-    return (
-      <EmptyState title="No usage recorded yet">
-        Credits and model usage appear here once a search or verification step runs.
-      </EmptyState>
-    );
+    return <TabEmpty title="No usage yet">Credits and model usage appear once a step runs</TabEmpty>;
   }
   return <CostPanel cost={cost} basePath={basePath} />;
 }

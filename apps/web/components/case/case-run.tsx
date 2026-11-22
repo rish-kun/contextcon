@@ -13,7 +13,6 @@ import { StepChecklist, stepsDone } from "@/components/run/step-checklist";
 import { Panel, PanelHeader } from "@/components/ui/card";
 import { useCase, useCaseDetail } from "./case-context";
 import { ClaimStream } from "./claim-stream";
-import { TabHeading } from "./parts";
 import { RecheckStream } from "./recheck-stream";
 
 const isShort = (kind: string) => kind === "recheck" || kind === "evaluate";
@@ -132,17 +131,5 @@ export function CaseRunLog() {
   const detail = useCaseDetail();
   const { basePath } = useCase();
   const runs = [...detail.runs].reverse();
-  return (
-    <div className="flex flex-col gap-6">
-      <TabHeading
-        title="Run log"
-        summary={
-          runs.length > 0
-            ? `${runs.length} ${runs.length === 1 ? "run" : "runs"} · what each one did, read and cost`
-            : "No run has been recorded for this case"
-        }
-      />
-      <RunLogScreen runs={runs} findings={caseFindings(detail, basePath)} empty="Run verification to record the first run" />
-    </div>
-  );
+  return <RunLogScreen runs={runs} findings={caseFindings(detail, basePath)} empty="Run verification to record the first run" />;
 }

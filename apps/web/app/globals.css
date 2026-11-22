@@ -226,6 +226,13 @@
     rgb(22 24 29 / 0.22) 2px 3px
   );
 
+  /* A simulated outcome: a wider, fainter hatch than Not checked, on plain surface. */
+  --pattern-hatch-hypothetical: repeating-linear-gradient(
+    135deg,
+    transparent 0 7px,
+    rgb(22 24 29 / 0.07) 7px 8px
+  );
+
   --duration-fast: 140ms;
   --duration-base: 200ms;
   --duration-slow: 360ms;
@@ -309,6 +316,12 @@
 @utility hatch {
   background-color: var(--color-not-checked-tint);
   background-image: var(--pattern-hatch);
+}
+
+/* Hypothetical outcomes (DecisionFlip): hatched and dashed, never a status colour */
+@utility hatch-hypothetical {
+  background-color: var(--color-surface);
+  background-image: var(--pattern-hatch-hypothetical);
 }
 
 @utility hatch-dense {

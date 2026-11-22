@@ -140,7 +140,7 @@ function DispositionCell({ detail, basePath }: { detail: CaseDetail; basePath: s
 
 function ClaimsCell({ detail, basePath }: { detail: CaseDetail; basePath: string }) {
   const counts = statusCounts(detail.claims);
-  const settled = detail.claims.length - counts.not_checked;
+  const open = counts.partially_corroborated + counts.conflicting_evidence + counts.cannot_verify;
   if (detail.claims.length === 0) {
     return (
       <div className={cell}>
@@ -157,7 +157,8 @@ function ClaimsCell({ detail, basePath }: { detail: CaseDetail; basePath: string
     <div className={cell}>
       <StatusCounts counts={counts} />
       <p className="font-mono text-xs text-ink-secondary">
-        {settled} of {detail.claims.length} settled
+        {counts.supported} of {detail.claims.length} supported
+        {open > 0 ? ` · ${open} need evidence` : null}
         {counts.not_checked > 0 ? (
           <>
             {" · "}

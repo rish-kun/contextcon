@@ -1,13 +1,12 @@
 "use client";
 
 import type { CaseDetail } from "@/lib/api/client";
-import { plural } from "@/lib/format";
-import { staggerDelay } from "@/lib/transitions";
 import { cn } from "@/lib/utils";
 import { Fact } from "@/components/dealproof";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui";
 import { factEstimate, factEvidence } from "./adapt";
 import { useCaseDetail } from "./case-context";
-import { BlockedByIdentity, EmptyState, TabHeading } from "./parts";
+import { BlockedByIdentity, TabEmpty, TabSection, TabStack } from "./parts";
 
 type Basis = CaseDetail["comparables"]["basis"];
 
@@ -38,74 +37,65 @@ export function ComparisonBasis({ basis, className }: { basis: Basis; className?
 }
 
 /**
- * Peers chosen on one shared basis, with one sourced observation each. Comparables
- * inform the reader and feed no score. When no fair comparison exists the tab says so
- * and shows nothing weaker in its place.
+ * Peers chosen on one shared basis, with one sourced observation each, as a plain table.
+ * Comparables inform the reader and feed no score. When no fair comparison exists the tab
+ * says so and shows nothing weaker in its place.
  */
 export function ComparablesTab() {
   const detail = useCaseDetail();
   const { comparables } = detail;
-  const blocked = detail.identity.state !== "confirmed";
+
+  if (detail.identity.state !== "confirmed") {
+    return <BlockedByIdentity what="Peers are chosen from the confirmed company's activity, region and size" />;
+  }
+  if (comparables.companies.length === 0) {
+    return (
+      <TabEmpty title="No fair comparison found">
+        {comparables.no_fair_comparison_reason
+          ? comparables.no_fair_comparison_reason.replace(/\.$/, "")
+          : "No peer matched the same activity, region and size band"}
+        . A weaker list is not shown in its place
+      </TabEmpty>
+    );
+  }
 
   return (
-    <div className="flex flex-col gap-6">
-      <TabHeading
-        title="Comparables"
-        summary={
-          !blocked && comparables.companies.length > 0
-            ? `${plural(comparables.companies.length, "peer")} on the same basis · informational only, not scored`
-            : undefined
-        }
-      />
+    <TabStack>
+      <TabSection
+        title="Basis"
+        why={<p>Every peer shares all three. The size band is an estimate from professional profiles, not a payroll count. Comparables are informational and feed no score.</p>}
+        flush
+      >
+        <ComparisonBasis basis={comparables.basis} className="rounded-none border-0" />
+      </TabSection>
 
-      {blocked ? (
-        <BlockedByIdentity what="A fair comparison starts from the confirmed company's activity, region and size." />
-      ) : comparables.companies.length === 0 ? (
-        <EmptyState title="No fair comparison found">
-          {comparables.no_fair_comparison_reason
-            ? `${comparables.no_fair_comparison_reason.replace(/\.$/, "")}. `
-            : "Available records did not return peers matching the same activity, region and size band. "}
-          DealProof does not substitute a weaker list.
-        </EmptyState>
-      ) : (
-        <>
-          <section aria-label="Basis of comparison" className="flex flex-col gap-2">
-            <h3 className="text-sm font-medium text-ink">Basis of comparison</h3>
-            <ComparisonBasis basis={comparables.basis} />
-            <p className="text-xs text-ink-secondary">
-              Every peer below shares all three. The size band is an estimate from
-              professional profiles, not a payroll count
-            </p>
-          </section>
-
-          <section aria-label="Peers" className="flex flex-col gap-2">
-            <h3 className="text-sm font-medium text-ink">Peers</h3>
-            <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
-              {comparables.companies.map((peer, index) => (
-                <li
-                  key={peer.crustdata_company_id}
-                  style={{ animationDelay: `${staggerDelay(index)}s` }}
-                  className="grid gap-x-6 gap-y-1 px-4 py-3 text-dense md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
-                >
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-ink">{peer.name}</span>
-                    <span className="font-mono text-2xs text-ink-secondary">
-                      company id {peer.crustdata_company_id}
-                    </span>
-                  </div>
-                  <Fact
-                    evidence={factEvidence(peer.observation)}
-                    estimate={factEstimate(peer.observation)}
-                    layout="stacked"
-                  >
+      <TabSection title="Peers" meta={`${comparables.companies.length} · not scored`} flush>
+        <Table density="two-line" flush>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead>Company</TableHead>
+              <TableHead>Observation</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {comparables.companies.map((peer) => (
+              <TableRow key={peer.crustdata_company_id}>
+                <TableCell className="align-top">
+                  <span className="flex flex-col">
+                    <span className="font-medium text-ink">{peer.name}</span>
+                    <span className="font-mono text-2xs text-ink-muted">id {peer.crustdata_company_id}</span>
+                  </span>
+                </TableCell>
+                <TableCell className="align-top">
+                  <Fact evidence={factEvidence(peer.observation)} estimate={factEstimate(peer.observation)} layout="stacked">
                     {peer.observation.value}
                   </Fact>
-                </li>
-              ))}
-            </ul>
-          </section>
-        </>
-      )}
-    </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TabSection>
+    </TabStack>
   );
 }

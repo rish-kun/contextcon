@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import { type CaseDetail, type ClaimOut, type Schemas, isFixtureMode } from "@/lib/api/client";
 import {
   formatCredits,
@@ -37,8 +37,10 @@ import {
   toDiff,
   toEvidence,
   toFit,
+  claimTally,
 } from "./adapt";
 import { useCase } from "./case-context";
+import { percent } from "./profile-band";
 import { ComparisonBasis } from "./comparables-tab";
 import { NatureTag } from "./events-tab";
 import "./memo-print.css";
@@ -250,7 +252,6 @@ function recommendedAction(detail: CaseDetail): string {
 
 function Summary({ detail }: { detail: CaseDetail }) {
   const counts = statusCounts(detail.claims);
-  const settled = detail.claims.length - counts.not_checked;
   const assessment = detail.assessment;
   const reasons = assessment?.judgments.screening_disposition.reasons ?? [];
   const numberOf = new Map(detail.claims.map((claim) => [claim.id, claim.number]));
@@ -326,8 +327,7 @@ function Summary({ detail }: { detail: CaseDetail }) {
             <p className="font-mono text-sm font-medium text-ink">Not assessed yet</p>
           )}
           <p className="text-xs text-ink-secondary">
-            Across the whole ledger: {settled} of {plural(detail.claims.length, "claim")} settled
-            {counts.not_checked > 0 ? ` · ${counts.not_checked} not checked` : null}
+            Whole ledger: {claimTally(counts)}
           </p>
         </div>
       </div>
@@ -592,7 +592,7 @@ function IdentityAndProfile({ detail }: { detail: CaseDetail }) {
                     profile.headcount_growth_yoy_pct ? (
                       <CitedFact fact={profile.headcount_growth_yoy_pct}>
                         {profile.headcount_growth_yoy_pct.value < 0 ? "Down" : "Up"}{" "}
-                        {Math.abs(profile.headcount_growth_yoy_pct.value)}% year on year
+                        {percent(profile.headcount_growth_yoy_pct.value)}% year on year
                       </CitedFact>
                     ) : null,
                   ],
@@ -1120,6 +1120,7 @@ export function Memo({ detail }: { detail: CaseDetail }) {
     [detail.sources],
   );
   const asOf = useMemo(() => collectAsOf(detail), [detail]);
+  const [full, setFull] = useState(false);
   const assessment = detail.assessment;
   const diff = assessment ? toDiff(assessment, detail.claims) : null;
   const legalName = detail.profile?.legal_name?.value ?? detail.case.name;
@@ -1170,16 +1171,27 @@ export function Memo({ detail }: { detail: CaseDetail }) {
           </section>
         ) : null}
 
-        <Opportunity detail={detail} />
-        <IdentityAndProfile detail={detail} />
-        <Claims detail={detail} />
-        <Events detail={detail} />
-        <Comparables detail={detail} />
-        <Financial detail={detail} />
-        <Risks detail={detail} />
-        <NextStep detail={detail} />
-        <Request detail={detail} />
-        <Sources detail={detail} asOf={asOf} />
+        {/* On screen the ten sections open on request; the printed memo always carries them. */}
+        <button
+          type="button"
+          aria-expanded={full}
+          onClick={() => setFull((value) => !value)}
+          className="self-start rounded-md border border-line-strong bg-surface px-3 py-2 text-dense font-medium text-ink transition-colors hover:bg-surface-raised print:hidden"
+        >
+          {full ? "Hide the full memo" : "Read the full memo · 10 sections"}
+        </button>
+        <div className={cn("flex-col gap-8 print:flex", full ? "flex" : "hidden")}>
+          <Opportunity detail={detail} />
+          <IdentityAndProfile detail={detail} />
+          <Claims detail={detail} />
+          <Events detail={detail} />
+          <Comparables detail={detail} />
+          <Financial detail={detail} />
+          <Risks detail={detail} />
+          <NextStep detail={detail} />
+          <Request detail={detail} />
+          <Sources detail={detail} asOf={asOf} />
+        </div>
 
         <p className="border-t border-line pt-4 text-xs text-ink-secondary print:hidden">
           Screening only. Not financial, legal or tax due diligence

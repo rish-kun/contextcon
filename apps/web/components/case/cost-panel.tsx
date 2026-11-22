@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Section } from "./parts";
+import { TabSection, TabStack } from "./parts";
 
 /** Credits come in fractions from the provider: `19.5`, `4`, `1,204`. */
 export function credits(value: number): string {
@@ -40,40 +40,31 @@ export function CostPanel({ cost, basePath }: { cost: CaseCostOut; basePath: str
   const claimsHref = `${basePath}/claims?status=not_checked`;
 
   return (
-    <div className="flex flex-col gap-8">
-      <section className="flex flex-col gap-3" aria-labelledby="cost-heading">
-        <h2 id="cost-heading" className="text-sm font-medium text-ink">
-          This case cost
-        </h2>
-        <CostMeter model={meterFromCostOut(cost)} usdDigits={4} notCheckedHref={claimsHref} />
-        {cost.unknown_cost_calls > 0 ? (
-          <p className="font-mono text-xs text-ink-secondary">
-            + {unknownCalls(cost.unknown_cost_calls)}, not in the figures above
-          </p>
-        ) : null}
-        <p className="max-w-2xl text-xs text-ink-secondary">
-          Credits count Crustdata lookups against this case&apos;s budget. Model usage is
-          language-model spend in US dollars. The two are never added together.
-        </p>
-      </section>
+    <TabStack>
+      <TabSection
+        title="This case cost"
+        why={
+          <>
+            <p>Credits count Crustdata lookups against this case&apos;s budget. Model usage is language-model spend in US dollars. The two are never added together.</p>
+            <p>A call whose cost the provider did not report is recorded as unknown, never as zero, so totals are a lower bound.</p>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <CostMeter model={meterFromCostOut(cost)} usdDigits={4} notCheckedHref={claimsHref} />
+          {cost.unknown_cost_calls > 0 ? (
+            <HatchedBlock role="note" innerClassName="text-dense font-medium">
+              + {unknownCalls(cost.unknown_cost_calls)}, not in the figures above
+            </HatchedBlock>
+          ) : null}
+        </div>
+      </TabSection>
 
-      {cost.unknown_cost_calls > 0 ? (
-        <HatchedBlock role="note" innerClassName="flex flex-col gap-1 text-dense">
-          <p className="font-medium">{unknownCalls(cost.unknown_cost_calls)}</p>
-          <p>
-            The provider&apos;s response carried no usage figure. The cost is recorded as unknown,
-            not as zero, so the totals on this page are a lower bound.
-          </p>
-        </HatchedBlock>
-      ) : null}
-
-      <Section title="By run and step" meta={plural(lines.length, "step")}>
+      <TabSection title="By run and step" meta={plural(lines.length, "step")} flush>
         {lines.length === 0 ? (
-          <p className="rounded-lg border border-line bg-surface px-4 py-3 text-dense text-ink-secondary">
-            No step has recorded usage yet.
-          </p>
+          <p className="px-4 py-3 text-dense text-ink-secondary">No step has recorded usage yet</p>
         ) : (
-          <Table>
+          <Table density="compact" flush>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead>Run</TableHead>
@@ -107,7 +98,7 @@ export function CostPanel({ cost, basePath }: { cost: CaseCostOut; basePath: str
                         : "–"}
                   </TableCell>
                   <TableCell numeric>{line.cost.llm_usd > 0 ? usd(line.cost.llm_usd) : "–"}</TableCell>
-                  <TableCell numeric className="text-ink-secondary">
+                  <TableCell numeric className="whitespace-nowrap text-ink-secondary">
                     {formatShortDateTime(line.at)}
                   </TableCell>
                 </TableRow>
@@ -131,22 +122,22 @@ export function CostPanel({ cost, basePath }: { cost: CaseCostOut; basePath: str
             </TableFooter>
           </Table>
         )}
-      </Section>
+      </TabSection>
 
       {cost.shared_discovery ? (
-        <Section
+        <TabSection
           title="Discovery cost"
-          meta="shared"
-          lead="Spent once on the search that produced the shortlist this case was opened from. It is shown here once and is not added to this case's total, so it is not counted again for every case from that shortlist."
+          meta="shared, not in this case's total"
+          why={<p>Spent once on the search that produced the shortlist this case was opened from. It is shown once here and not added to the case total, so it is not counted again for every case from that shortlist.</p>}
         >
-          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 rounded-lg border border-line bg-surface px-4 py-3 text-dense sm:grid-cols-[auto_auto_auto_minmax(0,1fr)] sm:items-baseline">
-            <dt className="text-ink-muted">Shared, from run</dt>
+          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 text-dense">
+            <dt className="text-ink-muted">Run</dt>
             <dd className="font-mono text-xs break-all text-ink">{cost.shared_discovery.run_id}</dd>
-            <dt className="text-ink-muted sm:text-right">Cost of that run</dt>
-            <dd className="font-mono text-ink sm:text-right">
+            <dt className="text-ink-muted">Cost</dt>
+            <dd className="font-mono text-ink">
               {credits(cost.shared_discovery.cost.crustdata_credits)} credits
               <span className="text-ink-muted"> · </span>
-              {usd(cost.shared_discovery.cost.llm_usd)} model usage
+              {usd(cost.shared_discovery.cost.llm_usd)} model
               {cost.shared_discovery.cost.unknown_cost_calls > 0 ? (
                 <>
                   <span className="text-ink-muted"> + </span>
@@ -155,8 +146,8 @@ export function CostPanel({ cost, basePath }: { cost: CaseCostOut; basePath: str
               ) : null}
             </dd>
           </dl>
-        </Section>
+        </TabSection>
       ) : null}
-    </div>
+    </TabStack>
   );
 }

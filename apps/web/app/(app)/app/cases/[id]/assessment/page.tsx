@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { AssessmentTab } from "@/components/case-b/tabs";
+import { AssessmentTab } from "@/components/case/record-tabs";
 
 export default function AssessmentPage() {
   return (
