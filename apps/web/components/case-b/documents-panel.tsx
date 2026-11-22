@@ -76,8 +76,9 @@ export function DocumentsPanel({
   const deletionFor = (documentId: string) =>
     deletions.find((record) => record.artifact_id === documentId);
   const itemName = (id: string) => requestList?.items.find((item) => item.id === id)?.document;
-  const versionFrom = (filename: string) =>
-    versions.find((version) => version.trigger.includes(filename))?.version;
+  // The version an upload caused, matched by document id: the trigger text carries no filenames.
+  const versionFrom = (documentId: string) =>
+    versions.find((version) => version.trigger_document_ids.includes(documentId))?.version;
 
   return (
     <div className="flex flex-col gap-8">
@@ -103,7 +104,7 @@ export function DocumentsPanel({
               const deletion = deletionFor(doc.id);
               const purged = doc.purged || Boolean(deletion);
               const answers = doc.answers_request_item_ids.map(itemName).filter(Boolean);
-              const version = versionFrom(doc.filename);
+              const version = versionFrom(doc.id);
               const redacted = redactions(doc.redaction_counts);
               return (
                 <TableRow key={doc.id}>

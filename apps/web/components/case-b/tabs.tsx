@@ -6,7 +6,7 @@
  */
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   getPolicy,
   isFixtureMode,
@@ -16,7 +16,9 @@ import {
   type PolicyOut,
 } from "@/lib/api/client";
 import { plural } from "@/lib/format";
-import { identityResolved } from "@/components/case/adapt";
+import { identityResolved, toClaim } from "@/components/case/adapt";
+import { CoverageMap, type CoverageSelection } from "@/components/explainers/coverage-map";
+import { coverageFromClaims } from "@/components/explainers/derive";
 import { useCase, useCaseDetail } from "@/components/case/case-context";
 import { BlockedByIdentity, EmptyState, TabHeading } from "@/components/case/parts";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +41,52 @@ function LinkButton({ href, children }: { href: string; children: React.ReactNod
   );
 }
 
+/* ───────────────────────── Assessment history ───────────────────────── */
+
+/**
+ * Every assessment version of the case. The case carries only the latest; earlier ones
+ * are read once, and again whenever a new version arrives.
+ */
+function useAssessmentHistory(caseId: string, latestVersion: number | undefined) {
+  const [history, setHistory] = useState<AssessmentVersionOut[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (latestVersion === undefined) return;
+    let live = true;
+    listAssessments(caseId).then(
+      (versions) => {
+        if (!live) return;
+        setHistory(versions);
+        setFailed(false);
+      },
+      () => live && setFailed(true),
+    );
+    return () => {
+      live = false;
+    };
+  }, [caseId, latestVersion]);
+
+  return { history, failed };
+}
+
+/**
+ * The versions to link documents against: the whole history once it has loaded, and the
+ * latest version until then. An upload links to the version whose `trigger_document_ids`
+ * names it, by document id.
+ */
+function linkableVersions(
+  history: AssessmentVersionOut[] | null,
+  latest: AssessmentVersionOut | null,
+): AssessmentVersionOut[] {
+  if (history?.length) {
+    return latest && !history.some((item) => item.version === latest.version)
+      ? [...history, latest]
+      : history;
+  }
+  return latest ? [latest] : [];
+}
+
 /* ───────────────────────── Assessment ───────────────────────── */
 
 export function AssessmentTab() {
@@ -46,26 +94,8 @@ export function AssessmentTab() {
   const { caseId, basePath } = useCase();
   const asked = Number(useSearchParams().get("v"));
   const latest = detail.assessment;
-  const [history, setHistory] = useState<AssessmentVersionOut[] | null>(null);
-  const [historyFailed, setHistoryFailed] = useState(false);
+  const { history, failed: historyFailed } = useAssessmentHistory(caseId, latest?.version);
   const [policy, setPolicy] = useState<PolicyOut | null>(null);
-
-  // The case carries the latest version. Earlier ones are read once, and again whenever
-  // a new version arrives.
-  useEffect(() => {
-    let live = true;
-    listAssessments(caseId).then(
-      (versions) => {
-        if (!live) return;
-        setHistory(versions);
-        setHistoryFailed(false);
-      },
-      () => live && setHistoryFailed(true),
-    );
-    return () => {
-      live = false;
-    };
-  }, [caseId, latest?.version]);
 
   useEffect(() => {
     let live = true;
@@ -115,9 +145,11 @@ export function AssessmentTab() {
         </p>
       ) : null}
       <AssessmentView
+        caseId={caseId}
         basePath={`${basePath}/assessment`}
         versions={versions}
         claims={detail.claims}
+        documents={detail.documents}
         viewing={viewing}
         typeReason={detail.profile?.company_type_reason ?? null}
         policy={policy}
@@ -157,6 +189,8 @@ export function RequestTab() {
   const { caseId, basePath, mutate, reload } = useCase();
   const preview = useSearchParams().get("preview");
   const { request_list: list, claims, documents, assessment } = detail;
+  const { history } = useAssessmentHistory(caseId, assessment?.version);
+  const versions = linkableVersions(history, assessment);
 
   if (!list) {
     if (!identityResolved(detail)) {
@@ -241,8 +275,9 @@ export function RequestTab() {
         >
           <ul className="flex flex-col divide-y divide-line rounded-lg border border-line bg-surface text-dense">
             {responses.map((doc) => {
+              // The version this upload caused, matched by document id.
               const version =
-                assessment && assessment.trigger.includes(doc.filename) ? assessment.version : null;
+                versions.find((item) => item.trigger_document_ids.includes(doc.id))?.version ?? null;
               return (
                 <li key={doc.id} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-4 py-3">
                   <span className="text-ink">{doc.filename}</span>
@@ -273,6 +308,12 @@ export function RequestTab() {
 export function SourcesTab() {
   const detail = useCaseDetail();
   const { caseId } = useCase();
+  const [selection, setSelection] = useState<CoverageSelection | null>(null);
+  const identityOpen = !identityResolved(detail);
+  const coverage = useMemo(
+    () => coverageFromClaims(detail.claims.map(toClaim), { identityOpen }),
+    [detail.claims, identityOpen],
+  );
 
   if (detail.sources.length === 0) {
     return (
@@ -287,10 +328,34 @@ export function SourcesTab() {
         title="Source record"
         summary="Everything DealProof read for this case: where it came from, the exact page or request, when it was retrieved and which facts rest on it. Enough to repeat the work and reach the same record."
       />
+      <Section
+        title="What the evidence rests on"
+        meta={plural(coverage.rows.length, "kind of claim", "kinds of claim")}
+        lead="Each kind of claim against each class of source. Pick a cell or a column head to narrow the record below to those sources."
+      >
+        <CoverageMap model={coverage} selection={selection} onSelect={setSelection} />
+      </Section>
       <SourcesTable
         sources={detail.sources}
         uses={Object.fromEntries(usesBySource(detail))}
         exportName={caseId}
+        filter={
+          selection
+            ? {
+                sourceClass: selection.reliability,
+                category: selection.category,
+                // A cell narrows to the sources its facts came from; a column head to the class.
+                sourceIds:
+                  selection.category === null
+                    ? null
+                    : (coverage.rows
+                        .find((row) => row.category === selection.category)
+                        ?.cells.find((cell) => cell.reliability === selection.reliability)
+                        ?.source_ids ?? []),
+              }
+            : null
+        }
+        onClearFilter={() => setSelection(null)}
       />
     </div>
   );
@@ -300,7 +365,8 @@ export function SourcesTab() {
 
 export function DocumentsTab() {
   const detail = useCaseDetail();
-  const { basePath } = useCase();
+  const { caseId, basePath } = useCase();
+  const { history } = useAssessmentHistory(caseId, detail.assessment?.version);
 
   if (detail.documents.length === 0 && detail.deletions.length === 0) {
     return (
@@ -319,7 +385,7 @@ export function DocumentsTab() {
       documents={detail.documents}
       deletions={detail.deletions}
       requestList={detail.request_list}
-      versions={detail.assessment ? [detail.assessment] : []}
+      versions={linkableVersions(history, detail.assessment)}
     />
   );
 }

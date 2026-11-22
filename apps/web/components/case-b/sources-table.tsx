@@ -1,11 +1,10 @@
 "use client";
 
 import { Download } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { Schemas } from "@/lib/api/client";
 import { formatDateTime, plural } from "@/lib/format";
 import { RELIABILITY_LABEL, RELIABILITY_NOTE } from "@/lib/labels";
-import { cn } from "@/lib/utils";
 import { SourceClassGlyph } from "@/components/dealproof/glyphs";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -30,33 +29,13 @@ const PROVIDER_LABEL: Record<string, string> = {
 
 const isUrl = (value: string) => /^https?:\/\//i.test(value);
 
-function FilterChip({
-  pressed,
-  onClick,
-  children,
-  count,
-}: {
-  pressed: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  count: number;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={pressed}
-      onClick={onClick}
-      className={cn(
-        "inline-flex h-8 items-center gap-2 rounded-md border px-3 text-xs transition-[background-color,border-color,color]",
-        pressed
-          ? "border-accent-line bg-accent-tint text-accent"
-          : "border-line bg-surface text-ink-secondary hover:bg-surface-raised hover:text-ink",
-      )}
-    >
-      {children}
-      <span className="font-mono text-2xs">{count}</span>
-    </button>
-  );
+/** A source class, optionally narrowed to the sources behind one cell of the coverage map. */
+export interface SourcesFilter {
+  sourceClass: SourceClass;
+  /** The kind of claim the cell belongs to, for the label. Null for a whole class. */
+  category: string | null;
+  /** Null keeps every source of the class. */
+  sourceIds: string[] | null;
 }
 
 /**
@@ -68,29 +47,27 @@ export function SourcesTable({
   sources,
   uses,
   exportName,
+  filter = null,
+  onClearFilter,
 }: {
   sources: SourceRecord[];
   /** Source id → where its facts appear: "Claim 1", "Fit criteria". */
   uses: Record<string, string[]>;
   /** File name stem for the exported record. */
   exportName: string;
+  /** Set by the coverage map above the table, which is the table's filter. */
+  filter?: SourcesFilter | null;
+  onClearFilter?: () => void;
 }) {
-  const [filter, setFilter] = useState<SourceClass | null>(null);
-
-  const classes = useMemo(() => {
-    const counts = new Map<SourceClass, number>();
-    for (const source of sources) {
-      counts.set(source.source_class, (counts.get(source.source_class) ?? 0) + 1);
-    }
-    return [...counts].sort((a, b) =>
-      RELIABILITY_LABEL[a[0]].localeCompare(RELIABILITY_LABEL[b[0]]),
-    );
-  }, [sources]);
-
   const rows = useMemo(
     () =>
       sources
-        .filter((source) => filter === null || source.source_class === filter)
+        .filter(
+          (source) =>
+            !filter ||
+            (source.source_class === filter.sourceClass &&
+              (filter.sourceIds === null || filter.sourceIds.includes(source.source_id))),
+        )
         .sort((a, b) => a.retrieved_at.localeCompare(b.retrieved_at)),
     [sources, filter],
   );
@@ -110,22 +87,27 @@ export function SourcesTable({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter by source class">
-          <FilterChip pressed={filter === null} onClick={() => setFilter(null)} count={sources.length}>
-            All
-          </FilterChip>
-          {classes.map(([sourceClass, count]) => (
-            <FilterChip
-              key={sourceClass}
-              pressed={filter === sourceClass}
-              onClick={() => setFilter(filter === sourceClass ? null : sourceClass)}
-              count={count}
-            >
-              <SourceClassGlyph reliability={sourceClass} />
-              {RELIABILITY_LABEL[sourceClass]}
-            </FilterChip>
-          ))}
-        </div>
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-dense text-ink-secondary" aria-live="polite">
+          {filter ? (
+            <>
+              <span className="inline-flex items-center gap-2 text-ink">
+                <SourceClassGlyph reliability={filter.sourceClass} className="text-ink-muted" />
+                {filter.category ? `${filter.category} · ` : null}
+                {RELIABILITY_LABEL[filter.sourceClass]}
+              </span>
+              <span className="font-mono text-xs">
+                {rows.length} of {plural(sources.length, "source")}
+              </span>
+              {onClearFilter ? (
+                <Button variant="link" size="inline" className="text-dense font-normal" onClick={onClearFilter}>
+                  Show all sources
+                </Button>
+              ) : null}
+            </>
+          ) : (
+            <span className="font-mono text-xs">{plural(sources.length, "source")}</span>
+          )}
+        </p>
         <Button size="sm" onClick={exportRecord}>
           <Icon icon={Download} />
           Export source record
@@ -213,10 +195,15 @@ export function SourcesTable({
           })}
         </TableBody>
       </Table>
-      <p className="text-xs text-ink-secondary" aria-live="polite">
-        {filter === null
-          ? `${plural(sources.length, "source")}, oldest retrieval first`
-          : `${rows.length} of ${plural(sources.length, "source")} · ${RELIABILITY_LABEL[filter]}. ${RELIABILITY_NOTE[filter]}`}
+      {rows.length === 0 ? (
+        <p className="text-dense text-ink-secondary">
+          No source on the record matches. The facts in that cell came from a source that is
+          not listed here
+        </p>
+      ) : null}
+      <p className="text-xs text-ink-secondary">
+        Oldest retrieval first
+        {filter ? `. ${RELIABILITY_LABEL[filter.sourceClass]}: ${RELIABILITY_NOTE[filter.sourceClass]}` : null}
       </p>
     </div>
   );

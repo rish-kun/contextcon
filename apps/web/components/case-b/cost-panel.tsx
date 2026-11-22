@@ -1,7 +1,9 @@
 import type { CaseCostOut } from "@/lib/api/client";
-import { formatShare, formatShortDateTime, plural } from "@/lib/format";
+import { formatShortDateTime, plural } from "@/lib/format";
 import { RUN_KIND_LABEL } from "@/lib/labels";
 import { HatchedBlock } from "@/components/dealproof/blocks";
+import { CostMeter } from "@/components/explainers/cost-meter";
+import { meterFromCostOut } from "@/components/explainers/derive";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -12,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Section, TextLink } from "./parts";
+import { Section } from "./parts";
 
 /** Credits come in fractions from the provider: `19.5`, `4`, `1,204`. */
 export function credits(value: number): string {
@@ -34,8 +36,6 @@ function unknownCalls(count: number): string {
  * Reaching the budget is a stated limit, not an error, so nothing turns red.
  */
 export function CostPanel({ cost, basePath }: { cost: CaseCostOut; basePath: string }) {
-  const share = cost.credit_budget > 0 ? Math.min(1, cost.crustdata_credits / cost.credit_budget) : 0;
-  const reached = cost.credit_budget > 0 && cost.crustdata_credits >= cost.credit_budget;
   const lines = [...cost.by_step].sort((a, b) => a.at.localeCompare(b.at));
   const claimsHref = `${basePath}/claims?status=not_checked`;
 
@@ -45,41 +45,12 @@ export function CostPanel({ cost, basePath }: { cost: CaseCostOut; basePath: str
         <h2 id="cost-heading" className="text-sm font-medium text-ink">
           This case cost
         </h2>
-        <p className="font-mono text-xl font-medium text-ink">
-          {credits(cost.crustdata_credits)} of {credits(cost.credit_budget)} credits
-          <span className="text-ink-muted"> · </span>
-          {usd(cost.llm_usd)} model usage
-          {cost.unknown_cost_calls > 0 ? (
-            <>
-              <span className="text-ink-muted"> + </span>
-              {unknownCalls(cost.unknown_cost_calls)}
-            </>
-          ) : null}
-        </p>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <div
-            role="meter"
-            aria-label="Crustdata credits used against the budget"
-            aria-valuemin={0}
-            aria-valuemax={cost.credit_budget}
-            aria-valuenow={cost.crustdata_credits}
-            aria-valuetext={`${credits(cost.crustdata_credits)} of ${credits(cost.credit_budget)} credits`}
-            className="h-2 w-full max-w-md overflow-hidden rounded-xs border border-line-strong bg-surface-sunken"
-          >
-            <div className="h-full bg-ink" style={{ width: `${share * 100}%` }} />
-          </div>
-          <p className="text-xs text-ink-secondary">
-            {reached ? "Budget reached" : `${formatShare(share)} of the credit budget`}
-            {cost.checks_not_run > 0 ? (
-              <>
-                {" · "}
-                <TextLink href={claimsHref}>
-                  {plural(cost.checks_not_run, "check")} not run
-                </TextLink>
-              </>
-            ) : null}
+        <CostMeter model={meterFromCostOut(cost)} usdDigits={4} notCheckedHref={claimsHref} />
+        {cost.unknown_cost_calls > 0 ? (
+          <p className="font-mono text-xs text-ink-secondary">
+            + {unknownCalls(cost.unknown_cost_calls)}, not in the figures above
           </p>
-        </div>
+        ) : null}
         <p className="max-w-2xl text-xs text-ink-secondary">
           Credits count Crustdata lookups against this case&apos;s budget. Model usage is
           language-model spend in US dollars. The two are never added together.

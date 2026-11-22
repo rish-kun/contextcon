@@ -1,17 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import type { AssessmentVersionOut, ClaimOut, PolicyOut } from "@/lib/api/client";
+import { useEffect, useState } from "react";
+import type { AssessmentVersionOut, ClaimOut, DocumentOut, PolicyOut } from "@/lib/api/client";
 import { plural } from "@/lib/format";
 import type { ClaimStatus } from "@/lib/types";
 import { JudgmentPanel } from "@/components/dealproof/judgment-panel";
 import { StatusMark } from "@/components/dealproof/status-mark";
-import {
-  ReadingOldVersionBanner,
-  VersionDiff,
-  VersionRail,
-} from "@/components/dealproof/version-diff";
+import { ReadingOldVersionBanner } from "@/components/dealproof/version-diff";
+import { ChangeTimeline, type UnchangedClaim } from "@/components/explainers/change-timeline";
+import { timelineCause, versionState, type TimelineEntry } from "@/components/explainers/derive";
 import {
   Table,
   TableBody,
@@ -29,6 +27,40 @@ import {
   toVersionMeta,
 } from "./adapt";
 import { Section, TextLink } from "./parts";
+
+const SEEN_KEY = "dealproof:seen-assessment-version";
+
+function readSeen(): Record<string, number> {
+  try {
+    return JSON.parse(window.localStorage.getItem(SEEN_KEY) ?? "{}") as Record<string, number>;
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * The version this reader has not seen before, or null. The one-time highlight on a diff
+ * reports that a version arrived since the reader last looked, so it is taken from a
+ * record kept in the browser and never from a mount: a first visit records the version
+ * silently, and reopening the same diff later shows it still.
+ */
+function useUnseenVersion(caseId: string, latest: number): number | null {
+  const [unseen, setUnseen] = useState<number | null>(null);
+  useEffect(() => {
+    const seen = readSeen();
+    const before = seen[caseId];
+    if (before === latest) return;
+    try {
+      window.localStorage.setItem(SEEN_KEY, JSON.stringify({ ...seen, [caseId]: latest }));
+    } catch {
+      /* storage unavailable: nothing is highlighted, nothing is lost */
+    }
+    // Reading the browser's record is the external sync this effect exists for.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (before !== undefined && latest > before) setUnseen(latest);
+  }, [caseId, latest]);
+  return unseen;
+}
 
 /** The status a claim held at a given assessment version. */
 function statusAt(claim: ClaimOut, version: number): ClaimStatus {
@@ -123,34 +155,66 @@ function ProfileChecks({
  * the history. Any version opens read-only; the page says so while an old one is open.
  */
 export function AssessmentView({
+  caseId,
   basePath: base,
   versions,
   claims,
+  documents,
   viewing,
   typeReason,
   policy,
 }: {
+  /** Keys the reader's record of versions already seen. */
+  caseId: string;
   /** `/app/cases/{id}/assessment` */
   basePath: string;
   /** Oldest first. */
   versions: AssessmentVersionOut[];
   claims: ClaimOut[];
+  /** The case's uploads, so a version can name the document that caused it. */
+  documents: DocumentOut[];
   /** The version number open on the page. */
   viewing: number;
   typeReason: string | null;
   policy: PolicyOut | null;
 }) {
   const router = useRouter();
-  const [showUnchanged, setShowUnchanged] = useState(false);
 
   const latest = versions[versions.length - 1];
   const version = versions.find((item) => item.version === viewing) ?? latest;
   const isCurrent = version.version === latest.version;
-  const diff = toDiff(version, claims);
-  const changedIds = new Set(
-    (version.diff_from_previous ?? []).filter((l) => l.kind === "claim").map((l) => l.subject_id),
-  );
-  const unchanged = claims.filter((claim) => !changedIds.has(claim.id));
+  const unseen = useUnseenVersion(caseId, latest.version);
+
+  // One entry per version: its state, what arrived before it, and what that changed.
+  const entries: TimelineEntry[] = versions.map((item) => {
+    const diff = toDiff(item, claims);
+    const meta = toVersionMeta(item);
+    return {
+      meta,
+      state: versionState(
+        claims.map((claim) => statusAt(claim, item.version)),
+        item.judgments.screening_disposition.disposition,
+      ),
+      cause: diff ? timelineCause(meta.trigger, item.trigger_document_ids, diff, documents) : null,
+      diff,
+    };
+  });
+
+  const unchangedFor = (n: number): UnchangedClaim[] => {
+    const changed = new Set(
+      (versions.find((item) => item.version === n)?.diff_from_previous ?? [])
+        .filter((line) => line.kind === "claim")
+        .map((line) => line.subject_id),
+    );
+    return claims
+      .filter((claim) => !changed.has(claim.id))
+      .map((claim) => ({
+        number: claim.number,
+        text: claim.original_text,
+        status: statusAt(claim, n),
+        not_checked_reason: claim.not_checked_reason,
+      }));
+  };
 
   return (
     <div className="flex flex-col gap-8">
@@ -181,70 +245,18 @@ export function AssessmentView({
       <Section
         title="Assessment history"
         meta={plural(versions.length, "version")}
-        lead="New evidence updates the assessment in the open. Earlier versions stay readable, and every change states its cause and source."
+        lead="New evidence updates the assessment in the open. What arrived sits between two versions; under the newer one, each claim that moved is followed by what moved because of it. Earlier versions stay readable."
       >
-        <div className="grid gap-6 xl:grid-cols-[20rem_minmax(0,1fr)]">
-          <VersionRail
-            versions={versions.map(toVersionMeta)}
-            current={latest.version}
-            viewing={version.version}
-            onOpen={(n) =>
-              router.push(n === latest.version ? base : `${base}?v=${n}`, { scroll: false })
-            }
-            className="self-start rounded-lg border border-line bg-surface p-4"
-          />
-
-          <div className="flex min-w-0 flex-col gap-3">
-            {diff ? (
-              <>
-                <VersionDiff
-                  key={version.version}
-                  diff={diff}
-                  highlight={isCurrent}
-                  onShowUnchanged={
-                    unchanged.length > 0 && !showUnchanged ? () => setShowUnchanged(true) : undefined
-                  }
-                />
-                {showUnchanged ? (
-                  <div className="rounded-lg border border-line bg-surface">
-                    <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2">
-                      <h4 className="text-xs font-medium text-ink-secondary">
-                        Unchanged in v{version.version}
-                      </h4>
-                      <button
-                        type="button"
-                        onClick={() => setShowUnchanged(false)}
-                        className="rounded-xs text-xs text-accent underline underline-offset-2 transition-colors hover:text-accent-hover"
-                      >
-                        Hide
-                      </button>
-                    </div>
-                    <ul className="flex flex-col divide-y divide-line text-dense">
-                      {unchanged.map((claim) => (
-                        <li
-                          key={claim.id}
-                          className="grid grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-2"
-                        >
-                          <span className="font-mono text-xs text-ink-muted">Claim {claim.number}</span>
-                          <span className="truncate text-ink">“{claim.original_text}”</span>
-                          <StatusMark
-                            status={statusAt(claim, version.version)}
-                            reason={claim.not_checked_reason}
-                          />
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <p className="rounded-lg border border-line bg-surface px-4 py-3 text-dense text-ink-secondary">
-                Version {version.version} is the initial screening. There is no earlier version to
-                compare it with.
-              </p>
-            )}
-          </div>
-        </div>
+        <ChangeTimeline
+          entries={entries}
+          current={latest.version}
+          viewing={version.version}
+          highlightVersion={unseen}
+          unchangedFor={unchangedFor}
+          onOpen={(n) =>
+            router.push(n === latest.version ? base : `${base}?v=${n}`, { scroll: false })
+          }
+        />
       </Section>
     </div>
   );
