@@ -273,7 +273,7 @@ function CandidateCard({
                     <span className="break-all text-ink">{item.value}</span>
                     <span className="inline-flex items-center gap-1 text-xs text-ink-secondary">
                       <Icon icon={match ? Check : Minus} size={14} />
-                      {match ? "Matches what you entered" : "Differs from what you entered"}
+                      {match ? "Matches" : "Differs"}
                     </span>
                     <KeyEvidence item={item} />
                   </>

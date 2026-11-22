@@ -62,7 +62,8 @@ function RecordSide({
             Run check
             {claim.retry_credits_estimate != null ? (
               <span className="font-mono text-xs font-normal text-ink-secondary">
-                about {formatCredits(claim.retry_credits_estimate)} credits
+                about {formatCredits(claim.retry_credits_estimate)}{" "}
+                {Math.round(claim.retry_credits_estimate) === 1 ? "credit" : "credits"}
               </span>
             ) : null}
           </Button>
