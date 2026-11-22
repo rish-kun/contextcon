@@ -745,7 +745,7 @@ export const CTA = {
 export const FOOTER = {
   built: "Built at ContextCon 2026",
   links: [
-    { href: "#principles", label: "Scoring policy" },
+    { href: "/app/policy", label: "Scoring policy" },
     { href: "#principles", label: "Confidentiality" },
     { href: "https://github.com/rish-kun/contextcon", label: "GitHub" },
   ],

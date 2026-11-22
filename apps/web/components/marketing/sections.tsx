@@ -90,7 +90,7 @@ export function SiteHeader() {
           ))}
         </nav>
         <div className="flex items-center gap-2 md:gap-5">
-          <Link href={APP_HREF} className={cn(link, "hidden md:inline")}>
+          <Link href="/login" className={cn(link, "hidden md:inline")}>
             {NAV.login}
           </Link>
           <Link
@@ -108,7 +108,7 @@ export function SiteHeader() {
               aria-label="Sections"
               className="absolute top-full right-0 mt-2 grid w-56 animate-overlay-in rounded-lg border border-line bg-surface p-2 shadow-md"
             >
-              {[...NAV.links, { href: APP_HREF, label: NAV.login }].map((l) => (
+              {[...NAV.links, { href: "/login", label: NAV.login }].map((l) => (
                 <a
                   key={l.label}
                   href={l.href}
