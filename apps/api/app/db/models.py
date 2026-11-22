@@ -5,9 +5,9 @@ Conventions:
 - Enum-like columns are plain strings with CHECK constraints (values in `app.db.enums`).
 - Rows holding confidential, document-derived content carry `delete_after`; the purge
   job (`app.jobs.purge`) deletes or scrubs them once it passes.
-- `assessment_versions`, `message_revisions` and `approvals` are immutable: a database
-  trigger rejects UPDATE (see the initial migration), and the ORM refuses to flush
-  changes to them.
+- `assessment_versions`, `decision_flip_analyses`, `message_revisions` and `approvals`
+  are immutable: a database trigger rejects UPDATE and DELETE (see migrations 0001,
+  0003 and 0007), and the ORM refuses to flush changes to them.
 """
 
 import uuid
@@ -491,6 +491,43 @@ class AssessmentVersion(IdMixin, Base):
     )
 
 
+class DecisionFlipAnalysis(IdMixin, Base):
+    """DecisionFlip for one assessment version (`app.rules.decision_flip`): which open
+    items stand between the case and the next disposition. Immutable like the version
+    it sits beside; a new `flip_version` or materiality gives a new `analysis_key` and
+    a new row, and readers take the newest. `payload` is the `DecisionFlipAnalysis`
+    document: ids, enums, policy document names and rule reasons, never claim text."""
+
+    __tablename__ = "decision_flip_analyses"
+
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        _fk("workspaces.id", ondelete="RESTRICT"), index=True
+    )
+    # With workspace_id it references cases(id, workspace_id): the case must be in the
+    # row's workspace.
+    case_id: Mapped[uuid.UUID] = mapped_column(Uuid, index=True)
+    assessment_version_id: Mapped[uuid.UUID] = mapped_column(
+        _fk("assessment_versions.id", ondelete="RESTRICT")
+    )
+    analysis_key: Mapped[str] = mapped_column(String(128))
+    policy_version: Mapped[str] = mapped_column(String(64))
+    inputs_hash: Mapped[str] = mapped_column(String(128))
+    flip_version: Mapped[str] = mapped_column(String(32))
+    state: Mapped[str] = mapped_column(String(32))
+    target: Mapped[str | None] = mapped_column(String(32))
+    # For the board card: no JSON read needed.
+    blocker_count: Mapped[int] = mapped_column(Integer)
+    payload: Mapped[dict] = mapped_column(JSONB)
+    run_id: Mapped[uuid.UUID | None] = mapped_column(_fk("runs.id", ondelete="RESTRICT"))
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["case_id", "workspace_id"], ["cases.id", "cases.workspace_id"], ondelete="RESTRICT"
+        ),
+        UniqueConstraint("assessment_version_id", "analysis_key"),
+    )
+
+
 # --- Act ---------------------------------------------------------------------
 
 
@@ -891,7 +928,12 @@ class ApiCache(IdMixin, Base):
 
 # --- Immutability (ORM side; the database trigger is the real guarantee) -----
 
-IMMUTABLE_MODELS: tuple[type[Base], ...] = (AssessmentVersion, MessageRevision, Approval)
+IMMUTABLE_MODELS: tuple[type[Base], ...] = (
+    AssessmentVersion,
+    DecisionFlipAnalysis,
+    MessageRevision,
+    Approval,
+)
 IMMUTABLE_TABLES: tuple[str, ...] = tuple(m.__tablename__ for m in IMMUTABLE_MODELS)
 
 
