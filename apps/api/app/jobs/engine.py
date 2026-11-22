@@ -8,7 +8,6 @@ lease cannot overwrite the result of the worker that took over.
 """
 
 import logging
-import re
 import uuid
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
@@ -39,18 +38,13 @@ class BudgetExceeded(Exception):
         self.reason = reason
 
 
-_URL = re.compile(r"\b[a-z][a-z0-9+.-]*://\S+", re.IGNORECASE)
-_SECRETISH = re.compile(
-    r"(?i)\b(api[_-]?key|token|secret|password|authorization|bearer)\b\s*[:=]?\s*\S+"
-)
-
-
 def public_error(exc: BaseException) -> str:
-    """What a step stores and the API shows for a handler error: the error type and a
-    short message with URLs and anything key-like removed. Full details go to logs."""
-    message = _SECRETISH.sub(r"\1=[redacted]", _URL.sub("[url]", str(exc)))
-    message = " ".join(message.split())[:200]
-    return f"{type(exc).__name__}: {message}" if message else type(exc).__name__
+    """What a step stores and the API shows for a handler error: the error type only.
+
+    Exception messages are untrusted (they can carry URLs, keys or document text), so
+    they go to the server log (`log.exception` in the worker), never to the database.
+    """
+    return type(exc).__name__
 
 
 class LeaseLost(Exception):

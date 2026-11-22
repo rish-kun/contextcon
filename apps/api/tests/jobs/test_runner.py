@@ -208,7 +208,7 @@ async def test_errors_retry_then_fail(session, sm) -> None:
     assert calls == {"once": 2, "always": 3}
     st = await states(sm, run.id)
     assert st == {"once": "done", "always": "failed"}
-    assert "upstream 503" in (await step(sm, run.id, "always")).error
+    assert (await step(sm, run.id, "always")).error == "RuntimeError"
 
 
 async def test_backoff_delays_the_retry(session, sm) -> None:

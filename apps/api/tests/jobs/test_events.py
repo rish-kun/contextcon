@@ -190,5 +190,4 @@ async def test_step_errors_are_sanitised(session, sm) -> None:
     await make_worker(sm, reg).drain()
     async with _client(sm, t.workspace.id) as client:
         error = (await client.get(f"/runs/{run.id}")).json()["steps"][0]["error"]
-    assert error.startswith("RuntimeError:")
-    assert "sk-123" not in error and "abc" not in error and "https://" not in error
+    assert error == "RuntimeError"  # the message (URL, key) stays in the server log

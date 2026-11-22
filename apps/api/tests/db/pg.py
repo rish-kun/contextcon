@@ -85,17 +85,22 @@ def _local_cluster() -> Iterator[str]:
     tmp = Path(tempfile.mkdtemp(prefix="dealproof-pg-"))
     data = tmp / "data"
     port = _free_port()
-    subprocess.run(
-        [initdb, "-D", str(data), "-U", "postgres", "--auth=trust", "-E", "UTF8", "--no-locale"],
-        check=True,
-        capture_output=True,
-    )
     opts = f"-c listen_addresses=127.0.0.1 -p {port} -k {tmp} -c fsync=off -c max_connections=200"
-    subprocess.run(
-        [pg_ctl, "-D", str(data), "-o", opts, "-l", str(tmp / "log"), "-w", "start"],
-        check=True,
-        capture_output=True,
-    )
+    try:
+        subprocess.run(
+            [initdb, "-D", str(data), "-U", "postgres", "--auth=trust", "-E", "UTF8"]
+            + ["--no-locale"],
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            [pg_ctl, "-D", str(data), "-o", opts, "-l", str(tmp / "log"), "-w", "start"],
+            check=True,
+            capture_output=True,
+        )
+    except BaseException:
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise
     try:
         yield f"postgresql://postgres@127.0.0.1:{port}/postgres"
     finally:
