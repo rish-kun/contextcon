@@ -16,6 +16,7 @@ Every query is scoped to the signed-in user's workspace (`app.auth.deps` through
 
 from __future__ import annotations
 
+import logging
 import uuid
 
 from fastapi import HTTPException, Query, Response, status
@@ -51,6 +52,7 @@ from app.pipelines.evaluate.flip import (
 from app.pipelines.evaluate.service import stored_assessment
 
 router = make_router(prefix="/cases", tags=["cases"])
+log = logging.getLogger(__name__)
 
 CONFLICT = {409: {"model": ErrorOut, "description": "No assessment to analyse."}}
 
@@ -249,8 +251,22 @@ async def decision_flip_summary(ctx: CaseContext) -> DecisionFlipSummaryOut | No
     )
 
 
-register_section("decision_flip", decision_flip_section)
-register_summary("decision_flip", decision_flip_summary)
+def _never_fails(builder):
+    """A DecisionFlip problem never breaks the case page or the board: log, show null."""
+
+    async def safe(ctx: CaseContext):
+        try:
+            async with ctx.session.begin_nested():
+                return await builder(ctx)
+        except Exception:
+            log.exception("decision_flip section failed for case %s", ctx.case.id)
+            return None
+
+    return safe
+
+
+register_section("decision_flip", _never_fails(decision_flip_section))
+register_summary("decision_flip", _never_fails(decision_flip_summary))
 
 
 # --- Routes ---------------------------------------------------------------------------

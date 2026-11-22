@@ -198,3 +198,22 @@ async def test_resolution_against_the_previous_version(sm, session) -> None:
     assert team["outcome"] == "resolved" and team["current_state"] == "supported"
     assert payroll_id in team["evidence_ids"]
     assert team["label"] == "Team size"
+
+
+async def test_a_broken_analysis_never_breaks_the_case_page(sm, session, monkeypatch) -> None:
+    from app.api import decision_flip as routes
+
+    w = await confirmed_world(session)
+    case_id = w.t.case.id
+    await _assess_and_flip(session, w)
+
+    def boom(row):
+        raise ValueError("unreadable payload")
+
+    monkeypatch.setattr(routes, "stored_analysis", boom)
+    async with api_client(sm, w.t.workspace.id) as client:
+        detail = await client.get(f"/cases/{case_id}")
+        board = await client.get("/cases")
+    assert detail.status_code == 200 and detail.json()["decision_flip"] is None
+    assert detail.json()["case"]["id"] == str(case_id)
+    assert board.status_code == 200
