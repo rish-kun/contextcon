@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 import { useId, useState } from "react";
 import type { RunOut, ShortlistItemOut } from "@/lib/api/client";
 import { formatShare, plural } from "@/lib/format";
-import type { CompanyRow } from "@/lib/run/activity-store";
+import { candidateCounts, type CompanyRow } from "@/lib/run/activity-store";
 import type { MarkState } from "@/lib/run/types";
 import { duration, ease, rise, transition } from "@/lib/transitions";
 import { cn } from "@/lib/utils";
@@ -138,8 +138,10 @@ export interface CandidateStreamProps {
  * Before the score step there is no rank and no fit number: rows are in arrival order
  * and the list is called "Candidates". It becomes "Shortlist" when ranking is done, and
  * the rows move to rank order once. Dropped companies are kept, with the criterion's own
- * reason. Totals come from the events; where an event named fewer rows than it counted,
- * the difference is said in words.
+ * reason. Totals come from `candidateCounts`, so the heading and the dropped list state
+ * the same numbers: found is always in play plus dropped, and a duplicate the gate removed
+ * is a dropped company. Where an event named fewer rows than it counted, the difference
+ * is said in words.
  */
 export function CandidateStream({ context, thesisId, settled, run }: CandidateStreamProps) {
   const { view, isNew } = context;
@@ -168,16 +170,19 @@ export function CandidateStream({ context, thesisId, settled, run }: CandidateSt
   // A finished shortlist row with no stream row (the stream names at most eight per event).
   const unstreamed = folded ? [...cards.values()].filter((item) => !all.some((row) => row.id === item.id)) : [];
 
-  const found = counts.found ?? all.length;
-  const droppedCount = counts.dropped ?? dropped.length;
-  const inPlayCount = counts.in_play ?? inPlay.length;
+  // One reckoning for the heading, the notes and the dropped list.
+  const totals = candidateCounts(view);
+  const { found, dropped: droppedCount, inPlay: inPlayCount } = totals;
   const enrichedRows = inPlay.filter((row) => ["enriched", "scored", "explained"].includes(row.stage)).length;
   const enrichedCount = counts.enriched ?? enrichedRows;
   const requested = view.tally.rows.get("company_enrich")?.counts.requested ?? null;
   const unlisted = Math.max(0, inPlayCount - inPlay.length);
-  const droppedReason = context.events.findLast(
-    (event) => event.kind === "finding" && event.subject === "company" && event.items?.some((item) => item.stage === "dropped"),
-  )?.detail;
+  // The dropped total, split by cause. The parts always add up to it.
+  const droppedParts = [
+    totals.duplicates > 0 ? plural(totals.duplicates, "duplicate") : null,
+    totals.failedMustHave > 0 ? `${totals.failedMustHave} failed a must-have` : null,
+    totals.notRanked > 0 ? `${totals.notRanked} not ranked` : null,
+  ].filter(Boolean);
   const shortlistItems = [...cards.values()].sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity));
 
   return (
@@ -291,7 +296,9 @@ export function CandidateStream({ context, thesisId, settled, run }: CandidateSt
           >
             <span>
               <span className="font-mono">{droppedCount}</span> dropped
-              {droppedReason ? <span className="text-ink-secondary"> · {droppedReason}</span> : null}
+              {droppedParts.length > 0 ? (
+                <span className="text-ink-secondary"> · {droppedParts.join(" · ")}</span>
+              ) : null}
             </span>
             <Icon icon={ChevronDown} className={cn("text-ink-muted transition-transform", showDropped && "rotate-180")} />
           </button>
@@ -303,9 +310,17 @@ export function CandidateStream({ context, thesisId, settled, run }: CandidateSt
                   <span className="text-xs text-ink-secondary">{row.reason ?? "No reason was recorded"}</span>
                 </li>
               ))}
-              {droppedCount > dropped.length ? (
+              {view.companyDuplicates.map((row) => (
+                <li key={`${row.id}-duplicate`} className="flex flex-col gap-0.5 px-4 py-2 text-dense">
+                  <span className="text-ink-muted">{row.name ?? "Unnamed company"}</span>
+                  <span className="text-xs text-ink-secondary">
+                    Returned twice by the search · one copy kept, still in play
+                  </span>
+                </li>
+              ))}
+              {droppedCount > totals.named ? (
                 <li className="px-4 py-2 text-xs text-ink-muted">
-                  {plural(droppedCount - dropped.length, "more company", "more companies")} dropped, not named in the
+                  {plural(droppedCount - totals.named, "more company", "more companies")} dropped, not named in the
                   run&rsquo;s events
                 </li>
               ) : null}

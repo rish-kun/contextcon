@@ -1,8 +1,8 @@
 "use client";
 
 import { motion } from "motion/react";
-import { formatDate, plural } from "@/lib/format";
-import type { InvestorRow, RoundRow } from "@/lib/run/activity-store";
+import { formatDate } from "@/lib/format";
+import { roundStages, type InvestorRow, type RoundStages, type RoundRow } from "@/lib/run/activity-store";
 import { duration, ease, rise, transition } from "@/lib/transitions";
 import { cn } from "@/lib/utils";
 import { NumberTween } from "@/components/dealproof/number-tween";
@@ -105,10 +105,32 @@ function StreamRow({
   );
 }
 
+function Stage({ value, label }: { value: number; label: string }) {
+  return (
+    <span className="whitespace-nowrap">
+      <NumberTween value={value} className="text-ink" /> {label}
+    </span>
+  );
+}
+
+/** Why the list is empty, said for the stage the run has reached. */
+function emptyLine({ read, processed }: RoundStages): string {
+  if (read === 0) return "No funding round has been read yet";
+  if (processed === 0) {
+    return `${read === 1 ? "1 funding round is" : `${read} funding rounds are`} read and not yet grouped by investor`;
+  }
+  return `No investor is named on the ${processed === 1 ? "round" : `${processed} rounds`} processed so far`;
+}
+
 /**
  * The Investor search findings. First the comparable companies that raised money, as a
  * wrapping line of names. Then the investors behind them, grouped from each dated round
  * as it is read.
+ *
+ * A round goes through three stages and each has its own count: read (a Crustdata call
+ * returned it), processed (attached to its company and investors) and investors grouped.
+ * The counts come from `roundStages`, the same function the Crustdata tally uses, so the
+ * two never disagree and an empty list says which stage it is waiting on.
  *
  * While rounds are still arriving the list is "Investors so far", in the order investors
  * were first seen, so it does not reshuffle under the reader. When the rank step finishes
@@ -120,10 +142,8 @@ export function InvestorStream({ context }: { context: FindingsContext }) {
   const { view, isNew, nowMs } = context;
   const companies = view.companies.rows;
   const found = view.companies.counts.found ?? companies.length;
-  const counts = view.rounds.counts;
   const rounds = view.rounds.rows;
-  const roundsTotal = counts.rounds ?? rounds.length;
-  const dated = counts.rounds_dated ?? rounds.filter((round) => round.date).length;
+  const stages = roundStages(view);
   const ranked = view.investorsRankedSeq !== null && context.stepSettled(view.investorsRankedStep);
   const axis = buildAxis(rounds, nowMs);
 
@@ -132,7 +152,6 @@ export function InvestorStream({ context }: { context: FindingsContext }) {
     ? bySeen.filter((investor) => investor.ranked).sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity))
     : bySeen;
   const unranked = ranked ? bySeen.filter((investor) => !investor.ranked) : [];
-  const named = counts.investors ?? view.investors.length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -166,16 +185,24 @@ export function InvestorStream({ context }: { context: FindingsContext }) {
       </Panel>
 
       <Panel aria-label={ranked ? "Investor shortlist" : "Investors so far"}>
-        <PanelHeader
-          title={ranked ? "Investor shortlist" : "Investors so far"}
-          meta={
-            named > 0 || roundsTotal > 0
-              ? `${named} named · ${dated === roundsTotal ? plural(dated, "dated round") : `${dated} of ${roundsTotal} rounds with a date`}`
-              : undefined
-          }
-        />
+        <PanelHeader title={ranked ? "Investor shortlist" : "Investors so far"} />
+        {stages.read > 0 ? (
+          <p className="flex flex-wrap gap-x-2 gap-y-1 border-b border-line px-4 py-2 font-mono text-xs text-ink-muted">
+            <Stage value={stages.read} label={stages.read === 1 ? "round read" : "rounds read"} />
+            <span aria-hidden>·</span>
+            <Stage value={stages.processed} label="processed" />
+            <span aria-hidden>·</span>
+            <Stage value={stages.investors} label={stages.investors === 1 ? "investor grouped" : "investors grouped"} />
+            {stages.dated < stages.processed ? (
+              <>
+                <span aria-hidden>·</span>
+                <Stage value={stages.dated} label="with a date" />
+              </>
+            ) : null}
+          </p>
+        ) : null}
         {listed.length === 0 ? (
-          <p className="px-4 py-3 text-dense text-ink-muted">No funding round has been read yet</p>
+          <p className="px-4 py-3 text-dense text-ink-muted">{emptyLine(stages)}</p>
         ) : (
           <ol className="flex flex-col">
             {listed.map((investor) => (

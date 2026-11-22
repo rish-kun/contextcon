@@ -3,7 +3,7 @@
 import { Fragment } from "react";
 import type { RunOut } from "@/lib/api/client";
 import { formatCredits, plural } from "@/lib/format";
-import type { RunActivityView, TallyRow } from "@/lib/run/activity-store";
+import { roundStages, type RunActivityView, type TallyRow } from "@/lib/run/activity-store";
 import { cn } from "@/lib/utils";
 import { NumberTween } from "@/components/dealproof/number-tween";
 import { Panel, PanelHeader } from "@/components/ui/card";
@@ -34,14 +34,17 @@ function headline(kind: RunOut["kind"], view: RunActivityView): Clause[] {
         { value: sum(row("job_search"), "postings"), after: "job postings" },
       ];
       break;
-    case "investor_discover":
+    case "investor_discover": {
+      // The same three stages the investor pane states, from the same function.
+      const stages = roundStages(view);
       clauses = [
         { value: sum(search, "new") || sum(search, "returned"), after: "comparable companies" },
-        { value: view.rounds.counts.rounds ?? sum(enrich, "funding_rounds"), after: "funding rounds read" },
-        { value: view.rounds.counts.investors ?? 0, after: "investors named" },
-        { value: view.rounds.counts.rounds_dated ?? 0, after: "rounds with a date" },
+        { value: stages.read, after: "funding rounds read" },
+        { value: stages.processed, after: "rounds processed" },
+        { value: stages.investors, after: "investors grouped" },
       ];
       break;
+    }
     case "verify":
       clauses = [
         { value: sum(row("company_identify"), "candidates"), after: "identity candidates" },
