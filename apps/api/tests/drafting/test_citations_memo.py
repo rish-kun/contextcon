@@ -115,3 +115,14 @@ def test_memo_section_without_facts_is_empty_and_calls_nothing():
 def test_accepted_fact_rejects_bad_ids():
     with pytest.raises(ValueError):
         AcceptedFact(citation_id="F 1", statement="x")
+
+
+def test_fallback_cites_a_value_that_ends_in_a_full_stop() -> None:
+    """A profile value "Warehousing and freight forwarding." restated as a fact used to
+    end in "..", which left the first sentence uncited and failed every evaluate."""
+    from app.drafting.citations import cite_each_sentence, require_citations
+
+    statement = "basic info › description: Warehousing and freight forwarding.."
+    text = cite_each_sentence(statement, "F1")
+    assert text == "basic info › description: Warehousing and freight forwarding [F1]."
+    require_citations(text, {"F1": statement})

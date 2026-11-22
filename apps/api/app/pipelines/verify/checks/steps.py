@@ -44,6 +44,7 @@ async def _defer_behind_unfinished(ctx: StepContext, claim: Claim) -> str | None
             Step.run_id == ctx.run.id,
             Step.id != ctx.step_id,
             Step.state.in_([StepState.PENDING, StepState.RUNNING]),
+            # The closing evaluate waits for this check; waiting on it would deadlock.
             Step.handler.notin_(OWN_HANDLERS | DOWNSTREAM_HANDLERS),
         )
     )

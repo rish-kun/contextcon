@@ -168,7 +168,8 @@ async def test_shortlist_case_confirms_and_builds_profile(session, sm, api) -> N
     actor = await _actor(session)
     _happy_api(api)
     case = await _shortlist_case(session, actor)
-    assert await _drain(sm) == 5
+    # identity, profile, registry, events, comparables, then evaluate → request list
+    assert await _drain(sm) == 7
     case = await _case(session, case.id)
 
     assert case.identity_status == "confirmed"
@@ -495,7 +496,8 @@ async def test_case_detail_sections_over_http(session, sm, api, monkeypatch) -> 
     assert detail["events"][0]["evidence"]["attached_to"]["matched_on"][0] == "domain"
     assert len(detail["comparables"]["companies"]) == 2
     assert detail["comparables"]["basis"]["country"] == "IND"
-    assert detail["case"]["status"] == "verifying"
+    # the verify run ends with evaluate → request list, so the case is assessed
+    assert detail["case"]["status"] == "assessed"
     assert detail["claims"] == [] and detail["request_list"] is None
     assert listing[0]["identity_state"] == "confirmed"
     assert listing[0]["cost"]["crustdata_credits"] > 0

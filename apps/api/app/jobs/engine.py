@@ -128,6 +128,26 @@ async def _owned(
     return row
 
 
+AFTER_ALL = "after_all"
+
+
+async def pending_after_all(session: AsyncSession, run_id: uuid.UUID) -> list[Step]:
+    """Pending `after_all` steps of the run, locked. A worker that claimed one first has
+    already moved it to `running`, so it drops out here instead of being changed."""
+    rows = await session.execute(
+        select(Step)
+        .where(
+            Step.run_id == run_id,
+            Step.state == StepState.PENDING,
+            Step.input[AFTER_ALL].as_boolean().is_(True),
+        )
+        .order_by(Step.position)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    return list(rows.scalars())
+
+
 async def append_steps(
     session: AsyncSession,
     run_id: uuid.UUID,
@@ -140,6 +160,9 @@ async def append_steps(
     Keys must be unique within the run; dependencies must name steps that exist in the
     run or in this batch. Re-appending an existing key with the same handler is a no-op,
     which keeps fan-out handlers idempotent.
+
+    A still-pending step whose input has `after_all: true` (a case's closing evaluate)
+    also waits for every step appended after it, so it runs last however the run grows.
     """
 
     default_attempts = max_attempts or get_job_settings().worker_max_attempts
@@ -178,6 +201,18 @@ async def append_steps(
         session.add(step)
         created.append(step)
     await session.flush()
+    if any(not (s.input or {}).get(AFTER_ALL) for s in created):
+        for waiting in await pending_after_all(session, run_id):
+            if any(waiting is s for s in created):
+                continue
+            # Never wait on a step that waits on this one (that would never run).
+            later = [
+                s.key
+                for s in created
+                if not (s.input or {}).get(AFTER_ALL) and waiting.key not in s.depends_on
+            ]
+            waiting.depends_on = list(dict.fromkeys([*waiting.depends_on, *later]))
+        await session.flush()
     if created:
         # A finished run that gains steps is live again.
         await session.execute(

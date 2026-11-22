@@ -18,6 +18,7 @@ from app.db import repo
 from app.db.enums import IdentityStatus, RunKind
 from app.db.models import Candidate, Case, DiscoveryRun, Run, Step
 from app.jobs import StepSpec, append_steps, create_run
+from app.pipelines.verify.claims.intake import schedule_case_checks
 from app.pipelines.verify.common import IDENTITY, normalize_domain
 from app.pipelines.verify.identity import (
     CORROBORATING_KEYS,
@@ -25,6 +26,7 @@ from app.pipelines.verify.identity import (
     dependent_steps,
     record_key_evidence,
 )
+from app.pipelines.verify.tail import ensure_assessment_tail
 from app.settings import get_settings
 
 
@@ -178,7 +180,7 @@ async def pick_identity(
     apply_confirmation(case, chosen, keys=keys, basis="manual", note=note, pick=pick)
     run = await latest_verify_run(session, case)
     if run is None or not await _has_step(session, run, IDENTITY):
-        await create_run(
+        run = await create_run(
             session,
             workspace_id=actor.workspace_id,
             kind=RunKind.VERIFY,
@@ -188,6 +190,10 @@ async def pick_identity(
         )
     else:
         await append_steps(session, run.id, dependent_steps())
+    # Claims checked before the pick read "not checked: identity unresolved"; check them
+    # again against the picked company, then re-assess and redraft the request list.
+    await schedule_case_checks(session, case=case, run_id=run.id)
+    await ensure_assessment_tail(session, run_id=run.id)
     await session.commit()
     return case
 
@@ -208,5 +214,8 @@ async def start_verify(session: AsyncSession, actor: CaseActor, case_id: str) ->
         created_by=actor.user_id,
         steps=[identity_step()],
     )
+    # Every readable claim is checked again in this run. The identity step adds the
+    # closing evaluate → request list once it has confirmed (or kept) the identity.
+    await schedule_case_checks(session, case=case, run_id=run.id)
     await session.commit()
     return run

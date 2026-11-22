@@ -660,10 +660,11 @@ async def test_recheck_after_identity_pick_gets_new_steps(sm, session):
     assert ledger["We employ 250 people"].not_checked_reason == "identity_unresolved"
     case.identity_status = "confirmed"
     run = (await session.execute(select(Run))).scalar_one()
-    [step, assess] = await schedule_case_checks(session, case=case, run_id=run.id)
+    [step, assess, request] = await schedule_case_checks(session, case=case, run_id=run.id)
     await session.commit()
     assert step.key == f"checks.claim:{claim.id}@2"
-    assert assess.key == "evaluate@2" and assess.depends_on == [step.key]
+    assert assess.key == "evaluate@2" and step.key in assess.depends_on
+    assert request.key == "request_list@2" and request.depends_on == ["evaluate@2"]
     await make_worker(sm, registry).drain()
     session.expire_all()
     await session.refresh(case)
@@ -695,8 +696,12 @@ async def test_claim_checks_end_in_an_assessment_version(sm, session):
         session, run_id=run.id, claims=[claim], document_ids=[doc_id]
     )
     await session.commit()
-    assert [s.key for s in created] == [f"checks.claim:{claim.id}", "evaluate@2"]
-    assert created[1].input == {"document_ids": [str(doc_id)]}
+    assert [s.key for s in created] == [
+        f"checks.claim:{claim.id}",
+        "evaluate@2",
+        "request_list@2",
+    ]
+    assert created[1].input["document_ids"] == [str(doc_id)]
     await make_worker(sm, registry).drain()
     session.expire_all()
     versions = (

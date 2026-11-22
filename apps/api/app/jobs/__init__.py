@@ -30,6 +30,7 @@ to embed in snapshots (e.g. an assessment version). See `app.jobs.retention`.
 """
 
 from app.jobs.engine import (
+    AFTER_ALL,
     BUDGET_REACHED,
     BudgetExceeded,
     StepContext,
@@ -41,6 +42,7 @@ from app.jobs.engine import (
 from app.jobs.registry import StepRegistry, load_handlers, registry, step_handler
 
 __all__ = [
+    "AFTER_ALL",
     "BUDGET_REACHED",
     "BudgetExceeded",
     "StepContext",

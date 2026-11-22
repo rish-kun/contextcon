@@ -41,6 +41,7 @@ from app.pipelines.verify.common import (
     normalize_name,
     normalize_url,
 )
+from app.pipelines.verify.tail import ensure_assessment_tail
 
 # A candidate's primary domain is compared exactly; its secondary domains (all_domains)
 # also corroborate, but a group domain shared as primary by several records is ambiguous.
@@ -473,6 +474,7 @@ async def identify(ctx: StepContext) -> dict[str, Any]:
     if case.identity_status == IdentityStatus.CONFIRMED and identifiers.get("basis") == "manual":
         # A re-run never overrides a person's pick.
         await ctx.append_steps(dependent_steps())
+        await ensure_assessment_tail(ctx.session, run_id=ctx.run.id)
         ctx.result = "Identity confirmed earlier by a manual pick"
         return {"state": "confirmed", "basis": "manual"}
 
@@ -512,6 +514,7 @@ async def identify(ctx: StepContext) -> dict[str, Any]:
     apply_confirmation(case, chosen, keys=keys, basis="auto", note=decision.note)
     await ctx.session.flush()
     await ctx.append_steps(dependent_steps())
+    await ensure_assessment_tail(ctx.session, run_id=ctx.run.id)
     matched = decision.chosen.matched_keys
     ctx.result = f"Identity confirmed: {decision.chosen.name} ({', '.join(matched)})"
     return {

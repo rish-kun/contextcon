@@ -25,7 +25,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
@@ -439,12 +439,14 @@ async def schedule_claim_checks(
     document_ids: list[uuid.UUID | str] | None = None,
     evaluate: bool = True,
 ) -> list[Step]:
-    """Append one check step per claim to a run (flushes), then `evaluate.assess`.
+    """Append one check step per claim to a run (flushes), then the closing
+    `evaluate.assess` → `act.request_list` (`app.pipelines.verify.tail`).
 
     The assessment step (spec: "evaluate.assess runs last in verify and recheck runs")
-    waits for the last check and tolerates failed ones, so every batch of new claims
-    ends in an assessment version. `document_ids` are the uploads that caused the batch;
-    they are recorded on the new version as its trigger documents.
+    waits for every check and tolerates failed ones, so every batch of new claims ends
+    in an assessment version and a request list. A batch added while that step is still
+    pending joins it instead of adding another. `document_ids` are the uploads that
+    caused the batch; they are recorded on the new version as its trigger documents.
 
     Each check waits for the run's other steps that exist now (identity, profile,
     registry, people from CP-19, document extraction) and for the previous check, so
@@ -455,7 +457,12 @@ async def schedule_claim_checks(
     """
     existing = await _run_steps(session, run_id)
     used = {s.key for s in existing}
-    prior = [s.key for s in existing if s.handler != CHECK_HANDLER]
+    # Never the closing evaluate / request list: they wait for the checks, not after.
+    prior = [
+        s.key
+        for s in existing
+        if s.handler != CHECK_HANDLER and s.handler not in DOWNSTREAM_HANDLERS
+    ]
     last_check = next((s.key for s in reversed(existing) if s.handler == CHECK_HANDLER), None)
     specs: list[StepSpec] = []
     for claim in claims:
@@ -480,27 +487,16 @@ async def schedule_claim_checks(
             )
         )
         last_check = key
-    if evaluate and specs:
-        specs.append(_evaluate_after(used, last_check, document_ids or []))
-    return await append_steps(session, run_id, specs)
+    created = await append_steps(session, run_id, specs)
+    if evaluate and created:
+        # Imported here: the evaluate package imports the memo builders, which import
+        # the claim ledger from this package.
+        from app.pipelines.verify.tail import ensure_assessment_tail
 
-
-def _evaluate_after(
-    used: set[str], last_check: str | None, document_ids: list[uuid.UUID | str]
-) -> StepSpec:
-    # Imported here: the evaluate package imports the memo builders, which import
-    # the claim ledger from this package.
-    from app.pipelines.evaluate.service import STEP_KEY, evaluate_step
-
-    key, n = STEP_KEY, 1
-    while key in used:  # one assessment per batch of checks in a reused verify run
-        n += 1
-        key = f"{STEP_KEY}@{n}"
-    used.add(key)
-    spec = evaluate_step(
-        depends_on=[last_check] if last_check else [], document_ids=[str(d) for d in document_ids]
-    )
-    return replace(spec, key=key)
+        created += await ensure_assessment_tail(
+            session, run_id=run_id, document_ids=document_ids or []
+        )
+    return created
 
 
 async def schedule_case_checks(

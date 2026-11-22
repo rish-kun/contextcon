@@ -99,6 +99,7 @@ async def test_typed_claim_is_stored_with_origin_typed_and_queued(api, client, s
     assert [(s.handler, s.key) for s in steps] == [
         (CHECK_HANDLER, f"checks.claim:{row.id}"),
         ("evaluate.assess", "evaluate"),  # the check ends in an assessment version
+        ("act.request_list", "request_list"),  # and the request list drafted from it
     ]
     assert steps[0].uses_budget is False and steps[0].tolerate_failed_deps is True
     assert steps[1].depends_on == [steps[0].key]

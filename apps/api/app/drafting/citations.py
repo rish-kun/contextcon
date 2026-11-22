@@ -138,7 +138,9 @@ def cite_each_sentence(statement: str, cid: str) -> str:
         sentence = sentence.rstrip()
         end = ""
         if sentence and sentence[-1] in ".!?":
-            sentence, end = sentence[:-1].rstrip(), sentence[-1]
+            # All the closing marks go: a value that ends in "." restated as
+            # "description: Freight forwarding.." would leave "forwarding." uncited.
+            sentence, end = sentence.rstrip(".!? "), sentence[-1]
         out.append(f"{sentence} [{cid}]{end or '.'}")
     return " ".join(out)
 
