@@ -42,6 +42,8 @@ from app.pipelines.verify.common import (
     normalize_url,
 )
 
+# A candidate's primary domain is compared exactly; its secondary domains (all_domains)
+# also corroborate, but a group domain shared as primary by several records is ambiguous.
 # Name-only matches below this confidence are not plausible candidates.
 PLAUSIBLE_NAME_CONFIDENCE = 0.5
 MAX_CANDIDATES = 6
@@ -54,6 +56,7 @@ KEY_LABELS = {
     "founded_year": "Founded year",
     "cin": "Registry id (CIN)",
     "name": "Name",
+    "domain_claimed": "Domain (claimed on the record; the domain lookup did not return it)",
 }
 CORROBORATING_KEYS = ("crustdata_company_id", "domain", "profile_url", "hq_city", "founded_year")
 
@@ -226,6 +229,21 @@ def _merge(groups: list[list[Candidate]]) -> list[Candidate]:
     return list(merged.values())
 
 
+def _demote_domain_claimers(candidates: list[Candidate]) -> None:
+    """The domain lookup is the authority on which record owns a domain. When it
+    returned a matching record, a record found only by name that also claims the
+    domain is a possible duplicate, not a second corroborated candidate."""
+    owners = [c for c in candidates if "domain" in c.found_by and "domain" in c.matched_keys]
+    if not owners:
+        return
+    for c in candidates:
+        if "domain" in c.found_by:
+            continue
+        for item in c.matching:
+            if item["key"] == "domain":
+                item["key"], item["label"] = "domain_claimed", KEY_LABELS["domain_claimed"]
+
+
 def _plausible(c: Candidate) -> bool:
     if c.matched_keys or "domain" in c.found_by:
         return True
@@ -243,10 +261,12 @@ def decide_identity(
     candidates = _merge([domain_cands, name_cands])
     for c in candidates:
         _compare(c, expected)
+    _demote_domain_claimers(candidates)
     candidates = [c for c in candidates if _plausible(c)]
     candidates.sort(key=lambda c: (-len(c.matched_keys), -(c.confidence_score or 0)))
     candidates = candidates[:MAX_CANDIDATES]
     corroborated = [c for c in candidates if c.matched_keys]
+    claimers = [c for c in candidates if any(k["key"] == "domain_claimed" for k in c.matching)]
     name_ids = {c.crustdata_company_id for c in name_cands}
 
     pinned = [c for c in corroborated if "crustdata_company_id" in c.matched_keys]
@@ -262,6 +282,19 @@ def decide_identity(
         return IdentityDecision(
             IdentityStatus.CONFIRMED, chosen, candidates, _confirmed_note(chosen)
         )
+    primary_note = ""
+    if len(corroborated) >= 2 and expected.domain:
+        # Several records list the domain, but only one has it as its primary domain
+        # (the others list it as a secondary domain): the primary domain distinguishes.
+        primary = [c for c in corroborated if c.primary_domain == expected.domain]
+        if len(primary) == 1 and set(primary[0].matched_keys) >= {
+            k for c in corroborated for k in c.matched_keys
+        }:
+            primary_note = (
+                f" {len(corroborated) - 1} other record(s) list {expected.domain} only as a "
+                "secondary domain."
+            )
+            corroborated = primary
     if len(corroborated) == 1:
         chosen = corroborated[0]
         if name_ids and chosen.crustdata_company_id not in name_ids:
@@ -272,7 +305,10 @@ def decide_identity(
                 "The domain and the name point at different companies; pick one.",
             )
         return IdentityDecision(
-            IdentityStatus.CONFIRMED, chosen, candidates, _confirmed_note(chosen)
+            IdentityStatus.CONFIRMED,
+            chosen,
+            candidates,
+            _confirmed_note(chosen) + primary_note + _claimers_note(claimers, expected),
         )
     if len(corroborated) >= 2:
         return IdentityDecision(
@@ -297,6 +333,16 @@ def decide_identity(
             "Only the name matches; a name alone does not confirm identity.",
         )
     return IdentityDecision(IdentityStatus.UNRESOLVED, None, [], "No matching company found.")
+
+
+def _claimers_note(claimers: list[Candidate], expected: Expected) -> str:
+    if not claimers:
+        return ""
+    names = ", ".join(f"{c.name} ({c.crustdata_company_id})" for c in claimers)
+    return (
+        f" Possible duplicate kept separate: {names} lists {expected.domain} on its record, "
+        "but the domain lookup did not return it."
+    )
 
 
 def _confirmed_note(c: Candidate) -> str:
