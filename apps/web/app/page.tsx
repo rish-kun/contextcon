@@ -1,25 +1,55 @@
-import Link from "next/link";
+import type { Metadata } from "next";
+import {
+  AudienceSection,
+  CtaSection,
+  DiffersSection,
+  FitSection,
+  Hero,
+  InvestorSection,
+  JudgmentSection,
+  LimitsSection,
+  PrinciplesSection,
+  ProblemSection,
+  SiteFooter,
+  SiteHeader,
+  StatusSection,
+  StepsSection,
+} from "@/components/marketing/sections";
 
-// Placeholder only. Product pages come at a later checkpoint; the design system is at /design.
+export const metadata: Metadata = {
+  title: "DealProof · First-pass screening with the evidence attached",
+  description:
+    "DealProof finds companies that match an investment thesis, checks each claim against dated, independent evidence, and says plainly what it could not verify.",
+};
+
+/**
+ * Marketing home page. Layout follows docs/design/design-direction.md section 11.1:
+ * a centred serif hero that hands over to the claim ledger, then the product shown
+ * working, then the argument in numbered and tabular form.
+ */
 export default function Home() {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-(--layout-prose-max) flex-col justify-center gap-4 px-4 py-16 md:px-6">
-      <p className="text-base font-medium text-ink">DealProof</p>
-      <h1 className="font-serif text-3xl text-ink">
-        Discover opportunities. Verify the evidence. Evaluate with confidence
-      </h1>
-      <p className="text-base text-ink-secondary">
-        The product pages are not built yet. The components they will be made
-        from are in the gallery.
-      </p>
-      <p>
-        <Link
-          href="/design"
-          className="rounded-xs text-sm text-accent underline underline-offset-4 transition-colors hover:text-accent-hover"
-        >
-          Open the component gallery
-        </Link>
-      </p>
-    </main>
+    <div className="min-h-dvh bg-paper-warm text-base">
+      {/* Entrances are driven by script; without it everything is simply shown. */}
+      <noscript>
+        <style>{`[data-reveal]{opacity:1!important;transform:none!important}[data-pending]{display:none!important}`}</style>
+      </noscript>
+      <SiteHeader />
+      <main>
+        <Hero />
+        <StepsSection />
+        <ProblemSection />
+        <StatusSection />
+        <FitSection />
+        <JudgmentSection />
+        <InvestorSection />
+        <PrinciplesSection />
+        <LimitsSection />
+        <DiffersSection />
+        <AudienceSection />
+        <CtaSection />
+      </main>
+      <SiteFooter />
+    </div>
   );
 }
