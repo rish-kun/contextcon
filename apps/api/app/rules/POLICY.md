@@ -248,13 +248,19 @@ every judgment change, and any change in disposition.
 ## 8. Investors
 
 - Only funding rounds that have a date and a named investor count.
-- Records are merged only on the same investor ID, or on the exact same name plus
-  a matching website domain, or the same country and investor type. Names that are
-  only similar, such as "Orbit" and "Orbit Ventures", are flagged as possible
-  duplicates and never merged.
+- Records are merged on the same investor ID, or directly on the same website
+  domain, or on the exact same name plus a matching country and investor type
+  recorded on the *same* record as that name. A name on one record and a matching
+  attribute on another is not enough. A known identifier that conflicts anywhere in
+  the group (a different domain) blocks the merge. Names that are only similar, such
+  as "Orbit" and "Orbit Ventures", are flagged as possible duplicates and never merged.
 - Score = sum over comparable rounds in the last 6 years of 0.5 ^ (years since the
   round ÷ 2). A round from 2 years ago counts half as much as one from today.
   Ties are broken by number of comparable rounds, then by latest date.
 - Each investor shows its latest comparable investment and the search scope it was
-  found in. Funding-kind compatibility is *compatible*, *incompatible* or *unknown*.
+  found in.
+- Funding-kind compatibility reads only dated rounds inside the searched scope, on or
+  before the search date. It is *compatible* only when such a round of the kind
+  sought exists; otherwise it is *unknown*. Not finding a matching round in a bounded
+  search never makes an investor incompatible.
 - The ranking describes past behaviour. It does not predict whether an investor will invest.

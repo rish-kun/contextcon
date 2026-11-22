@@ -179,7 +179,9 @@ async def test_compatibility_with_funding_kind_sought(session, sm, monkeypatch) 
     assert out.funding_kind_sought == "growth_equity"
     assert by["Growth Co"].compatibility == "compatible"
     assert "1 growth equity round in the record" in by["Growth Co"].funding_kind_compatibility
-    assert by["Venture Co"].compatibility == "incompatible"
+    # Only a series A found: incomplete evidence, so unknown rather than incompatible.
+    assert by["Venture Co"].compatibility == "unknown"
+    assert "no growth equity round found" in by["Venture Co"].funding_kind_compatibility
     assert by["Mystery Co"].compatibility == "unknown"
     assert "unknown" in by["Mystery Co"].funding_kind_compatibility.lower()
 

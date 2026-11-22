@@ -428,14 +428,19 @@ def _compatibility_text(inv: RankedInvestor, sought: FundingKind | None) -> str:
             n = len(matching)
             return f"{n} {label} round{'s' if n != 1 else ''} in the record, latest {latest:%Y-%m}"
         return f"Has made {label} investments in the record"
-    if inv.compatibility == Compatibility.INCOMPATIBLE:
-        kinds = Counter(
-            KIND_LABELS[k]
-            for k in (funding_kind(r.round_type) for r in inv.comparable_rounds)
-            if k is not None
+    # The rules never call an investor incompatible on a bounded search: not
+    # finding a round of the kind sought leaves compatibility unknown.
+    kinds = Counter(
+        KIND_LABELS[k]
+        for k in (funding_kind(r.round_type) for r in inv.comparable_rounds)
+        if k is not None
+    )
+    if kinds:
+        seen = ", ".join(f"{k} ({n})" for k, n in sorted(kinds.items()))
+        return (
+            f"Compatibility with {label} unknown: no {label} round found in the record; "
+            f"rounds found: {seen}"
         )
-        seen = ", ".join(f"{k} ({n})" for k, n in sorted(kinds.items())) or "other kinds"
-        return f"No {label} round found in the record; rounds found: {seen}"
     return f"Compatibility with {label} unknown: round types not recorded"
 
 

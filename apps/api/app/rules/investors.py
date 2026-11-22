@@ -1,10 +1,16 @@
 """Investor discovery: group dated funding records by investor and rank them.
 
 - Only records with a date and a named (or identified) investor count.
-- Records merge only on investor id, or on the exact normalised name plus a
-  corroborating attribute (same website domain, or same country and investor
-  type). Names that are merely similar are flagged as possible duplicates,
-  never merged.
+- Records merge on investor id, or directly on a shared identifier (the same
+  website domain), or on the exact normalised name plus a corroborating
+  attribute (same domain, or same country and investor type) found on the SAME
+  record as that name. A merge is refused when known identifiers conflict at
+  the group level (a different domain anywhere in the group). Names that are
+  merely similar are flagged as possible duplicates, never merged.
+- Funding-kind compatibility reads only the dated rounds inside the disclosed
+  scope (on or before the search date). It is "compatible" only when such a
+  round of the kind sought exists; otherwise it is "unknown", never a negative
+  verdict on incomplete evidence.
 - score = Σ 0.5 ** (years since round / half-life) over comparable rounds in the
   lookback window. Ties: comparable count, then latest date, then name.
 - The ranking describes past behaviour. It does not predict investment.
@@ -65,6 +71,7 @@ def funding_kind(round_type: str | None) -> FundingKind | None:
 
 
 def _corroborates(a: FundingRecord, b: FundingRecord) -> bool:
+    """A corroborating attribute shared by these two records themselves."""
     da, db = _domain(a.investor_domain), _domain(b.investor_domain)
     if da and db:
         return da == db
@@ -73,6 +80,23 @@ def _corroborates(a: FundingRecord, b: FundingRecord) -> bool:
         and a.investor_type
         and normalize_text(a.investor_country) == normalize_text(b.investor_country or "")
         and normalize_text(a.investor_type) == normalize_text(b.investor_type or "")
+    )
+
+
+def _can_merge(r: FundingRecord, members: list[FundingRecord]) -> bool:
+    """May record ``r`` (no investor id) join this group?"""
+    domains = {d for d in (_domain(m.investor_domain) for m in members) if d}
+    mine = _domain(r.investor_domain)
+    if mine and domains:
+        # A known identifier decides: the same domain merges directly, a
+        # different one is a conflict that no name match can override.
+        return mine in domains
+    norm = normalize_name(r.investor_name or "")
+    if not norm:
+        return False
+    # The name and the corroborating attribute must be on the same record.
+    return any(
+        normalize_name(m.investor_name or "") == norm and _corroborates(r, m) for m in members
     )
 
 
@@ -106,6 +130,45 @@ def _scope_note(scope: SearchScope, rounds_seen: int) -> str:
     return "Latest comparable investment found " + "; ".join(parts)
 
 
+def compatibility(
+    in_scope: list[FundingRecord], sought: FundingKind | None
+) -> tuple[Compatibility, str]:
+    """Compatibility with the funding kind sought, from in-scope dated rounds only.
+
+    Compatible only when such a round of the kind sought exists. Anything else
+    (kind not stated, round types missing, only other kinds found) is unknown:
+    the absence of a matching round in a bounded search is not evidence that
+    the investor does not make that kind of investment.
+    """
+    if sought is None:
+        return Compatibility.UNKNOWN, "funding kind sought not stated"
+    matching = sorted(
+        (m for m in in_scope if m.date is not None and funding_kind(m.round_type) is sought),
+        key=lambda m: (m.date, m.id),
+    )
+    label = sought.value.replace("_", " ")
+    if matching:
+        n = len(matching)
+        return (
+            Compatibility.COMPATIBLE,
+            f"{n} {label} round{'s' if n != 1 else ''} in the searched scope, "
+            f"latest {matching[-1].date.isoformat()}",
+        )
+    kinds = sorted(
+        {k.value.replace("_", " ") for m in in_scope if (k := funding_kind(m.round_type))}
+    )
+    if kinds:
+        return (
+            Compatibility.UNKNOWN,
+            f"compatibility with {label} unknown: no {label} round found in the searched "
+            f"scope (rounds found: {', '.join(kinds)})",
+        )
+    return (
+        Compatibility.UNKNOWN,
+        f"compatibility with {label} unknown: round types not recorded in the searched scope",
+    )
+
+
 def group_records(records: list[FundingRecord]) -> tuple[dict[str, list[FundingRecord]], dict]:
     """Return groups keyed by a stable key, plus each group's set of names."""
     ordered = sorted(records, key=lambda r: (r.investor_id is None, r.investor_id or "", r.id))
@@ -114,13 +177,7 @@ def group_records(records: list[FundingRecord]) -> tuple[dict[str, list[FundingR
         if r.investor_id:
             groups.setdefault(f"id:{r.investor_id}", []).append(r)
             continue
-        norm = normalize_name(r.investor_name or "")
-        candidates = [
-            key
-            for key, members in groups.items()
-            if any(normalize_name(m.investor_name or "") == norm for m in members)
-            and any(_corroborates(r, m) for m in members)
-        ]
+        candidates = [key for key, members in groups.items() if _can_merge(r, members)]
         if len(candidates) == 1:
             groups[candidates[0]].append(r)
         else:
@@ -180,16 +237,7 @@ def rank_investors(
         )
         investor_id = next((m.investor_id for m in members if m.investor_id), None)
 
-        kinds = {funding_kind(m.round_type) for m in members} - {None}
-        if sought is None:
-            compat, why_compat = Compatibility.UNKNOWN, "funding kind sought not stated"
-        elif sought in kinds:
-            compat, why_compat = Compatibility.COMPATIBLE, f"has made {sought.value} investments"
-        elif not kinds:
-            compat, why_compat = Compatibility.UNKNOWN, "round types not recorded"
-        else:
-            compat = Compatibility.INCOMPATIBLE
-            why_compat = "records show only " + ", ".join(sorted(k.value for k in kinds))
+        compat, why_compat = compatibility(comparable, sought)
 
         unknowns: list[str] = []
         if any(m.amount_usd is None for m in comparable):

@@ -98,7 +98,7 @@ async def test_create_list_and_get(app, session, sm, monkeypatch) -> None:
         entry = got["entries"][0]
         assert entry["comparable_rounds"][0]["source"]["source_class"] == "data_provider"
         assert entry["latest_sector_investment_scope"].startswith("searched ")
-        assert entry["compatibility"] == "incompatible"
+        assert entry["compatibility"] == "unknown"
         assert "does not predict" in got["ranking_basis"]
 
         listed = (await c.get("/investor-searches")).json()

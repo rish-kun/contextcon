@@ -139,7 +139,8 @@ def test_funding_kind_compatibility():
     compat = {i.name: i.compatibility for i in r.investors}
     assert compat == {
         "Equity Fund": Compatibility.COMPATIBLE,
-        "Debt Fund": Compatibility.INCOMPATIBLE,
+        # Only debt rounds found: that is incomplete evidence, not a refusal.
+        "Debt Fund": Compatibility.UNKNOWN,
         "Mystery Fund": Compatibility.UNKNOWN,
     }
     no_ask = rank_investors(records, SCOPE)
@@ -164,3 +165,108 @@ def test_ranking_is_deterministic_regardless_of_input_order():
     two = rank_investors(list(reversed(records)), SCOPE)
     assert one == two
     assert [i.name for i in one.investors] == ["A Fund", "B Fund", "C Fund"]
+
+
+# --- Merges: name and corroboration on the same record; identifiers decide -----
+
+
+def test_name_and_corroboration_on_different_records_do_not_merge():
+    r = rank_investors(
+        [
+            rec("1", "Blue River", investor_id="inv-1", company="A"),
+            rec(
+                "2",
+                "Blue River Partners",
+                investor_id="inv-1",
+                inv_country="India",
+                inv_type="VC",
+                company="B",
+            ),
+            # Name matches record 1, country and type match record 2: not enough.
+            rec("3", "Blue River", inv_country="India", inv_type="VC", company="C"),
+        ],
+        SCOPE,
+    )
+    assert sorted(i.key for i in r.investors) == ["id:inv-1", "rec:3"]
+
+
+def test_name_and_corroboration_on_the_same_record_merge():
+    r = rank_investors(
+        [
+            rec("1", "Blue River", investor_id="inv-1", inv_country="India", inv_type="VC"),
+            rec("2", "Blue River", inv_country="India", inv_type="VC", company="B"),
+        ],
+        SCOPE,
+    )
+    assert [(i.key, i.comparable_count) for i in r.investors] == [("id:inv-1", 2)]
+
+
+def test_conflicting_domain_in_the_group_blocks_a_name_merge():
+    r = rank_investors(
+        [
+            rec(
+                "1",
+                "Blue River",
+                investor_id="inv-1",
+                domain="blueriver.vc",
+                inv_country="India",
+                inv_type="VC",
+                company="A",
+            ),
+            rec(
+                "2",
+                "Blue River",
+                domain="blueriver.in",
+                inv_country="India",
+                inv_type="VC",
+                company="B",
+            ),
+        ],
+        SCOPE,
+    )
+    assert sorted(i.key for i in r.investors) == ["id:inv-1", "rec:2"]
+    flagged = {i.key: i.possible_duplicates for i in r.investors}
+    assert flagged["rec:2"] == ["id:inv-1"]
+
+
+def test_shared_domain_merges_directly_whatever_the_name():
+    r = rank_investors(
+        [
+            rec("1", "Blue River Capital", investor_id="inv-1", domain="blueriver.vc"),
+            rec("2", "BRC Fund II", domain="https://blueriver.vc/team", company="B"),
+            rec("3", "BRC", domain="www.blueriver.vc", company="C"),
+        ],
+        SCOPE,
+    )
+    assert [(i.key, i.comparable_count) for i in r.investors] == [("id:inv-1", 3)]
+
+
+# --- Compatibility: in-scope dated evidence only, never negative on gaps --------
+
+
+def test_debt_search_on_a_seed_only_investor_is_unknown_not_incompatible():
+    r = rank_investors(
+        [rec("a", "Seed Fund", investor_id="s", round_type="seed")], SCOPE, FundingKind.DEBT
+    )
+    [inv] = r.investors
+    assert inv.compatibility is Compatibility.UNKNOWN
+    assert "compatibility with debt unknown" in inv.compatibility_reason
+
+
+def test_compatibility_ignores_rounds_outside_the_scope():
+    records = [
+        rec("in", "Fund", investor_id="f", round_type="seed", company="A"),
+        # Matching kind, but future-dated, too old, or outside the sector/geography.
+        rec("future", "Fund", investor_id="f", round_type="venture debt", when=date(2027, 1, 1)),
+        rec("old", "Fund", investor_id="f", round_type="venture debt", when=date(2018, 1, 1)),
+        rec("sector", "Fund", investor_id="f", round_type="debt", sectors=["Fintech"]),
+        rec("geo", "Fund", investor_id="f", round_type="debt", country="Kenya"),
+    ]
+    [inv] = rank_investors(records, SCOPE, FundingKind.DEBT).investors
+    assert inv.compatibility is Compatibility.UNKNOWN
+    in_scope_debt = [*records, rec("ok", "Fund", investor_id="f", round_type="venture debt")]
+    [inv] = rank_investors(in_scope_debt, SCOPE, FundingKind.DEBT).investors
+    assert inv.compatibility is Compatibility.COMPATIBLE
+    assert inv.compatibility_reason.startswith(
+        "1 debt round in the searched scope, latest 2025-06-01"
+    )
