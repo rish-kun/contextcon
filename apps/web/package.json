@@ -6,7 +6,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "echo \"web: no tests yet\""
+    "test": "echo \"web: no tests yet\"",
+    "gen:api": "openapi-typescript ../api/openapi.json -o lib/api/schema.ts",
+    "gen:api:export": "cd ../api && uv run python -m app.api.export_openapi && cd ../web && pnpm gen:api"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
@@ -28,6 +30,7 @@
     "@types/react-dom": "^19.3.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.4.6",
+    "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4.3.5",
     "typescript": "^6.0.3"
   }
