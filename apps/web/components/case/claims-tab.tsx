@@ -379,7 +379,7 @@ const ALL_CATEGORIES = "all";
  */
 export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
   const detail = useCaseDetail();
-  const { basePath, verify, checkClaim, runActive } = useCase();
+  const { basePath, verify, checkClaim, runActive, readOnly } = useCase();
   const counts = useMemo(() => statusCounts(detail.claims), [detail.claims]);
   const [statuses, setStatuses] = useState<Set<ClaimStatus>>(() => {
     const first = CLAIM_STATUSES.find((status) => status === initialStatus);
@@ -419,7 +419,7 @@ export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
     });
   }
 
-  const actions = (
+  const actions = readOnly ? undefined : (
     <>
       <Button asChild size="sm" className="h-11 md:h-7">
         <a href="#add-to-ledger">
@@ -503,7 +503,7 @@ export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
                     claim={{ ...toClaim(claim), retry_credits_estimate: retryCredits.get(claim.id) }}
                     changedHref={`${basePath}/assessment`}
                     onRunCheck={
-                      identityOpen || runActive ? undefined : () => void checkClaim(claim.id)
+                      readOnly || identityOpen || runActive ? undefined : () => void checkClaim(claim.id)
                     }
                     detail={<ClaimDetail claim={claim} />}
                   />
@@ -514,10 +514,12 @@ export function ClaimsTab({ initialStatus }: { initialStatus?: string }) {
         )}
       </TabSection>
 
-      <TabSection title="Add to the ledger" id="add-to-ledger" bodyClassName="grid gap-x-8 gap-y-6 lg:grid-cols-2">
-        <AddClaims />
-        <SellerDocuments documents={detail.documents} />
-      </TabSection>
+      {readOnly ? null : (
+        <TabSection title="Add to the ledger" id="add-to-ledger" bodyClassName="grid gap-x-8 gap-y-6 lg:grid-cols-2">
+          <AddClaims />
+          <SellerDocuments documents={detail.documents} />
+        </TabSection>
+      )}
     </TabStack>
   );
 }

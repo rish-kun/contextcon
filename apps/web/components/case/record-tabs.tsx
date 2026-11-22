@@ -171,9 +171,24 @@ function previewMessage(message: MessageOut | null, state: PreviewState): Messag
   };
 }
 
+/** The drafted email as it stands on the public showcase: never approved, never sent. */
+function ShowcaseDraft({ subject, body }: { subject: string; body: string }) {
+  return (
+    <TabSection title="Drafted email" footer="Draft · not approved · not sent. The company was not contacted">
+      <div className="flex flex-col gap-3">
+        <p className="text-dense text-ink">
+          <span className="text-ink-secondary">Subject: </span>
+          {subject}
+        </p>
+        <pre className="font-sans text-dense whitespace-pre-wrap text-ink">{body}</pre>
+      </div>
+    </TabSection>
+  );
+}
+
 export function RequestTab() {
   const detail = useCaseDetail();
-  const { caseId, basePath, mutate, reload } = useCase();
+  const { caseId, basePath, mutate, reload, readOnly } = useCase();
   const preview = useSearchParams().get("preview");
   const { request_list: list, claims, documents, assessment } = detail;
   const { history } = useAssessmentHistory(caseId, assessment?.version);
@@ -184,7 +199,7 @@ export function RequestTab() {
       return <BlockedByIdentity what="A request is built from an assessment" />;
     }
     return assessment ? (
-      <TabEmpty title="No request list yet" actions={<BuildRequestList caseId={caseId} onBuilt={reload} />}>
+      <TabEmpty title="No request list yet" actions={readOnly ? undefined : <BuildRequestList caseId={caseId} onBuilt={reload} />}>
         Lists the documents that would settle the open claims and drafts the email
       </TabEmpty>
     ) : (
@@ -234,6 +249,9 @@ export function RequestTab() {
       ) : (
         <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
           <RequestList list={list} claims={claims} basePath={basePath} flip={readDecisionFlip(detail)} />
+          {readOnly ? (
+            <ShowcaseDraft subject={list.draft.subject} body={list.draft.body} />
+          ) : (
           <RequestApproval
             key={previewState ?? "record"}
             caseId={caseId}
@@ -244,6 +262,7 @@ export function RequestTab() {
             // The case header and the tab row read the message from the shared case.
             onChange={previewState ? undefined : (next) => mutate((d) => ({ ...d, message: next }))}
           />
+          )}
         </div>
       )}
 

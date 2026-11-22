@@ -159,7 +159,7 @@ export function TabEmpty({
  * the step that failed, or that nothing has run, and the one action that recovers.
  */
 export function AssessmentPending({ what = "The assessment" }: { what?: string }) {
-  const { detail, run, runActive, runError, verify } = useCase();
+  const { detail, run, runActive, runError, verify, readOnly } = useCase();
   const ran = (detail?.runs.length ?? 0) > 0;
   const steps = run ? [...run.steps].sort((a, b) => a.position - b.position) : [];
   const failed = steps.find((step) => step.state === "failed");
@@ -184,9 +184,11 @@ export function AssessmentPending({ what = "The assessment" }: { what?: string }
       <EmptyState
         title={title}
         actions={
-          <Button variant="primary" size="sm" className="h-11 md:h-8" onClick={() => void verify()} disabled={runActive}>
-            {runActive ? "Running" : "Run assessment"}
-          </Button>
+          readOnly ? undefined : (
+            <Button variant="primary" size="sm" className="h-11 md:h-8" onClick={() => void verify()} disabled={runActive}>
+              {runActive ? "Running" : "Run assessment"}
+            </Button>
+          )
         }
       >
         {what} appears once it has run. {line}
