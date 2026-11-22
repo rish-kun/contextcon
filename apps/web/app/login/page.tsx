@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { buttonVariants } from "@/components/ui/button";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Log in · DealProof" };
 
 /**
  * Sign-in. The form sits on the left at desktop widths; the right half states, in the
- * product's own words, what is behind it. There is no sign-up and the page says so.
+ * product's own words, what is behind it. New visitors are pointed at sign-up.
  */
 export default function LoginPage() {
   return (
@@ -23,17 +24,19 @@ export default function LoginPage() {
             <div className="flex flex-col gap-2">
               <h1 className="text-2xl font-medium text-ink">Log in</h1>
               <p className="text-sm text-ink-secondary">
-                Use the email and password your workspace admin gave you
+                Use your work email and password
               </p>
             </div>
             {/* The form reads the `next` query parameter, which needs a Suspense boundary. */}
             <Suspense fallback={<div className="h-56" aria-hidden />}>
               <LoginForm />
             </Suspense>
-            <p className="border-t border-line pt-4 text-dense text-ink-secondary">
-              There is no sign-up page. An admin creates each account from the command line.
-              If you need one, ask the person who runs DealProof for your team.
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+              <p className="text-dense text-ink-secondary">New to DealProof?</p>
+              <Link href="/signup" className={buttonVariants({ variant: "secondary", size: "sm" })}>
+                Sign up
+              </Link>
+            </div>
           </div>
         </main>
       </div>

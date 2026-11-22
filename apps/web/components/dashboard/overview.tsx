@@ -32,6 +32,7 @@ import { DISPOSITION_LABEL } from "@/lib/labels";
 import { DISPOSITIONS } from "@/lib/types";
 import { useLoad } from "@/lib/use-load";
 import { attention, claimCounts, coverageNote, useWorkspace, type Workspace } from "@/lib/workspace";
+import { ResearchHome } from "@/components/home/research-home";
 import { ClaimsCell, DispositionCell, FitCompact, waitingCue } from "./case-cells";
 
 const THESIS_STATUS = {
@@ -401,6 +402,8 @@ export function Overview() {
           </>
         }
       />
+
+      <ResearchHome />
 
       {state.status === "loading" ? (
         <Panel>

@@ -28,14 +28,14 @@ export const NAV = {
     { href: "#principles", label: "Principles" },
   ],
   login: "Log in",
-  open: "Open app",
+  signup: "Sign up",
 } as const;
 
 export const HERO = {
   eyebrow: "First-pass screening for investors and acquirers",
   title: "Know what is proven before the second meeting",
   lead: "DealProof finds companies that match your thesis, checks each claim against dated, independent evidence, and says plainly what it could not verify.",
-  primary: "Start a screening",
+  primary: "Sign up",
   secondary: "See a finished case",
 } as const;
 
@@ -738,7 +738,7 @@ export const AUDIENCE = [
 export const CTA = {
   title: "Screen your next target with the evidence attached",
   lead: "Every investment or acquisition opportunity that reaches a decision-maker should arrive with its claims already checked and its unknowns already named.",
-  primary: "Start a screening",
+  primary: "Sign up",
   secondary: "See a finished case",
 };
 

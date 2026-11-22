@@ -66,7 +66,8 @@ import { Steps } from "./steps";
 
 const SECTION = "py-16 md:py-24 lg:py-32";
 const BAND = "border-y border-line bg-surface";
-const APP_HREF = "/app";
+/** Sign-up sends a visitor who already has a session on to the app. */
+const SIGNUP_HREF = "/signup";
 
 const primary = buttonVariants({ variant: "primary", size: "lg" });
 const secondary = buttonVariants({ variant: "secondary", size: "lg" });
@@ -94,10 +95,10 @@ export function SiteHeader() {
             {NAV.login}
           </Link>
           <Link
-            href={APP_HREF}
+            href={SIGNUP_HREF}
             className={buttonVariants({ variant: "primary", size: "md" })}
           >
-            {NAV.open}
+            {NAV.signup}
           </Link>
           <details className="relative md:hidden">
             <summary className="flex size-11 cursor-pointer list-none items-center justify-center rounded-md text-ink transition-colors hover:bg-surface-raised [&::-webkit-details-marker]:hidden">
@@ -108,7 +109,7 @@ export function SiteHeader() {
               aria-label="Sections"
               className="absolute top-full right-0 mt-2 grid w-56 animate-overlay-in rounded-lg border border-line bg-surface p-2 shadow-md"
             >
-              {[...NAV.links, { href: "/login", label: NAV.login }].map((l) => (
+              {[...NAV.links, { href: "/login", label: NAV.login }, { href: SIGNUP_HREF, label: NAV.signup }].map((l) => (
                 <a
                   key={l.label}
                   href={l.href}
@@ -140,7 +141,7 @@ export function Hero() {
             {HERO.lead}
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Link href={APP_HREF} className={primary}>
+            <Link href={SIGNUP_HREF} className={primary}>
               {HERO.primary}
             </Link>
             <a href="#case" className={secondary}>
@@ -675,7 +676,7 @@ export function CtaSection() {
             {CTA.lead}
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Link href={APP_HREF} className={primary}>
+            <Link href={SIGNUP_HREF} className={primary}>
               {CTA.primary}
             </Link>
             <a href="#case" className={secondary}>

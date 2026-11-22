@@ -272,6 +272,18 @@ export const sendSummary = async (): Promise<SendSummaryOut> => ({
 
 export const getRun = async (id: string) => lookup(fixtures.runs, id, "Run");
 
+/**
+ * Adds a run and its recorded activity to the fixture tables, so a screen that keeps its
+ * own fixtures (the personalised home) can be followed and replayed like any other run.
+ */
+export function registerRun(run: RunOut, activities: Activity[]): void {
+  fixtures.runs[run.id] = clone(run);
+  (fixtures.activity ??= {})[run.id] = clone(activities);
+}
+
+/** The fixture investors, for screens that list funds outside an investor search. */
+export const investorEntries = () => clone(fixtures.investorSearch.entries);
+
 /** The jobs queue. The in-flight example is re-clocked to have started 75 s ago. */
 export async function listRuns(status: "active" | "recent", limit: number): Promise<RunQueueOut> {
   const queue = clone(fixtures.runQueue[status]);
