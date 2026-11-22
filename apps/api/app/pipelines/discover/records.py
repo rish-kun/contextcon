@@ -23,8 +23,8 @@ from app.domain.types import CompanyRecord, FieldFact
 
 PROVIDER = "crustdata"
 RELIABILITY = SourceReliability.DATA_PROVIDER.value
-# The API contract's SourceClass for a data-provider profile.
-CONTRACT_SOURCE_CLASS = "data_provider_profile"
+# The API contract's SourceClass uses the same vocabulary.
+CONTRACT_SOURCE_CLASS = RELIABILITY
 
 ESTIMATE_BASIS = "from professional profiles, not a payroll count"
 SIGNAL_BASIS = "open job postings; a hiring signal, not evidence of revenue"
@@ -199,6 +199,14 @@ def enrich_values(company: dict[str, Any]) -> list[FieldValue]:
     return out
 
 
+def _names(value: Any) -> list[str]:
+    """Names from a list or a comma-separated string (Crustdata sends both)."""
+    items = value.split(",") if isinstance(value, str) else value or []
+    if not isinstance(items, list):
+        return []
+    return [str(x).strip() for x in items if x and str(x).strip()]
+
+
 def funding_rounds(company: dict[str, Any]) -> list[FieldValue]:
     """Dated rounds only; the milestone date is `funding_date`, else `date`."""
     out: list[FieldValue] = []
@@ -207,7 +215,7 @@ def funding_rounds(company: dict[str, Any]) -> list[FieldValue]:
         when = parse_date(m.get("funding_date")) or parse_date(m.get("date"))
         if when is None:
             continue
-        investors = list(m.get("investors") or []) or [
+        investors = _names(m.get("investors")) or [
             d.get("name") for d in m.get("investors_detailed") or [] if d.get("name")
         ]
         value = {

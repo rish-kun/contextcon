@@ -8,7 +8,10 @@ import httpx2 as httpx
 import pytest
 from sqlalchemy import func, select, update
 
-from app.api.theses_deps import Actor, current_actor, db_sessionmaker, llm_factory
+from app.api import runs as runs_api
+from app.api.theses_deps import db_sessionmaker, llm_factory
+from app.auth.deps import current_user
+from app.auth.sessions import AuthUser
 from app.db.models import (
     Candidate,
     CandidateCriterionResult,
@@ -207,6 +210,10 @@ async def test_every_card_fact_has_source_and_evidence(session, sm) -> None:
     ]
     # Undated rounds are never shown as dated.
     assert [r["date"] for r in a["funding_rounds"]] == ["2024-03-01", "2022-06-15"]
+    assert a["funding_rounds"][1]["investors"] == [
+        "Seed Partners (fixture)",
+        "Angel Group (fixture)",
+    ]
     # Criterion results cite evidence that exists.
     assert all(e in evidence for r in results for e in r.evidence_ids)
 
@@ -364,13 +371,17 @@ async def test_rejected_drafts_fall_back_to_plain_list(session, sm) -> None:
 
 def _client(sm, workspace_id: uuid.UUID, user_id: uuid.UUID) -> httpx.AsyncClient:  # type: ignore[no-untyped-def]
     app = create_app()
-    app.dependency_overrides[current_actor] = lambda: Actor(workspace_id, user_id)
+    user = AuthUser(
+        id=user_id, workspace_id=workspace_id, email="a@example.test", display_name="Analyst"
+    )
+    app.dependency_overrides[current_user] = lambda: user  # stands in for a session cookie
     app.dependency_overrides[db_sessionmaker] = lambda: sm
     app.dependency_overrides[llm_factory] = lambda: fakes.llm_factory()
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t")
 
 
-async def test_theses_routes_end_to_end(session, sm) -> None:
+async def test_theses_routes_end_to_end(session, sm, monkeypatch) -> None:
+    monkeypatch.setattr(runs_api, "get_sessionmaker", lambda: sm)
     t = await tenant(session)
     other = await tenant(session, "other")
     fake = fakes.FakeCrustdata(fakes.make_world(fillers=3))
@@ -431,9 +442,7 @@ async def test_theses_routes_end_to_end(session, sm) -> None:
         first = items[0]
         assert first["criterion_results"] and first["card"]["last_updated"]
         sourced = [r for r in first["criterion_results"] if r["evidence"]]
-        assert sourced and sourced[0]["evidence"][0]["source"]["source_class"] == (
-            "data_provider_profile"
-        )
+        assert sourced and sourced[0]["evidence"][0]["source"]["source_class"] == ("data_provider")
         unavailable = [i for i in items if i["fit"] is None]
         assert all(i["fit_unavailable_reason"] for i in unavailable)
 

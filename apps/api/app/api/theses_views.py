@@ -36,12 +36,10 @@ _STATUS = {
 
 
 def source_class(value: str) -> SourceClass:
-    if value == "data_provider":
-        return SourceClass.data_provider_profile
     try:
         return SourceClass(value)
     except ValueError:
-        return SourceClass.data_provider_profile
+        return SourceClass.data_provider
 
 
 def source_ref(row: Source) -> SourceRef:

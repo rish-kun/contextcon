@@ -98,6 +98,10 @@ SESSION_ROUTES = {
     "/cases/{case_id}/claims",  # CP-20
     "/cases/{case_id}/documents",  # CP-20
     "/documents/{document_id}/url",  # CP-20
+    "/theses",
+    "/theses/{thesis_id}",
+    "/theses/{thesis_id}/criteria",
+    "/theses/{thesis_id}/search",
 }
 AUTH_ROUTES = SESSION_ROUTES | {"/auth/login", "/auth/logout"}
 STUB_ROUTES = [r for r in ROUTES if r[1] not in AUTH_ROUTES]

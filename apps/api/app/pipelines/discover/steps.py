@@ -30,7 +30,7 @@ from typing import Any
 
 from sqlalchemy import delete, select
 
-from app.clients.crustdata import CrustdataError, SemanticSearchUnavailable
+from app.clients.crustdata import COMPANY_ENRICH, CrustdataError, SemanticSearchUnavailable
 from app.clients.llm import LLMError
 from app.db.models import Candidate, CandidateCriterionResult, Criterion, DiscoveryRun, Thesis
 from app.drafting.citations import split_sentences
@@ -449,6 +449,14 @@ async def gate_step(ctx: StepContext) -> dict[str, Any]:
 # --- 3. Enrich -----------------------------------------------------------------------------
 
 
+def _drop_none(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {k: _drop_none(v) for k, v in value.items() if v is not None}
+    if isinstance(value, list):
+        return [_drop_none(v) for v in value]
+    return value
+
+
 def _trim_enriched(data: dict[str, Any]) -> dict[str, Any]:
     out = {k: data[k] for k in ("crustdata_company_id", *ENRICH_FIELDS) if k in data}
     headcount = dict(out.get("headcount") or {})
@@ -483,7 +491,11 @@ async def enrich_step(ctx: StepContext) -> dict[str, Any]:
 
     paid = factories.crustdata(recorder=ctx.recorder, cache=ctx.cache)
     try:
-        results, record = await paid.enrich_company(ids, fields=ENRICH_FIELDS)
+        # Read as plain JSON, through the client's cache and recorder: live responses
+        # send some funding fields (e.g. `lead_investors`) as a comma-separated string,
+        # which the typed model rejects after the call has been paid for.
+        body = {"crustdata_company_ids": ids, "fields": list(ENRICH_FIELDS)}
+        raw, record = await paid._post(COMPANY_ENRICH, body)
         enrich_source = await records.add_source(
             ctx.session,
             workspace_id=ctx.run.workspace_id,
@@ -495,9 +507,9 @@ async def enrich_step(ctx: StepContext) -> dict[str, Any]:
         )
         enriched: dict[str, dict[str, Any]] = {}
         wanted = set(ids)
-        for res in results:
-            for match in res.matches:
-                data = match.company_data.model_dump(mode="json", exclude_none=True)
+        for res in raw or []:
+            for match in (res or {}).get("matches") or []:
+                data = _drop_none((match or {}).get("company_data") or {})
                 cid = records.company_id(data)
                 if cid in wanted and str(cid) not in enriched:  # attach by id only
                     enriched[str(cid)] = _trim_enriched(data)

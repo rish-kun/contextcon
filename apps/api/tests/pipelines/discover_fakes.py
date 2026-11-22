@@ -178,8 +178,15 @@ def _enrich(
                     "funding_date": "2024-03-01",
                     "amount_usd": 4000000,
                     "investors": ["Example Ventures (fixture)"],
+                    # Live responses send this as a comma-separated string.
+                    "lead_investors": "Example Ventures (fixture), Other Fund (fixture)",
                 },
-                {"round_type": "seed", "date": "2022-06-15", "amount_usd": 500000, "investors": []},
+                {
+                    "round_type": "seed",
+                    "date": "2022-06-15",
+                    "amount_usd": 500000,
+                    "investors": ["Seed Partners (fixture)", "Angel Group (fixture)"],
+                },
                 {"round_type": "angel", "amount_usd": 100000},  # undated: never shown
             ],
         }
