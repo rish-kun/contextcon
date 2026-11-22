@@ -13,7 +13,7 @@ from app.api._base import fixtures_enabled, make_router
 from app.api.schemas.auth import LoginIn, UserOut
 from app.api.schemas.common import ErrorOut
 from app.auth.config import get_auth_settings
-from app.auth.cookies import clear_session_cookie, client_ip, set_session_cookie
+from app.auth.cookies import clear_session_cookie, client_ip_info, set_session_cookie
 from app.auth.deps import CurrentUser
 from app.auth.ratelimit import VerifierBusy, login_limiter
 from app.auth.sessions import (
@@ -50,9 +50,11 @@ async def login(body: LoginIn, request: Request, response: Response) -> UserOut:
         response.set_cookie(SESSION_COOKIE, "fixture", httponly=True, samesite="lax")
         return fixtures.USER
     settings = get_auth_settings()
-    email, ip = normalize_email(body.email), client_ip(request, settings)
+    email = normalize_email(body.email)
+    ip, ip_trusted = client_ip_info(request, settings)
     limiter = login_limiter()
-    wait, reservation = limiter.acquire(email, ip)  # counts as a failure until refunded
+    # Counts as a failure until refunded.
+    wait, reservation = limiter.acquire(email, ip, ip_trusted=ip_trusted)
     if reservation is None:
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
@@ -64,7 +66,7 @@ async def login(body: LoginIn, request: Request, response: Response) -> UserOut:
         try:
             user = await authenticate(db, email, body.password)
         except VerifierBusy:
-            limiter.refund(email, ip, reservation)  # no password was checked
+            limiter.refund(reservation)  # no password was checked
             raise HTTPException(
                 status.HTTP_503_SERVICE_UNAVAILABLE,
                 "Too many sign-ins at once. Try again in a moment.",
@@ -76,7 +78,7 @@ async def login(body: LoginIn, request: Request, response: Response) -> UserOut:
         token, _ = await create_session(db, user, ttl=ttl)
         signed_in = AuthUser.of(user)
         await db.commit()
-    limiter.succeeded(email, ip, reservation)
+    limiter.succeeded(reservation)
     set_session_cookie(response, request, token, ttl, settings)
     return _user_out(signed_in)
 

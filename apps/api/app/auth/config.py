@@ -3,7 +3,7 @@
 import os
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.settings import ENV_FILE
@@ -34,10 +34,15 @@ class AuthSettings(BaseSettings):
     min_password_length: int = Field(default=10, ge=8)
     # How many trusted proxies append to `X-Forwarded-For` in front of the API. The client
     # IP is the entry that many places from the right; 0 ignores the header and uses the
-    # socket peer. Deployed behind the web proxy on Cloud Run: 2 (the web proxy forwards
-    # only the address Google's front end appended, then the API's front end appends the
-    # web service's address).
+    # socket peer. On Cloud Run: 1 (Google's front end appends the caller's address), so a
+    # direct caller is limited by its own IP. Browser traffic through the web proxy is
+    # identified by the signed `X-DealProof-Client-IP` instead (see `app.auth.proxy`).
     trusted_proxy_hops: int = Field(default=0, ge=0)
+    # Shared with the web proxy, which signs the browser's IP with it. Unset: forwarded
+    # client IPs are never trusted and every caller is limited by its own address.
+    proxy_shared_secret: SecretStr = Field(
+        default=SecretStr(""), validation_alias="PROXY_SHARED_SECRET"
+    )
 
     @property
     def on_cloud_run(self) -> bool:

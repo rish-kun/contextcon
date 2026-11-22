@@ -1,23 +1,30 @@
 """Sign-in attempt limiter (in-process, sliding window) and the Argon2 concurrency cap.
 
-Four keys are counted per attempt, each with its own limit:
+Up to four keys are counted per attempt, each with its own limit:
 
 - (email, client IP): tight. Stops one client guessing one account.
 - email: looser. Rotating or spoofed client IPs cannot guess one password faster than
   this. Someone who knows an email can lock it out of password sign-in for one window
   (existing sessions keep working).
 - client IP: across every email. A stream of distinct, made-up emails from one client
-  would otherwise get a fresh budget (and an Argon2 check) on every request.
+  would otherwise get a fresh budget (and an Argon2 check) on every request. Counted only
+  when the caller says the IP is really the client's (`ip_trusted`); otherwise every
+  browser behind one proxy would share it.
 - global: across every client. Bounds the total Argon2 work an attacker with many IPs
-  can force. When it trips, password sign-in pauses for everyone until the window
-  slides (existing sessions keep working); the default is set well above real traffic.
+  can force. When it trips, sign-in pauses for new (email, IP) pairs until the window
+  slides; the default is set well above real traffic.
+
+An (email, IP) pair that signed in successfully is remembered for `known_ttl_seconds` and
+skips the per-IP and global keys, so a flood from elsewhere does not lock returning users
+out. IPv6 addresses are grouped by /64, since one host usually controls a whole /64.
 
 `acquire` checks and reserves an attempt in one step under the lock, so a burst of
 parallel guesses cannot all pass the check before the first failure is recorded. A
 successful sign-in refunds its reservation everywhere and clears the (email, IP) key.
 
 Memory is bounded: emptied keys are dropped, a full sweep of expired keys runs at most
-once per window, and at most `max_keys` keys are kept (least recently hit evicted first).
+once per window, and at most `max_keys` keys (and known pairs) are kept, least recently
+used evicted first.
 
 Counts live in one process. With several API instances each keeps its own, so the
 effective limits are multiplied by the instance count. That is accepted for the demo
@@ -25,14 +32,37 @@ effective limits are multiplied by the instance count. That is accepted for the 
 """
 
 import asyncio
+import ipaddress
 import math
 import threading
 import time
 from collections import OrderedDict, deque
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 
 Key = tuple[str, ...]
+
+
+def ip_bucket(ip: str) -> str:
+    """The unit an IP is counted under: itself for IPv4, its /64 for IPv6."""
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return ip
+    if addr.version == 6:
+        return str(ipaddress.ip_network(f"{addr}/64", strict=False))
+    return str(addr)
+
+
+@dataclass(frozen=True, slots=True)
+class Reservation:
+    """One reserved attempt: when, and which keys it was counted under."""
+
+    email: str
+    ip: str
+    at: float
+    keys: tuple[Key, ...]
 
 
 class LoginRateLimiter:
@@ -45,6 +75,7 @@ class LoginRateLimiter:
         per_ip: int | None = None,
         global_limit: int | None = None,
         max_keys: int = 100_000,
+        known_ttl_seconds: float = 30 * 24 * 3600,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self.per_client = per_client
@@ -53,18 +84,32 @@ class LoginRateLimiter:
         self.global_limit = global_limit
         self.window = window_seconds
         self.max_keys = max_keys
+        self.known_ttl = known_ttl_seconds
         self._clock = clock
         # Least recently hit first, so eviction drops the stalest key.
         self._failures: OrderedDict[Key, deque[float]] = OrderedDict()
+        # (email, ip bucket) pairs that signed in, with when the memory expires.
+        self._known: OrderedDict[tuple[str, str], float] = OrderedDict()
         self._last_sweep = clock()
         self._lock = threading.Lock()
 
-    def _keys(self, email: str, ip: str) -> list[tuple[Key, int]]:
+    def _is_known(self, email: str, ip: str, now: float) -> bool:
+        expires = self._known.get((email, ip))
+        if expires is None:
+            return False
+        if expires <= now:
+            del self._known[(email, ip)]
+            return False
+        return True
+
+    def _keys(self, email: str, ip: str, ip_trusted: bool, now: float) -> list[tuple[Key, int]]:
         keys: list[tuple[Key, int]] = [
             (("client", email, ip), self.per_client),
             (("email", email), self.per_email),
         ]
-        if self.per_ip is not None:
+        if self._is_known(email, ip, now):
+            return keys
+        if self.per_ip is not None and ip_trusted:
             keys.append((("ip", ip), self.per_ip))
         if self.global_limit is not None:
             keys.append((("global",), self.global_limit))
@@ -81,12 +126,15 @@ class LoginRateLimiter:
         return hits
 
     def _sweep(self, now: float) -> None:
-        """Drop every expired key, at most once per window."""
+        """Drop every expired key and known pair, at most once per window."""
         if now - self._last_sweep < self.window:
             return
         self._last_sweep = now
         for key in list(self._failures):
             self._prune(key, now)
+        for pair, expires in list(self._known.items()):
+            if expires <= now:
+                del self._known[pair]
 
     def _hit(self, key: Key, now: float) -> None:
         hits = self._failures.get(key)
@@ -98,9 +146,9 @@ class LoginRateLimiter:
         while len(self._failures) > self.max_keys:
             self._failures.popitem(last=False)
 
-    def _wait(self, email: str, ip: str, now: float) -> float:
+    def _wait(self, keys: list[tuple[Key, int]], now: float) -> float:
         wait = 0.0
-        for key, limit in self._keys(email, ip):
+        for key, limit in keys:
             hits = self._prune(key, now)
             if len(hits) >= limit:
                 wait = max(wait, hits[len(hits) - limit] + self.window - now)
@@ -111,61 +159,72 @@ class LoginRateLimiter:
         return max(1, math.ceil(wait)) if wait > 0 else None
 
     def __len__(self) -> int:
-        """Keys currently held (for tests and monitoring)."""
+        """Failure keys currently held (for tests and monitoring)."""
         with self._lock:
             return len(self._failures)
 
-    def retry_after(self, email: str, ip: str) -> int | None:
+    def retry_after(self, email: str, ip: str, *, ip_trusted: bool = True) -> int | None:
         """Seconds until another attempt is allowed, or None if allowed now."""
+        now, ip = self._clock(), ip_bucket(ip)
         with self._lock:
-            return self._seconds(self._wait(email, ip, self._clock()))
+            return self._seconds(self._wait(self._keys(email, ip, ip_trusted, now), now))
 
-    def acquire(self, email: str, ip: str) -> tuple[int | None, float | None]:
+    def acquire(
+        self, email: str, ip: str, *, ip_trusted: bool = True
+    ) -> tuple[int | None, Reservation | None]:
         """Atomically check and reserve one attempt (counted as a failure until
         `succeeded` or `refund` gives it back). Returns (retry_after, None) when
         limited, else (None, reservation)."""
-        now = self._clock()
+        now, ip = self._clock(), ip_bucket(ip)
         with self._lock:
             self._sweep(now)
-            wait = self._wait(email, ip, now)
+            keys = self._keys(email, ip, ip_trusted, now)
+            wait = self._wait(keys, now)
             if wait > 0:
                 return self._seconds(wait), None
-            for key, _ in self._keys(email, ip):
+            for key, _ in keys:
                 self._hit(key, now)
-            return None, now
+            return None, Reservation(email, ip, now, tuple(key for key, _ in keys))
 
-    def _refund(self, email: str, ip: str, reservation: float) -> None:
-        for key, _ in self._keys(email, ip):
+    def _refund(self, reservation: Reservation) -> None:
+        for key in reservation.keys:
             hits = self._failures.get(key)
             if hits is None:
                 continue
             try:
-                hits.remove(reservation)
+                hits.remove(reservation.at)
             except ValueError:
                 pass
             if not hits:
                 del self._failures[key]
 
-    def refund(self, email: str, ip: str, reservation: float) -> None:
+    def refund(self, reservation: Reservation) -> None:
         """Give back a reservation for an attempt that never checked a password."""
         with self._lock:
-            self._refund(email, ip, reservation)
+            self._refund(reservation)
 
-    def succeeded(self, email: str, ip: str, reservation: float) -> None:
-        """Refund a successful attempt's reservation and clear the (email, IP) failures."""
+    def succeeded(self, reservation: Reservation) -> None:
+        """Refund a successful attempt, clear the (email, IP) failures and remember the
+        pair as known."""
+        email, ip = reservation.email, reservation.ip
         with self._lock:
-            self._refund(email, ip, reservation)
+            self._refund(reservation)
             self._failures.pop(("client", email, ip), None)
+            self._known[(email, ip)] = self._clock() + self.known_ttl
+            self._known.move_to_end((email, ip))
+            while len(self._known) > self.max_keys:
+                self._known.popitem(last=False)
 
-    def record_failure(self, email: str, ip: str) -> None:
-        now = self._clock()
+    def record_failure(self, email: str, ip: str, *, ip_trusted: bool = True) -> None:
+        now, ip = self._clock(), ip_bucket(ip)
         with self._lock:
-            for key, _ in self._keys(email, ip):
+            for key, _ in self._keys(email, ip, ip_trusted, now):
                 self._hit(key, now)
 
     def reset(self) -> None:
         with self._lock:
             self._failures.clear()
+            self._known.clear()
 
 
 _limiter: LoginRateLimiter | None = None

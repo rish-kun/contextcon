@@ -17,6 +17,8 @@ from tests.db.fixtures import db_url, pg_server, session, sm  # noqa: F401
 def _auth_env(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("DEALPROOF_FIXTURES", raising=False)
     monkeypatch.delenv("K_SERVICE", raising=False)
+    monkeypatch.delenv("APP_ENV", raising=False)
+    monkeypatch.setenv("PROXY_SHARED_SECRET", "")  # also overrides a local .env
     monkeypatch.setenv("AUTH_COOKIE_SECURE", "false")
     _reset_auth_state()
     yield

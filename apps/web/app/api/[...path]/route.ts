@@ -5,9 +5,14 @@
  * stays first-party. Hop-by-hop headers are stripped both ways (`lib/api/proxy-rules.ts`).
  * Request and response bodies are streamed, never buffered, so uploads and server-sent
  * events (`/api/runs/{id}/events`) work through it.
+ *
+ * The browser's IP goes upstream only as `X-DealProof-Client-IP`, signed with
+ * `PROXY_SHARED_SECRET` (`lib/api/proxy-auth.ts`); `X-Forwarded-For` is not forwarded, so
+ * the API never trusts an address a caller wrote.
  */
 import type { NextRequest } from "next/server";
 
+import { addSignedClientIp } from "@/lib/api/proxy-auth";
 import { downstreamResponseHeaders, upstreamRequestHeaders } from "@/lib/api/proxy-rules";
 
 export const dynamic = "force-dynamic";
@@ -25,10 +30,7 @@ async function proxy(request: NextRequest, context: Context): Promise<Response> 
   const target = `${API_BASE_URL}/${path.map(encodeURIComponent).join("/")}${request.nextUrl.search}`;
 
   const headers = upstreamRequestHeaders(request.headers);
-  // The right-most X-Forwarded-For entry is the one our own front end appended (Cloud Run);
-  // anything left of it was written by the client. Forward only that address.
-  const clientIp = request.headers.get("x-forwarded-for")?.split(",").pop()?.trim();
-  if (clientIp) headers.set("x-forwarded-for", clientIp);
+  addSignedClientIp(headers, request.headers, process.env.PROXY_SHARED_SECRET?.trim());
   headers.set("x-forwarded-host", request.nextUrl.host);
   headers.set("x-forwarded-proto", request.nextUrl.protocol.replace(":", ""));
 
