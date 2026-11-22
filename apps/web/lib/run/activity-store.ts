@@ -35,12 +35,14 @@ export function appendActivities(current: Activity[], incoming: Activity[]): Act
   return changed ? [...bySeq.values()].sort((a, b) => a.seq - b.seq) : current;
 }
 
-/** The claim a step checks, from its key (`checks.claim:{id}`, `recheck.facts:{id}`). */
+/**
+ * The claim a step checks, from its key: `checks.claim:{id}`, `recheck.facts:{id}`. A
+ * re-check of the same claim carries a suffix (`…@2` after a pick, `…~1` when deferred).
+ */
 export function claimStepId(key: string | null | undefined): string | null {
   if (!key) return null;
-  const split = key.indexOf(":");
-  if (split < 0) return null;
-  return /(^|\.)(claim|facts)$/.test(key.slice(0, split)) ? key.slice(split + 1) : null;
+  const match = /(?:^|\.)(?:claim|facts):([^@~:]+)(?:[@~]\d+)?$/.exec(key);
+  return match ? match[1] : null;
 }
 
 /** The claim an event is about: its `ref`, or failing that the claim its step checks. */

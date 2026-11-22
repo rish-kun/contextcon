@@ -35,8 +35,8 @@ test("no run, or a run that does not touch the claim, leaves the stored state", 
   assert.equal(live("a", { runActive: false }), null);
   assert.equal(live("a", { kind: "recheck" }), null);
   assert.equal(live("a", { statuses: { a: "supported" } }), null);
-  assert.equal(live("a").phase, "queued");
-  assert.equal(live("a").ahead, null);
+  // A run with no step for the claim says nothing about it, even a verify run.
+  assert.equal(live("a"), null);
 });
 
 test("claim-scoped events move the phase and collect what was read", () => {
@@ -57,4 +57,13 @@ test("claim-scoped events move the phase and collect what was read", () => {
   events.push({ ...base, seq: 5, kind: "finding", label: "Settled", subject: "claim", source, items: [{ id: "a", stage: "settled", status: "conflicting_evidence", snippet: "closed its Series A" }], ref });
   const settled = live("a", { steps, events });
   assert.deepEqual([settled.phase, settled.status, settled.evidence.snippet, settled.fresh], ["settled", "conflicting_evidence", "closed its Series A", true]);
+});
+
+test("a re-check step with a suffix is still this claim's step", () => {
+  const done = { ...step("a", "done", 1) };
+  const again = { ...step("a", "running", 5, "Checking: funding"), id: "s-a2", key: "checks.claim:a@2" };
+  const deferred = { ...step("b", "pending", 6), key: "checks.claim:b~1" };
+  const state = live("a", { statuses: { a: "cannot_verify", b: "not_checked" }, steps: [done, again, deferred] });
+  assert.deepEqual([state.phase, state.line], ["gathering", "Checking: funding"]);
+  assert.deepEqual([live("b", { steps: [done, again, deferred] }).phase, live("b", { steps: [done, again, deferred] }).ahead], ["queued", 1]);
 });

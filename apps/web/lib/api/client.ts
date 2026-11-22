@@ -506,8 +506,9 @@ export function subscribeRun(
     es.addEventListener("activity", (e) => {
       emitActivity(JSON.parse((e as MessageEvent<string>).data) as Activity);
     });
-    // The server writes `: live` as a comment, which EventSource does not surface, so the
-    // API also names it as an event. Until either is seen, age decides (see the run feed).
+    // The server marks the end of the backlog with a `: live` comment, which EventSource
+    // does not surface. A named `live` event is honoured if one is ever sent; otherwise the
+    // run feed tells backlog from live by each event's own age.
     es.addEventListener("live", goLive);
     es.addEventListener("run", (e) => {
       reconnects = 0;

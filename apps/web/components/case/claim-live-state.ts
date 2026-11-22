@@ -62,9 +62,10 @@ const SETTLED_STEP = new Set<StepOut["state"]>(["done", "failed", "skipped_budge
 
 // Kept local (not imported from the store) so this module has no runtime imports and
 // its rules can be tested on their own.
-const isClaimStep = (key: string) => /(^|\.)(claim|facts):/.test(key);
+// A re-check of the same claim carries a suffix: `checks.claim:{id}@2`, `…~1`.
 const stepClaimId = (key: string | null) =>
-  key && isClaimStep(key) ? key.slice(key.indexOf(":") + 1) : null;
+  key ? (/(?:^|\.)(?:claim|facts):([^@~:]+)(?:[@~]\d+)?$/.exec(key)?.[1] ?? null) : null;
+const isClaimStep = (key: string) => stepClaimId(key) !== null;
 const claimOfEvent = (event: Activity) =>
   event.ref?.type === "claim" ? event.ref.id : stepClaimId(event.step_key);
 
@@ -95,7 +96,11 @@ export function claimLiveState(
   const claim = detail.claims.find((c) => c.id === claimId);
   if (!claim || !run) return null;
 
-  const step = run.steps.find((s) => stepClaimId(s.key) === claimId);
+  // A claim can have more than one check step in a run (a re-check after a pick). The one
+  // that counts is the one still to settle; failing that, the latest.
+  const steps = run.steps.filter((s) => stepClaimId(s.key) === claimId);
+  const step =
+    steps.find((s) => s.state === "running") ?? steps.find((s) => s.state === "pending") ?? steps.at(-1);
   const act = view.claims.get(claimId);
   const own = events.filter((event) => claimOfEvent(event) === claimId);
   const sources = view.sources.filter((row) => row.claimId === claimId);
@@ -187,10 +192,7 @@ export function claimLiveState(
     return { ...base, phase: "queued", ahead };
   }
 
-  // A verify run checks every claim, but this claim's check step does not exist yet.
-  // Only a claim with no result so far is shown as queued; one with a stored status keeps it.
-  if (run.kind === "verify" && claim.status === "not_checked") {
-    return { ...base, phase: "queued", ahead: null };
-  }
+  // No step and no event names this claim: the run may not touch it at all (a single-claim
+  // check, a recheck), so the row keeps its stored state until its own step exists.
   return null;
 }
