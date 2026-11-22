@@ -91,6 +91,7 @@ import {
   type SellerRequest,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { ExplainersSection } from "./explainers-section";
 import * as sample from "./sample-data";
 
 const SECTIONS = [
@@ -107,6 +108,7 @@ const SECTIONS = [
   ["run", "Run progress"],
   ["cost", "Cost readout"],
   ["diff", "Version diff"],
+  ["explainers", "Explainers"],
   ["approval", "Approval"],
   ["sound", "Sound"],
 ] as const;
@@ -1131,6 +1133,7 @@ export function Gallery() {
         <RunSection />
         <CostSection />
         <DiffSection />
+        <ExplainersSection />
         <ApprovalSection />
         <SoundSection />
 
