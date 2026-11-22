@@ -38,6 +38,14 @@ def _finish(proc: subprocess.Popen[str], ok: bool = True) -> str:
     return err
 
 
+def _head(url: str) -> str:
+    from alembic.script import ScriptDirectory
+
+    head = ScriptDirectory.from_config(pg.alembic_config(url)).get_current_head()
+    assert head is not None
+    return head
+
+
 async def _revision(url: str) -> str:
     conn = await asyncpg.connect(pg._asyncpg_dsn(url))
     try:
@@ -62,6 +70,28 @@ async def _hold_worker_locks(url: str, seconds: float, proc_env: dict[str, str])
     return _finish(proc, ok=proc_env.get("EXPECT_OK", "1") == "1")
 
 
+async def _wait_for_lock_waiter(
+    conn: asyncpg.Connection, proc: subprocess.Popen[str], timeout: float = 60
+) -> None:
+    """Return once another session waits for the migration advisory lock."""
+    # An advisory lock on a bigint key is stored as (classid, objid) = (high, low) 32 bits.
+    key = LOCK_KEY & 0xFFFFFFFFFFFFFFFF
+    high, low = key >> 32, key & 0xFFFFFFFF
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        assert proc.poll() is None, f"upgrade exited without waiting: {proc.communicate()[1]}"
+        waiting = await conn.fetchval(
+            "SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND NOT granted"
+            " AND classid::bigint = $1 AND objid::bigint = $2 AND objsubid = 1",
+            high,
+            low,
+        )
+        if waiting:
+            return
+        await asyncio.sleep(0.1)
+    raise AssertionError("upgrade never waited for the migration lock")
+
+
 async def _version_table_exists(url: str) -> bool:
     conn = await asyncpg.connect(pg._asyncpg_dsn(url))
     try:
@@ -78,8 +108,9 @@ def test_upgrade_waits_for_the_lock_then_is_a_no_op(pg_server: str) -> None:
             try:
                 await holder.execute("SELECT pg_advisory_lock($1)", LOCK_KEY)
                 proc = _start_upgrade(url)
-                await asyncio.sleep(3)
-                assert proc.poll() is None, "upgrade did not wait for the lock"
+                # Wait until the upgrade is really queued on the lock; process start-up
+                # time varies too much for a fixed sleep.
+                await _wait_for_lock_waiter(holder, proc)
                 assert not await _version_table_exists(url)
                 await holder.execute("SELECT pg_advisory_unlock($1)", LOCK_KEY)
                 return proc
@@ -115,7 +146,7 @@ def test_upgrade_retries_when_live_row_locks_block_ddl(pg_server: str) -> None:
         env = {"MIGRATION_LOCK_TIMEOUT": "300ms", "MIGRATION_ATTEMPTS": "10"}
         err = asyncio.run(_hold_worker_locks(url, 2.5, env))
         assert "rolled back on lock_timeout" in err
-        assert asyncio.run(_revision(url)) == "0004"
+        assert asyncio.run(_revision(url)) == _head(url)
 
 
 def test_upgrade_gives_up_after_its_attempts_and_leaves_the_schema_unchanged(
