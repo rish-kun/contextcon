@@ -1,8 +1,9 @@
 "use client";
 
 import { Check, ChevronDown } from "lucide-react";
-import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
-import { isFixtureMode, subscribeRun, type RunOut, type StepOut } from "@/lib/api/client";
+import Link from "next/link";
+import { useId, useState } from "react";
+import type { RunOut, ShortlistItemOut, StepOut } from "@/lib/api/client";
 import {
   formatCredits,
   formatDateTime,
@@ -13,57 +14,60 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { asLiveSeed, useRunActivity } from "@/lib/run/use-run-activity";
 import { HatchedBlock, RunProgress } from "@/components/dealproof";
-import { formatModelUsd, isTerminal, mergeRunEvent, runDuration, toRun } from "./adapt";
+import { RunView } from "@/components/run/run-view";
+import { formatModelUsd, runDuration, toRun } from "./adapt";
+import { CandidateStream } from "./candidate-stream";
 import { ErrorNotice } from "./notice";
 
 /**
- * A run in progress, followed over server-sent events (with the client's polling
- * fallback). The step list is the progress: there is no bar and no percentage.
- * `onSettled` fires once, when the run reports done or failed.
+ * A search run, followed live. Steps, the "now" line, the Crustdata tally and the sources
+ * sit around the candidates as they are found, dropped, enriched and ranked. Every row and
+ * figure is a stored event of the run; there is no bar and no percentage.
+ *
+ * `onSettled` fires once, when the run reports done or failed. Once the thesis has been
+ * read again, pass its shortlist as `settled`: the side columns fold away and each
+ * candidate row becomes its card in place, so the result is not swapped in.
  */
 export function LiveRun({
   seed,
+  thesisId,
   onSettled,
+  settled,
+  finishedRun,
 }: {
   seed: RunOut;
+  thesisId: string;
   onSettled: (run: RunOut) => void;
+  settled?: ShortlistItemOut[];
+  /** The run as the thesis now records it, for the overview's cost line. */
+  finishedRun?: RunOut | null;
 }) {
-  const [run, setRun] = useState(seed);
-  const [watchedFrom] = useState(() => Date.now());
-  const [now, setNow] = useState(watchedFrom);
-  const settled = useRef(false);
-  const settle = useEffectEvent(onSettled);
-
-  useEffect(() => {
-    return subscribeRun(seed.id, (event) => {
-      setRun((current) => mergeRunEvent(current, event));
-      if (event.event === "run" && isTerminal(event.data) && !settled.current) {
-        settled.current = true;
-        settle(event.data);
-      }
-    });
-  }, [seed.id]);
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // A replayed fixture run carries an old start time, so its clock starts when watching does.
-  const startedAt = isFixtureMode ? watchedFrom : Date.parse(run.created_at);
-  const elapsed = Number.isFinite(startedAt) ? Math.max(0, (now - startedAt) / 1000) : 0;
+  const { feed, setPaused } = useRunActivity(seed, { onSettled });
+  const run = feed.run ?? asLiveSeed(seed);
 
   return (
     <div className="flex flex-col gap-3">
-      <RunProgress run={toRun(run, elapsed)} />
-      {run.steps.length === 0 ? (
-        <p className="px-4 text-dense text-ink-secondary">Waiting for the first step</p>
-      ) : null}
-      <p className="px-4 text-xs text-ink-muted">
-        The shortlist appears here when the search finishes. You can leave this page; the run
-        keeps its steps.
-      </p>
+      <RunView
+        run={run}
+        feed={feed}
+        onPause={setPaused}
+        logHref={`/app/discover/${encodeURIComponent(thesisId)}/log`}
+        findings={(context) => (
+          <CandidateStream
+            context={context}
+            thesisId={thesisId}
+            settled={run.state === "done" ? settled : undefined}
+            run={finishedRun}
+          />
+        )}
+      />
+      {run.state === "done" ? null : (
+        <p className="px-4 text-xs text-ink-muted">
+          You can leave this page. The run keeps its steps and what it has found
+        </p>
+      )}
     </div>
   );
 }
@@ -247,6 +251,14 @@ export function RunSummary({ run, className }: { run: RunOut; className?: string
 
         {finishedAt ? (
           <p className="font-mono text-2xs text-ink-muted">Finished {finishedAt}</p>
+        ) : null}
+        {run.thesis_id ? (
+          <Link
+            href={`/app/discover/${encodeURIComponent(run.thesis_id)}/log`}
+            className="self-start rounded-xs text-dense text-accent underline underline-offset-2 transition-colors hover:text-accent-hover"
+          >
+            Run log
+          </Link>
         ) : null}
       </div>
 

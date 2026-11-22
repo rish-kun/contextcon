@@ -3,7 +3,6 @@
 import { BadgeCheck, CircleQuestionMark, Play, Printer, RotateCw } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import type { CaseDetail } from "@/lib/api/client";
 import { formatDate, plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -11,12 +10,12 @@ import {
   CostReadout,
   CriteriaStrip,
   DispositionStamp,
-  RunProgress,
   StatusCounts,
 } from "@/components/dealproof";
 import { Button, Icon } from "@/components/ui";
-import { statusCounts, toCaseCost, toFit, toRun } from "./adapt";
+import { statusCounts, toCaseCost, toFit } from "./adapt";
 import { useCase } from "./case-context";
+import { CaseRun } from "./case-run";
 import { ProfileBand, profileSummary } from "./profile-band";
 
 /** Why fit carries no number, in a few words. The longer reason is the hint. */
@@ -172,40 +171,6 @@ function ClaimsCell({ detail, basePath }: { detail: CaseDetail; basePath: string
   );
 }
 
-function LiveRun() {
-  const { run, runActive, runError, basePath } = useCase();
-  // Null until the browser has hydrated: the server and the first client render must agree,
-  // so the clock starts from the run's own start time and ticks only after mount.
-  const [now, setNow] = useState<number | null>(null);
-  // The finished line stays only for a run this session watched, so a past run adds no noise.
-  const [watched, setWatched] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!runActive) return;
-    const first = setTimeout(() => setNow(Date.now()), 0);
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => {
-      clearTimeout(first);
-      clearInterval(id);
-    };
-  }, [runActive]);
-
-  if (runActive && run && watched !== run.id) setWatched(run.id);
-
-  return (
-    <>
-      {runError ? (
-        <p role="alert" className="text-dense text-contradicted">
-          The run did not start: {runError}
-        </p>
-      ) : null}
-      {run && (runActive || watched === run.id) ? (
-        <RunProgress run={toRun(run, now ?? new Date(run.created_at).getTime())} logHref={`${basePath}/cost`} className="print:hidden" />
-      ) : null}
-    </>
-  );
-}
-
 /**
  * The case header: who the company is, whether that is confirmed, what the screening
  * says, how much of it could be assessed, and what did not run. It is the same on every
@@ -275,7 +240,7 @@ export function CaseHeader({ detail }: { detail: CaseDetail }) {
 
       <ProfileBand detail={detail} />
 
-      <LiveRun />
+      <CaseRun />
     </header>
   );
 }

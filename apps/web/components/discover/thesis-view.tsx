@@ -132,7 +132,9 @@ export function ThesisView({ thesisId, live }: { thesisId: string; live: boolean
   async function settled(run: RunOut) {
     playCue(run.state === "failed" ? "error" : "run_finished");
     setLoad(await fetchThesis());
-    setLiveSeed(null);
+    // A finished run stays on screen and folds into its shortlist; a stopped one hands
+    // over to the failed view, where resuming is explicit.
+    if (run.state === "failed") setLiveSeed(null);
     if (startLive) router.replace(`/app/discover/${encodeURIComponent(thesisId)}`, { scroll: false });
   }
 
@@ -249,7 +251,30 @@ export function ThesisView({ thesisId, live }: { thesisId: string; live: boolean
     return (
       <DiscoverPage>
         {header}
-        {seed ? <LiveRun key={seed.id} seed={seed} onSettled={settled} /> : null}
+        {seed ? (
+          <LiveRun
+            key={seed.id}
+            seed={seed}
+            thesisId={thesis.id}
+            onSettled={settled}
+            settled={run && run.id === seed.id && run.state === "done" ? thesis.shortlist : undefined}
+            finishedRun={run}
+          />
+        ) : null}
+        {run && seed && run.id === seed.id && run.state === "done" ? (
+          <div className="flex flex-col items-start gap-4">
+            <BudgetNotice run={run} />
+            <Button
+              variant="quiet"
+              onClick={() => {
+                setLiveSeed(null);
+                setEditing(true);
+              }}
+            >
+              Edit criteria
+            </Button>
+          </div>
+        ) : null}
       </DiscoverPage>
     );
   }

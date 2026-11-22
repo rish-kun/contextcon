@@ -35,6 +35,19 @@ export function appendActivities(current: Activity[], incoming: Activity[]): Act
   return changed ? [...bySeq.values()].sort((a, b) => a.seq - b.seq) : current;
 }
 
+/** The claim a step checks, from its key (`checks.claim:{id}`, `recheck.facts:{id}`). */
+export function claimStepId(key: string | null | undefined): string | null {
+  if (!key) return null;
+  const split = key.indexOf(":");
+  if (split < 0) return null;
+  return /(^|\.)(claim|facts)$/.test(key.slice(0, split)) ? key.slice(split + 1) : null;
+}
+
+/** The claim an event is about: its `ref`, or failing that the claim its step checks. */
+export function claimOfEvent(event: Activity): string | null {
+  return event.ref?.type === "claim" ? event.ref.id : claimStepId(event.step_key);
+}
+
 /* ───────────────────────── The view ───────────────────────── */
 
 export type OrbWork = "working" | "searching" | "connecting" | "weaving" | "solving" | "composing";
@@ -115,7 +128,7 @@ export interface CompanyRow extends ActivityItem {
   seq: number;
   /** Position inside its first event, for the 60 ms stagger. */
   slot: number;
-  marks: { funding?: MarkState; headcount?: MarkState; hiring?: MarkState };
+  marks: Record<string, MarkState>;
 }
 
 export interface RoundRow extends ActivityItem {
@@ -398,8 +411,9 @@ export function deriveView(events: Activity[]): RunActivityView {
     }
 
     // A status or source about one claim is that claim's live sub-line.
-    if (event.ref?.type === "claim" && (event.kind === "status" || event.kind === "source")) {
-      const claim = claimOf(event.ref.id);
+    const aboutClaim = claimOfEvent(event);
+    if (aboutClaim && (event.kind === "status" || event.kind === "source")) {
+      const claim = claimOf(aboutClaim);
       if (claim.stage === "queued" || claim.stage === "checking") {
         claim.line = event.label;
         claim.progress = event.progress;
@@ -435,7 +449,7 @@ export function deriveView(events: Activity[]): RunActivityView {
           label: event.label,
           detail: event.detail,
           source,
-          claimId: event.ref?.type === "claim" ? event.ref.id : null,
+          claimId: aboutClaim,
         });
         if (source.state === "read") view.sourceCounts.read += 1;
         else view.sourceCounts.failed += 1;

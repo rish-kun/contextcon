@@ -60,8 +60,13 @@ export interface ClaimLive {
 
 const SETTLED_STEP = new Set<StepOut["state"]>(["done", "failed", "skipped_budget"]);
 
+// Kept local (not imported from the store) so this module has no runtime imports and
+// its rules can be tested on their own.
 const isClaimStep = (key: string) => /(^|\.)(claim|facts):/.test(key);
-const stepClaimId = (key: string) => (isClaimStep(key) ? key.slice(key.indexOf(":") + 1) : null);
+const stepClaimId = (key: string | null) =>
+  key && isClaimStep(key) ? key.slice(key.indexOf(":") + 1) : null;
+const claimOfEvent = (event: Activity) =>
+  event.ref?.type === "claim" ? event.ref.id : stepClaimId(event.step_key);
 
 function factText(item: ActivityItem): string {
   return (
@@ -92,7 +97,7 @@ export function claimLiveState(
 
   const step = run.steps.find((s) => stepClaimId(s.key) === claimId);
   const act = view.claims.get(claimId);
-  const own = events.filter((event) => event.ref?.type === "claim" && event.ref.id === claimId);
+  const own = events.filter((event) => claimOfEvent(event) === claimId);
   const sources = view.sources.filter((row) => row.claimId === claimId);
 
   let factCount = 0;

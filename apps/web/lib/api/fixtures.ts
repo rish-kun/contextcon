@@ -34,7 +34,6 @@ import type {
   ClaimOut,
 } from "./client";
 import { ApiError } from "./client";
-import { buildFixtureActivities } from "@/lib/run/fixture-activity";
 import type { Activity, ActivityPage } from "@/lib/run/types";
 
 interface FixtureData {
@@ -51,8 +50,8 @@ interface FixtureData {
   message: Record<"draft" | "edited" | "approved" | "suppressed", MessageOut>;
   documents: DocumentOut[];
   policy: PolicyOut;
-  /** Recorded activity per run, once the API's fixtures carry it. */
-  activities?: Record<string, Activity[]>;
+  /** Recorded activity per run, from the API's fixtures. A run without one has steps only. */
+  activity?: Record<string, Activity[]>;
 }
 
 const fixtures = data as unknown as FixtureData;
@@ -273,17 +272,9 @@ export const getRun = async (id: string) => lookup(fixtures.runs, id, "Run");
 
 export const getPolicy = async () => clone(fixtures.policy);
 
-const activityCache = new Map<string, Activity[]>();
-
 /** The recorded activity of a fixture run, oldest first, with its recorded times. */
 export function fixtureActivities(runId: string): Activity[] {
-  const cached = activityCache.get(runId);
-  if (cached) return cached;
-  const run = fixtures.runs[runId];
-  const events =
-    fixtures.activities?.[runId] ?? (run ? buildFixtureActivities(clone(run), fixtures) : []);
-  activityCache.set(runId, events);
-  return events;
+  return fixtures.activity?.[runId] ?? [];
 }
 
 export async function listRunActivity(runId: string, after = 0): Promise<ActivityPage> {

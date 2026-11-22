@@ -153,3 +153,57 @@ test("the favicon proxy only asks public hosts", () => {
   assert.equal(isPublicAddress("93.184.216.34"), true);
   assert.equal(isPublicAddress("2606:2800:220:1:248:1893:25c8:1946"), true);
 });
+
+/* The API's own recorded fixture streams, replayed through the store. */
+const fixtures = JSON.parse(
+  (await import("node:fs")).readFileSync(new URL("../api/fixtures.json", import.meta.url), "utf8"),
+);
+
+test("the Discover fixture stream builds candidates, then ranks them", () => {
+  const events = fixtures.activity["fx-run-discover"];
+  const view = deriveView(events);
+  assert.equal(view.total, events.length);
+  assert.equal(view.companies.counts.found, 48);
+  assert.equal(view.companiesScoredStep, "discover.score");
+  const kestrel = view.companies.rows.find((row) => row.id === "fx-sl-kestrel");
+  assert.deepEqual([kestrel.rank, kestrel.fit, kestrel.location, kestrel.marks.funding], [1, 82, "Pune, India", "found"]);
+  assert.ok(view.companies.rows.some((row) => row.stage === "dropped" && row.reason));
+  // Before the score event there is no rank on any row.
+  const before = deriveView(events.filter((event) => event.step_key !== "discover.score" && event.step_key !== "discover.cards"));
+  assert.equal(before.companiesScoredSeq, null);
+  assert.ok(before.companies.rows.every((row) => row.rank == null && row.fit == null));
+  assert.equal(view.tally.rows.get("company_search").counts.new, 48);
+});
+
+test("the investor fixture stream groups rounds by investor and ranks once", () => {
+  const view = deriveView(fixtures.activity["fx-run-investors"]);
+  assert.equal(view.investors.length, 3);
+  assert.ok(view.investors.every((investor) => investor.ranked && investor.rounds.length === 1));
+  assert.equal(view.investorsRankedStep, "investors.rank");
+  assert.deepEqual(view.investors.map((investor) => investor.rank).sort(), [1, 2, 3]);
+});
+
+test("the Verify fixture stream settles claims and keeps documents out of the ticker", () => {
+  const events = fixtures.activity["fx-run-verify"];
+  const view = deriveView(events);
+  const stages = [...view.claims.values()].map((claim) => claim.stage);
+  assert.equal(stages.filter((stage) => stage === "settled").length, 7);
+  assert.equal(stages.filter((stage) => stage === "queued").length, 1);
+  assert.equal(view.identity.stage, "confirmed");
+  assert.equal(view.assessment.items[0].disposition, "investigate_further");
+  assert.ok(view.sources.every((row) => row.source.type !== "seller_document"));
+  assert.equal(view.sourceCounts.failed, 1);
+  // Midway: the first claim has a page read for it and is not settled yet.
+  const midway = deriveView(events.filter((event) => event.seq <= 22));
+  const first = midway.claims.get("fx-claim-1");
+  assert.deepEqual([first.stage, first.line], ["checking", "Read registry.example"]);
+  assert.equal(midway.sources.filter((row) => row.claimId === "fx-claim-1").length, 1);
+});
+
+test("a recheck event with no ref is tied to its claim by the step key", () => {
+  const view = deriveView(fixtures.activity["fx-run-recheck"]);
+  const claim = view.claims.get("fx-claim-2");
+  assert.deepEqual([claim.stage, claim.status, claim.previousStatus], ["settled", "supported", "cannot_verify"]);
+  assert.equal(view.sources.length, 0);
+  assert.ok(view.steps.get("claims.extract_text:fx-doc-payroll").document);
+});

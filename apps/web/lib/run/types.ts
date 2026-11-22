@@ -1,148 +1,38 @@
 /**
- * The run activity event, as `docs/design/iterations/D-live-run-experience.md` §2 defines
- * it. These are hand-written from the spec until the API's `ActivityOut` lands in
- * `lib/api/schema.ts`; swap the aliases over then and delete the bodies.
+ * The run activity event, from the API's generated types (`lib/api/schema.ts`). The
+ * contract is `docs/design/iterations/D-live-run-experience.md` §2.
  *
  * An activity is a fact about what a run did. The stream holds public lookup information
  * and the user's own criteria only: never claim text, document text or model output.
  */
+import type { components } from "../api/schema";
 
-export type ActivityKind = "status" | "call" | "source" | "model" | "finding" | "notice";
+type S = components["schemas"];
 
-export type ActivitySubject =
-  | "company"
-  | "claim"
-  | "investor"
-  | "round"
-  | "identity"
-  | "event"
-  | "peer"
-  | "assessment"
-  | "request_list";
-
-export type ActivityEndpoint =
-  | "company_identify"
-  | "company_search"
-  | "company_enrich"
-  | "person_search"
-  | "job_search"
-  | "web_search"
-  | "web_fetch"
-  | "messages";
-
-export type SourceFailReason =
-  | "http_403"
-  | "timeout"
-  | "robots"
-  | "empty"
-  | "too_large"
-  | "budget";
-
+export type ActivityKind = S["ActivityKind"];
+export type ActivitySubject = S["ActivitySubject"];
 /** A public page or a Crustdata record. Never an uploaded document's content. */
-export interface ActivitySource {
-  type: "web_page" | "crustdata_record" | "seller_document";
-  /** Registrable host, lower case. Null for anything that is not a web page. */
-  domain: string | null;
-  url: string | null;
-  title: string | null;
-  source_class: string;
-  /** Date of the fact. Null reads as "no date". */
-  as_of: string | null;
-  state: "read" | "failed" | "skipped";
-  reason: SourceFailReason | string | null;
-}
-
+export type ActivitySource = S["SourceRefOut"];
 /** One external call, in its final state. */
-export interface ActivityCall {
-  provider: "crustdata" | "anthropic";
-  endpoint: ActivityEndpoint | string;
-  ok: boolean;
-  error: string | null;
-  from_cache: boolean;
-  attempts: number;
-  duration_ms: number | null;
-  /** This call. 0 on a cache hit, null when the provider did not report. */
-  credits: number | null;
-  usd: number | null;
-  /** Run totals after this call, so a replay can redraw the meter. */
-  credits_total: number | null;
-  usd_total: number | null;
-}
-
+export type ActivityCall = S["CallInfoOut"];
 export type MarkState = "pending" | "found" | "none" | "not_checked";
 
+type TypedItem = NonNullable<S["ActivityOut"]["items"]>[number];
+type KeysOf<T> = T extends unknown ? keyof T : never;
+type ValueOf<T, K> = T extends unknown ? (K extends keyof T ? T[K] : never) : never;
+
 /**
- * A preview row inside a `finding`. Later stages send only the fields that changed, so
- * every field past `id` and `stage` is optional and rows are merged by id.
+ * A preview row inside a `finding`. The API types each row by `subject`; later stages
+ * send only the fields that changed, and rows are merged by id, so the client reads them
+ * as one shape with every field past `id` and `stage` optional.
  */
-export interface ActivityItem {
-  id: string;
-  stage: string;
-  name?: string | null;
-  domain?: string | null;
-  location?: string | null;
-  headcount?: number | null;
-  headcount_is_estimate?: boolean | null;
-  reason?: string | null;
-  marks?: { funding?: MarkState; headcount?: MarkState; hiring?: MarkState } | null;
-  highlight?: string | null;
-  fit?: number | null;
-  /** A share between 0 and 1. */
-  assessable?: number | null;
-  rank?: number | null;
-  /** Discover `explained`: why the company is on the list. */
-  why?: string | null;
-  /* claim */
-  category?: string | null;
-  status?: string | null;
-  previous_status?: string | null;
-  evidence_count?: number | null;
-  snippet?: string | null;
-  gap?: string | null;
-  /* identity */
-  matched_keys?: string[] | null;
-  /* round */
-  company?: string | null;
-  company_id?: string | null;
-  round?: string | null;
-  date?: string | null;
-  amount_usd?: number | null;
-  investors?: { key: string; name: string }[] | null;
-  /* investor */
-  comparable_rounds?: number | null;
-  last_round_date?: string | null;
-  /* event */
-  event_kind?: string | null;
-  title?: string | null;
-  /* assessment */
-  version?: number | null;
-  disposition?: string | null;
-  previous_disposition?: string | null;
-}
+export type ActivityItem = { id: string; stage: string } & {
+  [K in Exclude<KeysOf<TypedItem>, "id" | "stage">]?: ValueOf<TypedItem, K> | null;
+};
 
-export interface Activity {
-  /** Per run, strictly increasing from 1. Also the SSE `id:`. */
-  seq: number;
-  run_id: string;
-  step_id: string | null;
-  step_key: string | null;
-  kind: ActivityKind;
-  /** When it happened (UTC). Not when it was sent. */
-  at: string;
-  label: string;
-  detail: string | null;
-  progress: { done: number; total: number } | null;
-  source: ActivitySource | null;
-  call: ActivityCall | null;
-  counts: Record<string, number | null> | null;
-  highlights: string[] | null;
-  items: ActivityItem[] | null;
-  subject: ActivitySubject | null;
-  code: string | null;
-  ref: { type: string; id: string } | null;
-}
+export type Activity = Omit<S["ActivityOut"], "items"> & { items: ActivityItem[] | null };
 
-/** `GET /runs/{id}/activity`. */
+/** `GET /runs/{id}/activity`, without the server's summary: the client adds events up itself. */
 export interface ActivityPage {
   items: Activity[];
   next_after: number | null;

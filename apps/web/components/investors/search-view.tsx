@@ -2,32 +2,31 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ApiError,
   getInvestorSearch,
   type InvestorSearchOut,
-  isFixtureMode,
   resumeRun,
   type RunOut,
-  subscribeRun,
 } from "@/lib/api/client";
 import { formatCredits, plural } from "@/lib/format";
+import { useRunActivity } from "@/lib/run/use-run-activity";
 import { CostReadout, HatchedBlock, RunProgress } from "@/components/dealproof";
+import { RunView } from "@/components/run/run-view";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   budgetReached,
   finishedSeconds,
   isTerminal,
-  mergeRun,
-  mergeStep,
   skippedForBudget,
   toCost,
   toRun,
 } from "./adapt";
 import { applyFixtureState, type FixtureState } from "./fixture-states";
 import { editHref, profileLine } from "./format";
+import { InvestorStream } from "./investor-stream";
 import { RankingCaveat, scopeLine, Shortlist } from "./shortlist";
 import { useLoad } from "./use-load";
 
@@ -88,7 +87,6 @@ export function SearchView({
   const [demo, setDemo] = useState(fixtureState);
   const [refollow, setRefollow] = useState(false);
   const [followed, setFollowed] = useState<string | null>(null);
-  const [live, setLive] = useState<{ runId: string; run: RunOut; elapsed: number } | null>(null);
   const [resuming, setResuming] = useState(false);
 
   const search = useMemo<InvestorSearchOut | null>(
@@ -100,42 +98,16 @@ export function SearchView({
   const following =
     run !== null && (!isTerminal(run) || (wantsReplay && followed !== run.id));
 
-  useEffect(() => {
-    if (!run || !following) return;
-    const startedAt = Date.now();
-    // A fixture run is replayed from the start; a real one has been going since it was created.
-    const base =
-      isFixtureMode || isTerminal(run)
-        ? 0
-        : Math.max(0, (startedAt - Date.parse(run.created_at)) / 1000);
-    const elapsed = () => base + (Date.now() - startedAt) / 1000;
-    let current: RunOut | null = isTerminal(run) ? null : run;
-
-    const tick = setInterval(() => {
-      setLive((value) => (value?.runId === run.id ? { ...value, elapsed: elapsed() } : value));
-    }, 1000);
-
-    const stop = subscribeRun(run.id, (event) => {
-      if (event.event === "activity" || event.event === "live") return;
-      if (event.event === "step") {
-        current = mergeStep(current ?? { ...run, state: "running", steps: [] }, event.data);
-      } else {
-        current = mergeRun(current, event.data);
-      }
-      setLive({ runId: run.id, run: current, elapsed: elapsed() });
-      if (event.event === "run" && isTerminal(event.data)) {
-        clearInterval(tick);
-        setFollowed(run.id);
-        setRefollow(false);
-        reload();
-        if (fresh) router.replace(`/app/investors/${encodeURIComponent(id)}`, { scroll: false });
-      }
-    });
-    return () => {
-      stop();
-      clearInterval(tick);
-    };
-  }, [run, following, fresh, id, reload, router]);
+  // The run's stream, activity and pacing. It is followed while `following` holds, and
+  // what it showed stays on screen after it ends so the result folds in, not swaps in.
+  const { feed, setPaused } = useRunActivity(following ? run : null, {
+    onSettled: (settled) => {
+      setFollowed(settled.id);
+      setRefollow(false);
+      reload();
+      if (fresh) router.replace(`/app/investors/${encodeURIComponent(id)}`, { scroll: false });
+    },
+  });
 
   if (loading) return <LoadingSearch />;
 
@@ -160,15 +132,16 @@ export function SearchView({
     );
   }
 
-  const liveNow = following && live?.runId === run?.id ? live : null;
+  /** This session watched the run, live or just finished. */
+  const watched = run !== null && feed.run?.id === run.id && demo !== "failed" ? feed.run : null;
   const shownRun: RunOut | null = !run
     ? null
-    : liveNow
-      ? liveNow.run
+    : watched
+      ? watched
       : following
         ? { ...run, state: "running", steps: isTerminal(run) ? [] : run.steps }
         : run;
-  const elapsed = liveNow ? liveNow.elapsed : following || !run ? 0 : (finishedSeconds(run) ?? 0);
+  const elapsed = following || !run ? 0 : (finishedSeconds(run) ?? 0);
   const running = shownRun !== null && !isTerminal(shownRun);
   const failed = !running && (shownRun?.state === "failed" || search.status === "failed");
   const failedStep = shownRun?.steps.find((step) => step.state === "failed");
@@ -207,11 +180,34 @@ export function SearchView({
         </Button>
       </header>
 
-      {shownRun ? (
-        <RunProgress run={toRun(shownRun, elapsed)} onRetryStep={failed ? resume : undefined} />
+      {watched ? (
+        <RunView
+          run={watched}
+          feed={feed}
+          onPause={setPaused}
+          logHref={`/app/investors/${encodeURIComponent(id)}/log`}
+          onResume={resume}
+          resuming={resuming}
+          findings={(context) =>
+            // The ranked shortlist takes the stream's place once the search has been read again.
+            !running && search.entries.length > 0 ? (
+              <div className="animate-fade-in motion-reduce:animate-none">
+                <Shortlist search={search} />
+              </div>
+            ) : (
+              <InvestorStream context={context} />
+            )
+          }
+        />
+      ) : shownRun ? (
+        <RunProgress
+          run={toRun(shownRun, elapsed)}
+          onRetryStep={failed ? resume : undefined}
+          logHref={`/app/investors/${encodeURIComponent(id)}/log`}
+        />
       ) : null}
 
-      {running ? (
+      {running && !watched ? (
         <p className="rounded-lg border border-dashed border-line-strong px-5 py-4 text-sm text-ink-secondary">
           Investors are listed when the run finishes. Each one needs a dated funding record
           behind it, so nothing is shown from a search that is still reading.
@@ -273,7 +269,7 @@ export function SearchView({
         </HatchedBlock>
       ) : null}
 
-      {!running && search.entries.length > 0 ? <Shortlist search={search} /> : null}
+      {!running && !watched && search.entries.length > 0 ? <Shortlist search={search} /> : null}
 
       {!running && !failed && shownRun && search.entries.length === 0 ? (
         <Notice

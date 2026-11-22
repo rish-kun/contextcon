@@ -10,6 +10,7 @@ import {
   visibleEvents,
   type RunActivityView,
 } from "@/lib/run/activity-store";
+import type { Activity } from "@/lib/run/types";
 import { type RunFeedSnapshot, useNow } from "@/lib/run/use-run-activity";
 import { transition } from "@/lib/transitions";
 import type { ClaimStatus } from "@/lib/types";
@@ -30,6 +31,8 @@ const SETTLED = new Set<StepOut["state"]>(["done", "failed", "skipped_budget"]);
 export interface FindingsContext {
   run: RunOut;
   view: RunActivityView;
+  /** The events on screen, oldest first. */
+  events: Activity[];
   /** True for a row whose event arrived in front of the reader: it may animate in. */
   isNew: (seq: number) => boolean;
   /** The run reported done or failed. */
@@ -133,6 +136,7 @@ export function RunView({
   const context: FindingsContext = {
     run,
     view,
+    events: shown,
     isNew: (seq) => seq > feed.settled.findings,
     terminal,
     stepSettled,

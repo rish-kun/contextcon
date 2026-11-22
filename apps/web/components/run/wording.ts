@@ -93,12 +93,12 @@ export function failedReadText(source: ActivitySource): string {
 
 const KNOWN_CLASSES = new Set(Object.keys(RELIABILITY_LABEL));
 
-export function reliabilityOf(sourceClass: string): ReliabilityClass {
-  return (KNOWN_CLASSES.has(sourceClass) ? sourceClass : "data_provider") as ReliabilityClass;
+export function reliabilityOf(sourceClass: string | null): ReliabilityClass {
+  return (sourceClass && KNOWN_CLASSES.has(sourceClass) ? sourceClass : "data_provider") as ReliabilityClass;
 }
 
-export function sourceClassLabel(sourceClass: string): string {
-  return RELIABILITY_LABEL[reliabilityOf(sourceClass)] ?? sourceClass.replace(/_/g, " ");
+export function sourceClassLabel(sourceClass: string | null): string {
+  return RELIABILITY_LABEL[reliabilityOf(sourceClass)] ?? (sourceClass ?? "source").replace(/_/g, " ");
 }
 
 /** What the ticker calls a row: the domain, or the kind of Crustdata record. */
@@ -162,12 +162,7 @@ export function stepCost(step: StepOut): string | null {
   return parts.length > 0 ? parts.join(" · ") : "0 cr";
 }
 
-/** A step that checks one claim. Its key ends in the claim's id. */
-export function claimStepId(key: string): string | null {
-  const split = key.indexOf(":");
-  if (split < 0) return null;
-  return /(^|\.)(claim|facts)$/.test(key.slice(0, split)) ? key.slice(split + 1) : null;
-}
+export { claimStepId } from "@/lib/run/activity-store";
 
 export const isRunTerminal = (run: Pick<RunOut, "state">) =>
   run.state === "done" || run.state === "failed";

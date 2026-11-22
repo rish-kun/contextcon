@@ -21,7 +21,7 @@ export function Favicon({
 }: {
   /** Null for anything that is not a web page. */
   domain: string | null;
-  sourceClass: string;
+  sourceClass: string | null;
   muted?: boolean;
   className?: string;
 }) {

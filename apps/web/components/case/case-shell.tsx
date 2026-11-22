@@ -11,6 +11,7 @@ import { Button, Skeleton } from "@/components/ui";
 import { toAssessment } from "./adapt";
 import { useCase } from "./case-context";
 import { CaseHeader } from "./case-header";
+import { RunRail, useRunRail } from "./case-run";
 
 interface TabDef {
   /** Path segment under the case; empty for Overview. */
@@ -36,6 +37,7 @@ function tabsFor(detail: CaseDetail): TabDef[] {
     { segment: "sources", label: "Sources", count: detail.sources.length },
     { segment: "documents", label: "Documents", count: detail.documents.length },
     { segment: "cost", label: "Cost" },
+    { segment: "log", label: "Run log", count: detail.runs.length },
   ];
 }
 
@@ -160,6 +162,7 @@ function CaseProblem({ notFound }: { notFound: boolean }) {
  */
 export function CaseShell({ children }: { children: React.ReactNode }) {
   const { detail, state, basePath } = useCase();
+  const runRail = useRunRail();
   const pathname = usePathname();
   const active = activeSegment(pathname, basePath);
 
@@ -183,7 +186,12 @@ export function CaseShell({ children }: { children: React.ReactNode }) {
               {children}
             </div>
             {/* The memo and the Assessment tab already carry the five judgments in full. */}
-            {active === "" || active === "assessment" ? null : <AssessmentRail detail={detail} />}
+            {active === "" || active === "assessment" || active === "log" ? null : runRail ? (
+              // While a run is going its steps, tally and sources take the rail's place.
+              <RunRail className="hidden w-(--layout-rail) shrink-0 xl:sticky xl:top-20 xl:flex xl:max-h-[calc(100dvh-6rem)] xl:overflow-y-auto print:hidden" />
+            ) : (
+              <AssessmentRail detail={detail} />
+            )}
           </div>
         </>
       ) : null}
