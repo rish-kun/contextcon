@@ -115,6 +115,7 @@ class ConfirmedEntity:
     country: str | None = None
     founded_year: int | None = None
     cin: str | None = None
+    key_people: tuple[str, ...] = ()
 
     @classmethod
     def of(cls, case: Case) -> ConfirmedEntity:
@@ -130,6 +131,7 @@ class ConfirmedEntity:
             country=entity.get("country"),
             founded_year=entity.get("founded_year"),
             cin=entity.get("cin"),
+            key_people=tuple(entity.get("key_people") or ()),
         )
 
     @property
@@ -552,17 +554,33 @@ _META_DATE_REV = re.compile(
     r"(?:article:published_time|og:published_time|datePublished|publish[-_]?date|pubdate)[\"']",
     re.IGNORECASE,
 )
-_JSONLD_DATE = re.compile(r"\"datePublished\"\s*:\s*\"([^\"]+)\"")
+_JSONLD_DATE = re.compile(r"\"(?:datePublished|publishedAt|published_at)\"\s*:\s*\"([^\"]+)\"")
+_TIME_TAG = re.compile(r"<time[^>]+datetime=[\"']([^\"']+)[\"']", re.IGNORECASE)
+_URL_DATE = re.compile(r"(?<!\d)(20\d{2})[/-](0[1-9]|1[0-2])[/-](0[1-9]|[12]\d|3[01])(?!\d)")
+
+# Search hits that point at a redirect the fetcher cannot follow (it gets an
+# interstitial page instead of the article); they are never read or cited.
+_UNREADABLE = re.compile(r"^https?://(www\.)?google\.[a-z.]+/(goto|url)\b|^https?://news\.google\.")
 
 
-def published_date(raw_html: str | None) -> tuple[date | None, str | None]:
-    """Publish date from the page's own metadata, with the exact markup it came from."""
+def readable_url(url: str | None) -> bool:
+    return bool(url) and not _UNREADABLE.match(url)  # type: ignore[arg-type]
+
+
+def published_date(raw_html: str | None, url: str | None = None) -> tuple[date | None, str | None]:
+    """Publish date from the page's own metadata (or a date in its URL path), with the
+    exact markup or URL it came from."""
     if not raw_html:
-        return None, None
-    for pattern in (_META_DATE, _META_DATE_REV, _JSONLD_DATE):
+        raw_html = ""
+    for pattern in (_META_DATE, _META_DATE_REV, _JSONLD_DATE, _TIME_TAG):
         m = pattern.search(raw_html)
         if m:
             parsed = parse_date(m.group(1))
             if parsed is not None:
                 return parsed, m.group(0)[:300]
+    if url and (m := _URL_DATE.search(urlsplit(url).path)):
+        try:
+            return date(int(m.group(1)), int(m.group(2)), int(m.group(3))), url[:300]
+        except ValueError:
+            pass
     return None, None

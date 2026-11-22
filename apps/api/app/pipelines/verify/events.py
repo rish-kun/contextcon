@@ -43,6 +43,7 @@ from app.pipelines.verify.common import (
 )
 
 MAX_ARTICLES = 4
+MIN_DIRECT_ARTICLES = 2
 PRESS_WIRES = (
     "prnewswire.com",
     "businesswire.com",
@@ -106,6 +107,10 @@ def corroborate(entity: ConfirmedEntity, raw: str, text: str, url: str = "") -> 
     named = normalize_name(entity.name) in normalize_name(text)
     if named and entity.hq_city and entity.hq_city.lower() in hay:
         matched.extend(["name", "hq_city"])
+    if named:
+        text_norm = normalize_name(text)
+        if any(normalize_name(p) in text_norm for p in entity.key_people):
+            matched.extend(k for k in ("name", "key_person") if k not in matched)
     return matched
 
 
@@ -141,6 +146,14 @@ class Article:
     kind: str
 
 
+def _readable_hits(results: list[Any]) -> dict[str, Any]:
+    hits: dict[str, Any] = {}
+    for hit in results:
+        if common.readable_url(hit.url) and hit.url not in hits:
+            hits[hit.url] = hit
+    return hits
+
+
 def _hit_date(hit: Any) -> date | None:
     meta = hit.metadata if isinstance(hit.metadata, dict) else {}
     for key in ("date", "published_date", "publish_date", "published_at"):
@@ -163,7 +176,7 @@ async def _read(
     text = common.html_to_text(raw)
     if not text:
         return None
-    published, markup = common.published_date(raw)
+    published, markup = common.published_date(raw, page.url)
     if published is None and hit is not None:
         published = _hit_date(hit)
     matched = corroborate(entity, raw, text, page.url)
@@ -217,10 +230,14 @@ async def dated_events(ctx: StepContext) -> dict[str, Any]:
         found, _ = await client.web_search(
             common.news_query(terms), sources=["news"], location=location
         )
-        hits = {}
-        for hit in found.results:
-            if hit.url and hit.url not in hits:
-                hits[hit.url] = hit
+        hits = _readable_hits(found.results)
+        if len(hits) < MIN_DIRECT_ARTICLES:
+            # Many news hits are redirect links that cannot be read; one more page.
+            await ctx.require_budget(1)
+            more, _ = await client.web_search(
+                common.news_query(terms), sources=["news"], location=location, page=2
+            )
+            hits = {**hits, **_readable_hits(more.results)}
         urls = list(hits)[:MAX_ARTICLES]
         if not urls:
             ctx.result = "No news found"

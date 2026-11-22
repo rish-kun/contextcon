@@ -134,7 +134,9 @@ async def registry_evidence(ctx: StepContext) -> dict[str, Any]:
     try:
         found, _ = await client.web_search(common.registry_query(terms), location="IN")
         urls = [
-            hit.url for hit in found.results if hit.url and reliability_for(hit.url) is not None
+            hit.url
+            for hit in found.results
+            if common.readable_url(hit.url) and reliability_for(hit.url) is not None
         ]
         urls = list(dict.fromkeys(urls))[:MAX_PAGES]
         if not urls:

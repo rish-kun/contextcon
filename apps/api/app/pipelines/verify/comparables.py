@@ -26,8 +26,13 @@ from app.pipelines.verify.common import COMPARABLES, ConfirmedEntity
 SEARCH_LIMIT = 10
 MAX_PEERS = 5
 MIN_PEERS = 2
-# 0.03 base + 0.2 headcount filter side + 0.2 headcount response side, per result.
-SEARCH_CREDITS_ESTIMATE = round(SEARCH_LIMIT * 0.43, 2)
+# "Same activity": the top industry is coarse (seen live: it puts airlines and railways
+# next to a parcel carrier), so a peer must also share activity categories with the
+# subject: at least MIN_SHARED_CATEGORIES, and at least half of the smaller list.
+MIN_SHARED_CATEGORIES = 2
+MIN_CATEGORY_OVERLAP = 0.5
+# 0.03 base + 0.2 headcount filter + 0.2 headcount and 0.1 taxonomy returned, per result.
+SEARCH_CREDITS_ESTIMATE = round(SEARCH_LIMIT * 0.53, 2)
 NO_FAIR = "No fair comparison found"
 
 
@@ -39,6 +44,7 @@ def basis_for(case_entity: dict[str, Any]) -> dict[str, Any] | None:
         return None
     lo, hi = math.ceil(headcount * 0.5), math.floor(headcount * 2)
     return {
+        "categories": list(case_entity.get("categories") or []),
         "industry": industry,
         "country": country,
         "subject_headcount": headcount,
@@ -60,6 +66,14 @@ def search_filters(basis: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def same_activity(ours: list[str], theirs: list[str]) -> bool:
+    a, b = {c.lower() for c in ours}, {c.lower() for c in theirs}
+    if not a or not b:
+        return False
+    shared = len(a & b)
+    return shared >= MIN_SHARED_CATEGORIES and shared >= MIN_CATEGORY_OVERLAP * min(len(a), len(b))
+
+
 def fair_peers(companies: list[Any], basis: dict[str, Any], subject_id: int) -> list[Any]:
     peers = []
     for company in companies:
@@ -73,6 +87,10 @@ def fair_peers(companies: list[Any], basis: dict[str, Any], subject_id: int) -> 
         if not basis["headcount_min"] <= headcount <= basis["headcount_max"]:
             continue
         if country and country.lower() != str(basis["country"]).lower():
+            continue
+        if basis.get("categories") and not same_activity(
+            basis["categories"], (company.taxonomy or {}).get("categories") or []
+        ):
             continue
         peers.append(company)
     peers.sort(key=lambda c: abs(math.log(c.headcount.total / basis["subject_headcount"])))
@@ -106,7 +124,7 @@ async def comparables(ctx: StepContext) -> dict[str, Any]:
         found, _ = await client.search_companies(
             filters=filters,
             limit=SEARCH_LIMIT,
-            fields=["crustdata_company_id", "basic_info", "locations", "headcount"],
+            fields=["crustdata_company_id", "basic_info", "locations", "headcount", "taxonomy"],
         )
     finally:
         await common.close_quietly(client)
@@ -116,6 +134,7 @@ async def comparables(ctx: StepContext) -> dict[str, Any]:
         reason = (
             f"{NO_FAIR}: {len(peers)} companies matched {basis['industry']}, "
             f"{basis['country']}, headcount {basis['headcount_band']}"
+            + (" and shared activity categories" if basis.get("categories") else "")
         )
         ctx.result = reason
         return {"peers": 0, "no_fair_comparison": reason, "basis": basis}

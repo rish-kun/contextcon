@@ -40,15 +40,21 @@ def _hq_city(headquarters: str | None) -> str | None:
 
 
 def _person(raw: dict[str, Any]) -> dict[str, Any] | None:
-    name = raw.get("name") or raw.get("full_name")
+    """Enrich `people.*` entries: `{crustdata_person_id, basic_profile{name,
+    current_title}, social_handles{professional_network_identifier{profile_url}}}`
+    (seen live), with flat `name`/`title` keys accepted too."""
+    basic = raw.get("basic_profile") or {}
+    handles = (raw.get("social_handles") or {}).get("professional_network_identifier") or {}
+    name = basic.get("name") or raw.get("name") or raw.get("full_name")
     if not name:
         return None
     return {
         "name": name,
-        "title": raw.get("title") or raw.get("current_title"),
-        "profile_url": raw.get("linkedin_profile_url")
-        or raw.get("profile_url")
-        or raw.get("professional_network_profile_url"),
+        "person_id": raw.get("crustdata_person_id"),
+        "title": basic.get("current_title") or raw.get("title") or raw.get("current_title"),
+        "profile_url": handles.get("profile_url")
+        or raw.get("linkedin_profile_url")
+        or raw.get("profile_url"),
     }
 
 
@@ -218,6 +224,8 @@ async def build_profile(ctx: StepContext) -> dict[str, Any]:
         founded_year=founded,
         headcount=headcount,
         industry=_top_industry(record),
+        categories=list((record.taxonomy or {}).get("categories") or []),
+        key_people=_key_people(record),
         company_type_reason=decision.reason,
         domains=list(
             dict.fromkeys(
@@ -235,6 +243,17 @@ async def build_profile(ctx: StepContext) -> dict[str, Any]:
     await ctx.session.flush()
     ctx.result = f"{len(rows)} profile facts; {decision.company_type.value}"
     return {"fields": len(rows), "company_type": decision.company_type.value}
+
+
+def _key_people(record: CompanyRecord) -> list[str]:
+    """Founder and CXO full names: distinguishing attributes for later attachments."""
+    names: list[str] = []
+    if record.people:
+        for raw in [*(record.people.founders or []), *(record.people.cxos or [])]:
+            person = _person(raw)
+            if person and len(person["name"].split()) >= 2:
+                names.append(person["name"])
+    return list(dict.fromkeys(names))[:12]
 
 
 def _record_id(record: CompanyRecord) -> int | None:
