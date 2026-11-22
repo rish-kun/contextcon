@@ -47,7 +47,7 @@ Requirements: an authenticated `gcloud` and `python3`. Nothing else is installed
 
 ### Runtime identity
 
-Each service runs as its own service account. `scripts/deploy.sh` creates both and keeps the grants below in place.
+Each service runs as its own service account. `scripts/deploy.sh` creates both and keeps the grants below in place. IAM policy writes retry with backoff, because two deploys editing the same policy at once get a 409 ("concurrent policy changes").
 
 | Service account | Used by | Grants |
 |---|---|---|
@@ -103,7 +103,8 @@ gcloud secrets versions list ANTHROPIC_API_KEY --project cc-g527-showproduct
 gcloud secrets versions disable <OLD_VERSION> --secret ANTHROPIC_API_KEY --project cc-g527-showproduct
 ```
 
-- `ANTHROPIC_API_KEY` and `RESEND_API_KEY` hold the value `placeholder` until real keys are added. The repo `.env` had no Anthropic key at deploy time. Set real values with the command above.
+- `ANTHROPIC_API_KEY` holds the real key in version 3. Versions 1 (the old `placeholder`) and 2 are disabled.
+- `RESEND_API_KEY` holds the value `placeholder` until a real key is added. Set it with the command above.
 - To rotate the Neon password, reset the `dealproof` role password in Neon (console or `reset_postgres_role_password`). Then add the new pooled connection string as a new `DATABASE_URL` version and redeploy the API.
 - To turn on real email, add a real `RESEND_API_KEY` version, then change `EMAIL_SEND_ENABLED=true` in `scripts/deploy.sh` and redeploy.
 

@@ -44,6 +44,21 @@ SECRETS=(DATABASE_URL ANTHROPIC_API_KEY CRUSTDATA_API_KEY RESEND_API_KEY)
 
 log() { printf '\n==> %s\n' "$*" >&2; }
 
+# IAM policy writes are read-modify-write and fail with 409 ("concurrent policy
+# changes") when another deploy edits the same policy. Every call wrapped here is
+# idempotent, so retry any failure with backoff.
+iam_retry() {
+  local attempt delay=2
+  for attempt in 1 2 3 4 5 6; do
+    if "$@" >/dev/null; then return 0; fi
+    [[ $attempt -eq 6 ]] && break
+    log "IAM call failed (attempt ${attempt}), retrying in ${delay}s"
+    sleep "$delay"
+    delay=$((delay * 2))
+  done
+  return 1
+}
+
 # Both URL forms Cloud Run serves for a service (deterministic + legacy hash).
 service_urls() {
   local svc="$1" status_url
@@ -79,17 +94,17 @@ ensure_runtime_identities() {
   ensure_sa "$WEB_SA_NAME" "DealProof web runtime"
   local secret
   for secret in "${SECRETS[@]}"; do
-    gcloud secrets add-iam-policy-binding "$secret" --project "$PROJECT" \
+    iam_retry gcloud secrets add-iam-policy-binding "$secret" --project "$PROJECT" \
       --member "serviceAccount:${API_SA}" --role roles/secretmanager.secretAccessor \
-      --condition=None --quiet >/dev/null
+      --condition=None --quiet
   done
-  gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
-    --member "serviceAccount:${API_SA}" --role roles/storage.objectAdmin --quiet >/dev/null
+  iam_retry gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
+    --member "serviceAccount:${API_SA}" --role roles/storage.objectAdmin --quiet
   # Signed download URLs: Cloud Run credentials have no private key, so the API signs
   # through the IAM signBlob call on its own account.
-  gcloud iam service-accounts add-iam-policy-binding "$API_SA" --project "$PROJECT" \
+  iam_retry gcloud iam service-accounts add-iam-policy-binding "$API_SA" --project "$PROJECT" \
     --member "serviceAccount:${API_SA}" --role roles/iam.serviceAccountTokenCreator \
-    --condition=None --quiet >/dev/null
+    --condition=None --quiet
 }
 
 # Revoke the grants earlier deploys gave the default compute account, once neither
@@ -107,8 +122,8 @@ revoke_legacy_grants() {
       --flatten=bindings --filter="bindings.role=roles/secretmanager.secretAccessor AND bindings.members:serviceAccount:${LEGACY_SA}" \
       --format='value(bindings.role)' 2>/dev/null | grep -q .; then
       log "Revoking ${secret} access from ${LEGACY_SA}"
-      gcloud secrets remove-iam-policy-binding "$secret" --project "$PROJECT" \
-        --member "serviceAccount:${LEGACY_SA}" --role roles/secretmanager.secretAccessor --quiet >/dev/null
+      iam_retry gcloud secrets remove-iam-policy-binding "$secret" --project "$PROJECT" \
+        --member "serviceAccount:${LEGACY_SA}" --role roles/secretmanager.secretAccessor --quiet
     fi
   done
   # `gcloud storage` has no --filter, so check the policy JSON instead.
@@ -118,8 +133,8 @@ m = "serviceAccount:" + os.environ["LEGACY_SA"]
 sys.exit(0 if any(b["role"] == "roles/storage.objectAdmin" and m in b.get("members", [])
                   for b in json.load(sys.stdin).get("bindings", [])) else 1)'; then
     log "Revoking gs://${BUCKET} objectAdmin from ${LEGACY_SA}"
-    gcloud storage buckets remove-iam-policy-binding "gs://${BUCKET}" \
-      --member "serviceAccount:${LEGACY_SA}" --role roles/storage.objectAdmin --quiet >/dev/null
+    iam_retry gcloud storage buckets remove-iam-policy-binding "gs://${BUCKET}" \
+      --member "serviceAccount:${LEGACY_SA}" --role roles/storage.objectAdmin --quiet
   fi
 }
 
