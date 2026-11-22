@@ -25,6 +25,7 @@ from app.domain.enums import ClaimCategory, IdentityStatus, NotCheckedReason
 from app.domain.types import Claim, ClaimCheck
 from app.extraction.llm import LlmOutputError, StructuredLlm
 from app.jobs import BudgetExceeded
+from app.pipelines.verify.checks import activity as check_activity
 from app.pipelines.verify.checks.gather import (
     GATHERERS,
     IDENTITY_DEPENDENT,
@@ -152,6 +153,8 @@ async def check_claim(
             f"{len(gathered.sources_read)} sources read, {gathered.llm_calls} model calls"
         )
 
+    if check.ran:
+        await check_activity.status("status.comparing_facts", n=len(check.facts))
     [outcome] = decide_all([check])
     meta = await persist_outcome(
         session,

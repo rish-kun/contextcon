@@ -35,9 +35,10 @@ from app.clients.crustdata_models import CompanyRecord, FundingRound, PersonProf
 from app.db.models import Case
 from app.db.models import Evidence as EvidenceRow
 from app.db.models import Source as SourceRow
-from app.domain.enums import ClaimCategory, SourceReliability
+from app.domain.enums import ClaimCategory, IdentityStatus, SourceReliability
 from app.domain.types import Claim, ExtractedFact
 from app.extraction.llm import StructuredLlm
+from app.pipelines.verify.checks import activity as check_activity
 from app.pipelines.verify.checks.facts import (
     TextUnit,
     fact_from_field,
@@ -158,6 +159,12 @@ class CheckEnv:
         domain = (info.primary_domain if info else None) or host_of(self.case.website)
         return PublicTerms(company_name=name, domain=domain)
 
+    def public_name(self) -> str:
+        """The confirmed public entity name for activity lines; "the company" before."""
+        if self.case.identity_status != IdentityStatus.CONFIRMED:
+            return "the company"
+        return self.terms().company_name or "the company"
+
     def _request(self, **extra: Any) -> dict[str, Any]:
         return {"written_by": WRITER, **extra}
 
@@ -168,6 +175,7 @@ class CheckEnv:
             return self._profile
         assert self.company_id is not None
         await self.budget(ENRICH_CREDITS)
+        await check_activity.status("status.reading_record")
         results, _ = await self.crustdata.enrich_company(self.company_id, fields=PROFILE_FIELDS)
         record = None
         for result in results or []:
@@ -186,6 +194,7 @@ class CheckEnv:
             return self._people
         assert self.company_id is not None
         await self.budget(PEOPLE_CREDITS)
+        await check_activity.status("status.looking_up_leadership")
         result, _ = await self.crustdata.search_company_leadership(
             self.company_id, limit=PEOPLE_LIMIT
         )
@@ -200,6 +209,7 @@ class CheckEnv:
             return []
         if query not in self._searches:
             await self.budget(WEB_SEARCH_CREDITS)
+            await check_activity.status("status.searching_news", name=self.public_name())
             result, _ = await self.crustdata.web_search(query, sources=["news", "web"])
             self._searches[query] = [h for h in result.results if h.url]
         return self._searches[query]
@@ -208,6 +218,10 @@ class CheckEnv:
         if not urls:
             return {}
         await self.budget(WEB_FETCH_CREDITS * len(urls))
+        if len(urls) == 1:
+            await check_activity.status("status.reading_domain", domain=urls[0])
+        else:
+            await check_activity.status("status.reading_pages", n=len(urls))
         pages, _ = await self.crustdata.fetch_pages(urls)
         return {p.url: p.content or "" for p in pages if p.success and p.url}
 

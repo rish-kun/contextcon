@@ -24,6 +24,7 @@ from app.db.models import Source as SourceRow
 from app.domain.types import Claim, ExtractedFact
 from app.extraction import ClaimRef, extract_facts
 from app.extraction.llm import StructuredLlm
+from app.pipelines.verify.checks import activity as check_activity
 from app.pipelines.verify.checks.sources import EvidenceStore, domain_evidence
 from app.pipelines.verify.claims.components import typed_value
 from app.rules import policy
@@ -125,9 +126,10 @@ async def facts_from_text(
     delete_after: Any = None,
 ) -> FactBatch:
     category = claim.category.value
-    result = await extract_facts(
-        llm, claim_ref(claim, category), unit.text, source_label=unit.label
-    )
+    with check_activity.reading(unit.source):
+        result = await extract_facts(
+            llm, claim_ref(claim, category), unit.text, source_label=unit.label
+        )
     batch = FactBatch(llm_calls=1, dropped=len(result.dropped))
     if not result.facts:
         return batch
@@ -164,6 +166,8 @@ async def facts_from_text(
         )
         if not validate_extraction(fact, span_for(fact)).valid:
             batch.rejected += 1  # kept: the rules show it as rejected, never decisive
+        else:
+            await check_activity.fact_found(fact)
         batch.facts.append(fact)
     return batch
 
@@ -189,12 +193,14 @@ async def fact_from_field(
         value=value,
         as_of=as_of,
     )
-    return ExtractedFact(
+    fact = ExtractedFact(
         id=f"{row.id}:{component}",
         evidence=domain_evidence(row, source, store.company_id),
         component=component,
         value=value,
     )
+    await check_activity.fact_found(fact)
+    return fact
 
 
 # A career record lists many positions. A claim about one employer or role is not

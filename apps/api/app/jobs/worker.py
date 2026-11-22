@@ -19,7 +19,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.db.adapters import DbCache, DbCallRecorder
 from app.db.enums import StepState
 from app.db.models import Run, Step
-from app.jobs.activity import ActivityEmitter, NoticeCode
+from app.jobs.activity import (
+    ActivityEmitter,
+    NoticeCode,
+    reset_current_emitter,
+    set_current_emitter,
+)
 from app.jobs.config import JobSettings, get_job_settings
 from app.jobs.engine import (
     BudgetExceeded,
@@ -167,7 +172,11 @@ class Worker:
             if attempt > 1:
                 await ctx.activity.notice(NoticeCode.STEP_RESUMED)
 
-            task = asyncio.create_task(handler(ctx))
+            current = set_current_emitter(ctx.activity)
+            try:
+                task = asyncio.create_task(handler(ctx))  # copies the current emitter
+            finally:
+                reset_current_emitter(current)
             lease_lost = asyncio.Event()
             heartbeat = asyncio.create_task(self._heartbeat(claim, task, lease_lost))
             try:

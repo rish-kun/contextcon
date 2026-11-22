@@ -34,6 +34,7 @@ import re
 import time
 import uuid
 from collections.abc import Callable, Iterable, Sequence
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
@@ -292,6 +293,12 @@ TEMPLATES: dict[str, str] = {
     "status.drafting_request": "Drafting the document request",
     "status.reading_rounds": "Reading funding rounds of {n} companies",
     "status.ranking_investors": "Grouping investors and ranking by dated comparable rounds",
+    "status.waiting_identity": "Waiting for identity",
+    "status.searching_news": "Searching news for {name}",
+    "status.reading_pages": "Reading {n} pages",
+    "status.looking_up_leadership": "Looking up leadership at the confirmed company",
+    "status.reading_record": "Reading the company record",
+    "status.comparing_facts": "Comparing {n} facts with the claim",
     # call
     "call.company_identify": "Company identify · {n} candidates",
     "call.company_search": "Company search · {n} companies",
@@ -338,6 +345,7 @@ TEMPLATES: dict[str, str] = {
     "finding.identity_unresolved": "Identity not resolved",
     "finding.claims_queued": "Queued {n} claims for checking",
     "finding.claim_checking": "Checking a claim: {category}",
+    "finding.fact_found": "Found a fact for {category}",
     "finding.claim_settled": "Claim settled: {status}",
     "finding.claim_not_checked": "Claim not checked",
     "finding.category": "{category}",
@@ -716,10 +724,16 @@ class ActivityEmitter:
         self._last_status = -STATUS_INTERVAL
         self._pending: dict[str, Any] | None = None
         self._flush: asyncio.Task[None] | None = None
+        self._counters: dict[str, int] = {}
 
     @property
     def enabled(self) -> bool:
         return self._sessionmaker is not None and self.run_id is not None
+
+    def bump(self, key: str) -> int:
+        """A running count kept for this step (e.g. facts found for one claim)."""
+        self._counters[key] = self._counters.get(key, 0) + 1
+        return self._counters[key]
 
     # -- the six kinds ---------------------------------------------------------------
 
@@ -1186,3 +1200,21 @@ class NullEmitter(ActivityEmitter):
 
     def __init__(self) -> None:
         super().__init__(None)
+
+
+_current: ContextVar[ActivityEmitter | None] = ContextVar("activity_emitter", default=None)
+
+
+def set_current_emitter(emitter: ActivityEmitter) -> Any:
+    """Make `emitter` the one `current_emitter()` returns in this context (the worker
+    sets it for each handler task, so code deep inside a step can emit)."""
+    return _current.set(emitter)
+
+
+def reset_current_emitter(token: Any) -> None:
+    _current.reset(token)
+
+
+def current_emitter() -> ActivityEmitter:
+    """The running step's emitter, or a no-op one outside a step."""
+    return _current.get() or NullEmitter()

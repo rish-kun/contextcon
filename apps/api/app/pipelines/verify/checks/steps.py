@@ -17,10 +17,14 @@ from typing import Any
 
 from sqlalchemy import select
 
-from app.db.enums import StepState
+from app.clients.activity import reset_activity_topic, set_activity_topic
+from app.db.enums import IdentityStatus, StepState
 from app.db.models import Case, Claim, Step
 from app.jobs import StepContext, StepSpec, step_handler
+from app.jobs.activity import claim_ref
+from app.pipelines.verify.checks import activity as check_activity
 from app.pipelines.verify.checks.clients import client_factory, close_quietly
+from app.pipelines.verify.checks.gather import IDENTITY_DEPENDENT
 from app.pipelines.verify.checks.run import check_claim
 from app.pipelines.verify.claims.intake import (
     CHECK_HANDLER,
@@ -71,18 +75,17 @@ def _optional(build: Any, *args: Any, **kwargs: Any) -> Any:
         return None
 
 
-@step_handler(CHECK_HANDLER)
-async def check_claim_step(ctx: StepContext) -> dict[str, Any]:
-    claim = await ctx.session.get(Claim, uuid.UUID(ctx.input["claim_id"]))
-    if claim is None or claim.case_id != ctx.run.case_id:
-        raise LookupError("claim not found for this case")
-    case = await ctx.session.get(Case, claim.case_id)
-    assert case is not None
-    deferred_to = await _defer_behind_unfinished(ctx, claim)
-    if deferred_to is not None:
-        ctx.result = "Waiting for the company profile and records"
-        return {"claim_id": str(claim.id), "deferred_to": deferred_to}
+async def _counts(ctx: StepContext, claim: Claim) -> dict[str, int]:
+    return await check_activity.claim_counts(
+        ctx.session, ctx.run.id, CHECK_HANDLER, current=str(claim.id)
+    )
+
+
+async def _check(ctx: StepContext, claim: Claim, case: Case) -> dict[str, Any]:
     await ctx.set_detail(f"Checking: {claim.category.replace('_', ' ')}")
+    await check_activity.checking(await _counts(ctx, claim))
+    if case.identity_status != IdentityStatus.CONFIRMED and claim.category in IDENTITY_DEPENDENT:
+        await check_activity.status("status.waiting_identity")
     factory = client_factory()
     crustdata = _optional(factory.crustdata, ctx)
     llm = _optional(factory.llm, ctx, delete_after=claim.delete_after)
@@ -102,6 +105,27 @@ async def check_claim_step(ctx: StepContext) -> dict[str, Any]:
         for client in (crustdata, llm):
             if client is not None:
                 await close_quietly(client)
+    await check_activity.settled(meta, await _counts(ctx, claim))
+    return meta
+
+
+@step_handler(CHECK_HANDLER)
+async def check_claim_step(ctx: StepContext) -> dict[str, Any]:
+    claim = await ctx.session.get(Claim, uuid.UUID(ctx.input["claim_id"]))
+    if claim is None or claim.case_id != ctx.run.case_id:
+        raise LookupError("claim not found for this case")
+    case = await ctx.session.get(Case, claim.case_id)
+    assert case is not None
+    deferred_to = await _defer_behind_unfinished(ctx, claim)
+    if deferred_to is not None:
+        ctx.result = "Waiting for the company profile and records"
+        return {"claim_id": str(claim.id), "deferred_to": deferred_to}
+    # Every event of this check names the claim by id and category, never its text.
+    topic = set_activity_topic(ref=claim_ref(claim.id), category=claim.category)
+    try:
+        meta = await _check(ctx, claim, case)
+    finally:
+        reset_activity_topic(topic)
     from app.domain.enums import ClaimStatus
 
     ctx.result = status_label(ClaimStatus(meta["status"]))
