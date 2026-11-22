@@ -117,7 +117,7 @@ DOC_CUSTOMER = "Customer confirmation or signed contract"
 DOC_FINANCIALS = "Audited financial statements"
 DOC_LENDER = "Lender statements"
 DOC_LITIGATION = "Litigation disclosure signed by counsel"
-DOC_FINANCIAL_INPUTS = "Audited financial statements for the last three years"
+DOC_FINANCIAL_INPUTS = DOC_FINANCIALS  # one document, so requests dedupe
 DOC_IDENTITY = "Certificate of incorporation showing the CIN and registered office"
 
 COMPONENT_RULES: dict[str, ComponentRule] = {
