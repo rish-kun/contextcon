@@ -32,42 +32,65 @@ const headcountPoints = (profile: Profile) =>
     value: point.employee_count,
   }));
 
-/** Quiet tags under the company name: what it does, where, and how DealProof classed it. */
-function ProfileTags({ profile }: { profile: Profile }) {
-  const tags: { text: string; title?: string }[] = [
-    ...(profile.industries?.value ?? []).map((industry) => ({ text: industry })),
-    ...(profile.headquarters
-      ? [{ text: [profile.headquarters.value, profile.country?.value].filter(Boolean).join(", ") }]
-      : []),
-    ...(profile.company_type
-      ? [
-          {
-            text: profile.company_type === "startup" ? "Judged as a startup" : "Judged as an established business",
-            title: profile.company_type_reason ?? undefined,
-          },
-        ]
-      : []),
-  ];
-  if (tags.length === 0 && !profile.description) return null;
-  return (
-    <div className="flex flex-col gap-2">
-      {profile.description ? (
-        <p className="max-w-3xl text-sm text-ink-secondary">{profile.description.value}</p>
-      ) : null}
-      {tags.length > 0 ? (
-        <ul className="flex flex-wrap gap-1">
-          {tags.map((tag) => (
-            <li
-              key={tag.text}
-              title={tag.title}
-              className="rounded-xs bg-surface-sunken px-2 py-0.5 text-xs text-ink-secondary"
-            >
-              {tag.text}
-            </li>
+/**
+ * What the company does, where, and how DealProof classed it. Each is a fact from a
+ * record, so each ends in its source chip and as-of date; the class is DealProof's own
+ * rule and says which rule.
+ */
+function ProfileFacts({ profile }: { profile: Profile }) {
+  const items: { label: string; value: React.ReactNode; source: React.ReactNode }[] = [];
+  if (profile.description) {
+    items.push({
+      label: "Business",
+      value: profile.description.value,
+      source: <SourceLine evidence={factEvidence(profile.description)} max={1} />,
+    });
+  }
+  if (profile.industries && profile.industries.value.length > 0) {
+    items.push({
+      label: "Industry",
+      value: (
+        <span className="flex flex-wrap gap-1">
+          {profile.industries.value.map((industry) => (
+            <span key={industry} className="rounded-xs bg-surface-sunken px-2 py-0.5 text-xs text-ink-secondary">
+              {industry}
+            </span>
           ))}
-        </ul>
-      ) : null}
-    </div>
+        </span>
+      ),
+      source: <SourceLine evidence={factEvidence(profile.industries)} max={1} />,
+    });
+  }
+  if (profile.headquarters) {
+    const sameSource = profile.country?.source.source_id === profile.headquarters.source.source_id;
+    items.push({
+      label: "Headquarters",
+      value: [profile.headquarters.value, sameSource ? profile.country?.value : null].filter(Boolean).join(", "),
+      source: <SourceLine evidence={factEvidence(profile.headquarters)} max={1} />,
+    });
+  }
+  if (profile.company_type) {
+    items.push({
+      label: "Judged as",
+      value: profile.company_type === "startup" ? "A startup" : "An established business",
+      source: (
+        <span className="font-mono text-2xs text-ink-muted">
+          DealProof rule · {profile.company_type_reason ?? "reason not recorded"}
+        </span>
+      ),
+    });
+  }
+  if (items.length === 0) return null;
+  return (
+    <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">
+      {items.map((item) => (
+        <div key={item.label} className="flex min-w-0 flex-col items-start gap-1">
+          <dt className="text-xs text-ink-muted">{item.label}</dt>
+          <dd className="text-dense text-ink">{item.value}</dd>
+          <dd>{item.source}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -89,7 +112,7 @@ export function ProfileBand({ detail }: { detail: CaseDetail }) {
 
   return (
     <section aria-label="Company profile" className="flex flex-col gap-3">
-      <ProfileTags profile={profile} />
+      <ProfileFacts profile={profile} />
       <KpiRow label="Profile figures">
         {founded ? (
           <StatTile
@@ -113,7 +136,13 @@ export function ProfileBand({ detail }: { detail: CaseDetail }) {
             value={profile.headcount.value.toLocaleString("en-US")}
             unit="people"
             estimate={factEstimate(profile.headcount)}
-            evidence={factEvidence(profile.headcount)}
+            evidence={[
+              ...factEvidence(profile.headcount),
+              // The line beside the figure is the dated series, cited at its latest point.
+              ...(profile.headcount_series && trend.length > 1
+                ? sourceEvidence(profile.headcount_series.source, trend.at(-1)?.date ?? null)
+                : []),
+            ]}
             trend={
               trend.length > 1 ? (
                 <Sparkline

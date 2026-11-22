@@ -160,12 +160,25 @@ function OperatingSignals({ item }: { item: ShortlistItemOut }) {
             <Fact evidence={factEvidence(card.headcount)} estimate={factEstimate(card.headcount)}>
               <span className="font-mono">{card.headcount.value.toLocaleString("en-US")}</span> people
             </Fact>
-            {trend.length > 1 ? (
-              <Sparkline
-                points={trend}
-                estimate
-                label={`Estimated headcount, ${seriesSummary(trend, "people")}`}
-              />
+            {trend.length > 1 && card.headcount_series ? (
+              <span className="flex flex-wrap items-center gap-2">
+                <Sparkline
+                  points={trend}
+                  estimate
+                  label={`Estimated headcount, ${seriesSummary(trend, "people")}`}
+                />
+                {/* The series has its own source, cited at its latest dated point. */}
+                <SourceLine
+                  max={1}
+                  evidence={[
+                    {
+                      source: toSource(card.headcount_series.source, trend[trend.length - 1].date),
+                      field_path: "headcount.timeseries",
+                      value: `${trend.length} dated points`,
+                    },
+                  ]}
+                />
+              </span>
             ) : null}
           </span>
         ) : (

@@ -58,7 +58,7 @@ export function DispositionCell({ item }: { item: CaseSummary }) {
       </span>
     );
   }
-  return <DispositionStamp disposition={item.disposition} />;
+  return <DispositionStamp disposition={item.disposition} size="sm" />;
 }
 
 /**
@@ -131,5 +131,37 @@ export function CostCell({ item }: { item: CaseSummary }) {
         lines: [],
       }}
     />
+  );
+}
+
+/**
+ * Fit and its assessable share on two short lines, for cards and tight table cells: the
+ * words, then one bar whose hatched end is the share that could not be assessed.
+ */
+export function FitCompact({ item }: { item: CaseSummary }) {
+  if (item.fit_state !== "scored" || item.fit === null) {
+    return (
+      <span className="text-xs text-ink-muted">
+        {item.fit_state === "identity_unresolved"
+          ? "Fit waits on identity"
+          : item.fit_state === "awaiting_strategy_criteria"
+            ? "No criteria set"
+            : "Fit not scored"}
+      </span>
+    );
+  }
+  const pct = item.assessable_pct ?? 0;
+  return (
+    <span className="flex min-w-0 flex-col gap-1">
+      <span className="font-mono text-xs font-medium whitespace-nowrap text-ink">
+        Fit {Math.round(item.fit)} · {pct}% assessable
+      </span>
+      <span aria-hidden className="flex h-1.5 w-full max-w-40 gap-0.5">
+        {pct > 0 ? <span className="h-full bg-ink" style={{ width: `${pct}%` }} /> : null}
+        {pct < 100 ? (
+          <span className="hatch-dense h-full flex-1 border border-dashed border-not-checked-line" />
+        ) : null}
+      </span>
+    </span>
   );
 }

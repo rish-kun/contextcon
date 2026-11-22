@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Dashboard } from "@/components/dashboard/dashboard";
+import { Overview } from "@/components/dashboard/overview";
 
-export const metadata: Metadata = { title: "Cases" };
+export const metadata: Metadata = { title: "Overview" };
 
-export default function DashboardPage() {
-  return <Dashboard />;
+export default function OverviewPage() {
+  return <Overview />;
 }

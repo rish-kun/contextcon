@@ -133,14 +133,20 @@ function DispositionCell({ detail, basePath }: { detail: CaseDetail; basePath: s
 
 function LiveRun() {
   const { run, runActive, runError, basePath } = useCase();
-  const [now, setNow] = useState(() => Date.now());
+  // Null until the browser has hydrated: the server and the first client render must agree,
+  // so the clock starts from the run's own start time and ticks only after mount.
+  const [now, setNow] = useState<number | null>(null);
   // The finished line stays only for a run this session watched, so a past run adds no noise.
   const [watched, setWatched] = useState<string | null>(null);
 
   useEffect(() => {
     if (!runActive) return;
+    const first = setTimeout(() => setNow(Date.now()), 0);
     const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(first);
+      clearInterval(id);
+    };
   }, [runActive]);
 
   if (runActive && run && watched !== run.id) setWatched(run.id);
@@ -153,7 +159,7 @@ function LiveRun() {
         </p>
       ) : null}
       {run && (runActive || watched === run.id) ? (
-        <RunProgress run={toRun(run, now)} logHref={`${basePath}/cost`} className="print:hidden" />
+        <RunProgress run={toRun(run, now ?? new Date(run.created_at).getTime())} logHref={`${basePath}/cost`} className="print:hidden" />
       ) : null}
     </>
   );

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { EstimateMeta, Evidence } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { EstimateLabel, SourceLine } from "@/components/dealproof";
@@ -46,6 +47,7 @@ export function StatTile({
   note,
   trend,
   missing,
+  href,
   className,
 }: {
   label: string;
@@ -61,6 +63,8 @@ export function StatTile({
   trend?: React.ReactNode;
   /** Why there is no figure: "Not on public record". Replaces the value. */
   missing?: string;
+  /** Links the label to the list this figure counts. */
+  href?: string;
   className?: string;
 }) {
   const figure = (
@@ -78,7 +82,18 @@ export function StatTile({
         className,
       )}
     >
-      <dt className="text-xs text-ink-muted">{label}</dt>
+      <dt className="text-xs text-ink-muted">
+        {href ? (
+          <Link
+            href={href}
+            className="rounded-xs underline decoration-line-strong underline-offset-2 transition-colors hover:text-accent"
+          >
+            {label}
+          </Link>
+        ) : (
+          label
+        )}
+      </dt>
       <dd className="flex min-w-0 flex-col items-start gap-1">
         {missing ? (
           <span className="rounded-xs bg-not-checked-tint px-1 text-dense font-medium text-not-checked">
@@ -99,8 +114,11 @@ export function StatTile({
           </span>
         )}
         {note ? <span className="text-xs text-ink-secondary">{note}</span> : null}
-        {evidence ? <SourceLine evidence={evidence} max={1} /> : null}
+        {evidence ? <SourceLine evidence={evidence} max={2} /> : null}
       </dd>
     </div>
   );
 }
+
+/** The name the consistency spec uses for the same row. */
+export { KpiRow as StatRow };

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  ApiError,
   approveMessage,
   conflictCode,
   createMessage,
@@ -231,7 +232,31 @@ export function RequestApproval({
         setModeChanged(true);
         return;
       }
-      // The request may have been accepted before the answer was lost. Ask what is on record.
+      // A definitive rejection: the service answered and refused, so nothing left. Say why.
+      const rejected =
+        caught instanceof ApiError &&
+        caught.status >= 400 &&
+        caught.status < 500 &&
+        code !== "send_exists" &&
+        code !== "stale_revision" &&
+        caught.status !== 408 &&
+        caught.status !== 429;
+      if (rejected) {
+        const reason =
+          code === "not_approved"
+            ? "This revision has no approval on record. Approve it, then send."
+            : caught.status === 422
+              ? "The service did not accept the send request as written."
+              : caught.status === 401 || caught.status === 403
+                ? "Your session does not allow this send. Log in again and retry."
+                : typeof caught.detail === "string"
+                  ? caught.detail
+                  : "The service refused the send.";
+        setError(`Nothing was sent. ${reason}`);
+        return;
+      }
+      // Otherwise the outcome is uncertain (the answer was lost) or a send already exists.
+      // Ask what is on record; nothing is sent again from here.
       try {
         if (code === "stale_revision") {
           const fresh = await getMessage(caseId, message.id);
