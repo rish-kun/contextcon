@@ -297,9 +297,9 @@ export function ApprovalBlock({
             {request.documents.map((doc) => (
               <li key={doc.id} className="flex items-center justify-between gap-3 px-3 py-2">
                 <span className="text-ink">{doc.name}</span>
-                <span className="shrink-0 font-mono text-xs text-ink-secondary">
-                  settles claim {doc.claim_number}
-                </span>
+                {doc.claim_number > 0 ? (
+                  <span className="shrink-0 text-xs text-ink-secondary">Settles claim {doc.claim_number}</span>
+                ) : null}
               </li>
             ))}
           </ul>

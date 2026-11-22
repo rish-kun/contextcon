@@ -83,7 +83,7 @@ function ModeTag({ live }: { live: boolean }) {
   );
 }
 
-/** "5" over "2 blockers · 3 others", then the documents by name. */
+/** "5 · 2 decision-critical · 3 supporting", then the documents by name. The Request tab's own groups. */
 function DocumentsCell({ entry }: { entry: Entry }) {
   const total = entry.blockers + entry.others;
   if (total === 0) return <span className="text-ink-muted">No documents listed</span>;
@@ -92,9 +92,9 @@ function DocumentsCell({ entry }: { entry: Entry }) {
       <span className="font-mono text-xs whitespace-nowrap text-ink">
         <span className="font-medium">{total}</span>
         <span className="text-ink-muted"> · </span>
-        <span className={entry.blockers > 0 ? "font-medium" : "text-ink-muted"}>{plural(entry.blockers, "blocker")}</span>
+        <span className={entry.blockers > 0 ? "font-medium" : "text-ink-muted"}>{entry.blockers} decision-critical</span>
         <span className="text-ink-muted"> · </span>
-        <span className="text-ink-secondary">{plural(entry.others, "other")}</span>
+        <span className="text-ink-secondary">{entry.others} supporting</span>
       </span>
       <span className="max-w-96 truncate text-xs text-ink-muted" title={entry.documents.join(", ")}>
         {entry.documents.join(", ")}
