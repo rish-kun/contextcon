@@ -124,8 +124,12 @@ CRITERIA = [
 ]
 
 
-def ff(v, estimate=False):
-    return FieldFact(value=v, evidence_id="ev-profile", is_estimate=estimate)
+def ff(v, estimate=False, **kw):
+    """A company field bound to the Pune company on its Crustdata id."""
+    kw.setdefault("entity_id", prd.COMPANY)
+    kw.setdefault("identity_basis", ["crustdata_id"])
+    kw.setdefault("evidence_id", "ev-profile")
+    return FieldFact(value=v, is_estimate=estimate, **kw)
 
 
 STRONG = CompanyRecord(
@@ -239,9 +243,7 @@ def test_identity_uncertain_cannot_assess_even_with_failed_requirement():
 
 def test_verified_must_fail_deprioritises():
     company = STRONG.model_copy(
-        update={
-            "fields": {**STRONG.fields, "ownership": FieldFact(value="public", evidence_id="e")}
-        }
+        update={"fields": {**STRONG.fields, "ownership": ff("public", evidence_id="e")}}
     )
     v = assess(PRD_INPUTS.model_copy(update={"company": company}))
     assert v.disposition is Disposition.DEPRIORITISE
@@ -452,9 +454,11 @@ def test_financial_assessed_from_audited_statement():
             source=audited,
             quote="Revenue from operations: 50 crore",
             as_of=date(2026, 3, 31),
+            entity_id="co",
+            identity_basis=["case_upload"],
         ),
     )
-    f = financial_assessment([rev])
+    f = financial_assessment([rev], ["co"])
     assert f.assessed and f.figures[0].evidence_id == "ev-a" and f.assumptions
 
 
@@ -501,3 +505,251 @@ def test_blocking_required_check_stops_prioritise_even_when_sufficiency_is_high(
     assert decide_disposition(IdentityStatus.CONFIRMED, fit, ok, []).disposition is (
         Disposition.PRIORITISE
     )
+
+
+# --- Entity guard: financials and fit use the same screened evidence --------------
+
+AUDITED = Source(
+    id="aud",
+    provider="upload",
+    label="Audited statements FY26",
+    retrieved_at=datetime(2026, 11, 1),
+    reliability=SourceReliability.AUDITED_STATEMENT,
+)
+
+
+def _revenue(entity, basis):
+    return ExtractedFact(
+        id="rev",
+        component="revenue",
+        value=5e8,
+        evidence=Evidence(
+            id="ev-rev",
+            source=AUDITED,
+            quote="Revenue from operations: 50 crore",
+            entity_id=entity,
+            identity_basis=basis,
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    ("entity_ids", "entity", "basis"),
+    [
+        (None, prd.COMPANY, ["case_upload"]),  # no entity to attach to
+        ([prd.COMPANY], prd.COMPANY, ["name"]),  # name alone
+        ([prd.COMPANY], "other-co", ["case_upload"]),  # another company
+    ],
+)
+def test_financial_assessment_does_not_bypass_entity_screening(entity_ids, entity, basis):
+    assert not financial_assessment([_revenue(entity, basis)], entity_ids).assessed
+
+
+def test_assess_screens_financial_facts_against_the_company():
+    other = assess(
+        PRD_INPUTS.model_copy(update={"financial_facts": [_revenue("other-co", ["cin"])]})
+    )
+    assert other.judgments.financial.assessed is False
+    ours = assess(
+        PRD_INPUTS.model_copy(update={"financial_facts": [_revenue(prd.COMPANY, ["cin"])]})
+    )
+    assert ours.judgments.financial.assessed is True
+
+
+# --- Fit in a case: recomputed from bound, adequate, undisputed evidence ----------
+
+
+def _case(fields, **update):
+    company = STRONG.model_copy(update={"fields": {**STRONG.fields, **fields}})
+    return assess(PRD_INPUTS.model_copy(update={"company": company, **update}))
+
+
+def _eval(v, cid):
+    return next(e for e in v.judgments.opportunity_fit.evaluations if e.criterion_id == cid)
+
+
+@pytest.mark.parametrize(
+    "bad_field",
+    [
+        FieldFact(value="public", evidence_id="e"),  # no entity binding at all
+        ff("public", identity_basis=["name"]),  # name alone
+        ff("public", entity_id="another-co"),  # another company's record
+    ],
+)
+def test_unbound_field_is_unknown_never_a_failed_must_have(bad_field):
+    v = _case({"ownership": bad_field})
+    e = _eval(v, "own")
+    assert e.result.value == "unknown"
+    assert v.disposition is not Disposition.DEPRIORITISE
+
+
+def test_field_bound_through_registered_evidence_uses_that_evidence():
+    announcement = Source(
+        id="pr",
+        provider="web",
+        label="Announcement",
+        retrieved_at=datetime(2026, 11, 1),
+        reliability=SourceReliability.COMPANY_ANNOUNCEMENT,
+    )
+    ev = Evidence(
+        id="ev-own",
+        source=announcement,
+        entity_id=prd.COMPANY,
+        quote="We are a listed company",
+        identity_basis=["domain"],
+    )
+    # The field claims a binding, but its evidence is an announcement: not adequate.
+    v = _case({"ownership": ff("public", evidence_id="ev-own")}, evidence=[ev])
+    assert _eval(v, "own").result.value == "unknown"
+    assert v.disposition is not Disposition.DEPRIORITISE
+
+
+def test_disputed_must_have_is_unknown_not_fail():
+    v = _case({"ownership": ff("public", disputed=True)})
+    assert _eval(v, "own").result.value == "unknown"
+    assert v.disposition is Disposition.INVESTIGATE_FURTHER
+
+
+def test_conflicting_alternative_values_make_the_criterion_unknown():
+    company = STRONG.model_copy(
+        update={
+            "fields": {**STRONG.fields, "ownership": ff("public")},
+            "field_alternatives": {"ownership": [ff("private", evidence_id="ev-other")]},
+        }
+    )
+    v = assess(PRD_INPUTS.model_copy(update={"company": company}))
+    assert _eval(v, "own").result.value == "unknown"
+    assert v.disposition is Disposition.INVESTIGATE_FURTHER
+
+
+def test_field_evidence_in_a_conflicting_claim_is_disputed():
+    reg = Source(
+        id="reg2",
+        provider="t",
+        label="Registry",
+        retrieved_at=datetime(2026, 11, 1),
+        reliability=SourceReliability.REGISTRY,
+    )
+    mirror = Source(
+        id="mir",
+        provider="t",
+        label="Mirror",
+        retrieved_at=datetime(2026, 11, 1),
+        reliability=SourceReliability.REGISTRY_MIRROR,
+    )
+
+    def f(id, src, value, quote):
+        return ExtractedFact(
+            id=id,
+            component="country",
+            value=value,
+            evidence=Evidence(
+                id=f"ev-{id}",
+                source=src,
+                entity_id=prd.COMPANY,
+                quote=quote,
+                identity_basis=["cin"],
+            ),
+        )
+
+    from app.domain import Claim, ClaimComponent
+
+    country_claim = ClaimCheck(
+        claim=Claim(
+            id="c-country",
+            text="An Indian company",
+            category=ClaimCategory.LOCATION,
+            components=[ClaimComponent(name="country", value="India")],
+            entity_ids=[prd.COMPANY],
+        ),
+        facts=[
+            f("kenya", reg, "Kenya", "Country of incorporation: Kenya"),
+            f("india", mirror, "India", "Country: India"),
+        ],
+    )
+    # The thesis field "country" rests on the registry evidence that is in dispute.
+    v = _case(
+        {"country": ff("Kenya", evidence_id="ev-kenya")},
+        claim_checks=[*prd.PRD_CHECKS, country_claim],
+    )
+    assert v.outcomes[-1].status is ClaimStatus.CONFLICTING_EVIDENCE
+    assert _eval(v, "geo").result.value == "unknown"
+    assert v.disposition is not Disposition.DEPRIORITISE
+
+
+def test_stale_field_never_triggers_deprioritise():
+    v = _case({"ownership": ff("public", as_of=date(2022, 1, 1))})
+    e = _eval(v, "own")
+    assert e.result.value == "fail" and e.verified is False and "stale" in e.reason
+    assert v.disposition is Disposition.INVESTIGATE_FURTHER
+    fresh = _case({"ownership": ff("public", as_of=date(2026, 6, 1))})
+    assert fresh.disposition is Disposition.DEPRIORITISE
+
+
+# --- Prioritise gate --------------------------------------------------------------
+
+
+def _startup(checks):
+    return PRD_INPUTS.model_copy(
+        update={
+            "profile": CompanyProfile(founded_year=2021, headcount=60, funding_stage="series_a"),
+            "claim_checks": checks,
+        }
+    )
+
+
+def test_absent_covered_check_is_a_gap_that_blocks_prioritise():
+    checks, _ = _supported_startup_checks()
+    v = assess(_startup(checks[:3]))  # no funding claim at all
+    funding = next(
+        c for c in v.judgments.evidence_sufficiency.checks if c.check is ClaimCategory.FUNDING
+    )
+    assert funding.result is None and funding.covered_in_v1
+    assert v.disposition is Disposition.INVESTIGATE_FURTHER
+    assert "Required check funding: not claimed and not checked" in v.judgments.disposition.reasons
+
+
+def test_established_company_prioritises_when_every_covered_check_is_complete():
+    checks, _ = _supported_startup_checks()
+    v = assess(PRD_INPUTS.model_copy(update={"claim_checks": checks}))
+    assert v.company_type.company_type is CompanyType.ESTABLISHED
+    by = {c.check: c for c in v.judgments.evidence_sufficiency.checks}
+    # Financials and customers are outside v1's checks: listed as gaps, not blocking.
+    assert by[ClaimCategory.FINANCIALS].covered_in_v1 is False
+    assert by[ClaimCategory.FINANCIALS].gap
+    assert v.disposition is Disposition.PRIORITISE
+
+
+def _contradicted_debt(material=True):
+    lender = Source(
+        id="lender",
+        provider="t",
+        label="Lender statement",
+        retrieved_at=datetime(2026, 11, 1),
+        reliability=SourceReliability.COUNTERPARTY_CONFIRMATION,
+    )
+    fact = ExtractedFact(
+        id="loan",
+        component="has_debt",
+        value=True,
+        evidence=Evidence(
+            id="ev-loan",
+            source=lender,
+            entity_id=prd.COMPANY,
+            quote="Outstanding term loan balance: 8.2 crore",
+            identity_basis=["cin"],
+        ),
+    )
+    claim = prd.NO_DEBT.claim.model_copy(update={"material": material})
+    return ClaimCheck(claim=claim, facts=[fact])
+
+
+def test_contradicted_material_claim_anywhere_in_the_ledger_blocks_prioritise():
+    checks, _ = _supported_startup_checks()
+    v = assess(_startup([*checks, _contradicted_debt()]))
+    assert v.outcomes[-1].status is ClaimStatus.CONTRADICTED
+    # Debt is not a required check, but the claim is material.
+    assert v.disposition is Disposition.INVESTIGATE_FURTHER
+    assert "Material claim c-debt: Contradicted" in v.judgments.disposition.reasons
+    immaterial = assess(_startup([*checks, _contradicted_debt(material=False)]))
+    assert immaterial.disposition is Disposition.PRIORITISE

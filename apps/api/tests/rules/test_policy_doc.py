@@ -40,6 +40,12 @@ def test_policy_doc_lists_the_corroborating_identifiers():
         assert f"`{identifier}`" in DOC, identifier
 
 
+def test_policy_doc_names_the_v1_covered_checks():
+    section = DOC[DOC.index("**What v1 covers.**") :]
+    for check in policy.V1_COVERED_CHECKS:
+        assert check.value.replace("_", " ").split()[0] in section, check
+
+
 def test_policy_doc_states_the_thresholds():
     for text in (
         f"Fit at least {policy.PRIORITISE_MIN_FIT}",
@@ -47,5 +53,8 @@ def test_policy_doc_states_the_thresholds():
         f"at least {policy.DEPRIORITISE_MIN_ASSESSABLE}% of criteria verified",
         f"less than {policy.CANNOT_ASSESS_MAX_ASSESSABLE}% of criteria assessable",
         "must-have counts 2 and a preference counts 1",
+        f"more than {policy.FIELD_STALE_AFTER_DAYS} days old",
+        "every required check that v1 covers Supported",
+        "no material claim anywhere in the ledger contradicted or conflicting",
     ):
         assert text in DOC, text

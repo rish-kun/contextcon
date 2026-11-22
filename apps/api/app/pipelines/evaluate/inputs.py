@@ -16,6 +16,16 @@ pipelines that write the rows):
 - Profile signals: case evidence with a `field_path` (Crustdata field paths such as
   `headcount.total`, `basic_info.year_founded`) attached to the confirmed company.
 - Events: `events` rows, each with its evidence id.
+- Identity binding (design §5.4): evidence carries no basis column, so the basis is
+  derived from how the row was attached: a Crustdata reference
+  (`crustdata:company:<id>`, `crustdata:person:<id>`, or the bare confirmed company
+  id) is `crustdata_id`; `domain:`, `cin:`, `registry:` and `profile:` prefixes map to
+  their identifiers; a document uploaded to the case is `case_upload`. Anything else
+  has no corroborating identifier and never decides a status or criterion. Claims are
+  bound to the confirmed company (and the people linked to their checks by Crustdata
+  id) only while identity is confirmed.
+- Seller documents: `sources.request["document_type"]` (a `DocumentType` value) says
+  what kind of document an upload is; without one it is a generic document.
 """
 
 from __future__ import annotations
@@ -38,6 +48,7 @@ from app.domain.enums import (
     ClaimStatus,
     CriterionKind,
     CriterionOperator,
+    DocumentType,
     IdentityStatus,
     NotCheckedReason,
     SourceReliability,
@@ -127,6 +138,48 @@ def _company_ref(ref: str | None, company_id: str | None) -> bool:
     return ref == company_id or ref.rsplit(":", 1)[-1] == company_id
 
 
+_REF_BASIS = (
+    ("crustdata:", "crustdata_id"),
+    ("domain:", "domain"),
+    ("cin:", "cin"),
+    ("registry:", "registry_id"),
+    ("profile:", "profile_url"),
+)
+
+
+def company_entity(case: Case) -> str:
+    return str(case.crustdata_company_id or case.id)
+
+
+def entity_of(e: Evidence, case: Case) -> str | None:
+    """The rule-side entity id: the confirmed company's id, or the stored reference."""
+    if _company_ref(e.entity_ref, str(case.crustdata_company_id or "")):
+        return company_entity(case)
+    return e.entity_ref or None
+
+
+def identity_basis(e: Evidence, src: Source, case: Case) -> list[str]:
+    """How the row was tied to its entity; empty means a name match at best."""
+    basis: list[str] = []
+    if src.document_id is not None or src.provider == "upload":
+        basis.append("case_upload")
+    ref = e.entity_ref or ""
+    for prefix, name in _REF_BASIS:
+        if ref.startswith(prefix):
+            basis.append(name)
+    if case.crustdata_company_id and ref == str(case.crustdata_company_id):
+        basis.append("crustdata_id")
+    return sorted(set(basis))
+
+
+def _document_type(src: Source) -> DocumentType | None:
+    raw = (src.request or {}).get("document_type") if isinstance(src.request, dict) else None
+    try:
+        return DocumentType(raw) if raw else None
+    except ValueError:
+        return None
+
+
 def _when(e: Evidence) -> tuple:
     return (e.as_of or dt.date.min, e.created_at, str(e.id))
 
@@ -140,21 +193,23 @@ def _source_in(src: Source) -> SourceIn:
         retrieved_at=src.retrieved_at,
         reliability=reliability_of(src.source_class),
         origin_key=(src.request or {}).get("origin_key") if isinstance(src.request, dict) else None,
+        document_type=_document_type(src),
     )
 
 
-def _evidence_in(e: Evidence, src: Source, value: Any) -> EvidenceIn:
+def _evidence_in(e: Evidence, src: Source, value: Any, case: Case) -> EvidenceIn:
     quote = e.span if e.span and e.span.strip() else None
     field_path = e.field_path or (None if quote else f"evidence.{e.id}")
     return EvidenceIn(
         id=str(e.id),
         source=_source_in(src),
-        entity_id=e.entity_ref or None,
+        entity_id=entity_of(e, case),
         quote=quote,
         field_path=field_path,
         field_value=value if field_path else None,
         page=e.page,
         as_of=e.as_of,
+        identity_basis=identity_basis(e, src, case),
     )
 
 
@@ -221,7 +276,7 @@ def company_record(case: Case, evidence: list[tuple[Evidence, Source]]) -> Compa
     for e, s in sorted(evidence, key=lambda p: _when(p[0])):
         latest[e.field_path or ""] = (e, s)
     return CompanyRecord(
-        entity_id=str(case.crustdata_company_id or case.id),
+        entity_id=company_entity(case),
         name=case.company_name,
         fields={
             path: FieldFact(
@@ -229,6 +284,8 @@ def company_record(case: Case, evidence: list[tuple[Evidence, Source]]) -> Compa
                 evidence_id=str(e.id),
                 as_of=e.as_of,
                 is_estimate=_is_estimate(e, s),
+                entity_id=entity_of(e, case),
+                identity_basis=identity_basis(e, s, case),
             )
             for path, (e, s) in sorted(latest.items())
             if e.scrubbed_at is None
@@ -330,14 +387,26 @@ async def load_claim_checks(session: AsyncSession, case: Case) -> list[ClaimChec
 
     out: list[ClaimCheck] = []
     for row in sorted(claims, key=lambda c: (c.created_at, str(c.id))):
-        out.append(_claim_check(row, latest.get(row.id), linked))
+        out.append(_claim_check(row, latest.get(row.id), linked, case))
     return out
+
+
+def claim_entities(case: Case, links: list[tuple[str, Evidence, Source]]) -> list[str]:
+    """Entities a claim's facts may attach to: the confirmed company, plus people
+    linked to its check by Crustdata id. Nothing while identity is not confirmed."""
+    if case.identity_status != IdentityStatus.CONFIRMED.value:
+        return []
+    people = sorted(
+        {e.entity_ref for _, e, _ in links if e.entity_ref.startswith("crustdata:person:")}
+    )
+    return [company_entity(case), *people]
 
 
 def _claim_check(
     row: ClaimRow,
     check: ClaimCheckRow | None,
     linked: dict[uuid.UUID, list[tuple[str, Evidence, Source]]],
+    case: Case,
 ) -> ClaimCheck:
     try:
         category = ClaimCategory(row.category)
@@ -348,6 +417,7 @@ def _claim_check(
         text=row.original_text,
         category=category,
         components=claim_components(row.components),
+        entity_ids=claim_entities(case, linked.get(check.id, []) if check else []),
     )
     if check is None:
         return ClaimCheck(
@@ -375,7 +445,7 @@ def _claim_check(
         facts.append(
             ExtractedFact(
                 id=f"{e.id}:{component}",
-                evidence=_evidence_in(e, s, value),
+                evidence=_evidence_in(e, s, value, case),
                 component=component,
                 value=value,
             )

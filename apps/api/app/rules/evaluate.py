@@ -28,6 +28,7 @@ from app.domain.types import (
     CheckSufficiency,
     Claim,
     DispositionDecision,
+    Evidence,
     EvidenceSufficiency,
     ExtractedFact,
     FinancialAssessment,
@@ -37,11 +38,11 @@ from app.domain.types import (
     Signal,
 )
 from app.rules import policy
-from app.rules.claim_status import decide_claim_status, document_for, status_label
+from app.rules.claim_status import combine_states, decide_claim_status, document_for, status_label
 from app.rules.company_type import classify_company, required_checks
-from app.rules.fit import assess_candidate
+from app.rules.fit import assess_case_candidate
 from app.rules.requests import build_request_list
-from app.rules.validation import span_for, validate_extraction
+from app.rules.validation import screen_fact
 
 _BLOCKING_REQUIRED = frozenset(
     {ClaimStatus.CONTRADICTED, ClaimStatus.CONFLICTING_EVIDENCE, ClaimStatus.NOT_CHECKED}
@@ -52,17 +53,10 @@ _BLOCKING_REQUIRED = frozenset(
 
 
 def _check_result(states: list[ComponentState]) -> ClaimStatus:
-    if ComponentState.CONTRADICTED in states:
-        return ClaimStatus.CONTRADICTED
-    if ComponentState.CONFLICTING in states:
-        return ClaimStatus.CONFLICTING_EVIDENCE
-    if all(s is ComponentState.MATCHED for s in states):
-        return ClaimStatus.SUPPORTED
-    if ComponentState.MATCHED in states:
-        return ClaimStatus.PARTIALLY_CORROBORATED
-    if all(s is ComponentState.NOT_CHECKED for s in states):
+    """Same precedence as a compound claim: conflicting before contradicted."""
+    if states and all(s is ComponentState.NOT_CHECKED for s in states):
         return ClaimStatus.NOT_CHECKED
-    return ClaimStatus.CANNOT_VERIFY
+    return combine_states(states)
 
 
 def evidence_sufficiency(
@@ -90,7 +84,12 @@ def evidence_sufficiency(
             gap = f"{label}: not claimed and not checked"
             checks.append(
                 CheckSufficiency(
-                    check=check, adequate=False, result=None, gap=gap, settle_with=[doc]
+                    check=check,
+                    adequate=False,
+                    result=None,
+                    gap=gap,
+                    settle_with=[doc],
+                    covered_in_v1=check in policy.V1_COVERED_CHECKS,
                 )
             )
             gaps.append(gap)
@@ -127,6 +126,7 @@ def evidence_sufficiency(
                 claim_ids=claim_ids,
                 gap=gap,
                 settle_with=settle,
+                covered_in_v1=check in policy.V1_COVERED_CHECKS,
             )
         )
     settled = sum(1 for c in checks if c.adequate)
@@ -201,9 +201,13 @@ def business_assessment(inputs: BusinessInputs) -> BusinessAssessment:
 NOT_ASSESSED = "Not assessed: no reliable financial inputs (audited statements or registry filings)"
 
 
-def financial_assessment(facts: list[ExtractedFact]) -> FinancialAssessment:
-    """Only figures from audited statements or registry filings, with their
-    quotes verified. Headcount and hiring never enter here."""
+def financial_assessment(
+    facts: list[ExtractedFact], entity_ids: list[str] | None = None
+) -> FinancialAssessment:
+    """Only figures from audited statements or registry filings, bound to the
+    company (``entity_ids``) on a corroborating identifier and with their
+    quotes verified: the same screen claims use. Without entity ids nothing
+    can be attached, so nothing is assessed. Headcount and hiring never enter here."""
     figures: dict[str, FinancialFigure] = {}
     for f in sorted(facts, key=lambda f: f.id):
         rule = policy.COMPONENT_RULES.get(f.component)
@@ -212,7 +216,7 @@ def financial_assessment(facts: list[ExtractedFact]) -> FinancialAssessment:
         src = f.evidence.source
         if src.reliability not in policy.RELIABLE_FINANCIAL_SOURCES:
             continue
-        if not validate_extraction(f, span_for(f)).valid:
+        if not screen_fact(f, list(entity_ids or [])).valid:
             continue
         figures.setdefault(
             f.id,
@@ -240,22 +244,35 @@ def financial_assessment(facts: list[ExtractedFact]) -> FinancialAssessment:
 # --- Disposition -----------------------------------------------------------------
 
 
+_MATERIAL_BLOCKING = frozenset({ClaimStatus.CONTRADICTED, ClaimStatus.CONFLICTING_EVIDENCE})
+
+
+def _complete(c: CheckSufficiency) -> bool:
+    return c.adequate and c.result is ClaimStatus.SUPPORTED
+
+
 def decide_disposition(
     identity_status: IdentityStatus,
     fit: OpportunityFit,
     sufficiency: EvidenceSufficiency,
     must_failures: list[str],
+    *,
+    outcomes: list[CheckOutcome] | None = None,
+    claims: dict[str, Claim] | None = None,
 ) -> DispositionDecision:
     """Predicates in fixed precedence; the first that holds decides.
 
     1. cannot_assess        identity not confirmed, or too little of the thesis assessable
     2. deprioritise         a must-have verifiably failed, or poor fit on verified evidence
-    3. prioritise           strong fit and the required checks satisfied
+    3. prioritise           strong fit, every v1-covered required check complete, and no
+                            material claim contradicted or conflicting anywhere
     4. investigate_further  everything else (attractive, evidence incomplete)
 
     Missing evidence never reaches rule 2: unknowns never fail a criterion,
-    estimate-based results are excluded from the poor-fit test, and claim
-    statuses do not feed it at all.
+    disputed criteria are unknown, estimate-based and stale results are
+    excluded from the poor-fit test, and claim statuses do not feed it at all.
+    Pass ``outcomes`` (and ``claims`` for materiality) so the whole ledger is
+    considered, not only the required checks.
     """
     if identity_status is not IdentityStatus.CONFIRMED:
         return DispositionDecision(
@@ -295,32 +312,47 @@ def decide_disposition(
             ],
         )
 
+    claims = claims or {}
     blocking = [
         c for c in sufficiency.checks if c.result is not None and c.result in _BLOCKING_REQUIRED
     ]
+    # Every required check v1 covers must be complete. An absent check
+    # (result None) or a skipped one is a gap, never a pass.
+    incomplete = [
+        c
+        for c in sufficiency.checks
+        if c.check in policy.V1_COVERED_CHECKS and not _complete(c) and c not in blocking
+    ]
+    material = [
+        o
+        for o in outcomes or []
+        if o.status in _MATERIAL_BLOCKING
+        and (claims.get(o.claim_id) is None or claims[o.claim_id].material)
+    ]
     strong = fit.fit >= policy.PRIORITISE_MIN_FIT
-    sufficient = sufficiency.pct >= policy.PRIORITISE_MIN_SUFFICIENCY
-    if strong and sufficient and not blocking:
+    if strong and not incomplete and not blocking and not material:
         return DispositionDecision(
             disposition=Disposition.PRIORITISE,
             rule="strong_fit_checks_satisfied",
             reasons=[
                 fit.label,
-                f"{sufficiency.pct}% of required checks settled by adequate evidence",
+                "Every required check within what v1 covers is settled by adequate evidence "
+                f"({sufficiency.pct}% of all required checks)",
             ],
         )
 
     reasons = [fit.label]
     if not strong:
         reasons.append(f"Fit is below {policy.PRIORITISE_MIN_FIT}")
-    if not sufficient:
-        reasons.append(
-            f"Only {sufficiency.pct}% of required checks are settled "
-            f"(needs {policy.PRIORITISE_MIN_SUFFICIENCY}%)"
-        )
+    for c in incomplete:
+        label = c.check.value.replace("_", " ")
+        state = "not claimed and not checked" if c.result is None else status_label(c.result)
+        reasons.append(f"Required check {label}: {state}")
     for c in blocking:
         label = c.check.value.replace("_", " ")
         reasons.append(f"Required check {label}: {status_label(c.result)}")
+    for o in material:
+        reasons.append(f"Material claim {o.claim_id}: {status_label(o.status)}")
     return DispositionDecision(
         disposition=Disposition.INVESTIGATE_FURTHER,
         rule="evidence_incomplete",
@@ -340,11 +372,44 @@ def inputs_hash(inputs: AssessmentInputs) -> str:
     return hashlib.sha256(canonical.encode()).hexdigest()
 
 
+def _evidence_index(inputs: AssessmentInputs) -> list[Evidence]:
+    seen: dict[str, Evidence] = {}
+    for e in inputs.evidence:
+        seen.setdefault(e.id, e)
+    for c in inputs.claim_checks:
+        for f in c.facts:
+            seen.setdefault(f.evidence.id, f.evidence)
+    for f in inputs.financial_facts:
+        seen.setdefault(f.evidence.id, f.evidence)
+    return [seen[k] for k in sorted(seen)]
+
+
 def assess(inputs: AssessmentInputs) -> AssessmentVersion:
-    """Case inputs → one immutable assessment version. Same inputs, same output."""
-    candidate = assess_candidate(inputs.criteria, inputs.company)
+    """Case inputs → one immutable assessment version. Same inputs, same output.
+
+    Claims, fit and the financial assessment all use the same screened
+    evidence: every fact and field passes the identity guard for the
+    confirmed company before it can count.
+    """
     outcomes = [decide_claim_status(c) for c in inputs.claim_checks]
     claims = {c.claim.id: c.claim for c in inputs.claim_checks}
+    evidence = _evidence_index(inputs)
+    disputed = sorted(
+        {
+            eid
+            for o in outcomes
+            for f in o.components
+            if f.state is ComponentState.CONFLICTING
+            for eid in f.decisive_evidence_ids
+        }
+    )
+    candidate = assess_case_candidate(
+        inputs.criteria,
+        inputs.company,
+        today=inputs.today,
+        evidence=evidence,
+        disputed_evidence_ids=disputed,
+    )
     ctype = classify_company(
         inputs.profile.founded_year,
         inputs.profile.headcount,
@@ -354,10 +419,16 @@ def assess(inputs: AssessmentInputs) -> AssessmentVersion:
     sufficiency = evidence_sufficiency(ctype.company_type, outcomes, claims)
     business = business_assessment(inputs.business)
     financial = financial_assessment(
-        [f for c in inputs.claim_checks for f in c.facts] + list(inputs.financial_facts)
+        [f for c in inputs.claim_checks for f in c.facts] + list(inputs.financial_facts),
+        [inputs.company.entity_id],
     )
     decision = decide_disposition(
-        inputs.identity_status, candidate.fit, sufficiency, candidate.exclusion_reasons
+        inputs.identity_status,
+        candidate.fit,
+        sufficiency,
+        candidate.exclusion_reasons,
+        outcomes=outcomes,
+        claims=claims,
     )
     requests = build_request_list(
         outcomes,

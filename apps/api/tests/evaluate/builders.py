@@ -191,7 +191,7 @@ async def add_payroll(session: AsyncSession, w: World) -> Evidence:
         endpoint="upload://payroll_summary.pdf",
         source_class="seller_document",
         title="payroll_summary.pdf, p. 2",
-        request={},
+        request={"document_type": "payroll_record"},
     )
     ev = await quote(session, w.t, doc_src, "Total employees on payroll: 250", "250", page=2)
     headcount = next(

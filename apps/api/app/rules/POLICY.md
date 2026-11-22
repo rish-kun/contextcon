@@ -24,6 +24,17 @@ No record = unknown.
   that rests on an estimate such as profile-based headcount, keeps the company in.
 - The must-have check runs again after enrichment, so a company kept on an
   unknown is removed when a verified failure appears later.
+- **Disputed fields are unknown.** When sources disagree on a field (another
+  source gives a value with a different result, or the field's evidence is part
+  of a claim with conflicting evidence), the criterion is unknown, never fail.
+- **Stale fields never exclude.** A field whose record is more than 730 days old
+  still counts toward fit, but a fail on it is not verified, so it can neither
+  exclude a company nor lead to Deprioritise.
+- **In a case, criteria are recomputed from screened evidence.** A field counts
+  only when its record is bound to the confirmed company on a corroborating
+  identifier (section 2) and comes from a source that can answer a criterion: a
+  company announcement or the seller's own statement cannot. A profile-based
+  figure counts as an estimate. Anything else is unknown.
 - **Ranking:** fit (unavailable last), then assessable share, then name.
 
 ## 2. Verify: claim statuses
@@ -165,7 +176,9 @@ The five judgments are never blended into one score.
    open roles, locations and dated events. They are labelled as signals and never
    treated as revenue.
 4. **Financial assessment:** made only from figures in audited statements or registry
-   filings whose quotes check out. Otherwise "Not assessed: no reliable financial inputs".
+   filings whose quotes check out and whose records are bound to the company on a
+   corroborating identifier: the same screen claims and fit use. Otherwise "Not
+   assessed: no reliable financial inputs".
 5. **Screening disposition:** section 5.
 
 ## 4. Company type
@@ -192,12 +205,21 @@ The checks run in this order, and the first one that applies decides.
 | 1 | Cannot assess | `essential_information_missing` | Fit unavailable, or less than 30% of criteria assessable |
 | 2 | Deprioritise | `requirement_failed` | A must-have you set verifiably failed |
 | 2 | Deprioritise | `poor_fit_on_good_evidence` | Counting verified results only: fit below 40 with at least 60% of criteria verified |
-| 3 | Prioritise | `strong_fit_checks_satisfied` | Fit at least 70, at least 80% of required checks settled, and no required check contradicted, conflicting or not checked |
+| 3 | Prioritise | `strong_fit_checks_satisfied` | Fit at least 70, every required check that v1 covers Supported on adequate evidence, no required check contradicted, conflicting or not checked, and no material claim anywhere in the ledger contradicted or conflicting |
 | 4 | Investigate further | `evidence_incomplete` | Anything else |
 
 **Missing evidence alone never leads to Deprioritise.** An unknown never fails a
-criterion, estimate-based results are left out of the poor-fit test, and claim
-statuses do not feed the Deprioritise rules.
+criterion, a disputed criterion is unknown, estimate-based and stale results are
+left out of the poor-fit test, and claim statuses do not feed the Deprioritise rules.
+
+**What v1 covers.** The first version checks identity, location, team size,
+leadership history, funding and dated events. For Prioritise, every one of these
+that is required for the company type must be complete; a required check that was
+never claimed, or was skipped, is a gap and blocks Prioritise. Required checks v1
+does not cover (financials and customers for an established company) are still
+listed as gaps and requested, but do not block Prioritise. A material claim that is
+Contradicted or Conflicting blocks Prioritise wherever it sits in the ledger, even
+outside the required checks.
 
 ## 6. Requests
 
