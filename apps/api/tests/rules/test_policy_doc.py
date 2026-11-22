@@ -58,3 +58,17 @@ def test_policy_doc_states_the_thresholds():
         "no material claim anywhere in the ledger contradicted or conflicting",
     ):
         assert text in DOC, text
+
+
+def test_policy_doc_states_the_disposition_table_and_mapping():
+    section = DOC[DOC.index("## 5. Screening disposition") : DOC.index("## 6. Requests")]
+    for row in policy.DISPOSITION_TABLE:
+        assert f"| {row.situation} |" in section, row.key
+    for component in policy.COMPONENT_CRITERION_DIMENSIONS:
+        assert f"`{component}`" in section, component
+
+
+def test_policy_doc_explains_decision_flip():
+    section = DOC[DOC.index("## 9. DecisionFlip") :]
+    assert "Minimum set of checks required to change the screening outcome" in section
+    assert "never described as the cheapest" in section

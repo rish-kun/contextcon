@@ -208,3 +208,19 @@ class NextAction(StrEnum):
     ANALYST_FOLLOW_UP = "analyst_follow_up"
     REVIEW_DISQUALIFIER = "review_disqualifier"
     NONE = "none"
+
+
+class EffortLevel(StrEnum):
+    """Coarse effort to obtain a document (policy.DOCUMENT_EFFORT). A tie-break only:
+    DecisionFlip's minimum set is the fewest checks, never "the cheapest"."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
+class SelectionBasis(StrEnum):
+    """How DecisionFlip picks the minimum set. Only ``fewest_checks`` exists; a later
+    minimum-total-effort selection would add a value here."""
+
+    FEWEST_CHECKS = "fewest_checks"

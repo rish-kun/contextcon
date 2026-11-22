@@ -24,6 +24,7 @@ from app.domain.enums import (
     CriterionOperator,
     CriterionResult,
     Disposition,
+    EffortLevel,
     FlipSearch,
     FlipState,
     IdentityStatus,
@@ -31,8 +32,10 @@ from app.domain.enums import (
     ItemKind,
     NextAction,
     NotCheckedReason,
+    SelectionBasis,
 )
 from app.domain.types import (
+    MINIMUM_SET_LABEL,
     AssessmentInputs,
     AssessmentVersion,
     CheckOutcome,
@@ -66,6 +69,9 @@ CRITERION_DOCUMENT = "Sourced record for the criterion (registry filing or data 
 
 __all__ = [
     "CRITERION_DOCUMENT",
+    "MINIMUM_SET_LABEL",
+    "EffortLevel",
+    "SelectionBasis",
     "EXHAUSTIVE_MAX_ITEMS",
     "FLIP_VERSION",
     "DecisionFlipAnalysis",
@@ -225,6 +231,8 @@ _KIND_ORDER = {
 
 Mode = Literal["supported", "contradicted"]
 
+_EFFORT_RANK = {EffortLevel.LOW: 0, EffortLevel.MEDIUM: 1, EffortLevel.HIGH: 2}
+
 
 @dataclass(frozen=True)
 class _Item:
@@ -245,6 +253,12 @@ class _Item:
     @property
     def sort_key(self) -> tuple[int, str]:
         return (_KIND_ORDER[self.kind], self.id)
+
+    @property
+    def effort(self) -> EffortLevel:
+        """The highest effort among its documents; a re-run with no document is low."""
+        levels = [policy.DOCUMENT_EFFORT.get(d, EffortLevel.MEDIUM) for d in self.settle_with]
+        return max(levels, key=_EFFORT_RANK.__getitem__, default=EffortLevel.LOW)
 
 
 def _dedupe(items: Iterable[str]) -> tuple[str, ...]:
@@ -484,9 +498,17 @@ def _exhaustive(candidates: list[str], reaches: Callable[[tuple[str, ...]], bool
 
 def _greedy(candidates: list[_Item], reaches: Callable[[tuple[str, ...]], bool]) -> tuple[str, ...]:
     """Deletion greedy: drop items in reverse priority order (analyst-only first,
-    then most documents, then id) while the set still reaches. Repeated until no
-    item can be dropped, so the result is irreducible."""
-    order = sorted(candidates, key=lambda i: (i.seller_resolvable, -len(i.settle_with), i.id))
+    then highest effort, then most documents, then id) while the set still reaches.
+    Repeated until no item can be dropped, so the result is irreducible."""
+    order = sorted(
+        candidates,
+        key=lambda i: (
+            i.seller_resolvable,
+            -_EFFORT_RANK[i.effort],
+            -len(i.settle_with),
+            i.id,
+        ),
+    )
     chosen = [i.id for i in order]
     changed = True
     while changed:
@@ -515,13 +537,106 @@ def _documents(ids: Sequence[str], items: Mapping[str, _Item]) -> list[SettleDoc
     ]
 
 
-def _set_key(ids: Sequence[str], items: Mapping[str, _Item]) -> tuple:
+def _fewest_checks(ids: Sequence[str], items: Mapping[str, _Item]) -> tuple:
+    """Fewest checks first. Estimated effort is only a tie-break, then fewer
+    documents, fewer analyst-only items and the ids, so the choice is total."""
     return (
+        len(ids),
+        sum(_EFFORT_RANK[items[i].effort] for i in ids),
         len(_documents(ids, items)),
         sum(1 for i in ids if not items[i].seller_resolvable),
-        len(ids),
         tuple(sorted(ids)),
     )
+
+
+# How minimal sets are ordered, by selection basis. Extension point: a later
+# minimum-total-cost selection adds a SelectionBasis value and a key here that
+# leads with the summed cost of the set's documents.
+SELECTION_KEYS: dict[SelectionBasis, Callable[[Sequence[str], Mapping[str, _Item]], tuple]] = {
+    SelectionBasis.FEWEST_CHECKS: _fewest_checks,
+}
+SELECTION_BASIS = SelectionBasis.FEWEST_CHECKS
+
+
+# --- Conditional actions (both branches, never "obtaining it qualifies") ---------------
+
+_DISPOSITION_LABEL = {
+    Disposition.PRIORITISE: "Prioritise",
+    Disposition.INVESTIGATE_FURTHER: "Investigate further",
+    Disposition.DEPRIORITISE: "Deprioritise",
+    Disposition.CANNOT_ASSESS: "Cannot assess",
+}
+
+
+def _value(v: Any) -> str:
+    if isinstance(v, list | tuple):
+        return ", ".join(str(x) for x in v)
+    return str(v)
+
+
+def _threshold(c: Criterion) -> str | None:
+    op, v = c.operator, c.value
+    if op is CriterionOperator.GTE:
+        return f"at least {_value(v)}"
+    if op is CriterionOperator.LTE:
+        return f"at most {_value(v)}"
+    if op is CriterionOperator.BETWEEN and isinstance(v, list | tuple) and len(v) == 2:
+        return f"between {_value(v[0])} and {_value(v[1])}"
+    return None
+
+
+def _branches(item: UnresolvedItem, passed: str, failed: str) -> str:
+    s, c = item.if_supported, item.if_contradicted
+    if s is None or c is None:
+        return ""
+    return (
+        f" Hypothetically, {passed} gives {_DISPOSITION_LABEL[s.disposition]} and "
+        f"{failed} gives {_DISPOSITION_LABEL[c.disposition]}."
+    )
+
+
+def _lower_first(text: str) -> str:
+    return text[:1].lower() + text[1:]
+
+
+def conditional_action(item: UnresolvedItem, criteria: Mapping[str, Criterion]) -> str | None:
+    """What to obtain for a criterion or a financial item, with both branches
+    stated. Obtaining a record settles the question either way; it never makes
+    the company qualify."""
+    if item.kind is ItemKind.CRITERION and item.criterion_id is not None:
+        c = criteria.get(item.criterion_id)
+        label = c.label if c is not None else item.criterion_id
+        threshold = _threshold(c) if c is not None else None
+        if threshold is not None:
+            text = (
+                f"Obtain a sourced record for {label}. If the verified figure is {threshold}, "
+                f"{label} passes; otherwise it fails."
+            )
+        else:
+            text = (
+                f"Obtain a sourced record for {label}. If it shows the criterion holds, "
+                f"{label} passes; otherwise it fails."
+            )
+        return text + _branches(item, "a pass", "a fail")
+    if item.kind is ItemKind.CLAIM and item.check is ClaimCategory.FINANCIALS:
+        doc = _lower_first(item.settle_with[0]) if item.settle_with else "the source record"
+        return (
+            f"Obtain {doc}. If the verified figures match claim {item.claim_id}, it is "
+            "supported; otherwise it is contradicted."
+        ) + _branches(item, "a match", "a mismatch")
+    if item.kind is ItemKind.CHECK_GAP and item.check is ClaimCategory.FINANCIALS:
+        doc = _lower_first(policy.CATEGORY_DOCUMENTS[ClaimCategory.FINANCIALS])
+        return (
+            f"Obtain {doc}. If the verified figures support the company's financials, the "
+            "check is settled in its favour; otherwise it is settled against it."
+        ) + _branches(item, "support", "the opposite")
+    if item.kind is ItemKind.FINANCIAL_INPUTS:
+        doc = _lower_first(policy.DOC_FINANCIAL_INPUTS)
+        return (
+            f"Obtain {doc}. If they give reliable figures, the financial assessment can be "
+            "made, favourable or not; otherwise it stays not assessed."
+        )
+    return None
 
 
 # --- Next best action ----------------------------------------------------------------
@@ -532,6 +647,21 @@ def _n(count: int, noun: str) -> str:
 
 
 def _next_best_action(
+    state: FlipState,
+    real: DispositionDecision,
+    ceiling: DispositionDecision,
+    chosen: MinimalSet | None,
+    items: Mapping[str, _Item],
+    conditions: Mapping[str, str],
+) -> NextBestAction:
+    action = _base_action(state, real, ceiling, chosen, items)
+    extra = [conditions[i] for i in action.item_ids if i in conditions]
+    if not extra:
+        return action
+    return action.model_copy(update={"conditions": extra, "text": " ".join([action.text, *extra])})
+
+
+def _base_action(
     state: FlipState,
     real: DispositionDecision,
     ceiling: DispositionDecision,
@@ -678,7 +808,7 @@ def analyse(
         else:
             search = FlipSearch.GREEDY
             minimal = [_greedy(candidates, reaches)]
-        minimal.sort(key=lambda ids: _set_key(ids, by_id))
+        minimal.sort(key=lambda ids: SELECTION_KEYS[SELECTION_BASIS](ids, by_id))
     in_any_set = {i for ids in minimal for i in ids}
 
     # Per-item runs. A verified Deprioritise is not simulated away.
@@ -698,13 +828,13 @@ def analyse(
                         runner.run({**others, item.id: "contradicted"}).disposition
                     ) < rank(target)
         blocker = target is not None and (item.id in in_any_set or needed)
-        # POLICY.md §5: claim statuses never feed Deprioritise, so only an unknown
-        # must-have whose verified fail would exclude the company is a risk.
+        # POLICY.md §5: only a verified must-have failure (requirement_failed) is a
+        # disqualifier: an unknown must-have, or an unresolved claim on a must-have's
+        # dimension. Poor fit from a preference failing is shown, but is no risk.
         risk = (
-            item.kind is ItemKind.CRITERION
-            and item.criterion_kind is CriterionKind.MUST
-            and if_contradicted is not None
+            if_contradicted is not None
             and if_contradicted.disposition is Disposition.DEPRIORITISE
+            and if_contradicted.rule == "requirement_failed"
         )
         flips = (
             target is not None
@@ -737,9 +867,16 @@ def analyse(
                 settle_with=list(item.settle_with),
                 if_supported=if_supported,
                 if_contradicted=if_contradicted,
+                est_effort=item.effort,
             )
         )
 
+    criteria_by_id = {c.id: c for c in base.criteria}
+    out_items = [
+        i.model_copy(update={"conditional_action": conditional_action(i, criteria_by_id)})
+        for i in out_items
+    ]
+    conditions = {i.id: i.conditional_action for i in out_items if i.conditional_action}
     sets = [
         MinimalSet(
             item_ids=list(ids),
@@ -775,8 +912,10 @@ def analyse(
         minimal_sets=sets,
         minimum_evidence=chosen,
         worst_if_contradicted=worst,
-        next_best_action=_next_best_action(state, real, ceiling, chosen, by_id),
+        next_best_action=_next_best_action(state, real, ceiling, chosen, by_id, conditions),
         search=search,
         greedy=search is FlipSearch.GREEDY,
         evaluations=len(runner.memo),
+        selection_basis=SELECTION_BASIS,
+        selection_label=MINIMUM_SET_LABEL,
     )

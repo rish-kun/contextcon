@@ -23,6 +23,7 @@ from app.domain.enums import (
     CriterionResult,
     Disposition,
     DocumentType,
+    EffortLevel,
     FlipSearch,
     FlipState,
     FundingKind,
@@ -31,6 +32,7 @@ from app.domain.enums import (
     ItemKind,
     NextAction,
     NotCheckedReason,
+    SelectionBasis,
     SourceReliability,
 )
 
@@ -492,6 +494,11 @@ class UnresolvedItem(Model):
     settle_with: list[str] = Field(default_factory=list)  # policy document names
     if_supported: ItemOutcome | None = None
     if_contradicted: ItemOutcome | None = None  # None when not simulated
+    # Coarse effort to obtain its documents (policy.DOCUMENT_EFFORT); a tie-break only.
+    est_effort: EffortLevel = EffortLevel.MEDIUM
+    # For criteria and financial items: what to obtain, with both branches stated
+    # ("If the verified figure is at least 100, Headcount passes; otherwise it fails").
+    conditional_action: str | None = None
 
 
 class SettleDocument(Model):
@@ -515,6 +522,12 @@ class NextBestAction(Model):
     text: str  # from the fixed templates, never a model
     item_ids: list[str] = Field(default_factory=list)
     documents: list[str] = Field(default_factory=list)
+    # The conditional sentences (both branches) for criteria and financial items in
+    # the set; also appended to ``text``.
+    conditions: list[str] = Field(default_factory=list)
+
+
+MINIMUM_SET_LABEL = "Minimum set of checks required to change the screening outcome"
 
 
 class DecisionFlipAnalysis(Model):
@@ -540,6 +553,9 @@ class DecisionFlipAnalysis(Model):
     search: FlipSearch
     greedy: bool
     evaluations: int  # number of rule runs
+    # The minimum set is the fewest checks, never "the cheapest"; effort is a tie-break.
+    selection_basis: SelectionBasis = SelectionBasis.FEWEST_CHECKS
+    selection_label: str = MINIMUM_SET_LABEL
 
 
 # --- Investors ---------------------------------------------------------------

@@ -1,6 +1,6 @@
 # DealProof scoring and verification policy
 
-Policy version: **2026-11-22.2** (`POLICY_VERSION` in `app/rules/policy.py`).
+Policy version: **2026-11-22.3** (`POLICY_VERSION` in `app/rules/policy.py`).
 
 DealProof's rules decide every status, score and recommendation. The AI only reads
 documents and pulls out values; it never decides. The same records under the same
@@ -124,6 +124,7 @@ A seller document counts only when it is one of the document types listed; "date
 | `cin` | identity incorporation | registry, registry_mirror | none | Certificate of incorporation |
 | `incorporation_year` | identity incorporation | audited_statement, registry, registry_mirror | none | Certificate of incorporation |
 | `incorporation_date` | identity incorporation | audited_statement, registry, registry_mirror | none | Certificate of incorporation |
+| `ownership` | identity incorporation | audited_statement, registry, registry_mirror | none | Certificate of incorporation |
 | `registered_city` | location | registry, registry_mirror | none | Certificate of incorporation |
 | `hq_city` | location | audited_statement, data_provider, registry, registry_mirror, seller_document | incorporation_certificate, lease, occupancy_evidence | Registered-office filing or premises lease |
 | `country` | location | audited_statement, data_provider, registry, registry_mirror | none | Certificate of incorporation |
@@ -203,14 +204,38 @@ The checks run in this order, and the first one that applies decides.
 | --- | --- | --- | --- |
 | 1 | Cannot assess | `identity_uncertain` | Identity is ambiguous or unresolved |
 | 1 | Cannot assess | `essential_information_missing` | Fit unavailable, or less than 30% of criteria assessable |
-| 2 | Deprioritise | `requirement_failed` | A must-have you set verifiably failed |
+| 2 | Deprioritise | `requirement_failed` | A must-have you set verifiably failed, including a Contradicted claim on that must-have (below) |
 | 2 | Deprioritise | `poor_fit_on_good_evidence` | Counting verified results only: fit below 40 with at least 60% of criteria verified |
-| 3 | Prioritise | `strong_fit_checks_satisfied` | Fit at least 70, every required check that v1 covers Supported on adequate evidence, no required check contradicted, conflicting or not checked, and no material claim anywhere in the ledger contradicted or conflicting |
+| 3 | Prioritise | `strong_fit_checks_satisfied` | Fit at least 70, every required check that v1 covers Supported on adequate evidence, no required check contradicted, conflicting or not checked, no material claim anywhere in the ledger contradicted or conflicting, no material claim outside those checks unverified, and no must-have criterion unknown |
 | 4 | Investigate further | `evidence_incomplete` | Anything else |
+
+What each situation leads to (`DISPOSITION_TABLE` in `policy.py`; the rules read it):
+
+| Situation | Leads to |
+| --- | --- |
+| Unverified optional claim | Investigate further, if the claim is material |
+| Unverified mandatory criterion | Decision blocker: blocks Prioritise until verified, never Deprioritise |
+| Contradicted non-mandatory claim | Investigate further, if the claim is material |
+| Verified failure of a mandatory criterion | Deprioritise |
+| Poor thesis fit despite sufficient evidence | Deprioritise (verified results only) |
+| Unresolved identity | Cannot assess |
+
+"Optional" means outside the required checks v1 covers; inside them the required-check
+rule applies. **A contradicted claim on a must-have.** A claim component maps to a
+criterion dimension (`COMPONENT_CRITERION_DIMENSIONS`: `country` → geography,
+`ownership` → ownership, `employee_count` → size, `headcount_growth_pct` → growth
+signal, `round_type` → funding stage, `incorporation_year` → founded year). When a claim is
+Contradicted on such a component, and the claimed value is exactly the one a
+must-have of that dimension requires (an equality, a single allowed value, or "is
+true"), the must-have has verifiably failed: a seller who claims "privately held"
+against a registry that shows a listed company fails a "privately held" must-have.
+A contradicted number never says on which side of a threshold the real figure lies,
+so thresholds are never failed this way.
 
 **Missing evidence alone never leads to Deprioritise.** An unknown never fails a
 criterion, a disputed criterion is unknown, estimate-based and stale results are
-left out of the poor-fit test, and claim statuses do not feed the Deprioritise rules.
+left out of the poor-fit test, and claim statuses do not feed the Deprioritise rules
+except through a contradicted claim on a must-have, as above.
 
 **What v1 covers.** The first version checks identity, location, team size,
 leadership history, funding and dated events. For Prioritise, every one of these
@@ -264,3 +289,41 @@ every judgment change, and any change in disposition.
   sought exists; otherwise it is *unknown*. Not finding a matching round in a bounded
   search never makes an investor incompatible.
 - The ranking describes past behaviour. It does not predict whether an investor will invest.
+
+## 9. DecisionFlip
+
+DecisionFlip answers which open items stand between a case and the next disposition.
+It never asks a model: it re-runs the same disposition rules (`redecide`, the code
+`assess` uses) with items forced to a hypothetical state. Nothing it produces is
+evidence, and every result is labelled hypothetical.
+
+- **Items.** A claim that is not Supported (`claim:<id>`), a required check never
+  claimed (`check:<category>`), an unknown criterion (`criterion:<id>`), an
+  unconfirmed identity (`identity`) and missing financial inputs (`financial_inputs`).
+  Each is forced Supported (or pass, or confirmed) and, where it is not already in
+  that state, Contradicted (or fail). Everything else stays as it really is; forcing
+  a claim does not re-evaluate criteria.
+- **Target.** The ladder is Cannot assess < Investigate further < Prioritise;
+  Deprioritise is off it. The target is the next rung up, if forcing every item
+  Supported reaches it. Otherwise the case has no blockers (Prioritise), is
+  disqualified (Deprioritise rests on verified evidence; nothing is simulated to undo
+  it), or is not evidence-limited (no evidence moves it).
+- **Minimum set of checks required to change the screening outcome.** The smallest
+  sets of items that, all Supported, reach the target, found by trying every subset
+  when there are at most 6 items and by dropping items one by one otherwise (then it
+  is a sufficient set, not necessarily the smallest). The set shown is the one with
+  the fewest checks; ties go to lower estimated effort (`DOCUMENT_EFFORT`: low,
+  medium or high per document), then fewer documents, then fewer analyst-only items.
+  It is never described as the cheapest.
+- **Classes.** A decision blocker is in a minimum set. A disqualifier risk is an item
+  whose Contradicted branch gives Deprioritise under `requirement_failed`: an unknown
+  must-have, or an unresolved claim on a must-have's dimension. Everything else is
+  non-blocking.
+- **Next best action** comes from fixed templates. For a criterion or a financial
+  item it always states both branches ("If the verified figure is at least 100,
+  Headcount passes; otherwise it fails"): obtaining a document settles a question, it
+  does not make the company qualify.
+- Every analysis records the policy version, the inputs hash, its own version and a
+  key over those and each claim's materiality, so the same version gives the same
+  analysis.
+

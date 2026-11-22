@@ -12,6 +12,29 @@ Three things in the current policy shape this design and differ from the pitch s
 2. **Financials and customer checks do not block Prioritise** (not in `V1_COVERED_CHECKS`). They will come out `non_blocking`. The evaluator computes this; it is not hard-coded.
 3. **Some cases are not evidence-limited.** If fit is below 70 with every criterion known, no document moves the disposition. The panel must say so instead of inventing blockers.
 
+## Amendments (2026-11-22, reviewer feedback, built in B1)
+
+These supersede the text below where they differ. Policy `2026-11-22.3`.
+
+**A. Policy-driven disqualification.** `policy.DISPOSITION_TABLE` (POLICY.md §5) is now the source of truth, and the rules read it:
+
+| Situation | Leads to |
+| --- | --- |
+| Unverified optional claim | Investigate further, if material |
+| Unverified mandatory criterion | Decision blocker (blocks Prioritise, never Deprioritise) |
+| Contradicted non-mandatory claim | Investigate further, materiality assessed |
+| Verified failure of a mandatory criterion | Deprioritise |
+| Poor thesis fit despite sufficient evidence | Deprioritise |
+| Unresolved identity | Cannot assess |
+
+Two real-rule changes follow: an unknown must-have and an unverified material claim outside the v1-covered required checks now block Prioritise (so the PRD fixture has three blockers, not one). A claim component maps to a criterion dimension (`policy.COMPONENT_CRITERION_DIMENSIONS`, plus a new `ownership` component). A Contradicted claim on that component is a verified failure of a must-have of that dimension when the claimed value is exactly what the criterion requires (equality, one allowed value, or "is true"); a contradicted number never fails a threshold. So "privately held" contradicted by a registry fails a "privately held" must-have, and an unresolved claim like that is a `disqualifier_risk`. A disqualifier risk is any item whose contradicted branch gives Deprioritise under `requirement_failed`. Note 1 above now reads: a contradicted claim leads to Deprioritise only through this mapping.
+
+**B. Label honestly.** The chosen set is the fewest checks, not the cheapest: `selection_basis: "fewest_checks"`, `selection_label: "Minimum set of checks required to change the screening outcome"`. Each item has `est_effort` (`low | medium | high`, from `policy.DOCUMENT_EFFORT`). Sets are ordered by (number of checks, summed effort, documents, analyst-only items, ids), so effort only breaks ties. `decision_flip.SELECTION_KEYS` is the extension point for a later minimum-total-cost basis. This replaces the documents-first ordering in §2.5.
+
+**C. Evidence availability ≠ favourable evidence.** Criteria and financial items carry `conditional_action`, which always states both branches ("Obtain a sourced record for Headcount. If the verified figure is at least 100, Headcount passes; otherwise it fails. Hypothetically, a pass gives Prioritise and a fail gives Deprioritise."). The chosen set's conditions are appended to `next_best_action.text` and listed in `next_best_action.conditions`. No template words an action as if obtaining a document makes the company qualify.
+
+Built names (B1): `analyse()` returns `DecisionFlipAnalysis` (§7.1's `DecisionFlip`), with `UnresolvedItem`, `ItemOutcome`, `MinimalSet`, `SettleDocument`, `NextBestAction`, and state `has_blockers` for §7.1's `blockers`.
+
 ---
 
 ## 1. Concept and naming

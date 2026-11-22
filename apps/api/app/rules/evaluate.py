@@ -16,6 +16,9 @@ from app.domain.enums import (
     ClaimStatus,
     CompanyType,
     ComponentState,
+    CriterionKind,
+    CriterionOperator,
+    CriterionResult,
     Disposition,
     IdentityStatus,
 )
@@ -42,6 +45,7 @@ from app.domain.types import (
 from app.rules import policy
 from app.rules.claim_status import combine_states, decide_claim_status, document_for, status_label
 from app.rules.company_type import classify_company, required_checks
+from app.rules.compare import normalize_text
 from app.rules.fit import assess_case_candidate, fit_from_evaluations, must_have_failures
 from app.rules.requests import build_request_list
 from app.rules.validation import screen_fact
@@ -246,7 +250,27 @@ def financial_assessment(
 # --- Disposition -----------------------------------------------------------------
 
 
-_MATERIAL_BLOCKING = frozenset({ClaimStatus.CONTRADICTED, ClaimStatus.CONFLICTING_EVIDENCE})
+_CONTRADICTED_STATUSES = frozenset({ClaimStatus.CONTRADICTED, ClaimStatus.CONFLICTING_EVIDENCE})
+_UNVERIFIED_STATUSES = frozenset(
+    {ClaimStatus.CANNOT_VERIFY, ClaimStatus.PARTIALLY_CORROBORATED, ClaimStatus.NOT_CHECKED}
+)
+
+
+def _blocks_prioritise(key: str) -> bool:
+    return policy.DISPOSITION_RULES[key].outcome is Disposition.INVESTIGATE_FURTHER
+
+
+def _material_blocking(covered_required: set[ClaimCategory]) -> dict[ClaimStatus, bool]:
+    """Which material claim statuses block Prioritise, from the disposition table.
+    A contradicted or conflicting material claim blocks wherever it sits; an
+    unverified one blocks outside the v1-covered required checks (inside them the
+    required-check rule already applies)."""
+    out: dict[ClaimStatus, bool] = {}
+    if _blocks_prioritise("contradicted_optional_claim"):
+        out.update(dict.fromkeys(_CONTRADICTED_STATUSES, True))
+    if _blocks_prioritise("unverified_optional_claim"):
+        out.update(dict.fromkeys(_UNVERIFIED_STATUSES, False))
+    return out
 
 
 def _complete(c: CheckSufficiency) -> bool:
@@ -325,14 +349,26 @@ def decide_disposition(
         for c in sufficiency.checks
         if c.check in policy.V1_COVERED_CHECKS and not _complete(c) and c not in blocking
     ]
+    covered_required = {c.check for c in sufficiency.checks if c.check in policy.V1_COVERED_CHECKS}
+    statuses = _material_blocking(covered_required)
     material = [
         o
         for o in outcomes or []
-        if o.status in _MATERIAL_BLOCKING
+        if o.status in statuses
+        and (statuses[o.status] or o.category not in covered_required)
         and (claims.get(o.claim_id) is None or claims[o.claim_id].material)
     ]
+    unverified_musts = (
+        [
+            e
+            for e in fit.evaluations
+            if e.kind is CriterionKind.MUST and e.result is CriterionResult.UNKNOWN
+        ]
+        if _blocks_prioritise("unverified_mandatory_criterion")
+        else []
+    )
     strong = fit.fit >= policy.PRIORITISE_MIN_FIT
-    if strong and not incomplete and not blocking and not material:
+    if strong and not incomplete and not blocking and not material and not unverified_musts:
         return DispositionDecision(
             disposition=Disposition.PRIORITISE,
             rule="strong_fit_checks_satisfied",
@@ -355,6 +391,8 @@ def decide_disposition(
         reasons.append(f"Required check {label}: {status_label(c.result)}")
     for o in material:
         reasons.append(f"Material claim {o.claim_id}: {status_label(o.status)}")
+    for e in unverified_musts:
+        reasons.append(f"Must-have criterion {e.criterion_id}: not verified")
     return DispositionDecision(
         disposition=Disposition.INVESTIGATE_FURTHER,
         rule="evidence_incomplete",
@@ -371,6 +409,75 @@ def must_have_failure_reasons(
         f"Must-have failed: {labels[e.criterion_id]} ({e.reason})"
         for e in must_have_failures(evaluations)
     ]
+
+
+def _single_required_value(c: Criterion) -> object | None:
+    """The one value a criterion requires, when it requires exactly one."""
+    if c.operator is CriterionOperator.IS_TRUE:
+        return True
+    if c.operator is CriterionOperator.EQ:
+        return c.value
+    if c.operator in (CriterionOperator.IN, CriterionOperator.CONTAINS_ANY):
+        values = c.value if isinstance(c.value, list | tuple) else [c.value]
+        return values[0] if len(values) == 1 else None
+    return None
+
+
+def _same_value(claimed: object, required: object) -> bool:
+    if isinstance(required, bool) or isinstance(claimed, bool):
+        return str(claimed).strip().lower() == str(required).strip().lower()
+    return normalize_text(str(claimed)) == normalize_text(str(required))
+
+
+def contradicted_must_haves(
+    criteria: list[Criterion],
+    evaluations: list[CriterionEvaluation],
+    outcomes: list[CheckOutcome],
+    claims: dict[str, Claim],
+) -> list[str]:
+    """Verified must-have failures that come from claim checks (POLICY.md §5).
+
+    A Contradicted claim whose component maps to a must-have's dimension
+    (``policy.COMPONENT_CRITERION_DIMENSIONS``) is a verified failure of that
+    must-have when the claimed value is exactly the one the criterion requires.
+    Needs the claims (for their component values); a must-have that already
+    failed is not counted twice."""
+    if policy.DISPOSITION_RULES["verified_mandatory_failure"].outcome is not (
+        Disposition.DEPRIORITISE
+    ):
+        return []
+    failed = {e.criterion_id for e in must_have_failures(evaluations)}
+    musts = [
+        c for c in criteria if c.kind is CriterionKind.MUST and c.dimension and c.id not in failed
+    ]
+    reasons: list[str] = []
+    seen: set[str] = set()
+    for o in outcomes:
+        claim = claims.get(o.claim_id)
+        if o.status is not ClaimStatus.CONTRADICTED or claim is None:
+            continue
+        claimed = {c.name: c for c in claim.components}
+        for f in o.components:
+            dimension = policy.COMPONENT_CRITERION_DIMENSIONS.get(f.component)
+            component = claimed.get(f.component)
+            if f.state is not ComponentState.CONTRADICTED or not dimension or component is None:
+                continue
+            if component.op != "eq":
+                continue
+            for c in musts:
+                required = _single_required_value(c)
+                if (
+                    c.dimension == dimension
+                    and c.id not in seen
+                    and required is not None
+                    and _same_value(component.value, required)
+                ):
+                    seen.add(c.id)
+                    reasons.append(
+                        f"Must-have failed: {c.label} (claim {o.claim_id} contradicted "
+                        f"on {f.component.replace('_', ' ')})"
+                    )
+    return reasons
 
 
 def redecide(
@@ -393,7 +500,8 @@ def redecide(
         identity_status,
         fit,
         sufficiency,
-        must_have_failure_reasons(criteria, evaluations),
+        must_have_failure_reasons(criteria, evaluations)
+        + contradicted_must_haves(criteria, evaluations, outcomes, claims),
         outcomes=outcomes,
         claims=claims,
     )

@@ -13,12 +13,14 @@ from app.domain.enums import (
     ClaimCategory,
     CompanyType,
     CriterionKind,
+    Disposition,
     DocumentType,
+    EffortLevel,
     SourceReliability,
     ValueKind,
 )
 
-POLICY_VERSION = "2026-11-22.2"
+POLICY_VERSION = "2026-11-22.3"
 
 # --- Discover: fit -----------------------------------------------------------
 
@@ -36,6 +38,60 @@ PRIORITISE_MIN_SUFFICIENCY = 80
 DEPRIORITISE_MAX_FIT = 40  # strictly below this...
 DEPRIORITISE_MIN_ASSESSABLE = 60  # ...on at least this share of verified criteria
 CANNOT_ASSESS_MAX_ASSESSABLE = 30  # strictly below this share of criteria assessable
+
+# What each situation leads to (POLICY.md §5). The rules read this table:
+# ``decide_disposition`` blocks Prioritise for every situation whose outcome is
+# Investigate further, and a contradicted claim on a must-have's dimension
+# (COMPONENT_CRITERION_DIMENSIONS) is a verified failure of that must-have.
+
+
+@dataclass(frozen=True)
+class DispositionRow:
+    key: str
+    situation: str
+    outcome: Disposition
+    note: str
+
+
+DISPOSITION_TABLE: tuple[DispositionRow, ...] = (
+    DispositionRow(
+        "unverified_optional_claim",
+        "Unverified optional claim",
+        Disposition.INVESTIGATE_FURTHER,
+        "Investigate further if the claim is material",
+    ),
+    DispositionRow(
+        "unverified_mandatory_criterion",
+        "Unverified mandatory criterion",
+        Disposition.INVESTIGATE_FURTHER,
+        "Decision blocker: blocks Prioritise until it is verified, never Deprioritise",
+    ),
+    DispositionRow(
+        "contradicted_optional_claim",
+        "Contradicted non-mandatory claim",
+        Disposition.INVESTIGATE_FURTHER,
+        "Investigate further if the claim is material",
+    ),
+    DispositionRow(
+        "verified_mandatory_failure",
+        "Verified failure of a mandatory criterion",
+        Disposition.DEPRIORITISE,
+        "Including a contradicted claim on the must-have's dimension",
+    ),
+    DispositionRow(
+        "poor_fit_on_good_evidence",
+        "Poor thesis fit despite sufficient evidence",
+        Disposition.DEPRIORITISE,
+        "Counting verified results only",
+    ),
+    DispositionRow(
+        "unresolved_identity",
+        "Unresolved identity",
+        Disposition.CANNOT_ASSESS,
+        "Records cannot be attached to the company safely",
+    ),
+)
+DISPOSITION_RULES: dict[str, DispositionRow] = {r.key: r for r in DISPOSITION_TABLE}
 
 # A sourced field older than this (by its as_of date) is stale: it still counts
 # toward fit, but a fail on it is not verified, so it never excludes a company
@@ -205,6 +261,11 @@ COMPONENT_RULES: dict[str, ComponentRule] = {
     ),
     "incorporation_date": ComponentRule(
         ClaimCategory.IDENTITY_INCORPORATION, ValueKind.DATE, _IDENTITY_SOURCES, DOC_INCORPORATION
+    ),
+    # Public or private: a registry question. A contradicted ownership claim on a
+    # must-have "privately held" is a verified failure of that must-have.
+    "ownership": ComponentRule(
+        ClaimCategory.IDENTITY_INCORPORATION, ValueKind.ENUM, _IDENTITY_SOURCES, DOC_INCORPORATION
     ),
     # Location.
     "registered_city": ComponentRule(
@@ -495,6 +556,40 @@ CATEGORY_DOCUMENTS: dict[ClaimCategory, str] = {
     ClaimCategory.DEBT_SECURITY: DOC_LENDER,
     ClaimCategory.LITIGATION: DOC_LITIGATION,
     ClaimCategory.OTHER: "A dated document that states it directly",
+}
+
+# Claim component → criterion dimension (``Criterion.dimension``). A Contradicted
+# claim whose component maps to a must-have's dimension is a verified failure of
+# that must-have when the claimed value is exactly what the criterion requires
+# (an equality, a single allowed value or "is true"); a contradicted number never
+# says on which side of a threshold the real figure lies.
+COMPONENT_CRITERION_DIMENSIONS: dict[str, str] = {
+    "country": "geography",
+    "ownership": "ownership",
+    "employee_count": "size",
+    "headcount_growth_pct": "growth_signal",
+    "round_type": "funding_stage",
+    "incorporation_year": "founded_year",
+}
+
+# Coarse effort to obtain each document, for DecisionFlip's tie-break only.
+# Anything not listed is medium; a re-run with no document is low.
+DOCUMENT_EFFORT: dict[str, EffortLevel] = {
+    DOC_INCORPORATION: EffortLevel.LOW,
+    DOC_IDENTITY: EffortLevel.LOW,
+    DOC_REGISTERED_OFFICE: EffortLevel.LOW,
+    DOC_CV: EffortLevel.LOW,
+    DOC_EVENT: EffortLevel.LOW,
+    "Dated company announcement": EffortLevel.LOW,
+    "Registry charge record": EffortLevel.LOW,
+    DOC_PAYROLL: EffortLevel.MEDIUM,
+    "Dated payroll summaries for both dates": EffortLevel.MEDIUM,
+    DOC_FUNDING: EffortLevel.MEDIUM,
+    DOC_FACILITY: EffortLevel.MEDIUM,
+    DOC_LENDER: EffortLevel.MEDIUM,
+    DOC_CUSTOMER: EffortLevel.HIGH,
+    DOC_FINANCIALS: EffortLevel.HIGH,
+    DOC_LITIGATION: EffortLevel.HIGH,
 }
 
 # A dated event about premises gets the premises document rather than the generic one.
