@@ -57,10 +57,14 @@ export type SourceRef = Schemas["SourceRef"];
 export type FactStr = Schemas["FactStr"];
 export type AssessmentVersionOut = Schemas["AssessmentVersionOut"];
 export type DiffLineOut = Schemas["DiffLineOut"];
+export type EventOut = Schemas["EventOut"];
 export type DocumentOut = Schemas["DocumentOut"];
 export type DocumentKind = Schemas["DocumentKind"];
 export type DocumentUrlOut = Schemas["DocumentUrlOut"];
 export type CaseCostOut = Schemas["CaseCostOut"];
+export type WorkspaceOut = Schemas["WorkspaceOut"];
+export type WorkspaceCaseOut = Schemas["WorkspaceCaseOut"];
+export type WorkspaceMessageOut = Schemas["WorkspaceMessageOut"];
 
 export type RequestListOut = Schemas["RequestListOut"];
 export type MessageOut = Schemas["MessageOut"];
@@ -281,6 +285,15 @@ export async function lookupCompanies(q: string): Promise<CompanyLookup> {
 export async function listCases(init?: RequestInit): Promise<CaseSummary[]> {
   if (isFixtureMode) return (await fx()).listCases();
   return call("GET", "/cases", { init });
+}
+
+/**
+ * Every case with the part of its record the screens spanning cases read (`GET /workspace`):
+ * one request in place of the list and a `getCase` per case.
+ */
+export async function getWorkspace(init?: RequestInit): Promise<WorkspaceOut> {
+  if (isFixtureMode) return (await fx()).getWorkspace();
+  return call("GET", "/workspace", { init });
 }
 
 export async function getCase(id: string, init?: RequestInit): Promise<CaseDetail> {

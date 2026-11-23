@@ -36,7 +36,7 @@ import { companyRows, SCREENING_DETAIL_LIMIT, useScreenings, type CompanyRow } f
 import { formatDate } from "@/lib/format";
 import { DISPOSITION_LABEL } from "@/lib/labels";
 import { useUrlState } from "@/lib/url-state";
-import { coverageNote, useWorkspace } from "@/lib/workspace";
+import { useWorkspace } from "@/lib/workspace";
 
 const COMPARE_MAX = 4;
 
@@ -97,7 +97,7 @@ function CaseCell({ row }: { row: CompanyRow }) {
         <span className="text-ink-secondary">{row.item.status === "verifying" ? "Verifying" : "No disposition yet"}</span>
       )}
       <span className="text-xs">
-        <IdentityCue item={row.item} detail={row.detail} />
+        <IdentityCue item={row.item} record={row.record} />
       </span>
     </div>
   );
@@ -334,7 +334,6 @@ export function Companies() {
   const withCase = all.filter((row) => row.item).length;
   const confirmed = all.filter((row) => row.item?.identity_state === "confirmed").length;
   const screeningOptions = [...new Map(all.flatMap((row) => (row.screening ? [[row.screening.id, row.screening.text]] : []))).entries()];
-  const coverage = coverageNote(workspace);
   const toggle = (caseId: string) =>
     setSelected((current) =>
       current.includes(caseId) ? current.filter((id) => id !== caseId) : current.length < COMPARE_MAX ? [...current, caseId] : current,
@@ -349,7 +348,6 @@ export function Companies() {
             <span className="font-mono">{all.length}</span> {all.length === 1 ? "company" : "companies"} ·{" "}
             <span className="font-mono">{withCase}</span> with a case ·{" "}
             <span className="font-mono">{all.length - withCase}</span> found by a screening only
-            {coverage ? <span className="font-mono text-xs text-ink-muted"> · case records {coverage}</span> : null}
           </>
         }
         figures={

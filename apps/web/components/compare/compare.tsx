@@ -29,7 +29,8 @@ import { formatCredits, formatDate, formatUsd, plural } from "@/lib/format";
 import { useLoad } from "@/lib/use-load";
 import { useUrlState } from "@/lib/url-state";
 import { cn } from "@/lib/utils";
-import { claimCounts, loadWorkspace, useWorkspace } from "@/lib/workspace";
+import { useWorkspace } from "@/lib/workspace";
+import { countClaims } from "@/lib/workspace-state";
 
 const MIN = 2;
 const MAX = 4;
@@ -173,8 +174,7 @@ const CLAIMS: Row[] = [
   {
     label: "By status",
     cell: (detail) => {
-      const counts = claimCounts(detail);
-      return counts && detail.claims.length > 0 ? <StatusCounts counts={counts} /> : <Dash why="No claims on record" />;
+      return detail.claims.length > 0 ? <StatusCounts counts={countClaims(detail.claims)} /> : <Dash why="No claims on record" />;
     },
   },
 ];
@@ -517,10 +517,9 @@ export function Compare() {
     `compare:${key}`,
     async () => {
       if (ids.length === 0) return { details: [], missing: [] };
-      const workspace = await loadWorkspace();
-      const settled = await Promise.allSettled(
-        ids.map((id) => (workspace.details[id] ? Promise.resolve(workspace.details[id]) : getCase(id))),
-      );
+      // The two to four selected records in full, read alongside the workspace (which
+      // only feeds the case picker here).
+      const settled = await Promise.allSettled(ids.map((id) => getCase(id)));
       const details: CaseDetail[] = [];
       const missing: string[] = [];
       settled.forEach((result, index) => {

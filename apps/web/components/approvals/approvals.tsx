@@ -22,14 +22,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui";
-import type { CaseDetail, CaseSummary, UserOut } from "@/lib/api/client";
+import type { CaseSummary, UserOut } from "@/lib/api/client";
 import { formatShortDateTime, plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { coverageNote, REQUEST_STATE_LABEL, requestState, useWorkspace, type RequestState } from "@/lib/workspace";
+import { useWorkspace } from "@/lib/workspace";
+import { REQUEST_STATE_LABEL, requestState, type CaseRecord, type RequestState } from "@/lib/workspace-state";
 
 interface Entry {
   item: CaseSummary;
-  detail: CaseDetail;
+  record: CaseRecord;
   state: RequestState;
   blockers: number;
   others: number;
@@ -46,32 +47,32 @@ interface Entry {
 const requestHref = (id: string) => `${caseHref(id)}/request`;
 
 /** The person who saved the revision, when this screen can name them. */
-function nameOf(userId: string, detail: CaseDetail, me: UserOut): string {
+function nameOf(userId: string, record: CaseRecord, me: UserOut): string {
   if (userId === me.id) return me.display_name;
-  if (userId === detail.case.owner.user_id) return detail.case.owner.display_name;
-  if (userId === detail.message?.approval?.approver_user_id) return detail.message.approval.approver_display_name;
+  if (userId === record.owner.user_id) return record.owner.display_name;
+  if (userId === record.message?.approval?.approver_user_id) return record.message.approval.approver_display_name;
   return "A workspace member";
 }
 
-function entryOf(item: CaseSummary, detail: CaseDetail | undefined, me: UserOut): Entry | null {
-  if (!detail) return null;
-  const state = requestState(detail);
+function entryOf(item: CaseSummary, record: CaseRecord | undefined, me: UserOut): Entry | null {
+  if (!record) return null;
+  const state = requestState(record);
   if (state === "none") return null;
-  const items = [...(detail.request_list?.items ?? [])].sort((a, b) => a.priority - b.priority);
+  const items = [...(record.request_list?.items ?? [])].sort((a, b) => a.priority - b.priority);
   const needed = items.filter((entry) => entry.group === "needed");
-  const revision = detail.message?.current_revision ?? null;
-  const send = detail.message?.send ?? null;
+  const revision = record.message?.current_revision ?? null;
+  const send = record.message?.send ?? null;
   return {
     item,
-    detail,
+    record,
     state,
     blockers: needed.length,
     others: items.length - needed.length,
     documents: [...needed, ...items.filter((entry) => entry.group !== "needed")].map((entry) => entry.document),
     revision: revision?.number ?? null,
-    draftedBy: revision ? nameOf(revision.entered_by_user_id, detail, me) : "DealProof",
-    draftedAt: revision?.created_at ?? detail.request_list?.created_at ?? item.updated_at,
-    live: send ? !send.test_mode : Boolean(detail.request_list?.email_send_enabled),
+    draftedBy: revision ? nameOf(revision.entered_by_user_id, record, me) : "DealProof",
+    draftedAt: revision?.created_at ?? record.request_list?.created_at ?? item.updated_at,
+    live: send ? !send.test_mode : Boolean(record.request_list?.email_send_enabled),
   };
 }
 
@@ -104,7 +105,7 @@ function DocumentsCell({ entry }: { entry: Entry }) {
 }
 
 function CompanyCell({ entry }: { entry: Entry }) {
-  const recipient = entry.detail.message?.current_revision.recipient.trim();
+  const recipient = entry.record.message?.current_revision.recipient.trim();
   return (
     <>
       <RowLink stretch href={requestHref(entry.item.id)}>
@@ -163,7 +164,7 @@ function Inbox({ entries }: { entries: Entry[] }) {
       </TableHeader>
       <TableBody>
         {entries.map((entry) => {
-          const approval = entry.detail.message?.approval;
+          const approval = entry.record.message?.approval;
           return (
             <TableRow key={entry.item.id} className="relative">
               <TableCell>
@@ -221,7 +222,7 @@ function Receipts({ entries }: { entries: Entry[] }) {
       </TableHeader>
       <TableBody>
         {entries.map((entry) => {
-          const message = entry.detail.message;
+          const message = entry.record.message;
           const send = message?.send;
           const approval = message?.approval;
           const suppressed = entry.state === "suppressed";
@@ -315,14 +316,13 @@ export function Approvals() {
 
   const workspace = state.data;
   const entries = workspace.cases
-    .map((item) => entryOf(item, workspace.details[item.id], me))
+    .map((item) => entryOf(item, workspace.records[item.id], me))
     .filter((entry): entry is Entry => entry !== null)
     .sort((a, b) => b.draftedAt.localeCompare(a.draftedAt));
   const waiting = entries.filter((entry) => !RECEIPT_STATES.includes(entry.state));
   const receipts = entries.filter((entry) => RECEIPT_STATES.includes(entry.state));
   const drafts = waiting.filter((entry) => entry.state === "draft").length;
   const sent = receipts.filter((entry) => entry.state === "sent").length;
-  const coverage = coverageNote(workspace);
   const anyLive = entries.some((entry) => entry.live);
 
   return (
@@ -334,7 +334,6 @@ export function Approvals() {
             <span className="font-mono">{drafts}</span> awaiting approval ·{" "}
             <span className="font-mono">{entries.length}</span> {entries.length === 1 ? "request" : "requests"} in all
             {entries.length > 0 && !anyLive ? " · test mode, no email leaves DealProof" : null}
-            {coverage ? <span className="font-mono text-xs text-ink-muted"> · {coverage}</span> : null}
           </>
         }
         figures={

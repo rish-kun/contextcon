@@ -608,18 +608,17 @@ async def events_section(ctx: CaseContext) -> list[EventOut]:
         .where(Event.case_id == ctx.case.id)
         .order_by(Event.event_date.desc())
     )
-    out = []
-    for event, ev in rows.all():
-        out.append(
-            EventOut(
-                id=str(event.id),
-                event_date=event.event_date,
-                title=event.title,
-                kind=event.kind if not event.stage else f"{event.kind} ({event.stage})",
-                evidence=await ctx.evidence_out(ev),
-            )
-        )
-    return out
+    return [await event_out(ctx, event, ev) for event, ev in rows.all()]
+
+
+async def event_out(ctx: CaseContext, event: Event, ev: Evidence) -> EventOut:
+    return EventOut(
+        id=str(event.id),
+        event_date=event.event_date,
+        title=event.title,
+        kind=event.kind if not event.stage else f"{event.kind} ({event.stage})",
+        evidence=await ctx.evidence_out(ev),
+    )
 
 
 # --- comparables --------------------------------------------------------------------
@@ -993,6 +992,7 @@ __all__ = [
     "build_case_summaries",
     "build_case_summary",
     "contract_source_class",
+    "event_out",
     "register_section",
     "register_summary",
     "register_summary_batch",

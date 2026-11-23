@@ -4392,6 +4392,377 @@
       ]
     }
   },
+  "workspace": {
+    "cases": [
+      {
+        "id": "fx-case-harbourline",
+        "name": "Harbourline Warehousing (fixture)",
+        "website": "https://harbourline.example",
+        "status": "assessed",
+        "identity_state": "confirmed",
+        "disposition": "investigate_further",
+        "fit_state": "scored",
+        "fit": 83,
+        "assessable_pct": 67,
+        "claim_count": 8,
+        "cost": {
+          "crustdata_credits": 19.5,
+          "llm_usd": 0.014,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "unknown_cost_calls": 1
+        },
+        "latest_run_state": "done",
+        "decision_flip": {
+          "state": "has_blockers",
+          "next_disposition": "prioritise",
+          "blockers_to_next": 2,
+          "assessment_version": 2
+        },
+        "created_at": "2026-11-22T09:30:00Z",
+        "updated_at": "2026-11-22T19:42:00Z"
+      },
+      {
+        "id": "fx-case-shree",
+        "name": "Shree Cargo Links (fixture)",
+        "website": "shreecargo.example",
+        "status": "awaiting_identity",
+        "identity_state": "ambiguous",
+        "disposition": "cannot_assess",
+        "fit_state": "awaiting_strategy_criteria",
+        "fit": null,
+        "assessable_pct": 0,
+        "claim_count": 1,
+        "cost": {
+          "crustdata_credits": 0.4,
+          "llm_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "unknown_cost_calls": 0
+        },
+        "latest_run_state": "done",
+        "decision_flip": null,
+        "created_at": "2026-11-22T10:00:00Z",
+        "updated_at": "2026-11-22T19:42:00Z"
+      }
+    ],
+    "records": [
+      {
+        "case_id": "fx-case-harbourline",
+        "owner": {
+          "user_id": "fx-user-1",
+          "display_name": "Asha Analyst"
+        },
+        "run": {
+          "kind": "recheck",
+          "state": "done",
+          "steps": 3,
+          "steps_finished": 3
+        },
+        "identity_candidates": 0,
+        "claim_counts": {
+          "supported": 3,
+          "partially_corroborated": 1,
+          "conflicting_evidence": 1,
+          "contradicted": 1,
+          "cannot_verify": 1,
+          "not_checked": 1
+        },
+        "opportunity": {
+          "thesis_id": "fx-thesis-logistics",
+          "thesis_text": "Privately held Indian warehousing and supply-chain software companies that serve enterprise customers and show recent expansion.",
+          "fit_state": "scored",
+          "fit": 83,
+          "assessable_pct": 67,
+          "criterion_results": [
+            {
+              "criterion_id": "fx-crit-1",
+              "label": "Headquartered in India",
+              "kind": "must",
+              "weight": 2,
+              "state": "pass"
+            },
+            {
+              "criterion_id": "fx-crit-2",
+              "label": "Warehousing or supply-chain software",
+              "kind": "must",
+              "weight": 2,
+              "state": "pass"
+            },
+            {
+              "criterion_id": "fx-crit-3",
+              "label": "Privately held",
+              "kind": "must",
+              "weight": 2,
+              "state": "unknown"
+            },
+            {
+              "criterion_id": "fx-crit-4",
+              "label": "Serves enterprise customers",
+              "kind": "preference",
+              "weight": 1,
+              "state": "unknown"
+            },
+            {
+              "criterion_id": "fx-crit-5",
+              "label": "50 to 1,000 employees",
+              "kind": "preference",
+              "weight": 1,
+              "state": "pass"
+            },
+            {
+              "criterion_id": "fx-crit-6",
+              "label": "Recent expansion",
+              "kind": "preference",
+              "weight": 1,
+              "state": "fail"
+            }
+          ]
+        },
+        "assessment": {
+          "id": "fx-assessment-v2",
+          "version": 2,
+          "created_at": "2026-11-22T19:42:00Z",
+          "disposition": "investigate_further",
+          "fit_state": "scored",
+          "fit": 83,
+          "assessable_pct": 67,
+          "diff_from_previous": [
+            {
+              "kind": "claim",
+              "subject": "We employ 300 people",
+              "subject_id": "fx-claim-2",
+              "before": "cannot_verify",
+              "after": "supported",
+              "because": "payroll_summary_oct_2026 (fixture).pdf, p. 1",
+              "evidence": [
+                {
+                  "evidence_id": "fx-ev-payroll",
+                  "source": {
+                    "source_id": "fx-src-payroll",
+                    "provider": "upload",
+                    "label": "Payroll summary p. 1",
+                    "url_or_endpoint": "upload:payroll_summary_oct_2026 (fixture).pdf",
+                    "retrieved_at": "2026-11-22T19:30:00Z",
+                    "source_class": "seller_document",
+                    "origin_id": null
+                  },
+                  "quote": "Employees on payroll as of 31 October 2026: 304",
+                  "page": 1,
+                  "field_path": null,
+                  "value": null,
+                  "as_of": "2026-10-31",
+                  "attached_to": {
+                    "entity_name": "Harbourline Warehousing (fixture)",
+                    "matched_on": [
+                      "crustdata_company_id",
+                      "domain"
+                    ],
+                    "identity_confidence": 0.94
+                  },
+                  "deleted": false
+                }
+              ]
+            },
+            {
+              "kind": "judgment",
+              "subject": "evidence_sufficiency",
+              "subject_id": null,
+              "before": "50",
+              "after": "75",
+              "because": "Team size is now settled",
+              "evidence": []
+            }
+          ]
+        },
+        "profile": {
+          "domain": "harbourline.example",
+          "headquarters": "Nashik, Maharashtra",
+          "country": "India",
+          "headcount": 160,
+          "headcount_basis": "from professional profiles, not a payroll count"
+        },
+        "events": [
+          {
+            "id": "fx-event-1",
+            "event_date": "2024-02-09",
+            "title": "Series A reported",
+            "kind": "funding",
+            "evidence": {
+              "evidence_id": "fx-ev-funding-news",
+              "source": {
+                "source_id": "fx-src-news-funding",
+                "provider": "web",
+                "label": "Logistics Daily",
+                "url_or_endpoint": "https://logistics-daily.example/2024/02/harbourline-series-a",
+                "retrieved_at": "2026-11-22T09:35:00Z",
+                "source_class": "news",
+                "origin_id": "fx-origin-funding-story"
+              },
+              "quote": "Harbourline closed its Series A round this month",
+              "page": null,
+              "field_path": null,
+              "value": null,
+              "as_of": "2024-02-09",
+              "attached_to": {
+                "entity_name": "Harbourline Warehousing (fixture)",
+                "matched_on": [
+                  "crustdata_company_id",
+                  "domain"
+                ],
+                "identity_confidence": 0.94
+              },
+              "deleted": false
+            }
+          },
+          {
+            "id": "fx-event-2",
+            "event_date": "2026-07-02",
+            "title": "Cold-storage facility announced (planned)",
+            "kind": "facility",
+            "evidence": {
+              "evidence_id": "fx-ev-facility",
+              "source": {
+                "source_id": "fx-src-announce",
+                "provider": "web",
+                "label": "Company announcement",
+                "url_or_endpoint": "https://harbourline.example/press/cold-storage-nashik",
+                "retrieved_at": "2026-11-22T09:35:00Z",
+                "source_class": "company_announcement",
+                "origin_id": "fx-origin-cold-storage"
+              },
+              "quote": "We plan to open a 60,000 sq ft cold-storage facility in Nashik",
+              "page": null,
+              "field_path": null,
+              "value": null,
+              "as_of": "2026-07-02",
+              "attached_to": {
+                "entity_name": "Harbourline Warehousing (fixture)",
+                "matched_on": [
+                  "crustdata_company_id",
+                  "domain"
+                ],
+                "identity_confidence": 0.94
+              },
+              "deleted": false
+            }
+          }
+        ],
+        "documents": [
+          {
+            "id": "fx-doc-deck",
+            "filename": "harbourline_deck (fixture).pdf",
+            "uploaded_at": "2026-11-22T09:30:00Z",
+            "uploaded_by_name": "Asha Analyst",
+            "purged": false,
+            "claims_extracted": 8
+          },
+          {
+            "id": "fx-doc-payroll",
+            "filename": "payroll_summary_oct_2026 (fixture).pdf",
+            "uploaded_at": "2026-11-22T19:30:00Z",
+            "uploaded_by_name": "Asha Analyst",
+            "purged": false,
+            "claims_extracted": 1
+          }
+        ],
+        "request_list": {
+          "items": [
+            {
+              "document": "Dated payroll summary",
+              "priority": 0,
+              "group": "needed"
+            },
+            {
+              "document": "Share allotment filing or term sheet",
+              "priority": 1,
+              "group": "needed"
+            },
+            {
+              "document": "Certificate of incorporation",
+              "priority": 3,
+              "group": "also_helpful"
+            },
+            {
+              "document": "Lease or occupancy evidence for the facility",
+              "priority": 3,
+              "group": "also_helpful"
+            },
+            {
+              "document": "Lender statements",
+              "priority": 3,
+              "group": "also_helpful"
+            }
+          ],
+          "email_send_enabled": false,
+          "created_at": "2026-11-22T09:50:00Z"
+        },
+        "message": {
+          "status": "suppressed_test_mode",
+          "current_revision": {
+            "number": 2,
+            "recipient": "cfo@harbourline.example",
+            "entered_by_user_id": "fx-user-1",
+            "created_at": "2026-11-22T09:52:00Z"
+          },
+          "approval": {
+            "revision_id": "fx-rev-2",
+            "approver_user_id": "fx-user-1",
+            "approver_display_name": "Asha Analyst",
+            "approved_at": "2026-11-22T09:55:00Z"
+          },
+          "send": {
+            "id": "fx-send-1",
+            "revision_id": "fx-rev-2",
+            "status": "suppressed_test_mode",
+            "test_mode": true,
+            "attempts": 1,
+            "provider_message_id": null,
+            "error": null,
+            "created_at": "2026-11-22T09:56:00Z",
+            "dispatched_at": null,
+            "completed_at": "2026-11-22T09:56:00Z"
+          }
+        }
+      },
+      {
+        "case_id": "fx-case-shree",
+        "owner": {
+          "user_id": "fx-user-1",
+          "display_name": "Asha Analyst"
+        },
+        "run": {
+          "kind": "verify",
+          "state": "done",
+          "steps": 1,
+          "steps_finished": 1
+        },
+        "identity_candidates": 2,
+        "claim_counts": {
+          "supported": 0,
+          "partially_corroborated": 0,
+          "conflicting_evidence": 0,
+          "contradicted": 0,
+          "cannot_verify": 0,
+          "not_checked": 1
+        },
+        "opportunity": {
+          "thesis_id": null,
+          "thesis_text": null,
+          "fit_state": "awaiting_strategy_criteria",
+          "fit": null,
+          "assessable_pct": 0,
+          "criterion_results": []
+        },
+        "assessment": null,
+        "profile": null,
+        "events": [],
+        "documents": [],
+        "request_list": null,
+        "message": null
+      }
+    ]
+  },
   "assessments": {
     "fx-case-harbourline": [
       {

@@ -31,7 +31,8 @@ import { formatCredits, formatDate, formatDateTime, plural } from "@/lib/format"
 import { DISPOSITION_LABEL } from "@/lib/labels";
 import { DISPOSITIONS } from "@/lib/types";
 import { useLoad } from "@/lib/use-load";
-import { attention, claimCounts, coverageNote, useWorkspace, type Workspace } from "@/lib/workspace";
+import { useWorkspace, type Workspace } from "@/lib/workspace";
+import { attention, claimCounts } from "@/lib/workspace-state";
 import { ResearchHome } from "@/components/home/research-home";
 import { ClaimsCell, DispositionCell, FitCompact, waitingCue } from "./case-cells";
 
@@ -82,7 +83,7 @@ function ByDisposition({ workspace }: { workspace: Workspace }) {
 
 function NeedsYou({ workspace }: { workspace: Workspace }) {
   const waiting = workspace.cases.flatMap((item) =>
-    attention(item, workspace.details[item.id]).map((entry) => ({ item, entry })),
+    attention(item, workspace.records[item.id]).map((entry) => ({ item, entry })),
   );
   return (
     <Panel aria-labelledby="needs-you">
@@ -139,7 +140,7 @@ function RecentCases({ workspace }: { workspace: Workspace }) {
           </TableHeader>
           <TableBody>
             {shown.map((item) => {
-              const detail = workspace.details[item.id];
+              const record = workspace.records[item.id];
               return (
                 <TableRow key={item.id} className="relative">
                   <TableCell className="min-w-48">
@@ -147,7 +148,7 @@ function RecentCases({ workspace }: { workspace: Workspace }) {
                       {item.name}
                     </RowLink>
                     <span className="block text-xs text-ink-muted">
-                      {waitingCue(item, detail) ??
+                      {waitingCue(item, record) ??
                         (item.identity_state === "confirmed" ? "Identity confirmed" : "Identity unresolved")}
                       {" · "}
                       <span className="font-mono">{formatDate(item.updated_at)}</span>
@@ -160,7 +161,7 @@ function RecentCases({ workspace }: { workspace: Workspace }) {
                     <FitCompact item={item} />
                   </TableCell>
                   <TableCell className="min-w-44">
-                    <ClaimsCell item={item} detail={detail} />
+                    <ClaimsCell item={item} record={record} />
                   </TableCell>
                 </TableRow>
               );
@@ -297,16 +298,15 @@ function InvestorSearches() {
 }
 
 function Book({ workspace }: { workspace: Workspace }) {
-  const { cases, details } = workspace;
+  const { cases, records } = workspace;
   const running = cases.filter((item) => item.status === "verifying").length;
-  const needing = cases.filter((item) => attention(item, details[item.id]).length > 0).length;
+  const needing = cases.filter((item) => attention(item, records[item.id]).length > 0).length;
   const assessed = cases.filter((item) => item.disposition).length;
   const prioritise = cases.filter((item) => item.disposition === "prioritise").length;
-  const perCase = cases.map((item) => claimCounts(details[item.id])?.not_checked ?? 0);
+  const perCase = cases.map((item) => claimCounts(records[item.id])?.not_checked ?? 0);
   const notChecked = perCase.reduce((sum, count) => sum + count, 0);
   const credits = cases.reduce((sum, item) => sum + item.cost.crustdata_credits, 0);
   const usd = cases.reduce((sum, item) => sum + item.cost.llm_usd, 0);
-  const coverage = coverageNote(workspace);
 
   return (
     <>
@@ -345,7 +345,6 @@ function Book({ workspace }: { workspace: Workspace }) {
           note={`${modelUsd(usd)} model usage, counted apart`}
         />
       </StatRow>
-      {coverage ? <p className="-mt-3 font-mono text-2xs text-ink-muted">Claim and request figures {coverage}</p> : null}
 
       <PanelGrid>
         <PanelGridItem span={8}>

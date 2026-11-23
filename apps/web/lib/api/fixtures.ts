@@ -33,6 +33,8 @@ import type {
   ThesisSummary,
   UserOut,
   ClaimOut,
+  WorkspaceMessageOut,
+  WorkspaceOut,
 } from "./client";
 import { ApiError } from "./client";
 import type { Activity, ActivityPage } from "@/lib/run/types";
@@ -45,6 +47,7 @@ interface FixtureData {
   investorSearch: InvestorSearchOut;
   cases: CaseSummary[];
   caseDetails: Record<string, CaseDetail>;
+  workspace: WorkspaceOut;
   assessments: Record<string, AssessmentVersionOut[]>;
   runs: Record<string, RunOut>;
   runQueue: Record<"active" | "recent", RunQueueOut>;
@@ -195,6 +198,27 @@ export async function getCase(id: string): Promise<CaseDetail> {
     detail.request_list.message_id = detail.message?.id ?? null;
   }
   return detail;
+}
+
+/** The workspace read, with the primary case's request following this session as `getCase` does. */
+export async function getWorkspace(): Promise<WorkspaceOut> {
+  const workspace = clone(fixtures.workspace);
+  const primary = workspace.records.find((record) => record.case_id === PRIMARY_CASE_ID);
+  const detail = await getCase(PRIMARY_CASE_ID);
+  if (primary && detail.request_list) primary.message = messageRecord(detail.message);
+  return workspace;
+}
+
+/** `MessageOut` as `GET /workspace` carries it: no revision history, no email text. */
+function messageRecord(message: MessageOut | null): WorkspaceMessageOut | null {
+  if (!message) return null;
+  const { number, recipient, entered_by_user_id, created_at } = message.current_revision;
+  return {
+    status: message.status,
+    current_revision: { number, recipient, entered_by_user_id, created_at },
+    approval: message.approval,
+    send: message.send,
+  };
 }
 
 export async function startVerify(caseId: string): Promise<RunOut> {

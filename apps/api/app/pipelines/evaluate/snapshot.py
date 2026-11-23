@@ -33,7 +33,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.adapters import confidential_delete_after_sql
 from app.db.models import AssessmentVersion as VersionRow
 from app.domain.types import AssessmentDiff, AssessmentVersion
-from app.jobs.retention import payloads_for_assessment, store_confidential
+from app.jobs.retention import (
+    payloads_for_assessment,
+    payloads_for_assessments,
+    store_confidential,
+)
 
 SNAPSHOT_KIND = "assessment_snapshot"
 
@@ -96,11 +100,12 @@ def skeleton(row: VersionRow) -> Snapshot:
     )
 
 
-async def load_snapshot(session: AsyncSession, row: VersionRow) -> Snapshot:
+def snapshot_with(row: VersionRow, payloads: dict[str, Any]) -> Snapshot:
+    """The snapshot of `row` given the live confidential payloads linked to it, by kind."""
     snap = skeleton(row)
     if _retention(row) is None:
         return snap  # written before snapshots were split: stored as is
-    payload = (await payloads_for_assessment(session, row.id)).get(SNAPSHOT_KIND)
+    payload = payloads.get(SNAPSHOT_KIND)
     if not isinstance(payload, dict):
         return snap  # expired or purged: the skeleton, with removed_on
     full_diff = payload.get("diff")
@@ -111,8 +116,17 @@ async def load_snapshot(session: AsyncSession, row: VersionRow) -> Snapshot:
     )
 
 
+async def load_snapshot(session: AsyncSession, row: VersionRow) -> Snapshot:
+    if _retention(row) is None:
+        return skeleton(row)  # written before snapshots were split: stored as is
+    return snapshot_with(row, await payloads_for_assessment(session, row.id))
+
+
 async def load_snapshots(session: AsyncSession, rows: list[VersionRow]) -> list[Snapshot]:
-    return [await load_snapshot(session, r) for r in rows]
+    """`load_snapshot` for every row, with the payloads read in one query."""
+    split = [r.id for r in rows if _retention(r) is not None]
+    payloads = await payloads_for_assessments(session, split)
+    return [snapshot_with(r, payloads.get(r.id, {})) for r in rows]
 
 
 async def snapshot_deadline(session: AsyncSession, case_id: uuid.UUID) -> dt.datetime:

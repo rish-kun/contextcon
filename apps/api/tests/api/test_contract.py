@@ -70,6 +70,7 @@ ROUTES: list[tuple[str, str, str, object]] = [
     ),
     ("POST", "/cases", "/cases", {"name": "Example (fixture)", "website": "example.example"}),
     ("GET", "/cases", "/cases", None),
+    ("GET", "/workspace", "/workspace", None),
     ("GET", "/companies/lookup", "/companies/lookup?q=Acme", None),
     ("GET", "/cases/{case_id}", f"/cases/{CASE}", None),
     (
@@ -128,6 +129,7 @@ SESSION_ROUTES = {
     "/runs/{run_id}/activity",
     "/runs/{run_id}/resume",
     "/cases",  # CP-19: create and list
+    "/workspace",  # every case with what the cross-case screens read
     "/companies/lookup",  # pick a company before a case opens
     "/cases/{case_id}",  # CP-19
     "/cases/{case_id}/identity",  # CP-19
@@ -312,6 +314,18 @@ def test_fixture_mode_serves_every_route(
     response = _call(fixture_client, method, path, body)
     assert 200 <= response.status_code < 300, (template, response.text)
     assert response.headers[FIXTURE_HEADER] == "1"
+
+
+def test_fixture_workspace_is_the_case_records_cut_down(fixture_client: TestClient) -> None:
+    from app.api.schemas.cases import CaseDetail
+    from app.api.workspace_records import record_from_detail
+
+    body = fixture_client.get("/workspace").json()
+    assert body["cases"] == fixture_client.get("/cases").json()
+    assert [r["case_id"] for r in body["records"]] == [c["id"] for c in body["cases"]]
+    for record in body["records"]:
+        detail = CaseDetail.model_validate(fixture_client.get(f"/cases/{record['case_id']}").json())
+        assert record == record_from_detail(detail).model_dump(mode="json")
 
 
 def test_fixture_mode_unknown_id_is_404(fixture_client: TestClient) -> None:

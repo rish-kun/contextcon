@@ -107,6 +107,18 @@ def _new_send_key() -> str:
     return f"dp-send-{uuid.uuid4().hex}"
 
 
+def message_status(
+    current: MessageRevision, approval: Approval | None, send: SendRecord | None
+) -> MessageStatus:
+    """What the UI shows for a message, from its current revision, that revision's
+    approval and the message's latest send."""
+    if send is not None and (send.revision_id == current.id or send.status in ACTIVE_SEND_STATUSES):
+        return MessageStatus(send.status.value)
+    if approval is not None:
+        return MessageStatus.APPROVED
+    return MessageStatus.DRAFT
+
+
 class ActService:
     def __init__(
         self,
@@ -342,21 +354,13 @@ class ActService:
         current = next(r for r in revisions if r.id == message.current_revision_id)
         approval = await self._repo.get_approval(current.id)
         send = await self._repo.get_latest_send(message_id)
-        if send is not None and (
-            send.revision_id == current.id or send.status in ACTIVE_SEND_STATUSES
-        ):
-            status = MessageStatus(send.status.value)
-        elif approval is not None:
-            status = MessageStatus.APPROVED
-        else:
-            status = MessageStatus.DRAFT
         return MessageState(
             message=message,
             revisions=revisions,
             current_revision=current,
             approval=approval,
             send=send,
-            status=status,
+            status=message_status(current, approval, send),
         )
 
     # --- internals --------------------------------------------------------------------

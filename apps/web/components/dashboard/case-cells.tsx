@@ -6,15 +6,16 @@ import {
   StatusCounts,
 } from "@/components/dealproof";
 import { Icon } from "@/components/ui";
-import type { CaseDetail, CaseSummary } from "@/lib/api/client";
+import type { CaseSummary } from "@/lib/api/client";
 import { formatShare, plural } from "@/lib/format";
 import { RUN_KIND_LABEL } from "@/lib/labels";
-import { CLAIM_STATUSES, type ClaimStatusCounts, type FitResult } from "@/lib/types";
+import type { FitResult } from "@/lib/types";
+import { claimCounts, type CaseRecord } from "@/lib/workspace-state";
 
 const VERDICT = { pass: "met", fail: "not_met", unknown: "unknown" } as const;
 
 /** Identity state in words, with the glyph the case header uses for the same state. */
-export function IdentityCue({ item, detail }: { item: CaseSummary; detail?: CaseDetail }) {
+export function IdentityCue({ item, record }: { item: CaseSummary; record?: CaseRecord }) {
   if (item.identity_state === "confirmed") {
     return (
       <span className="inline-flex items-center gap-1 text-ink-secondary">
@@ -23,7 +24,7 @@ export function IdentityCue({ item, detail }: { item: CaseSummary; detail?: Case
       </span>
     );
   }
-  const candidates = detail?.identity.candidates.length ?? 0;
+  const candidates = record?.identity_candidates ?? 0;
   return (
     <span className="inline-flex items-center gap-1 text-cannot-verify">
       <Icon icon={CircleQuestionMark} className="shrink-0" />
@@ -34,18 +35,17 @@ export function IdentityCue({ item, detail }: { item: CaseSummary; detail?: Case
 }
 
 /** What the case is doing or waiting for, stated in words. Null when there is nothing to say. */
-export function waitingCue(item: CaseSummary, detail?: CaseDetail): string | null {
+export function waitingCue(item: CaseSummary, record?: CaseRecord): string | null {
   if (item.status === "verifying") {
-    const run = detail?.case.run;
-    if (run && (run.state === "running" || run.state === "pending") && run.steps.length > 0) {
-      const finished = run.steps.filter((step) => step.state !== "pending" && step.state !== "running").length;
-      const current = Math.min(finished + 1, run.steps.length);
-      return `${RUN_KIND_LABEL[run.kind]} running · step ${current} of ${run.steps.length}`;
+    const run = record?.run;
+    if (run && (run.state === "running" || run.state === "pending") && run.steps > 0) {
+      const current = Math.min(run.steps_finished + 1, run.steps);
+      return `${RUN_KIND_LABEL[run.kind]} running · step ${current} of ${run.steps}`;
     }
     return "Verify running";
   }
   if (item.status === "failed") return "Last run did not finish";
-  if (detail?.message?.status === "draft") return "Request awaiting approval";
+  if (record?.message?.status === "draft") return "Request awaiting approval";
   return null;
 }
 
@@ -65,7 +65,7 @@ export function DispositionCell({ item }: { item: CaseSummary }) {
  * Fit and its assessable share, never apart. With the case record loaded the strip shows
  * each criterion; before that, the two numbers from the list in the same words.
  */
-export function FitCell({ item, detail }: { item: CaseSummary; detail?: CaseDetail }) {
+export function FitCell({ item, record }: { item: CaseSummary; record?: CaseRecord }) {
   if (item.fit_state === "awaiting_strategy_criteria") {
     return <span className="text-ink-secondary">No criteria set for this case</span>;
   }
@@ -81,7 +81,7 @@ export function FitCell({ item, detail }: { item: CaseSummary; detail?: CaseDeta
     );
   }
 
-  const results = detail?.opportunity.criterion_results ?? [];
+  const results = record?.opportunity.criterion_results ?? [];
   if (results.length > 0) {
     const fit: FitResult = {
       fit: item.fit_state === "scored" ? item.fit : null,
@@ -108,15 +108,14 @@ export function FitCell({ item, detail }: { item: CaseSummary; detail?: CaseDeta
 }
 
 /** Counts by status once the case record is in; the plain total until then. */
-export function ClaimsCell({ item, detail }: { item: CaseSummary; detail?: CaseDetail }) {
+export function ClaimsCell({ item, record }: { item: CaseSummary; record?: CaseRecord }) {
   if (item.claim_count === 0) return <span className="text-ink-muted">No claims yet</span>;
-  if (!detail) {
+  const counts = claimCounts(record);
+  if (!counts) {
     return (
       <span className="font-mono text-xs text-ink-secondary">{plural(item.claim_count, "claim")}</span>
     );
   }
-  const counts = Object.fromEntries(CLAIM_STATUSES.map((status) => [status, 0])) as ClaimStatusCounts;
-  for (const claim of detail.claims) counts[claim.status] += 1;
   return <StatusCounts counts={counts} />;
 }
 

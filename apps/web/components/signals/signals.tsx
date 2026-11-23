@@ -32,12 +32,12 @@ import {
   Tooltip,
 } from "@/components/ui";
 import { FilterSelect } from "@/components/workspace/filter-select";
-import type { CaseDetail } from "@/lib/api/client";
+import type { EventOut } from "@/lib/api/client";
 import { formatDate, formatTime, plural } from "@/lib/format";
 import { CLAIM_STATUS_LABEL, DISPOSITION_LABEL } from "@/lib/labels";
 import type { Evidence } from "@/lib/types";
 import { useUrlState } from "@/lib/url-state";
-import { coverageNote, useWorkspace, type Workspace } from "@/lib/workspace";
+import { useWorkspace, type Workspace } from "@/lib/workspace";
 
 const CATEGORIES = ["event", "assessment", "document"] as const;
 type Category = (typeof CATEGORIES)[number];
@@ -63,7 +63,7 @@ interface Signal {
 }
 
 /** How an event is known, read from the class of the source it rests on. */
-function natureOf(event: CaseDetail["events"][number]): EventNature {
+function natureOf(event: EventOut): EventNature {
   const sourceClass = event.evidence.source.source_class;
   if (sourceClass === "company_announcement" || sourceClass === "seller_statement") return "Announced";
   return sourceClass === "news" ? "Reported" : "Recorded";
@@ -76,11 +76,11 @@ const word = (value: string) => WORDS[value] ?? value;
 function signalsOf(workspace: Workspace): Signal[] {
   const out: Signal[] = [];
   for (const item of workspace.cases) {
-    const detail = workspace.details[item.id];
-    if (!detail) continue;
+    const record = workspace.records[item.id];
+    if (!record) continue;
     const base = { caseId: item.id, company: item.name };
 
-    for (const event of detail.events) {
+    for (const event of record.events) {
       out.push({
         ...base,
         id: `event:${event.id}`,
@@ -95,10 +95,10 @@ function signalsOf(workspace: Workspace): Signal[] {
       });
     }
 
-    const assessment = detail.assessment;
+    const assessment = record.assessment;
     if (assessment) {
       const lines = assessment.diff_from_previous ?? [];
-      const disposition = assessment.judgments.screening_disposition.disposition;
+      const disposition = assessment.disposition;
       const moved = lines.find((line) => line.kind === "disposition");
       out.push({
         ...base,
@@ -133,7 +133,7 @@ function signalsOf(workspace: Workspace): Signal[] {
         });
     }
 
-    for (const document of detail.documents) {
+    for (const document of record.documents) {
       out.push({
         ...base,
         id: `document:${document.id}`,
@@ -362,7 +362,6 @@ export function Signals() {
     all.some((signal) => signal.kind !== null && eventTopic(signal.kind) === option),
   );
   const natures = NATURES.filter((option) => all.some((signal) => signal.nature === option));
-  const coverage = coverageNote(workspace);
 
   return (
     <Page>
@@ -373,7 +372,6 @@ export function Signals() {
             <span className="font-mono">{all.length}</span> {all.length === 1 ? "item" : "items"} · from{" "}
             <span className="font-mono">{companies.length}</span> {companies.length === 1 ? "case" : "cases"} · ordered by
             the date it happened, not the date it was retrieved
-            {coverage ? <span className="font-mono text-xs text-ink-muted"> · {coverage}</span> : null}
           </>
         }
         figures={

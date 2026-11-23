@@ -108,3 +108,25 @@ async def payloads_for_assessment(
         )
     )
     return {kind: payload for kind, payload in rows.all()}
+
+
+async def payloads_for_assessments(
+    session: AsyncSession, assessment_version_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, dict[str, Any]]:
+    """`payloads_for_assessment` for many versions in one query: {version id: {kind: payload}}."""
+    out: dict[uuid.UUID, dict[str, Any]] = {}
+    if not assessment_version_ids:
+        return out
+    rows = await session.execute(
+        select(
+            ConfidentialPayload.assessment_version_id,
+            ConfidentialPayload.kind,
+            ConfidentialPayload.payload,
+        ).where(
+            ConfidentialPayload.assessment_version_id.in_(assessment_version_ids),
+            _live(),
+        )
+    )
+    for version_id, kind, payload in rows.all():
+        out.setdefault(version_id, {})[kind] = payload
+    return out

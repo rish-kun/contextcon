@@ -3,14 +3,14 @@
 import {
   getThesis,
   listTheses,
-  type CaseDetail,
   type CaseSummary,
   type ShortlistItemOut,
   type ThesisOut,
   type ThesisSummary,
 } from "@/lib/api/client";
 import { useLoad, type Load } from "@/lib/use-load";
-import { withAssessment, type Workspace } from "@/lib/workspace";
+import type { Workspace } from "@/lib/workspace";
+import { withAssessment, type CaseRecord } from "@/lib/workspace-state";
 
 /**
  * Every company DealProof has seen, composed in the browser: each case, plus each company
@@ -59,7 +59,7 @@ export interface CompanyRow {
   screening: { id: string; text: string } | null;
   /** Set when the company has a case. */
   item: CaseSummary | null;
-  detail: CaseDetail | undefined;
+  record: CaseRecord | undefined;
   /** Set when the company came from a shortlist, so a case can be opened from it. */
   shortlist: ShortlistItemOut | null;
   updatedAt: string | null;
@@ -108,7 +108,7 @@ export function companyRows(workspace: Workspace, screenings: Screenings | null)
             : null,
         screening: { id: thesis.id, text: thesis.text },
         item: null,
-        detail: undefined,
+        record: undefined,
         shortlist: entry,
         updatedAt: entry.card.last_updated,
       });
@@ -116,20 +116,22 @@ export function companyRows(workspace: Workspace, screenings: Screenings | null)
   }
 
   const cases: CompanyRow[] = workspace.cases.map((raw) => {
-    const detail = workspace.details[raw.id];
-    const item = withAssessment(raw, detail);
+    const record = workspace.records[raw.id];
+    const item = withAssessment(raw, record);
     const origin = found.get(item.id);
-    const profile = detail?.profile ?? null;
+    const profile = record?.profile ?? null;
     const card = origin?.item.card;
-    const headcount = profile?.headcount ?? card?.headcount ?? null;
-    const thesisId = detail?.opportunity.thesis_id ?? origin?.thesis.id ?? null;
-    const thesisText = detail?.opportunity.thesis_text ?? origin?.thesis.text ?? null;
+    const headcount = profile?.headcount != null
+      ? { value: profile.headcount, estimate_basis: profile.headcount_basis }
+      : (card?.headcount ?? null);
+    const thesisId = record?.opportunity.thesis_id ?? origin?.thesis.id ?? null;
+    const thesisText = record?.opportunity.thesis_text ?? origin?.thesis.text ?? null;
     const scored = item.fit_state === "scored" && item.fit !== null;
     return {
       key: `case:${item.id}`,
       name: item.name,
-      domain: hostOf(item.website) ?? hostOf(profile?.domain?.value) ?? hostOf(origin?.item.domain),
-      hq: profile?.headquarters?.value ?? profile?.country?.value ?? card?.location?.value ?? null,
+      domain: hostOf(item.website) ?? hostOf(profile?.domain) ?? hostOf(origin?.item.domain),
+      hq: profile?.headquarters ?? profile?.country ?? card?.location?.value ?? null,
       headcount: headcount?.value ?? null,
       headcountBasis: headcount?.estimate_basis ?? null,
       fit: scored ? item.fit : null,
@@ -137,7 +139,7 @@ export function companyRows(workspace: Workspace, screenings: Screenings | null)
       fitNote: scored ? null : item.fit_state ? (FIT_NOTE[item.fit_state] ?? "Fit unavailable") : "Not assessed yet",
       screening: thesisId ? { id: thesisId, text: thesisText ?? "Screening" } : null,
       item,
-      detail,
+      record,
       shortlist: origin?.item ?? null,
       updatedAt: item.updated_at,
     };

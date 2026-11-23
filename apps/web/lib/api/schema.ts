@@ -806,6 +806,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/workspace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Workspace
+         * @description Every case with what the cross-case screens show: claim counts by status, the
+         *     request and its message, the latest assessment's disposition, fit and diff, events,
+         *     documents and the directory's profile fields. The full record is `GET /cases/{id}`.
+         */
+        get: operations["get_workspace"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cases/{case_id}/messages": {
         parameters: {
             query?: never;
@@ -1496,6 +1518,42 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /**
+         * ClaimCountsOut
+         * @description Claims by current status (`CaseDetail.claims[].status`, counted).
+         */
+        ClaimCountsOut: {
+            /**
+             * Supported
+             * @default 0
+             */
+            supported: number;
+            /**
+             * Partially Corroborated
+             * @default 0
+             */
+            partially_corroborated: number;
+            /**
+             * Conflicting Evidence
+             * @default 0
+             */
+            conflicting_evidence: number;
+            /**
+             * Contradicted
+             * @default 0
+             */
+            contradicted: number;
+            /**
+             * Cannot Verify
+             * @default 0
+             */
+            cannot_verify: number;
+            /**
+             * Not Checked
+             * @default 0
+             */
+            not_checked: number;
         };
         /** ClaimCreate */
         ClaimCreate: {
@@ -4090,6 +4148,222 @@ export interface components {
             /** Token */
             token: string;
         };
+        /**
+         * WorkspaceAssessmentOut
+         * @description The latest assessment version (`CaseDetail.assessment`): its disposition, its
+         *     opportunity fit, and its diff from the previous version.
+         */
+        WorkspaceAssessmentOut: {
+            /** Id */
+            id: string;
+            /** Version */
+            version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** @description judgments.screening_disposition.disposition */
+            disposition: components["schemas"]["Disposition"];
+            /** @description judgments.opportunity_fit.state */
+            fit_state: components["schemas"]["FitState"];
+            /**
+             * Fit
+             * @description judgments.opportunity_fit.fit
+             */
+            fit: number | null;
+            /**
+             * Assessable Pct
+             * @description judgments.opportunity_fit.assessable_pct
+             * @default 0
+             */
+            assessable_pct: number;
+            /** Diff From Previous */
+            diff_from_previous: components["schemas"]["DiffLineOut"][] | null;
+        };
+        /** WorkspaceCaseOut */
+        WorkspaceCaseOut: {
+            /** Case Id */
+            case_id: string;
+            /** @description CaseDetail.case.owner */
+            owner: components["schemas"]["NamedUserOut"];
+            run: components["schemas"]["WorkspaceRunOut"] | null;
+            /**
+             * Identity Candidates
+             * @description len(CaseDetail.identity.candidates)
+             * @default 0
+             */
+            identity_candidates: number;
+            claim_counts: components["schemas"]["ClaimCountsOut"];
+            opportunity: components["schemas"]["WorkspaceOpportunityOut"];
+            assessment: components["schemas"]["WorkspaceAssessmentOut"] | null;
+            profile: components["schemas"]["WorkspaceProfileOut"] | null;
+            /** Events */
+            events: components["schemas"]["EventOut"][];
+            /** Documents */
+            documents: components["schemas"]["WorkspaceDocumentOut"][];
+            request_list: components["schemas"]["WorkspaceRequestListOut"] | null;
+            message: components["schemas"]["WorkspaceMessageOut"] | null;
+        };
+        /**
+         * WorkspaceCriterionOut
+         * @description One `CaseDetail.opportunity.criterion_results` row without its reason and evidence.
+         */
+        WorkspaceCriterionOut: {
+            /** Criterion Id */
+            criterion_id: string;
+            /** Label */
+            label: string;
+            kind: components["schemas"]["CriterionKind"];
+            /** Weight */
+            weight: number;
+            state: components["schemas"]["CriterionResultState"];
+        };
+        /**
+         * WorkspaceDocumentOut
+         * @description One `CaseDetail.documents` row, as a dated feed line needs it.
+         */
+        WorkspaceDocumentOut: {
+            /** Id */
+            id: string;
+            /** Filename */
+            filename: string;
+            /**
+             * Uploaded At
+             * Format: date-time
+             */
+            uploaded_at: string;
+            /** Uploaded By Name */
+            uploaded_by_name: string | null;
+            /**
+             * Purged
+             * @default false
+             */
+            purged: boolean;
+            /**
+             * Claims Extracted
+             * @default 0
+             */
+            claims_extracted: number;
+        };
+        /**
+         * WorkspaceMessageOut
+         * @description `CaseDetail.message` without its revision history and the text of the email.
+         */
+        WorkspaceMessageOut: {
+            status: components["schemas"]["MessageStatus"];
+            current_revision: components["schemas"]["WorkspaceRevisionOut"];
+            approval: components["schemas"]["ApprovalOut"] | null;
+            send: components["schemas"]["SendOut"] | null;
+        };
+        /**
+         * WorkspaceOpportunityOut
+         * @description `CaseDetail.opportunity` without the criteria definitions and relevance text.
+         */
+        WorkspaceOpportunityOut: {
+            /** Thesis Id */
+            thesis_id: string | null;
+            /** Thesis Text */
+            thesis_text: string | null;
+            fit_state: components["schemas"]["FitState"];
+            /** Fit */
+            fit: number | null;
+            /**
+             * Assessable Pct
+             * @default 0
+             */
+            assessable_pct: number;
+            /** Criterion Results */
+            criterion_results: components["schemas"]["WorkspaceCriterionOut"][];
+        };
+        /** WorkspaceOut */
+        WorkspaceOut: {
+            /**
+             * Cases
+             * @description The rows of GET /cases, in the same order.
+             */
+            cases: components["schemas"]["CaseSummary"][];
+            /**
+             * Records
+             * @description One per case, in the order of cases.
+             */
+            records: components["schemas"]["WorkspaceCaseOut"][];
+        };
+        /**
+         * WorkspaceProfileOut
+         * @description The values of `CaseDetail.profile` a directory row shows (null without a profile).
+         */
+        WorkspaceProfileOut: {
+            /** Domain */
+            domain: string | null;
+            /** Headquarters */
+            headquarters: string | null;
+            /** Country */
+            country: string | null;
+            /** Headcount */
+            headcount: number | null;
+            /** Headcount Basis */
+            headcount_basis: string | null;
+        };
+        /** WorkspaceRequestItemOut */
+        WorkspaceRequestItemOut: {
+            /** Document */
+            document: string;
+            /** Priority */
+            priority: number;
+            /**
+             * Group
+             * @enum {string}
+             */
+            group: "needed" | "also_helpful";
+        };
+        /**
+         * WorkspaceRequestListOut
+         * @description `CaseDetail.request_list`: its items (priority order) and send mode.
+         */
+        WorkspaceRequestListOut: {
+            /** Items */
+            items: components["schemas"]["WorkspaceRequestItemOut"][];
+            /** Email Send Enabled */
+            email_send_enabled: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** WorkspaceRevisionOut */
+        WorkspaceRevisionOut: {
+            /** Number */
+            number: number;
+            /** Recipient */
+            recipient: string;
+            /** Entered By User Id */
+            entered_by_user_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * WorkspaceRunOut
+         * @description The case's latest run (`CaseDetail.case.run`), as a progress line needs it.
+         */
+        WorkspaceRunOut: {
+            kind: components["schemas"]["RunKind"];
+            state: components["schemas"]["RunState"];
+            /**
+             * Steps
+             * @description Steps in the run.
+             */
+            steps: number;
+            /**
+             * Steps Finished
+             * @description Steps neither pending nor running.
+             */
+            steps_finished: number;
+        };
     };
     responses: never;
     parameters: never;
@@ -6660,6 +6934,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not implemented yet (stub). */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_workspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceOut"];
+                };
+            };
+            /** @description No valid session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not found, or not visible to this user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
                 };
             };
             /** @description Not implemented yet (stub). */

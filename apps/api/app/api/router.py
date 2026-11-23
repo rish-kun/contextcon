@@ -24,6 +24,7 @@ from app.api import (
     runs,
     showcase,
     theses,
+    workspace,
 )
 from app.api._base import operation_id
 
@@ -41,6 +42,7 @@ for module in (
     runs,
     policy,
     showcase,
+    workspace,
 ):
     api_router.include_router(module.router)
 api_router.include_router(act.router, generate_unique_id_function=operation_id)

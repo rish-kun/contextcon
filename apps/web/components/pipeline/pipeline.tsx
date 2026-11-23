@@ -25,20 +25,20 @@ import {
   TableRow,
   Toolbar,
 } from "@/components/ui";
-import type { CaseDetail, CaseSummary } from "@/lib/api/client";
+import type { CaseSummary } from "@/lib/api/client";
 import { formatCredits, formatDate, plural } from "@/lib/format";
 import { DISPOSITION_LABEL } from "@/lib/labels";
 import { cn } from "@/lib/utils";
+import { useWorkspace, type Workspace } from "@/lib/workspace";
 import {
   attention,
   claimCounts,
-  coverageNote,
+  claimTotal,
   REQUEST_STATE_LABEL,
   requestState,
-  useWorkspace,
   withAssessment,
-  type Workspace,
-} from "@/lib/workspace";
+  type CaseRecord,
+} from "@/lib/workspace-state";
 
 type View = "board" | "table";
 const VIEW_KEY = "dealproof.pipeline.view";
@@ -94,10 +94,10 @@ const LANE_RULE: Record<Lane, string> = {
 };
 
 /** The lane a case sits in, read from its record. Work in flight comes first. */
-function laneOf(item: CaseSummary, detail: CaseDetail | undefined): Lane {
+function laneOf(item: CaseSummary, record: CaseRecord | undefined): Lane {
   if (item.status === "verifying") return "verifying";
   if (item.identity_state !== "confirmed") return "identity";
-  const request = requestState(detail);
+  const request = requestState(record);
   if (request === "sent" || request === "suppressed") return "sent";
   if (request !== "none") return "approval";
   return "assessed";
@@ -119,13 +119,13 @@ function host(website: string | null): string | null {
 }
 
 /** Only what the record holds: a field with no value is left out, not printed as "not scored". */
-function CaseCard({ item, detail, lane }: { item: CaseSummary; detail: CaseDetail | undefined; lane: Lane }) {
-  const counts = claimCounts(detail);
-  const request = requestState(detail);
+function CaseCard({ item, record, lane }: { item: CaseSummary; record: CaseRecord | undefined; lane: Lane }) {
+  const counts = claimCounts(record);
+  const request = requestState(record);
   const blockers = blockersLine(item);
   const domain = host(item.website);
-  const running = lane === "verifying" ? waitingCue(item, detail) : null;
-  const identity = lane === "identity" ? attention(item, detail)[0]?.what : null;
+  const running = lane === "verifying" ? waitingCue(item, record) : null;
+  const identity = lane === "identity" ? attention(item, record)[0]?.what : null;
   const scored = item.fit_state === "scored" && item.fit !== null;
   return (
     <li className="relative flex flex-col gap-2 rounded-md border border-line bg-surface p-3 transition-colors hover:border-line-strong">
@@ -146,7 +146,7 @@ function CaseCard({ item, detail, lane }: { item: CaseSummary; detail: CaseDetai
         <DispositionStamp disposition={item.disposition} size="sm" className="self-start" />
       ) : null}
       {scored ? <FitCompact item={item} /> : null}
-      {counts && detail && detail.claims.length > 0 ? <StatusCounts counts={counts} /> : null}
+      {counts && claimTotal(record) > 0 ? <StatusCounts counts={counts} /> : null}
       {blockers ? (
         <span className="self-start rounded-xs border border-dashed border-line-strong px-1.5 py-0.5 font-mono text-xs text-ink-secondary">
           {blockers}
@@ -174,7 +174,7 @@ function Cards({ items, workspace, lane }: { items: CaseSummary[]; workspace: Wo
   return (
     <ul className={cn("grid gap-2", lane === "assessed" && "sm:grid-cols-2")}>
       {items.map((item) => (
-        <CaseCard key={item.id} item={item} detail={workspace.details[item.id]} lane={lane} />
+        <CaseCard key={item.id} item={item} record={workspace.records[item.id]} lane={lane} />
       ))}
     </ul>
   );
@@ -257,7 +257,7 @@ function PipelineTable({ workspace, grouped }: { workspace: Workspace; grouped: 
                 </th>
               </tr>
               {grouped[column].map((item) => {
-                const detail = workspace.details[item.id];
+                const record = workspace.records[item.id];
                 return (
                   <TableRow key={item.id} className="relative">
                     <TableCell>
@@ -265,23 +265,23 @@ function PipelineTable({ workspace, grouped }: { workspace: Workspace; grouped: 
                         {item.name}
                       </RowLink>
                       <span className="block text-xs text-ink-muted">
-                        {attention(item, detail)[0]?.what ?? "Nothing waiting"}
+                        {attention(item, record)[0]?.what ?? "Nothing waiting"}
                       </span>
                     </TableCell>
                     <TableCell>
                       <DispositionCell item={item} />
                     </TableCell>
                     <TableCell className="min-w-56">
-                      <FitCell item={item} detail={detail} />
+                      <FitCell item={item} record={record} />
                     </TableCell>
                     <TableCell>
-                      <ClaimsCell item={item} detail={detail} />
+                      <ClaimsCell item={item} record={record} />
                     </TableCell>
                     <TableCell muted={!blockersLine(item)} className="font-mono text-xs whitespace-nowrap">
                       {blockersLine(item) ?? "–"}
                     </TableCell>
-                    <TableCell muted={requestState(detail) === "none"}>
-                      {REQUEST_STATE_LABEL[requestState(detail)]}
+                    <TableCell muted={requestState(record) === "none"}>
+                      {REQUEST_STATE_LABEL[requestState(record)]}
                     </TableCell>
                     <TableCell numeric>{formatDate(item.updated_at)}</TableCell>
                   </TableRow>
@@ -327,17 +327,16 @@ export function Pipeline() {
 
   const workspace = state.data;
   const needle = query.trim().toLowerCase();
-  const cases = workspace.cases.map((item) => withAssessment(item, workspace.details[item.id]));
+  const cases = workspace.cases.map((item) => withAssessment(item, workspace.records[item.id]));
   const shown = cases.filter((item) => !needle || item.name.toLowerCase().includes(needle));
   const group = (cases: CaseSummary[]) => {
     const out = Object.fromEntries(LANES.map((lane) => [lane, [] as CaseSummary[]])) as Grouped;
-    for (const item of cases) out[laneOf(item, workspace.details[item.id])].push(item);
+    for (const item of cases) out[laneOf(item, workspace.records[item.id])].push(item);
     return out;
   };
   const all = group(cases);
   const credits = cases.reduce((sum, item) => sum + item.cost.crustdata_credits, 0);
   const grouped = group(shown);
-  const coverage = coverageNote(workspace);
 
   return (
     <Page>
@@ -347,7 +346,6 @@ export function Pipeline() {
           <>
             <span className="font-mono">{workspace.cases.length}</span>{" "}
             {workspace.cases.length === 1 ? "case" : "cases"}, each filed by its own record
-            {coverage ? <span className="font-mono text-xs text-ink-muted"> · request state {coverage}</span> : null}
           </>
         }
         actions={<Button onClick={openVerify}>Verify a company</Button>}

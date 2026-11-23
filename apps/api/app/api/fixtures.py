@@ -2033,6 +2033,7 @@ def policy() -> PolicyOut:
 def export() -> dict[str, Any]:
     """Everything the web fixture mode needs, as JSON-ready data keyed by client call."""
     from app.api import fixture_activity, fixture_decision_flip
+    from app.api.workspace import fixture_workspace
 
     def dump(obj: Any) -> Any:
         if isinstance(obj, list):
@@ -2050,6 +2051,7 @@ def export() -> dict[str, Any]:
             "investorSearch": investor_search(),
             "cases": case_summaries(),
             "caseDetails": {cid: case_detail(cid) for cid in (CASE_ID, CASE_AMBIGUOUS_ID)},
+            "workspace": fixture_workspace(),
             "assessments": {CASE_ID: assessments(CASE_ID), CASE_AMBIGUOUS_ID: []},
             "decisionFlip": {CASE_ID: _flip()},
             "decisionFlipScenarios": fixture_decision_flip.scenarios(CASE_ID),

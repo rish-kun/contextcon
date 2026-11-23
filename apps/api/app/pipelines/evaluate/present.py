@@ -154,6 +154,53 @@ async def load_lookups(session: AsyncSession, case_id: uuid.UUID, snaps: list[Sn
     return lk
 
 
+async def load_lookups_many(
+    session: AsyncSession, snaps: dict[uuid.UUID, Snapshot]
+) -> dict[uuid.UUID, Lookups]:
+    """`load_lookups(case_id, [snap])` for one snapshot per case, in three queries in all.
+
+    Claim texts are read only for the claims the diffs name: nothing else in a version
+    reads them (an unknown id reads as "Claim <id>" either way)."""
+    out = {case_id: Lookups() for case_id in snaps}
+    if not snaps:
+        return out
+    wanted: set[uuid.UUID] = set()
+    claim_ids: set[uuid.UUID] = set()
+    crit_ids: set[uuid.UUID] = set()
+    for snap in snaps.values():
+        wanted |= set(uuids(_evidence_ids(snap.assessment, snap.diff)))
+        if snap.diff is not None:
+            claim_ids |= set(uuids(c.claim_id for c in snap.diff.claim_changes))
+        crit_ids |= set(
+            uuids(e.criterion_id for e in snap.assessment.judgments.opportunity_fit.evaluations)
+        )
+    if wanted:
+        res = await session.execute(
+            select(Evidence, Source)
+            .join(Source, Source.id == Evidence.source_id)
+            .where(Evidence.id.in_(wanted), Evidence.case_id.in_(list(snaps)))
+        )
+        for e, s in res.all():
+            out[e.case_id].evidence[str(e.id)] = evidence_out(e, s)
+    if claim_ids:
+        claims = await session.execute(
+            select(Claim.case_id, Claim.id, Claim.original_text).where(
+                Claim.id.in_(claim_ids), Claim.case_id.in_(list(snaps))
+            )
+        )
+        for case_id, claim_id, text in claims.all():
+            out[case_id].claims[str(claim_id)] = text
+    if crit_ids:
+        crit = await session.execute(
+            select(Criterion.id, Criterion.label).where(Criterion.id.in_(crit_ids))
+        )
+        labels = {str(i): label for i, label in crit.all()}
+        for case_id, snap in snaps.items():
+            mine = {e.criterion_id for e in snap.assessment.judgments.opportunity_fit.evaluations}
+            out[case_id].criteria = {k: v for k, v in labels.items() if k in mine}
+    return out
+
+
 # --- Judgments -------------------------------------------------------------------------
 
 

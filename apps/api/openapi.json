@@ -3263,6 +3263,58 @@
         }
       }
     },
+    "/workspace": {
+      "get": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Get Workspace",
+        "description": "Every case with what the cross-case screens show: claim counts by status, the\nrequest and its message, the latest assessment's disposition, fit and diff, events,\ndocuments and the directory's profile fields. The full record is `GET /cases/{id}`.",
+        "operationId": "get_workspace",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to this user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not implemented yet (stub).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/cases/{case_id}/messages": {
       "post": {
         "tags": [
@@ -5239,6 +5291,52 @@
         ],
         "title": "ClaimCheckOut",
         "description": "One append-only status check. The latest row is the current status."
+      },
+      "ClaimCountsOut": {
+        "properties": {
+          "supported": {
+            "type": "integer",
+            "title": "Supported",
+            "default": 0
+          },
+          "partially_corroborated": {
+            "type": "integer",
+            "title": "Partially Corroborated",
+            "default": 0
+          },
+          "conflicting_evidence": {
+            "type": "integer",
+            "title": "Conflicting Evidence",
+            "default": 0
+          },
+          "contradicted": {
+            "type": "integer",
+            "title": "Contradicted",
+            "default": 0
+          },
+          "cannot_verify": {
+            "type": "integer",
+            "title": "Cannot Verify",
+            "default": 0
+          },
+          "not_checked": {
+            "type": "integer",
+            "title": "Not Checked",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "supported",
+          "partially_corroborated",
+          "conflicting_evidence",
+          "contradicted",
+          "cannot_verify",
+          "not_checked"
+        ],
+        "title": "ClaimCountsOut",
+        "description": "Claims by current status (`CaseDetail.claims[].status`, counted)."
       },
       "ClaimCreate": {
         "properties": {
@@ -12366,6 +12464,583 @@
           "token"
         ],
         "title": "VerifyIn"
+      },
+      "WorkspaceAssessmentOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "disposition": {
+            "$ref": "#/components/schemas/Disposition",
+            "description": "judgments.screening_disposition.disposition"
+          },
+          "fit_state": {
+            "$ref": "#/components/schemas/FitState",
+            "description": "judgments.opportunity_fit.state"
+          },
+          "fit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fit",
+            "description": "judgments.opportunity_fit.fit"
+          },
+          "assessable_pct": {
+            "type": "integer",
+            "title": "Assessable Pct",
+            "description": "judgments.opportunity_fit.assessable_pct",
+            "default": 0
+          },
+          "diff_from_previous": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DiffLineOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diff From Previous"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "created_at",
+          "disposition",
+          "fit_state",
+          "fit",
+          "assessable_pct",
+          "diff_from_previous"
+        ],
+        "title": "WorkspaceAssessmentOut",
+        "description": "The latest assessment version (`CaseDetail.assessment`): its disposition, its\nopportunity fit, and its diff from the previous version."
+      },
+      "WorkspaceCaseOut": {
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "title": "Case Id"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/NamedUserOut",
+            "description": "CaseDetail.case.owner"
+          },
+          "run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceRunOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "identity_candidates": {
+            "type": "integer",
+            "title": "Identity Candidates",
+            "description": "len(CaseDetail.identity.candidates)",
+            "default": 0
+          },
+          "claim_counts": {
+            "$ref": "#/components/schemas/ClaimCountsOut"
+          },
+          "opportunity": {
+            "$ref": "#/components/schemas/WorkspaceOpportunityOut"
+          },
+          "assessment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceAssessmentOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceProfileOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/EventOut"
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceDocumentOut"
+            },
+            "type": "array",
+            "title": "Documents"
+          },
+          "request_list": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceRequestListOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceMessageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "case_id",
+          "owner",
+          "run",
+          "identity_candidates",
+          "claim_counts",
+          "opportunity",
+          "assessment",
+          "profile",
+          "events",
+          "documents",
+          "request_list",
+          "message"
+        ],
+        "title": "WorkspaceCaseOut"
+      },
+      "WorkspaceCriterionOut": {
+        "properties": {
+          "criterion_id": {
+            "type": "string",
+            "title": "Criterion Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/CriterionKind"
+          },
+          "weight": {
+            "type": "integer",
+            "title": "Weight"
+          },
+          "state": {
+            "$ref": "#/components/schemas/CriterionResultState"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "criterion_id",
+          "label",
+          "kind",
+          "weight",
+          "state"
+        ],
+        "title": "WorkspaceCriterionOut",
+        "description": "One `CaseDetail.opportunity.criterion_results` row without its reason and evidence."
+      },
+      "WorkspaceDocumentOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "uploaded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Uploaded At"
+          },
+          "uploaded_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uploaded By Name"
+          },
+          "purged": {
+            "type": "boolean",
+            "title": "Purged",
+            "default": false
+          },
+          "claims_extracted": {
+            "type": "integer",
+            "title": "Claims Extracted",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "filename",
+          "uploaded_at",
+          "uploaded_by_name",
+          "purged",
+          "claims_extracted"
+        ],
+        "title": "WorkspaceDocumentOut",
+        "description": "One `CaseDetail.documents` row, as a dated feed line needs it."
+      },
+      "WorkspaceMessageOut": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/MessageStatus"
+          },
+          "current_revision": {
+            "$ref": "#/components/schemas/WorkspaceRevisionOut"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApprovalOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "send": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SendOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "current_revision",
+          "approval",
+          "send"
+        ],
+        "title": "WorkspaceMessageOut",
+        "description": "`CaseDetail.message` without its revision history and the text of the email."
+      },
+      "WorkspaceOpportunityOut": {
+        "properties": {
+          "thesis_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thesis Id"
+          },
+          "thesis_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thesis Text"
+          },
+          "fit_state": {
+            "$ref": "#/components/schemas/FitState"
+          },
+          "fit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fit"
+          },
+          "assessable_pct": {
+            "type": "integer",
+            "title": "Assessable Pct",
+            "default": 0
+          },
+          "criterion_results": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceCriterionOut"
+            },
+            "type": "array",
+            "title": "Criterion Results"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "thesis_id",
+          "thesis_text",
+          "fit_state",
+          "fit",
+          "assessable_pct",
+          "criterion_results"
+        ],
+        "title": "WorkspaceOpportunityOut",
+        "description": "`CaseDetail.opportunity` without the criteria definitions and relevance text."
+      },
+      "WorkspaceOut": {
+        "properties": {
+          "cases": {
+            "items": {
+              "$ref": "#/components/schemas/CaseSummary"
+            },
+            "type": "array",
+            "title": "Cases",
+            "description": "The rows of GET /cases, in the same order."
+          },
+          "records": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceCaseOut"
+            },
+            "type": "array",
+            "title": "Records",
+            "description": "One per case, in the order of cases."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "cases",
+          "records"
+        ],
+        "title": "WorkspaceOut"
+      },
+      "WorkspaceProfileOut": {
+        "properties": {
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain"
+          },
+          "headquarters": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headquarters"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "headcount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headcount"
+          },
+          "headcount_basis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headcount Basis"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "domain",
+          "headquarters",
+          "country",
+          "headcount",
+          "headcount_basis"
+        ],
+        "title": "WorkspaceProfileOut",
+        "description": "The values of `CaseDetail.profile` a directory row shows (null without a profile)."
+      },
+      "WorkspaceRequestItemOut": {
+        "properties": {
+          "document": {
+            "type": "string",
+            "title": "Document"
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority"
+          },
+          "group": {
+            "type": "string",
+            "enum": [
+              "needed",
+              "also_helpful"
+            ],
+            "title": "Group"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "document",
+          "priority",
+          "group"
+        ],
+        "title": "WorkspaceRequestItemOut"
+      },
+      "WorkspaceRequestListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceRequestItemOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "email_send_enabled": {
+            "type": "boolean",
+            "title": "Email Send Enabled"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "email_send_enabled",
+          "created_at"
+        ],
+        "title": "WorkspaceRequestListOut",
+        "description": "`CaseDetail.request_list`: its items (priority order) and send mode."
+      },
+      "WorkspaceRevisionOut": {
+        "properties": {
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "recipient": {
+            "type": "string",
+            "title": "Recipient"
+          },
+          "entered_by_user_id": {
+            "type": "string",
+            "title": "Entered By User Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "number",
+          "recipient",
+          "entered_by_user_id",
+          "created_at"
+        ],
+        "title": "WorkspaceRevisionOut"
+      },
+      "WorkspaceRunOut": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/RunKind"
+          },
+          "state": {
+            "$ref": "#/components/schemas/RunState"
+          },
+          "steps": {
+            "type": "integer",
+            "title": "Steps",
+            "description": "Steps in the run."
+          },
+          "steps_finished": {
+            "type": "integer",
+            "title": "Steps Finished",
+            "description": "Steps neither pending nor running."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "state",
+          "steps",
+          "steps_finished"
+        ],
+        "title": "WorkspaceRunOut",
+        "description": "The case's latest run (`CaseDetail.case.run`), as a progress line needs it."
       }
     }
   }

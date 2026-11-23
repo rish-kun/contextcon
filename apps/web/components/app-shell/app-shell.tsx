@@ -13,7 +13,8 @@ import {
   Skeleton,
 } from "@/components/ui";
 import { ApiError, logout, me, type CaseSummary, type UserOut } from "@/lib/api/client";
-import { loadWorkspace, requestState } from "@/lib/workspace";
+import { loadWorkspace } from "@/lib/workspace";
+import { requestState } from "@/lib/workspace-state";
 import { CommandMenu } from "./command-menu";
 import { ShellContext, type ShellContextValue } from "./shell-context";
 import { SidebarNav } from "./sidebar-nav";
@@ -128,7 +129,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         setRecentCases(workspace.cases);
         setApprovalsWaiting(
-          workspace.cases.filter((item) => requestState(workspace.details[item.id]) === "draft").length,
+          workspace.cases.filter((item) => requestState(workspace.records[item.id]) === "draft").length,
         );
       },
       () => {},
