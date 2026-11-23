@@ -20,30 +20,21 @@ import {
   type Disposition,
   type InvestorEntryOut,
   type RunOut,
+  type SignupIn as ApiSignupIn,
   type SourceRef,
-  type UserOut,
+  type VerificationSentOut,
 } from "./client";
 
 /* ───────────────────────── Types ───────────────────────── */
 
-export interface SignupIn {
-  display_name: string;
-  email: string;
-  password: string;
-  organisation: string;
-  /** Honeypot. A person never fills it. */
-  company_url: string;
-}
+/** `company_url` is a honeypot: a person never fills it. */
+export type SignupIn = ApiSignupIn;
 
 /**
- * `active`: the account is on and the session cookie is set. `pending`: the deployment
- * is in test mode and this email is not on its allow-list yet, so the account is
- * registered and waits to be enabled.
+ * Always `verification_sent`, whether or not the email already had an account: the
+ * person confirms their email from the link before they can sign in.
  */
-export interface SignupOut {
-  status: "active" | "pending";
-  user: UserOut | null;
-}
+export type SignupOut = VerificationSentOut;
 
 export type OrgGoal = "acquire" | "raise" | "both";
 

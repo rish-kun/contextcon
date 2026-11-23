@@ -1,4 +1,5 @@
-"""Account administration. There is no sign-up page; accounts are made here.
+"""Account administration. People can also sign up on `/signup`; accounts made here
+count as email-verified (use it for teammates and demo accounts).
 
     uv run python -m app.auth.cli create-workspace --name "Demo fund"
     uv run python -m app.auth.cli create-user --email a@fund.example --name "Asha Rao" \\

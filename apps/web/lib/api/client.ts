@@ -23,6 +23,10 @@ export type Schemas = components["schemas"];
 
 export type UserOut = Schemas["UserOut"];
 export type LoginIn = Schemas["LoginIn"];
+export type SignupIn = Schemas["SignupIn"];
+export type VerificationSentOut = Schemas["VerificationSentOut"];
+export type VerifyIn = Schemas["VerifyIn"];
+export type ResendVerificationIn = Schemas["ResendVerificationIn"];
 
 export type ThesisOut = Schemas["ThesisOut"];
 export type ThesisSummary = Schemas["ThesisSummary"];
@@ -184,6 +188,29 @@ function fx(): Promise<Fixtures> {
 export async function login(body: LoginIn): Promise<UserOut> {
   if (isFixtureMode) return (await fx()).login(body);
   return call("POST", "/auth/login", { json: body });
+}
+
+/**
+ * The exact `detail` of the 403 that `POST /auth/login` returns when the password is
+ * right but the email is not confirmed yet (`EMAIL_NOT_VERIFIED` in `app/api/auth.py`).
+ */
+export const EMAIL_NOT_VERIFIED = "Confirm your email address before you log in.";
+
+export function isEmailNotVerified(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 403 && error.detail === EMAIL_NOT_VERIFIED;
+}
+
+/** Uses a verification link's token (once). Signs the person in: sets `dp_session`. */
+export async function verifyEmail(token: string): Promise<UserOut> {
+  if (isFixtureMode) return (await fx()).me();
+  return call("POST", "/auth/verify", { json: { token } satisfies VerifyIn });
+}
+
+/** Emails a new link if the account is unverified. The same answer for any email. */
+export async function resendVerification(email: string): Promise<VerificationSentOut> {
+  const body: ResendVerificationIn = { email: email.trim() };
+  if (isFixtureMode) return { status: "verification_sent", email: body.email.toLowerCase() };
+  return call("POST", "/auth/verify/resend", { json: body });
 }
 
 export async function logout(): Promise<void> {

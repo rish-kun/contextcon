@@ -1,2 +1,6 @@
-/** Sign-up stays off until the API serves POST /auth/signup. Set NEXT_PUBLIC_SIGNUP_ENABLED=true to show it. */
-export const SIGNUP_ENABLED = process.env.NEXT_PUBLIC_SIGNUP_ENABLED === "true";
+/**
+ * Sign-up is on by default (the API serves `POST /auth/signup`). A deployment that turns
+ * it off on the API (`AUTH_SIGNUP_ENABLED=false`) sets NEXT_PUBLIC_SIGNUP_ENABLED=false
+ * so the home page and login page stop offering it.
+ */
+export const SIGNUP_ENABLED = process.env.NEXT_PUBLIC_SIGNUP_ENABLED !== "false";

@@ -28,6 +28,14 @@ CRITERION = {
 
 # (method, path template, concrete path, JSON body)
 ROUTES: list[tuple[str, str, str, object]] = [
+    (
+        "POST",
+        "/auth/signup",
+        "/auth/signup",
+        {"email": "a@b.example", "display_name": "Asha Rao", "password": "long enough pw"},
+    ),
+    ("POST", "/auth/verify", "/auth/verify", {"token": "fixture-token"}),
+    ("POST", "/auth/verify/resend", "/auth/verify/resend", {"email": "a@b.example"}),
     ("POST", "/auth/login", "/auth/login", {"email": "a@b.example", "password": "x"}),
     ("POST", "/auth/logout", "/auth/logout", None),
     ("GET", "/auth/me", "/auth/me", None),
@@ -151,7 +159,13 @@ PUBLIC_ROUTES = {
     "/public/showcase/runs/{run_id}",
     "/public/showcase/runs/{run_id}/activity",
 }
-AUTH_ROUTES = SESSION_ROUTES | {"/auth/login", "/auth/logout"}
+AUTH_ROUTES = SESSION_ROUTES | {
+    "/auth/login",
+    "/auth/logout",
+    "/auth/signup",
+    "/auth/verify",
+    "/auth/verify/resend",
+}
 STUB_ROUTES = [r for r in ROUTES if r[1] not in AUTH_ROUTES | PUBLIC_ROUTES]
 
 MSG = f"/cases/{CASE}/messages"

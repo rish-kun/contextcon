@@ -3,7 +3,7 @@
  * Kept free of imports so `node --test` can run `proxy-rules.test.mjs` directly.
  */
 
-/** The API's session cookie (httpOnly, set by `POST /auth/login`). */
+/** The API's session cookie (httpOnly, set by `POST /auth/login` and `POST /auth/verify`). */
 export const SESSION_COOKIE = "dp_session";
 
 /** Cookies the API may set on the web origin. Anything else is dropped. */
@@ -173,13 +173,28 @@ export function parseOrigins(value: string | undefined): string[] {
 /** App areas behind sign-in. The API is the real check; this only saves a round trip. */
 export const PROTECTED_PREFIXES = ["/app", "/cases", "/discover", "/investors"] as const;
 
+/**
+ * The sign-in, sign-up and email-verification pages. Always public (a visitor reaching
+ * them has no session yet), and never a place to return to after signing in.
+ */
+export const AUTH_PAGES = ["/login", "/signup", "/verify"] as const;
+
+function underPrefix(pathname: string, prefixes: readonly string[]): boolean {
+  return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
+export function isAuthPage(pathname: string): boolean {
+  return underPrefix(pathname, AUTH_PAGES);
+}
+
 export function isProtectedPath(pathname: string): boolean {
-  return PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  return !isAuthPage(pathname) && underPrefix(pathname, PROTECTED_PREFIXES);
 }
 
 /**
  * Where to send a request, or null to let it through: `/login?next=<path>` for a
- * protected path without a session cookie. `next` is always a same-origin path.
+ * protected path without a session cookie. `next` is always a same-origin path, and
+ * never one of the `AUTH_PAGES`.
  */
 export function signInRedirect(
   pathname: string,

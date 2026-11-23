@@ -44,6 +44,26 @@ class AuthSettings(BaseSettings):
         default=SecretStr(""), validation_alias="PROXY_SHARED_SECRET"
     )
 
+    # --- Self-serve sign-up (`POST /auth/signup`) and email verification ---
+    # Off: `POST /auth/signup` answers 403 and accounts come from the CLI only.
+    signup_enabled: bool = True
+    # How long a verification link works. Single use either way.
+    verification_ttl_hours: float = Field(default=24.0, gt=0)
+    # Sign-up requests (successful or not) per (email, IP), per email, per client IP and
+    # in total, per window. Every request counts.
+    signup_max_per_client: int = Field(default=3, ge=1)
+    signup_max_per_email: int = Field(default=5, ge=1)
+    signup_max_per_ip: int = Field(default=10, ge=1)
+    signup_max_global: int = Field(default=200, ge=1)
+    signup_window_seconds: int = Field(default=3600, ge=1)
+    # "Send a new link" requests per (email, IP), per email and per client IP, per window.
+    resend_max_per_client: int = Field(default=3, ge=1)
+    resend_max_per_email: int = Field(default=5, ge=1)
+    resend_max_per_ip: int = Field(default=20, ge=1)
+    resend_window_seconds: int = Field(default=3600, ge=1)
+    # Base URL of the web app for links in emails. Unset: the first `WEB_ORIGIN`.
+    public_web_url: str = ""
+
     @property
     def on_cloud_run(self) -> bool:
         return bool(os.environ.get("K_SERVICE"))

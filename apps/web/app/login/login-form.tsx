@@ -2,8 +2,10 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { ResendLink } from "@/components/auth/check-email";
 import { Button, Field, Input } from "@/components/ui";
-import { ApiError, login } from "@/lib/api/client";
+import { ApiError, isEmailNotVerified, login } from "@/lib/api/client";
+import { isAuthPage } from "@/lib/api/proxy-rules";
 
 const APP_HOME = "/app";
 
@@ -25,7 +27,7 @@ function safeNext(value: string | null): string {
   }
   if (url.origin !== BASE) return APP_HOME;
   const path = url.pathname + url.search + url.hash;
-  return path.startsWith("//") || path.startsWith("/login") ? APP_HOME : path;
+  return path.startsWith("//") || isAuthPage(url.pathname) ? APP_HOME : path;
 }
 
 function describe(error: unknown): string {
@@ -46,17 +48,21 @@ export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  /** The email whose password matched but which is not confirmed yet. */
+  const [unverified, setUnverified] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setUnverified(null);
     setPending(true);
     try {
       await login({ email: email.trim(), password });
       router.replace(next);
     } catch (caught) {
-      setError(describe(caught));
+      if (isEmailNotVerified(caught)) setUnverified(email.trim());
+      else setError(describe(caught));
       setPending(false);
     }
   }
@@ -97,6 +103,18 @@ export function LoginForm() {
         >
           {error}
         </p>
+      ) : null}
+      {unverified ? (
+        <div
+          role="alert"
+          className="flex flex-col gap-3 rounded-md border border-line-strong bg-surface-raised px-3 py-3 text-dense text-ink"
+        >
+          <p>
+            Confirm your email address before you log in. Open the link we sent to{" "}
+            <span className="font-mono text-xs break-all">{unverified}</span> when you signed up.
+          </p>
+          <ResendLink email={unverified} label="Send a new link" />
+        </div>
       ) : null}
       <Button type="submit" variant="primary" disabled={pending} className="mt-2 self-start">
         {pending ? "Logging in" : "Log in"}
