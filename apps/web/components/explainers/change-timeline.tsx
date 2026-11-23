@@ -5,21 +5,15 @@ import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { formatDateTime, plural } from "@/lib/format";
 import { transition } from "@/lib/transitions";
-import type { AssessmentChange, ClaimStatus, NotCheckedReason } from "@/lib/types";
+import type { ClaimStatus, NotCheckedReason } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { DispositionStamp } from "@/components/dealproof/disposition-stamp";
-import { Unsourced } from "@/components/dealproof/source-line";
 import { StatusMark } from "@/components/dealproof/status-mark";
-import {
-  ChangeBecause,
-  ChangeHeading,
-  ChangeValues,
-  isUnsourcedChange,
-} from "@/components/dealproof/version-diff";
+import { ChangeList } from "@/components/dealproof/change-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
-import { splitChanges, type TimelineEntry } from "./derive";
+import type { TimelineEntry } from "./derive";
 
 export interface UnchangedClaim {
   number: number;
@@ -38,69 +32,15 @@ function Rail({ children, last = false }: { children: React.ReactNode; last?: bo
   );
 }
 
-/** The elbow that hangs a consequence under what caused it. */
-function Elbow() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden focusable={false} className="shrink-0 text-ink-muted">
-      <path d="M4 0v6a4 4 0 0 0 4 4h9" stroke="currentColor" strokeWidth="1" />
-      <path d="m14 7 3.5 3-3.5 3" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function Change({
-  change,
-  highlight,
-  consequence = false,
-}: {
-  change: AssessmentChange;
-  highlight: boolean;
-  consequence?: boolean;
-}) {
-  // An unsourced status change shows neither status: the error in development, nothing
-  // in production (the omission is logged by Unsourced).
-  if (isUnsourcedChange(change) && change.kind === "claim_status") {
-    return (
-      <li className="py-2">
-        <Unsourced what={`Claim ${change.claim_number} status change`} />
-      </li>
-    );
-  }
-  return (
-    <li
-      className={cn(
-        "flex gap-1 rounded-sm py-2 pr-2",
-        consequence ? "pl-0" : "pl-2",
-        highlight && "animate-changed motion-reduce:animate-none",
-      )}
-    >
-      {consequence ? <Elbow /> : null}
-      <div className="flex min-w-0 flex-col gap-2">
-        <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <ChangeHeading change={change} />
-          {highlight ? (
-            <Badge variant="accent" className="hidden font-mono text-2xs motion-reduce:inline-flex">
-              Changed
-            </Badge>
-          ) : null}
-        </p>
-        <ChangeValues change={change} />
-        <ChangeBecause change={change} />
-      </div>
-    </li>
-  );
-}
-
 /**
  * "What changed and why". One joined view of the assessment history: each version is a
  * node with its one-line state; what arrived between two versions sits on the rail
- * between them; and under the newer version, each claim that moved is a root with the
- * figures that moved because of it hanging beneath.
+ * between them; and under the newer version its changes are listed most decision-relevant
+ * first: the disposition, the judgments, each claim that moved on evidence of its own,
+ * then claims that share one cause as a single row that opens (`ChangeList`).
  *
- * The API does not yet say which claim change caused which derived change, so derived
- * changes hang as one "As a result" group under the claim changes of that version, and
- * are never attached to a particular claim. With no claim change they are listed at the
- * version's root with their own cause.
+ * The API does not say which claim change caused which judgment change, so no change is
+ * drawn as the consequence of another.
  *
  * Static on a page visit. A version that arrives while the page is open fades in, and
  * `highlightVersion` gives its rows the one-time tint.
@@ -141,7 +81,6 @@ export function ChangeTimeline({
           const isCurrent = meta.version === current;
           const last = index === entries.length - 1;
           const highlight = highlightVersion === meta.version;
-          const split = diff ? splitChanges(diff) : null;
           const unchanged = unchangedFor?.(meta.version) ?? [];
           const showing = shown.includes(meta.version);
 
@@ -230,34 +169,17 @@ export function ChangeTimeline({
                     ) : null}
                   </div>
 
-                  {diff && split ? (
+                  {diff ? (
                     diff.changes.length === 0 ? (
                       <p className="text-ink-secondary">Nothing changed from v{diff.from_version}</p>
                     ) : (
-                      <ul
+                      <ChangeList
                         aria-label={`What changed in version ${meta.version}`}
-                        className="flex flex-col divide-y divide-line border-y border-line"
-                      >
-                        {split.claimChanges.map((change, i) => (
-                          <Change key={`claim-${i}`} change={change} highlight={highlight} />
-                        ))}
-                        {split.derived.length > 0 ? (
-                          split.claimChanges.length > 0 ? (
-                            <li className="flex flex-col py-2 pl-2">
-                              <p className="text-xs text-ink-muted">As a result</p>
-                              <ul className="flex flex-col">
-                                {split.derived.map((change, i) => (
-                                  <Change key={`derived-${i}`} change={change} highlight={highlight} consequence />
-                                ))}
-                              </ul>
-                            </li>
-                          ) : (
-                            split.derived.map((change, i) => (
-                              <Change key={`derived-${i}`} change={change} highlight={highlight} />
-                            ))
-                          )
-                        ) : null}
-                      </ul>
+                        changes={diff.changes}
+                        highlight={highlight}
+                        rowClassName="px-2 py-2"
+                        className="border-y border-line"
+                      />
                     )
                   ) : null}
 

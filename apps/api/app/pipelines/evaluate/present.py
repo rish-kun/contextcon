@@ -252,6 +252,17 @@ def _sufficiency_item(c: CheckSufficiency) -> SufficiencyItemOut:
     )
 
 
+FIGURE_LABELS = {
+    "revenue": "Revenue",
+    "profit": "Profit after tax",
+    "ebitda": "EBITDA",
+    "net_worth": "Net worth",
+    "revenue_band": "Revenue band",
+    "revenue_growth_pct": "Revenue growth",
+    "revenue_estimate": "Revenue (estimate)",
+}
+
+
 def judgments_out(a: AssessmentVersion, lk: Lookups) -> JudgmentsOut:
     j = a.judgments
     s = j.evidence_sufficiency
@@ -266,17 +277,36 @@ def judgments_out(a: AssessmentVersion, lk: Lookups) -> JudgmentsOut:
         )
         if fact is not None:  # a signal without a resolvable source is not shown
             signals.append(BusinessSignalOut(label=sig.label, fact=fact))
+    fin = j.financial
     figures = []
-    for f in j.financial.figures:
-        fact = lk.fact(f.value, [f.evidence_id])
+    for f in fin.figures:
+        estimate = f.basis == "estimate"
+        fact = lk.fact(
+            f.display or f.value,
+            [f.evidence_id],
+            **(
+                {
+                    "is_estimate": True,
+                    "estimate_kind": EstimateKind.estimate,
+                    "estimate_basis": "a data provider's modelled range, not a reported figure",
+                }
+                if estimate
+                else {}
+            ),
+        )
         if fact is not None:
             figures.append(
                 FinancialFigureOut(
-                    label=f.component.replace("_", " "),
+                    label=FIGURE_LABELS.get(f.component, f.component.replace("_", " ")),
                     fact=fact,
-                    assumption="; ".join(j.financial.assumptions) or None,
+                    assumption="; ".join(fin.assumptions) or None,
+                    period=f.period,
+                    basis=f.basis,
+                    quote=f.quote,
                 )
             )
+    assessed = fin.assessed and bool(figures)
+    state = fin.state if (fin.state != "assessed" or assessed) else "not_assessed"
     return JudgmentsOut(
         opportunity_fit=opportunity_fit_out(a, lk),
         evidence_sufficiency=EvidenceSufficiencyOut(
@@ -291,10 +321,15 @@ def judgments_out(a: AssessmentVersion, lk: Lookups) -> JudgmentsOut:
             signals=signals,
         ),
         financial_assessment=FinancialAssessmentOut(
-            assessed=j.financial.assessed and bool(figures),
-            reason=None if (j.financial.assessed and figures) else j.financial.reason,
-            would_need=[] if j.financial.assessed else [policy.DOC_FINANCIALS],
+            assessed=assessed,
+            state=state,
+            reason=None if assessed else fin.reason,
+            would_need=[] if assessed else (list(fin.would_need) or [policy.DOC_FINANCIALS]),
+            period=fin.period if assessed else None,
             figures=figures,
+            conclusion=fin.conclusion if assessed else None,
+            assumptions=list(fin.assumptions),
+            searched=list(fin.searched),
         ),
         screening_disposition=ScreeningDispositionOut(
             disposition=a.disposition.value,

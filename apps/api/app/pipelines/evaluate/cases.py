@@ -136,9 +136,18 @@ def _int_or_none(value: str | None) -> int | None:
         return None
 
 
-async def case_out(session: AsyncSession, case: Case) -> CaseOut:
-    latest = await _latest_run(session, case)
-    assessed = await repo.latest_assessment(session, case.workspace_id, case.id) is not None
+async def case_out(
+    session: AsyncSession,
+    case: Case,
+    *,
+    runs: list[Run] | None = None,
+    assessed: bool | None = None,
+) -> CaseOut:
+    """`runs` (oldest first) and `assessed` save their queries when the caller already
+    has them (the case page loads both for other sections)."""
+    latest = current_run(runs) if runs is not None else await _latest_run(session, case)
+    if assessed is None:
+        assessed = await repo.latest_assessment(session, case.workspace_id, case.id) is not None
     owner = await session.get(User, case.created_by) if case.created_by else None
     budget = case.credit_budget
     if budget is None:

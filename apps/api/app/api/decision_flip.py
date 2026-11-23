@@ -2,7 +2,8 @@
 
 * `GET /cases/{id}` gains a `decision_flip` section: the analysis of the latest
   assessment version, or null (no assessment, or not computed). Reading never computes.
-* `GET /cases` gains a `decision_flip` summary for the Pipeline board, read from columns.
+* `GET /cases` gains a `decision_flip` summary for the Pipeline board, read from columns
+  for every case on the page in one query.
 * `GET /cases/{id}/decision-flip?version=N`: one version's analysis (default latest),
   with labels, claim text and the resolution against the previous version. 404 when
   the case or version does not exist; null when the version has no analysis yet.
@@ -20,8 +21,7 @@ import logging
 import uuid
 
 from fastapi import HTTPException, Query, Response, status
-from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import distinct_on
+from sqlalchemy import select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import fixture_decision_flip, fixtures
@@ -31,7 +31,7 @@ from app.api.cases_sections import (
     CaseContext,
     register_section,
     register_summary,
-    register_summary_batch,
+    register_summary_prefetch,
 )
 from app.api.schemas.common import ErrorOut
 from app.api.schemas.decision_flip import (
@@ -52,7 +52,6 @@ from app.domain.types import AssessmentDiff, AssessmentVersion, DecisionFlipAnal
 from app.pipelines.evaluate.flip import (
     flip_for_version,
     flip_of_version,
-    latest_flip,
     stored_analysis,
 )
 from app.pipelines.evaluate.service import stored_assessment
@@ -225,36 +224,57 @@ async def present(
 
 
 async def decision_flip_section(ctx: CaseContext) -> DecisionFlipOut | None:
-    found = await latest_flip(ctx.session, ctx.workspace_id, ctx.case.id)
-    if found is None or found[1] is None:
+    # `latest_flip`, with the latest version the other sections already loaded.
+    version = await ctx.latest_assessment()
+    if version is None:
         return None
-    version, row = found
+    row = await flip_of_version(ctx.session, ctx.workspace_id, version.id)
+    if row is None:
+        return None
     return await present(ctx.session, ctx.workspace_id, ctx.case, version, row)
 
 
-async def decision_flip_summary(ctx: CaseContext) -> DecisionFlipSummaryOut | None:
-    version = await repo.latest_assessment(ctx.session, ctx.workspace_id, ctx.case.id)
-    if version is None:
-        return None
-    found = (
-        await ctx.session.execute(
-            select(FlipRow.state, FlipRow.target, FlipRow.blocker_count)
-            .where(
-                FlipRow.workspace_id == ctx.workspace_id,
-                FlipRow.assessment_version_id == version.id,
-            )
-            .order_by(FlipRow.created_at.desc(), FlipRow.id.desc())
-            .limit(1)
-        )
-    ).first()
-    if found is None:
-        return None
-    return DecisionFlipSummaryOut(
-        state=found.state,
-        next_disposition=found.target,
-        blockers_to_next=found.blocker_count,
-        assessment_version=version.version,
+async def decision_flip_summaries(
+    session: AsyncSession, workspace_id: uuid.UUID, cases: list[Case]
+) -> dict[uuid.UUID, DecisionFlipSummaryOut]:
+    """The Pipeline board's DecisionFlip line for every case in one query: each case's
+    latest assessment version and that version's newest analysis. Cases without either
+    are absent (the row shows null)."""
+    latest = (
+        select(VersionRow.id, VersionRow.case_id, VersionRow.version)
+        .join(Case, Case.id == VersionRow.case_id)
+        .where(Case.workspace_id == workspace_id, VersionRow.case_id.in_([c.id for c in cases]))
+        .distinct(VersionRow.case_id)
+        .order_by(VersionRow.case_id, VersionRow.version.desc())
+        .subquery()
     )
+    flip = (
+        select(FlipRow.state, FlipRow.target, FlipRow.blocker_count)
+        .where(FlipRow.workspace_id == workspace_id, FlipRow.assessment_version_id == latest.c.id)
+        .order_by(FlipRow.created_at.desc(), FlipRow.id.desc())
+        .limit(1)
+        .lateral()
+    )
+    rows = await session.execute(
+        select(
+            latest.c.case_id, latest.c.version, flip.c.state, flip.c.target, flip.c.blocker_count
+        )
+        .select_from(latest)
+        .join(flip, true())
+    )
+    return {
+        r.case_id: DecisionFlipSummaryOut(
+            state=r.state,
+            next_disposition=r.target,
+            blockers_to_next=r.blocker_count,
+            assessment_version=r.version,
+        )
+        for r in rows.all()
+    }
+
+
+async def decision_flip_summary(ctx: CaseContext) -> DecisionFlipSummaryOut | None:
+    return ctx.prefetched.get("decision_flip")
 
 
 def _never_fails(builder):
@@ -271,68 +291,21 @@ def _never_fails(builder):
     return safe
 
 
-async def decision_flip_summaries(
-    session: AsyncSession, workspace_id: uuid.UUID, ctxs: list[CaseContext]
-) -> dict[uuid.UUID, DecisionFlipSummaryOut | None]:
-    """`decision_flip_summary` for every case of the list in two queries. If this fails
-    it returns nothing, and each case falls back to its own (never-failing) builder."""
-    case_ids = [c.case.id for c in ctxs]
+async def _summaries_never_fail(
+    session: AsyncSession, workspace_id: uuid.UUID, cases: list[Case]
+) -> dict[uuid.UUID, DecisionFlipSummaryOut]:
+    """One savepoint for the whole board, not one per case."""
     try:
         async with session.begin_nested():
-            versions = (
-                await session.execute(
-                    select(VersionRow.case_id, VersionRow.id, VersionRow.version)
-                    .join(Case, Case.id == VersionRow.case_id)
-                    .where(Case.workspace_id == workspace_id, VersionRow.case_id.in_(case_ids))
-                    .order_by(VersionRow.case_id, VersionRow.version.desc())
-                    .ext(distinct_on(VersionRow.case_id))
-                )
-            ).all()
-            latest = {case_id: (vid, number) for case_id, vid, number in versions}
-            flips = {}
-            if latest:
-                rows = await session.execute(
-                    select(
-                        FlipRow.assessment_version_id,
-                        FlipRow.state,
-                        FlipRow.target,
-                        FlipRow.blocker_count,
-                    )
-                    .where(
-                        FlipRow.workspace_id == workspace_id,
-                        FlipRow.assessment_version_id.in_([v for v, _ in latest.values()]),
-                    )
-                    .order_by(
-                        FlipRow.assessment_version_id,
-                        FlipRow.created_at.desc(),
-                        FlipRow.id.desc(),
-                    )
-                    .ext(distinct_on(FlipRow.assessment_version_id))
-                )
-                flips = {r.assessment_version_id: r for r in rows.all()}
+            return await decision_flip_summaries(session, workspace_id, cases)
     except Exception:
-        log.exception("decision_flip summaries failed; reading them case by case")
+        log.exception("decision_flip summaries failed")
         return {}
-    out: dict[uuid.UUID, DecisionFlipSummaryOut | None] = {}
-    for case_id in case_ids:
-        found = latest.get(case_id)
-        flip = flips.get(found[0]) if found else None
-        out[case_id] = (
-            DecisionFlipSummaryOut(
-                state=flip.state,
-                next_disposition=flip.target,
-                blockers_to_next=flip.blocker_count,
-                assessment_version=found[1],
-            )
-            if found and flip
-            else None
-        )
-    return out
 
 
 register_section("decision_flip", _never_fails(decision_flip_section))
-register_summary("decision_flip", _never_fails(decision_flip_summary))
-register_summary_batch("decision_flip", decision_flip_summaries)
+register_summary("decision_flip", decision_flip_summary)
+register_summary_prefetch("decision_flip", _summaries_never_fail)
 
 
 # --- Routes ---------------------------------------------------------------------------

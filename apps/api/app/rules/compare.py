@@ -27,8 +27,12 @@ _SYNONYMS = {
 }
 
 
+# Trademark signs are not part of a name: NFKD would turn "PALMS\u2122" into "palmstm".
+_MARK_SIGNS = re.compile("[\u2122\u2120\u00ae\u00a9]")
+
+
 def normalize_text(value: Any) -> str:
-    text = unicodedata.normalize("NFKD", str(value))
+    text = unicodedata.normalize("NFKD", _MARK_SIGNS.sub(" ", str(value)))
     text = "".join(ch for ch in text if not unicodedata.combining(ch)).casefold()
     text = text.replace("&", " and ")
     text = re.sub(r"[^a-z0-9]+", " ", text)
@@ -388,6 +392,9 @@ def compare(
         if c is None:
             return "insufficient"
         f = to_date(fact_value)
+        if f is not None and op in ("gte", "lte"):
+            # "valid on or after": a certificate's expiry against a date.
+            return _ordered(c.toordinal(), f.toordinal(), op, 0)
         if f is None:
             fm = to_month(fact_value)
             if fm is not None and fm != (c.year, c.month):
@@ -419,6 +426,11 @@ def compare(
         if contains_phrase(fact_value, claimed) or contains_phrase(claimed, fact_value):
             return "match"
         return "conflict"
+
+    if kind is ValueKind.STANDARD:
+        from app.rules.standards import standard_relation
+
+        return standard_relation(claimed, fact_value)  # type: ignore[return-value]
 
     if kind is ValueKind.TEXT_CONTAINS:
         # A record that names a different role does not contradict the claim:

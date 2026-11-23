@@ -28,6 +28,7 @@ from collections import Counter
 from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import UTC, datetime
 from decimal import Decimal
+from types import SimpleNamespace
 
 from pydantic import ValidationError
 from sqlalchemy import case, func, select
@@ -82,6 +83,9 @@ def _totals(row, unresolved: int = 0) -> CostTotalsOut:  # type: ignore[no-untyp
     )
 
 
+_COST_KEYS = ("credits", "usd", "input_tokens", "output_tokens", "unknown")
+
+
 def _cost_columns():  # type: ignore[no-untyped-def]
     return (
         func.sum(CostEntry.credits).label("credits"),
@@ -92,35 +96,62 @@ def _cost_columns():  # type: ignore[no-untyped-def]
     )
 
 
-async def _subject(session: AsyncSession, run: Run) -> str:
-    # Every lookup is pinned to the run's workspace as well as its owner id.
-    ws = run.workspace_id
-    if run.case_id is not None:
-        name = await session.scalar(
-            select(Case.company_name).where(Case.id == run.case_id, Case.workspace_id == ws)
-        )
-        return name or ""
-    if run.discovery_run_id is not None:
-        text = await session.scalar(
-            select(Thesis.text)
-            .join(DiscoveryRun, DiscoveryRun.thesis_id == Thesis.id)
-            .where(
-                DiscoveryRun.id == run.discovery_run_id,
-                DiscoveryRun.workspace_id == ws,
-                Thesis.workspace_id == ws,
-            )
-        )
-        return text or ""
-    if run.investor_run_id is not None:
-        profile = await session.scalar(
-            select(InvestorRun.profile).where(
-                InvestorRun.id == run.investor_run_id, InvestorRun.workspace_id == ws
-            )
-        )
-        if isinstance(profile, dict):
-            parts = [str(profile[k]) for k in ("sector", "location", "stage") if profile.get(k)]
-            return ", ".join(parts)
+def _investor_subject(profile: object) -> str:
+    if isinstance(profile, dict):
+        parts = [str(profile[k]) for k in ("sector", "location", "stage") if profile.get(k)]
+        return ", ".join(parts)
     return ""
+
+
+async def _owners(
+    session: AsyncSession, workspace_id: uuid.UUID, runs: list[Run]
+) -> tuple[dict[uuid.UUID, str], dict[uuid.UUID, str | None]]:
+    """Each run's subject (case name, thesis text or investor profile) and, for discovery
+    runs, its thesis id. One query per owner kind present; every lookup is pinned to the
+    workspace as well as the owner id."""
+    ws = workspace_id
+    case_ids = {r.case_id for r in runs if r.case_id is not None}
+    discovery_ids = {r.discovery_run_id for r in runs if r.discovery_run_id is not None}
+    investor_ids = {r.investor_run_id for r in runs if r.investor_run_id is not None}
+    names: dict[uuid.UUID, str] = {}
+    if case_ids:
+        rows = await session.execute(
+            select(Case.id, Case.company_name).where(Case.id.in_(case_ids), Case.workspace_id == ws)
+        )
+        names = dict(rows.all())
+    theses: dict[uuid.UUID, tuple[uuid.UUID, str | None]] = {}
+    if discovery_ids:
+        rows = await session.execute(
+            select(DiscoveryRun.id, DiscoveryRun.thesis_id, Thesis.text)
+            .outerjoin(Thesis, (Thesis.id == DiscoveryRun.thesis_id) & (Thesis.workspace_id == ws))
+            .where(DiscoveryRun.id.in_(discovery_ids), DiscoveryRun.workspace_id == ws)
+        )
+        theses = {i: (thesis_id, text) for i, thesis_id, text in rows.all()}
+    profiles: dict[uuid.UUID, object] = {}
+    if investor_ids:
+        rows = await session.execute(
+            select(InvestorRun.id, InvestorRun.profile).where(
+                InvestorRun.id.in_(investor_ids), InvestorRun.workspace_id == ws
+            )
+        )
+        profiles = dict(rows.all())
+    subjects: dict[uuid.UUID, str] = {}
+    thesis_ids: dict[uuid.UUID, str | None] = {}
+    for run in runs:
+        subject = ""
+        if run.case_id is not None:
+            subject = names.get(run.case_id) or ""
+        elif run.discovery_run_id is not None:
+            subject = (theses.get(run.discovery_run_id) or (None, None))[1] or ""
+        elif run.investor_run_id is not None:
+            subject = _investor_subject(profiles.get(run.investor_run_id))
+        subjects[run.id] = subject
+        if run.discovery_run_id is not None:
+            # str(None) when the discovery run is not in the workspace, as before.
+            thesis_ids[run.id] = str((theses.get(run.discovery_run_id) or (None, None))[0])
+        else:
+            thesis_ids[run.id] = None
+    return subjects, thesis_ids
 
 
 async def load_run_out(session: AsyncSession, workspace_id: uuid.UUID, run_id: uuid.UUID) -> RunOut:
@@ -129,49 +160,74 @@ async def load_run_out(session: AsyncSession, workspace_id: uuid.UUID, run_id: u
     run = await repo.get_run(session, workspace_id, run_id)
     if run.workspace_id != workspace_id:  # defence in depth over the scoped query
         raise repo.NotFound("run")
-    step_costs = {
-        r.step_id: r
-        for r in (
-            await session.execute(
-                select(CostEntry.step_id, *_cost_columns())
-                .where(CostEntry.run_id == run.id, CostEntry.workspace_id == workspace_id)
-                .group_by(CostEntry.step_id)
-            )
-        ).all()
-    }
-    run_cost = (
+    return (await run_outs(session, workspace_id, [run]))[0]
+
+
+async def run_outs(session: AsyncSession, workspace_id: uuid.UUID, runs: list[Run]) -> list[RunOut]:
+    """`RunOut` for runs already loaded with their steps (`selectinload(Run.steps)`), in
+    the same order. Costs and calls are aggregated for all runs at once, so a list of 20
+    runs costs the same handful of queries as one."""
+    runs = [r for r in runs if r.workspace_id == workspace_id]
+    if not runs:
+        return []
+    run_ids = [r.id for r in runs]
+    step_costs: dict[uuid.UUID, dict[uuid.UUID | None, object]] = {}
+    run_costs: dict[uuid.UUID, dict[str, Decimal | int | None]] = {}
+    for r in (
         await session.execute(
-            select(*_cost_columns()).where(
-                CostEntry.run_id == run.id, CostEntry.workspace_id == workspace_id
-            )
+            select(CostEntry.run_id, CostEntry.step_id, *_cost_columns())
+            .where(CostEntry.run_id.in_(run_ids), CostEntry.workspace_id == workspace_id)
+            .group_by(CostEntry.run_id, CostEntry.step_id)
         )
-    ).one()
-    calls = {
-        r.step_id: r
-        for r in (
-            await session.execute(
-                select(
-                    CallAttempt.step_id,
-                    func.count().label("total"),
-                    func.count(case((CallAttempt.status == CallStatus.CACHE_HIT, 1))).label("hits"),
-                    func.count(case((CallAttempt.status == CallStatus.STARTED, 1))).label(
-                        "unresolved"
-                    ),
-                    func.sum(
-                        case(
-                            (
-                                CallAttempt.status == CallStatus.STARTED,
-                                func.coalesce(CallAttempt.reserved_credits, 0),
-                            ),
-                            else_=0,
-                        )
-                    ).label("reserved"),
-                )
-                .where(CallAttempt.run_id == run.id, CallAttempt.workspace_id == workspace_id)
-                .group_by(CallAttempt.step_id)
+    ).all():
+        step_costs.setdefault(r.run_id, {})[r.step_id] = r
+        # The run's totals are the sum of its step groups (the null step included).
+        total = run_costs.setdefault(r.run_id, dict.fromkeys(_COST_KEYS))
+        for key in _COST_KEYS:
+            value = getattr(r, key)
+            if value is not None:
+                total[key] = (total[key] or 0) + value
+    calls: dict[uuid.UUID, dict[uuid.UUID | None, object]] = {}
+    for r in (
+        await session.execute(
+            select(
+                CallAttempt.run_id,
+                CallAttempt.step_id,
+                func.count().label("total"),
+                func.count(case((CallAttempt.status == CallStatus.CACHE_HIT, 1))).label("hits"),
+                func.count(case((CallAttempt.status == CallStatus.STARTED, 1))).label("unresolved"),
+                func.sum(
+                    case(
+                        (
+                            CallAttempt.status == CallStatus.STARTED,
+                            func.coalesce(CallAttempt.reserved_credits, 0),
+                        ),
+                        else_=0,
+                    )
+                ).label("reserved"),
             )
-        ).all()
-    }
+            .where(CallAttempt.run_id.in_(run_ids), CallAttempt.workspace_id == workspace_id)
+            .group_by(CallAttempt.run_id, CallAttempt.step_id)
+        )
+    ).all():
+        calls.setdefault(r.run_id, {})[r.step_id] = r
+    subjects, thesis_ids = await _owners(session, workspace_id, runs)
+    return [
+        _run_out(
+            run,
+            step_costs.get(run.id, {}),
+            run_costs.get(run.id),
+            calls.get(run.id, {}),
+            subjects[run.id],
+            thesis_ids[run.id],
+        )
+        for run in runs
+    ]
+
+
+def _run_out(  # type: ignore[no-untyped-def]
+    run: Run, step_costs, run_cost, calls, subject: str, thesis_id: str | None
+) -> RunOut:
     steps = []
     for step in run.steps:
         c = calls.get(step.id)
@@ -205,21 +261,15 @@ async def load_run_out(session: AsyncSession, workspace_id: uuid.UUID, run_id: u
         id=str(run.id),
         kind=RunKind(run.kind),
         state=ContractRunState(run.state),
-        subject=await _subject(session, run),
+        subject=subject,
         case_id=str(run.case_id) if run.case_id else None,
-        thesis_id=str(
-            await session.scalar(
-                select(DiscoveryRun.thesis_id).where(
-                    DiscoveryRun.id == run.discovery_run_id,
-                    DiscoveryRun.workspace_id == workspace_id,
-                )
-            )
-        )
-        if run.discovery_run_id
-        else None,
+        thesis_id=thesis_id,
         investor_search_id=str(run.investor_run_id) if run.investor_run_id else None,
         budget_credits=float(run.budget_credits or Decimal(0)),
-        cost=_totals(run_cost, sum(c.unresolved for c in calls.values())),
+        cost=_totals(
+            SimpleNamespace(**run_cost) if run_cost else None,
+            sum(c.unresolved for c in calls.values()),
+        ),
         reserved_credits=float(sum((c.reserved or 0) for c in calls.values())),
         checks_not_run=sum(1 for s in steps if s.state in _NOT_RUN),
         created_at=run.created_at,

@@ -95,6 +95,9 @@ DEFAULT_ENRICH_FIELDS: tuple[str, ...] = (
     "taxonomy",
     "people",
     "news",
+    # Estimated revenue bounds and public-market data (stock symbols, IPO date, fiscal
+    # year end): the estimate is indicative only, the market data marks a listed company.
+    "revenue",
     "metadata",
     "updated_at",
 )

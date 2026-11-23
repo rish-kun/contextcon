@@ -256,8 +256,9 @@ export function AssessmentView({
         why={
           <p>
             New evidence updates the assessment in the open. What arrived sits between two versions; under
-            the newer one, each claim that moved is followed by what moved because of it. Earlier versions
-            stay readable.
+            the newer one, the disposition and judgments come first, then each claim that moved on its own
+            evidence. Claims that changed for one shared reason are a single row that opens. Earlier
+            versions stay readable.
           </p>
         }
       >

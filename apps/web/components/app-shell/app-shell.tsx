@@ -13,7 +13,7 @@ import {
   Skeleton,
 } from "@/components/ui";
 import { ApiError, logout, me, type CaseSummary, type UserOut } from "@/lib/api/client";
-import { loadWorkspace } from "@/lib/workspace";
+import { loadWorkspace, setWorkspaceOwner } from "@/lib/workspace";
 import { requestState } from "@/lib/workspace-state";
 import { CommandMenu } from "./command-menu";
 import { ShellContext, type ShellContextValue } from "./shell-context";
@@ -90,18 +90,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    // Start the shared workspace read (sidebar, and the pages that span cases) alongside
-    // the session check instead of after it: the screens below mount only once the user
-    // is known, and then find the read already under way (`loadWorkspace` shares it).
-    // Without a session it fails like `me()` does, and the failure is not cached.
-    loadWorkspace().catch(() => {});
     me().then(
       (user) => {
-        if (!cancelled) setSession({ status: "ready", user });
+        if (cancelled) return;
+        // Before any page under the shell renders: the case cache serves this account only.
+        setWorkspaceOwner(user.id);
+        // Start the shared workspace read (sidebar, and the pages that span cases) now, so
+        // the screens below find it under way. Only now: the cache serves a known account.
+        loadWorkspace().catch(() => {});
+        setSession({ status: "ready", user });
       },
       (error: unknown) => {
         if (cancelled) return;
         if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+          setWorkspaceOwner(null);
           const next = window.location.pathname + window.location.search;
           router.replace(`/login?next=${encodeURIComponent(next)}`);
           return;

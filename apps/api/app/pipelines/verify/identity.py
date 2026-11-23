@@ -35,6 +35,7 @@ from app.pipelines.verify import common
 from app.pipelines.verify.common import (
     COMPARABLES,
     EVENTS,
+    FINANCIALS,
     IDENTITY,
     PROFILE,
     REGISTRY,
@@ -360,6 +361,15 @@ def dependent_steps() -> list[StepSpec]:
         StepSpec(REGISTRY, REGISTRY, label="Look for registry records", depends_on=[PROFILE]),
         StepSpec(EVENTS, EVENTS, label="Gather dated events", depends_on=[PROFILE]),
         StepSpec(COMPARABLES, COMPARABLES, label="Find comparable companies", depends_on=[PROFILE]),
+        # After the registry step, so it can re-read the registry pages it found and
+        # use the CIN it learned; it runs even when that step failed.
+        StepSpec(
+            FINANCIALS,
+            FINANCIALS,
+            label="Look for public financials",
+            depends_on=[PROFILE, REGISTRY],
+            tolerate_failed_deps=True,
+        ),
     ]
 
 

@@ -54,14 +54,14 @@ async def test_batched_list_matches_the_per_case_builders(sm, session) -> None:
     assert {r["status"] for r in batched} >= {"assessed", "verifying"}
 
 
-async def test_a_batch_that_returns_nothing_falls_back_per_case(sm, session, monkeypatch) -> None:
+async def test_a_prefetch_that_returns_nothing_falls_back_per_case(sm, session, monkeypatch) -> None:
     w = await _world_with_cases(session)
 
-    async def nothing(session, workspace_id, ctxs):
+    async def nothing(session, workspace_id, cases):
         return {}
 
-    for key in list(cases_sections.CASE_SUMMARY_BATCHES):
-        monkeypatch.setitem(cases_sections.CASE_SUMMARY_BATCHES, key, nothing)
+    for key in list(cases_sections.CASE_SUMMARY_PREFETCH):
+        monkeypatch.setitem(cases_sections.CASE_SUMMARY_PREFETCH, key, nothing)
     one_by_one, batched = await _summaries(sm, w.t.workspace.id)
     assert batched == one_by_one
 

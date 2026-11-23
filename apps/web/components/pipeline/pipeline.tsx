@@ -36,6 +36,7 @@ import {
   claimTotal,
   REQUEST_STATE_LABEL,
   requestState,
+  type RequestState,
   withAssessment,
   type CaseRecord,
 } from "@/lib/workspace-state";
@@ -73,35 +74,82 @@ function useView(): [View, (view: View) => void] {
   ];
 }
 
-const LANES = ["verifying", "identity", "assessed", "approval", "sent"] as const;
+const LANES = [
+  "verifying",
+  "identity",
+  "failed",
+  "unknown",
+  "assessed",
+  "approval",
+  "approved",
+  "sent",
+  "suppressed",
+  "sendFailed",
+  "sendUnknown",
+] as const;
 type Lane = (typeof LANES)[number];
 
 const LANE_LABEL: Record<Lane, string> = {
   verifying: "Verifying",
   identity: "Needs identity",
+  failed: "Verification failed",
+  unknown: "Unknown",
   assessed: "Assessed",
   approval: "Awaiting approval",
+  approved: "Approved, not sent",
   sent: "Sent",
+  suppressed: "Suppressed",
+  sendFailed: "Send failed",
+  sendUnknown: "Send unknown",
 };
 
 /** What puts a card in the lane, shown under its title so nobody has to guess why it is there. */
 const LANE_RULE: Record<Lane, string> = {
   verifying: "Checks running now",
   identity: "Legal entity not confirmed",
-  assessed: "By disposition, no request waiting",
-  approval: "A request waits on a person",
-  sent: "Request left, or was suppressed",
+  failed: "Checks stopped before an assessment",
+  unknown: "Case record not read, so its state is not known",
+  assessed: "By disposition, no request written",
+  approval: "A drafted request waits on a person",
+  approved: "Approved or sending, not confirmed sent",
+  sent: "The provider accepted the request",
+  suppressed: "Test mode held it back, nothing was sent",
+  sendFailed: "The send failed, nothing was sent",
+  sendUnknown: "No confirmation, it may or may not have left",
 };
 
-/** The lane a case sits in, read from its record. Work in flight comes first. */
+/** The lane each stored send state files a case under. One state, one lane: none stands in for another. */
+const REQUEST_LANE: Record<RequestState, Lane> = {
+  none: "assessed",
+  draft: "approval",
+  approved: "approved",
+  sending: "approved",
+  sent: "sent",
+  suppressed: "suppressed",
+  failed: "sendFailed",
+  unknown: "sendUnknown",
+};
+
+/**
+ * The lane a case sits in, read from its record. Work in flight comes first. A lane is a
+ * claim about the case, so it is made only from a state the record holds: a case whose
+ * record was not read is Unknown, never Assessed, and a request that was suppressed,
+ * failed or went unconfirmed is never filed as sent or as waiting on approval.
+ */
 function laneOf(item: CaseSummary, record: CaseRecord | undefined): Lane {
   if (item.status === "verifying") return "verifying";
   if (item.identity_state !== "confirmed") return "identity";
-  const request = requestState(record);
-  if (request === "sent" || request === "suppressed") return "sent";
-  if (request !== "none") return "approval";
-  return "assessed";
+  if (item.status === "failed") return "failed";
+  if (!record) return "unknown";
+  return REQUEST_LANE[requestState(record)];
 }
+
+/** The request chip's tone: a send that did not happen, or cannot be confirmed, is not quiet. */
+const REQUEST_CHIP: Partial<Record<RequestState, string>> = {
+  suppressed: "border border-dashed border-not-checked-line bg-not-checked-tint text-not-checked",
+  failed: "border border-contradicted-line bg-contradicted-tint text-contradicted",
+  unknown: "border border-dashed border-cannot-verify-line bg-cannot-verify-tint text-cannot-verify",
+};
 
 const DISPOSITION_ORDER = ["prioritise", "investigate_further", "deprioritise", "cannot_assess"] as const;
 
@@ -152,13 +200,13 @@ function CaseCard({ item, record, lane }: { item: CaseSummary; record: CaseRecor
           {blockers}
         </span>
       ) : null}
-      {request !== "none" ? (
+      {lane === "unknown" ? (
+        <span className="text-xs text-cannot-verify">Record not read · request and claims not known</span>
+      ) : request !== "none" ? (
         <span
           className={cn(
             "self-start rounded-xs px-1.5 py-0.5 text-xs",
-            request === "suppressed"
-              ? "border border-dashed border-not-checked-line bg-not-checked-tint text-not-checked"
-              : "bg-surface-sunken text-ink-secondary",
+            REQUEST_CHIP[request] ?? "bg-surface-sunken text-ink-secondary",
           )}
         >
           {REQUEST_STATE_LABEL[request]}
@@ -196,9 +244,9 @@ function Board({ workspace, grouped }: { workspace: Workspace; grouped: Grouped 
           ))}
         </p>
       ) : null}
-      <ol className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-4">
+      <ol className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-4 lg:overflow-x-auto lg:pb-2">
         {filled.map((lane) => (
-          <li key={lane} className={cn("flex min-w-0 flex-col gap-3", lane === "assessed" ? "lg:flex-[2]" : "lg:flex-1")}>
+          <li key={lane} className={cn("flex min-w-0 flex-col gap-3", lane === "assessed" ? "lg:min-w-96 lg:flex-[2]" : "lg:min-w-52 lg:flex-1")}>
             <div className="flex flex-col border-b border-line-strong pb-2">
               <h2 className="flex items-baseline justify-between gap-2 text-sm font-medium text-ink">
                 {LANE_LABEL[lane]}
@@ -265,7 +313,7 @@ function PipelineTable({ workspace, grouped }: { workspace: Workspace; grouped: 
                         {item.name}
                       </RowLink>
                       <span className="block text-xs text-ink-muted">
-                        {attention(item, record)[0]?.what ?? "Nothing waiting"}
+                        {attention(item, record)[0]?.what ?? (record ? "Nothing waiting" : "Record not read")}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -280,8 +328,8 @@ function PipelineTable({ workspace, grouped }: { workspace: Workspace; grouped: 
                     <TableCell muted={!blockersLine(item)} className="font-mono text-xs whitespace-nowrap">
                       {blockersLine(item) ?? "–"}
                     </TableCell>
-                    <TableCell muted={requestState(record) === "none"}>
-                      {REQUEST_STATE_LABEL[requestState(record)]}
+                    <TableCell muted={!record || requestState(record) === "none"}>
+                      {record ? REQUEST_STATE_LABEL[requestState(record)] : "Unknown · record not read"}
                     </TableCell>
                     <TableCell numeric>{formatDate(item.updated_at)}</TableCell>
                   </TableRow>
@@ -296,9 +344,10 @@ function PipelineTable({ workspace, grouped }: { workspace: Workspace; grouped: 
 }
 
 /**
- * `/app/pipeline`. Every case by where it stands: two lanes for work in flight, then one
- * per disposition. The lanes are read from the record, not stages a person drags a card
- * between. Empty lanes stay, so the board keeps its shape.
+ * `/app/pipeline`. Every case by where it stands: lanes for work in flight, then the
+ * assessed cases by disposition, then one lane per stored send state. The lanes are read
+ * from the record, not stages a person drags a card between, and a case whose record was
+ * not read sits in Unknown. Empty lanes are named above the board with a zero.
  */
 export function Pipeline() {
   const { openVerify } = useShell();
@@ -372,14 +421,16 @@ export function Pipeline() {
       ) : (
         <>
           <Panel>
-            <dl className="grid grid-cols-2 divide-line sm:grid-cols-3 lg:grid-cols-6 lg:divide-x">
+            <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-line sm:grid-cols-3 lg:grid-cols-6">
               {LANES.map((lane) => (
-                <div key={lane} className="flex flex-col gap-0.5 px-4 py-3">
+                <div key={lane} className="flex flex-col gap-0.5 bg-surface px-4 py-3">
                   <dt className="text-xs text-ink-secondary">{LANE_LABEL[lane]}</dt>
-                  <dd className="font-mono text-xl font-medium text-ink">{all[lane].length}</dd>
+                  <dd className={cn("font-mono text-xl font-medium", all[lane].length > 0 ? "text-ink" : "text-ink-muted")}>
+                    {all[lane].length}
+                  </dd>
                 </div>
               ))}
-              <div className="flex flex-col gap-0.5 px-4 py-3">
+              <div className="flex flex-col gap-0.5 bg-surface px-4 py-3">
                 <dt className="text-xs text-ink-secondary">Credits spent</dt>
                 <dd className="font-mono text-xl font-medium text-ink">{formatCredits(credits)}</dd>
               </div>

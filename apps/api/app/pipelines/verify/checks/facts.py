@@ -61,6 +61,27 @@ _FACT_ALIASES: dict[str, dict[str, str]] = {
     },
     "dated_event": {"date": "event_date", "month": "event_date"},
     "debt_security": {"charge": "security_registered", "charge_holder": "lender"},
+    "compliance": {
+        "standard": "certification",
+        "certificate": "certification",
+        "valid_until": "certificate_valid_until",
+        "valid_till": "certificate_valid_until",
+        "expiry": "certificate_valid_until",
+        "expiry_date": "certificate_valid_until",
+        "expires": "certificate_valid_until",
+    },
+    "customer_partnership": {
+        "customer": "counterparty",
+        "client": "counterparty",
+        "partner": "counterparty",
+    },
+    "intellectual_property": {
+        "mark": "trademark",
+        "word_mark": "trademark",
+        "owner": "mark_owner",
+        "proprietor": "mark_owner",
+        "trademark_owner": "mark_owner",
+    },
 }
 
 

@@ -43,6 +43,7 @@ PROFILE = "verify.profile"
 REGISTRY = "verify.registry"
 EVENTS = "verify.events"
 COMPARABLES = "verify.comparables"
+FINANCIALS = "verify.financials"
 
 IDENTITY_UNRESOLVED = "identity unresolved"
 

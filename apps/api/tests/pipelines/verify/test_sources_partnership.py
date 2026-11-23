@@ -40,7 +40,7 @@ SENTENCE = "We are a Microsoft partner"
 CLAIM = [
     (SENTENCE, "customer_partnership", [("counterparty", "Microsoft"), ("relationship", "partner")])
 ]
-DIRECTORY_URL = "https://appsource.microsoft.com/partners/pune-warehousing"
+DIRECTORY_URL = "https://partner.microsoft.com/find/pune-warehousing"
 DIRECTORY_HIT = {
     "title": f"{NAME} | Microsoft partner directory",
     "url": DIRECTORY_URL,
@@ -175,7 +175,8 @@ async def test_seller_words_never_reach_a_partner_lookup(sm, session):
         )
     # The code-named counterparty is refused, and the refusal is listed.
     falcon = ledger[sentences[1][0]]
-    assert {s.skipped for s in falcon.searched} == {"unsafe_query"}
+    assert [s.skipped for s in falcon.searched] == ["private_counterparty", None]
+    assert all("falcon" not in s.label.casefold() for s in falcon.searched)
 
 
 async def test_query_builder_takes_one_short_public_name():
@@ -283,21 +284,71 @@ async def test_every_lookup_refused_is_not_checked_budget(session):
     assert "web_search" not in crust.names()
 
 
-async def test_only_the_partys_own_hosts_count_as_its_record():
-    from app.pipelines.verify.checks.gather import on_party_site
+async def test_only_the_partys_own_curated_hosts_count_as_its_record():
+    from app.clients.crustdata_models import WebSearchHit
+    from app.pipelines.verify.checks.gather import classify_hit, on_party_site
 
     terms = PublicTerms(company_name=NAME, domain=DOMAIN)
     ms = plan(domain_claim_like("customer_partnership", {"counterparty": "Microsoft"}))[0]
-    assert on_party_site("https://appsource.microsoft.com/x", ms, terms)
+    assert on_party_site("https://partner.microsoft.com/x", ms, terms)
     # Community and forum subdomains carry user content.
     assert not on_party_site("https://techcommunity.microsoft.com/t/post", ms, terms)
+    # A marketplace listing is written by the company: its own statement.
+    listing = WebSearchHit(
+        url="https://appsource.microsoft.com/product/pune",
+        title=f"{NAME} WMS",
+        snippet=f"Published by {NAME} ({DOMAIN}).",
+    )
+    att = classify_hit(listing, terms, {}, ms)
+    assert att.attached and att.reliability.value == "company_announcement"
+    # No host is trusted by name alone: a lookalike domain is cheap.
     tata = plan(domain_claim_like("customer_partnership", {"counterparty": "Tata Steel"}))[0]
-    assert on_party_site("https://www.tatasteel.com/newsroom/x", tata, terms)
-    assert on_party_site("https://tatasteel.co.in/x", tata, terms)
-    assert not on_party_site("https://tatasteel.blog.example/x", tata, terms)
-    assert not on_party_site("https://tatasteel-news.com/x", tata, terms)
-    # The company's own site is never the other party, even under the party's name.
-    own = Lookup(label="x", words="partner", party_hosts=(DOMAIN,), party_names=("Pune",))
+    assert tata.party_hosts == () and tata.skip == "private_counterparty"
+    assert not on_party_site("https://www.tatasteel.com/newsroom/x", tata, terms)
+    # The company's own site is never the other party.
+    own = Lookup(label="x", words="partner", party_hosts=(DOMAIN,))
     assert not on_party_site(f"https://{DOMAIN}/partners", own, terms)
-    named = Lookup(label="x", words="partner", party_names=("Pune Warehousing",))
-    assert not on_party_site("https://punewarehousing.com/x", named, terms)
+
+
+async def test_a_private_counterparty_name_never_leaves(sm, session):
+    """A customer that is not a curated platform has no public provenance: its name is
+    not searched, not in an activity label, not in the searched list."""
+    case = await _case(session)
+    sentences = [
+        (
+            "Zentrix Retail is our largest customer",
+            "customer_partnership",
+            [("counterparty", "Zentrix Retail"), ("relationship", "customer")],
+        )
+    ]
+    crust = pune_crustdata(search_hits={"press release": [OWN_HIT]})
+    _, ledger, _ = await _verify(sm, session, case, sentences, crust, _llm(sentences))
+    out = ledger[sentences[0][0]]
+    for name, params in crust.calls:
+        assert "zentrix" not in repr(params).casefold(), (name, params)
+    assert [s.skipped for s in out.searched] == ["private_counterparty", None]
+    assert out.searched[1].query == f'"{NAME}" customer press release'
+    assert all("zentrix" not in s.label.casefold() for s in out.searched)
+
+
+async def test_opaque_redirects_never_become_the_counterparty_record():
+    """The provider often returns google.com/goto redirects: the host is unknown."""
+    from app.clients.crustdata_models import WebSearchHit
+    from app.pipelines.verify.checks.gather import classify_hit
+
+    terms = PublicTerms(company_name=NAME, domain=DOMAIN)
+    ms = plan(domain_claim_like("customer_partnership", {"counterparty": "Microsoft"}))[0]
+    redirect = WebSearchHit(
+        url="https://www.google.com/goto?url=CAESabc",
+        title=f"{NAME} | partner",
+        snippet=f"{NAME} ({DOMAIN}) Microsoft Solutions Partner.",
+    )
+    att = classify_hit(redirect, terms, {}, ms)
+    assert att.attached and att.reliability.value == "company_announcement"
+    own_site = Lookup(label="trust page", words="certified", site=DOMAIN)
+    bare = redirect.model_copy(update={"snippet": "Certified."})
+    att = classify_hit(bare, terms, {}, own_site)
+    assert att.attached and att.reliability.value == "company_announcement"
+    no_site = Lookup(label="x", words="partner")
+    att = classify_hit(bare, terms, {}, no_site)
+    assert not att.attached

@@ -37,6 +37,30 @@ function Statement({ statement }: { statement: RecordStatement }) {
   );
 }
 
+/**
+ * Under every Cannot verify: where DealProof looked. With nothing on record it says so,
+ * so an open answer is never mistaken for a search that came back empty.
+ */
+function Searched({ claim }: { claim: Claim }) {
+  if (claim.status !== "cannot_verify") return null;
+  // A source the record cites was read, whether or not the claim lists it as searched.
+  const searched = claim.searched?.length
+    ? claim.searched
+    : [...new Set(claim.record.flatMap((statement) => statement.evidence.map((item) => item.source.label)))];
+  return (
+    <p className="text-xs text-ink-secondary">
+      {searched.length > 0 ? (
+        <>
+          <span className="text-ink-muted">Searched: </span>
+          {searched.join(", ")}
+        </>
+      ) : (
+        "No public source searched yet"
+      )}
+    </p>
+  );
+}
+
 function RecordSide({
   claim,
   expanded,
@@ -72,12 +96,14 @@ function RecordSide({
     );
   }
 
-  // A result with nothing attached is a result: the search found no record. It says so
-  // plainly, with what would settle the claim.
+  // A result with nothing attached is a result. "No public record found" is said only
+  // when a search is on record; otherwise the row says that nothing was searched.
   if (claim.record.length === 0) {
+    const unsearched = claim.status === "cannot_verify" && !claim.searched?.length;
     return (
       <div className="flex flex-col items-start gap-2">
-        <p className="font-medium text-ink">No public record found</p>
+        {unsearched ? null : <p className="font-medium text-ink">No public record found</p>}
+        <Searched claim={claim} />
         {claim.note ? <p className="text-ink-secondary">{claim.note}</p> : null}
         {claim.what_would_settle ? (
           <p className="text-ink">
@@ -122,6 +148,7 @@ function RecordSide({
           {hiddenCount} more {hiddenCount === 1 ? "statement" : "statements"}
         </p>
       ) : null}
+      <Searched claim={claim} />
       {expanded && claim.note ? <p className="text-ink-secondary">{claim.note}</p> : null}
       {claim.what_would_settle ? (
         <p className="text-ink">

@@ -15,6 +15,7 @@ Precedence (first that applies wins, design §6.3):
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import date
 
 from app.domain.enums import (
     ClaimCategory,
@@ -22,6 +23,7 @@ from app.domain.enums import (
     ComponentState,
     NotCheckedReason,
     SourceReliability,
+    ValueKind,
 )
 from app.domain.types import (
     CheckOutcome,
@@ -34,6 +36,7 @@ from app.domain.types import (
 )
 from app.rules import policy
 from app.rules.compare import Relation, compare, contains_phrase, normalize_text
+from app.rules.standards import standards_in
 from app.rules.validation import screen_fact
 
 _STATUS_LABEL = {
@@ -57,10 +60,46 @@ def _check_of(component: str, claim: Claim) -> ClaimCategory:
     return rule.check if rule else claim.category
 
 
+def is_ip_claim(claim: Claim) -> bool:
+    """A trademark or other IP claim, by its category or its structured components
+    (never by its wording alone, which the seller controls)."""
+    if claim.category is ClaimCategory.INTELLECTUAL_PROPERTY:
+        return True
+    return any(c.name in policy.IP_COMPONENTS for c in claim.components)
+
+
+def category_document(claim: Claim) -> str:
+    """What settles a claim with no known component (or none still open). An `other`
+    claim with no components that reads as IP ("PALMS(TM) is ours") asks for the
+    mark's registration: there is no other document it could be steered away from."""
+    if is_ip_claim(claim):
+        return policy.DOC_TRADEMARK
+    if claim.category is ClaimCategory.OTHER and not claim.components:
+        text = claim.text.casefold()
+        if any(cue in text for cue in policy.IP_CUES):
+            return policy.DOC_TRADEMARK
+    return policy.CATEGORY_DOCUMENTS[claim.category]
+
+
+# The one identity component an IP claim may carry: the mark's owner read as
+# `legal_name`. Only when the claim carries nothing else about incorporation is it
+# settled by the mark's registration; a claim that also states a CIN, a date or a
+# city still needs the certificate of incorporation for those.
+_IP_OWNER_ALIASES = frozenset({"legal_name"})
+
+
+def _owner_read_as_identity(component: str, claim: Claim) -> bool:
+    if component not in _IP_OWNER_ALIASES or not is_ip_claim(claim):
+        return False
+    return all(c.name in _IP_OWNER_ALIASES | policy.IP_COMPONENTS for c in claim.components)
+
+
 def document_for(component: str, claim: Claim) -> str:
     rule = policy.COMPONENT_RULES.get(component)
     if rule is None:
-        return policy.CATEGORY_DOCUMENTS[claim.category]
+        return category_document(claim)
+    if _owner_read_as_identity(component, claim):
+        return policy.DOC_TRADEMARK
     if rule.check is ClaimCategory.DATED_EVENT and rule.document == policy.DOC_EVENT:
         event = next((c.value for c in claim.components if c.name == "event"), claim.text)
         if any(contains_phrase(event, w) for w in policy.FACILITY_WORDS):
@@ -110,7 +149,7 @@ def _not_checked(
     detail = detail if detail is not None else check.not_run_detail
     detail_text = f" ({detail})" if detail else ""
     docs = _dedupe([document_for(c.name, claim) for c in claim.components]) or [
-        policy.CATEGORY_DOCUMENTS[claim.category]
+        category_document(claim)
     ]
     return CheckOutcome(
         claim_id=claim.id,
@@ -153,14 +192,61 @@ def _starts_cue(tokens: list[str], cue: str) -> bool:
     return False
 
 
+def today() -> date:
+    """The date a present-tense claim ("is certified") is checked against."""
+    return date.today()
+
+
 def effective_components(claim: Claim) -> list[ClaimComponent]:
     """The components a claim is checked on. A dated-event claim always
     asserts whether the event happened, so a missing stage is added from its
-    wording: an announcement alone can then never make it supported."""
+    wording: an announcement alone can then never make it supported.
+
+    A compliance claim asserts each standard it names and that the certificate
+    is current: a `certification` naming several standards is checked once per
+    standard, and `certificate_valid_until` (on or after today) is added, so an
+    expired certificate contradicts the claim."""
     comps = list(claim.components)
     if claim.category is ClaimCategory.DATED_EVENT and not any(c.name == "stage" for c in comps):
         comps.append(ClaimComponent(name="stage", value=claimed_stage(claim.text)))
+    if claim.category is ClaimCategory.COMPLIANCE:
+        comps = _compliance_components(comps)
     return comps
+
+
+def _compliance_components(comps: list[ClaimComponent]) -> list[ClaimComponent]:
+    """One `certification` per standard, each with its own validity component scoped
+    to that standard: a current ISO 9001 record says nothing about ISO 27001."""
+    out: list[ClaimComponent] = []
+    for c in comps:
+        found = standards_in(c.value) if c.name == "certification" else []
+        if len(found) > 1:
+            out.extend(ClaimComponent(name=c.name, value=s.display) for s in found)
+        else:
+            out.append(c)
+    if any(c.name == "certificate_valid_until" for c in out):
+        return out  # the claim states its own validity date
+    on = today().isoformat()
+    for c in [c for c in out if c.name == "certification"]:
+        out.append(
+            ClaimComponent(name="certificate_valid_until", value=on, op="gte", scope=str(c.value))
+        )
+    return out
+
+
+def _scoped(
+    relevant: list[ExtractedFact], standard: str, valid: list[ExtractedFact]
+) -> list[ExtractedFact]:
+    """Validity facts from origins that also state `standard` (a certification fact
+    from the same origin that names it). A validity date with no standard beside it
+    settles nothing."""
+    origins = {
+        f.evidence.source.origin
+        for f in valid
+        if f.component == "certification"
+        and compare(ValueKind.STANDARD, standard, "eq", f.value) == "match"
+    }
+    return [f for f in relevant if f.evidence.source.origin in origins]
 
 
 def _origin_adequacy(
@@ -231,6 +317,8 @@ def decide_claim_status(check: ClaimCheck) -> CheckOutcome:
         rule = policy.COMPONENT_RULES.get(comp.name)
         check_cat = _check_of(comp.name, claim)
         relevant = [f for f in valid if f.component == comp.name]
+        if comp.scope is not None:
+            relevant = _scoped(relevant, comp.scope, valid)
         if rule is None:
             for f in relevant:
                 refs.append(_ref(f, "not_adequate", "no rule for this component"))
@@ -379,7 +467,7 @@ def decide_claim_status(check: ClaimCheck) -> CheckOutcome:
     if status is ClaimStatus.SUPPORTED:
         settle: list[str] = []
     else:
-        settle = _dedupe(unsettled_docs) or [policy.CATEGORY_DOCUMENTS[claim.category]]
+        settle = _dedupe(unsettled_docs) or [category_document(claim)]
 
     headline = status_label(status)
     if not components:

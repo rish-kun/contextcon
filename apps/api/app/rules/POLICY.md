@@ -1,6 +1,6 @@
 # DealProof scoring and verification policy
 
-Policy version: **2026-11-22.6** (`POLICY_VERSION` in `app/rules/policy.py`).
+Policy version: **2026-11-22.9** (`POLICY_VERSION` in `app/rules/policy.py`).
 
 DealProof's rules decide every status, score and recommendation. The AI only reads
 documents and pulls out values; it never decides. The same records under the same
@@ -138,6 +138,27 @@ Every status except Supported names what would settle it, as a document or recor
   from the claim's structured components (the partner, certifier or mark) and fixed
   words, never the seller's wording. Every lookup is listed on the result
   ("Searched: ..."), and a seller document is asked for only for what they did not find.
+- Certifications (since 2026-11-22.7) match on the standard itself: "ISO/IEC
+  27001:2022" on a register states "ISO 27001", "SOC 2 Type I" does not state "SOC 2
+  Type II". A claim naming several standards is checked once per standard, and each
+  standard also asserts that its certificate is current (`certificate_valid_until` on
+  or after today), settled only by a validity date from a source that names that
+  standard: a current ISO 9001 record says nothing about ISO 27001. The register, the certification
+  body's record, or the certificate or auditor's report settle that; the company's own
+  page never does. An expired certificate on a register contradicts the claim.
+- Trademarks (since 2026-11-22.9): a register page found by search is a copy of the
+  register's record (`registry_mirror`). It counts only when one entry on the fetched
+  page has the mark, a current-proprietor field that is exactly the confirmed
+  company's name, a class and a registered status (an objected, opposed, pending or
+  abandoned application does not count), and the page carries a second identifier
+  (address city or domain). A trademark claim, by its category or its mark
+  components, asks for the trademark registration certificate or IP assignment
+  records; a CIN, date or city stated beside the mark still asks for the certificate
+  of incorporation. The claim's wording alone never changes the request.
+- Customer counts and satisfaction figures (since 2026-11-22.9): one public lookup for
+  the company's customer case studies; named customers found are kept as evidence,
+  but no public page counts customers, so the claim stays Cannot verify until a dated
+  customer list or reference letters (under NDA) arrive.
   A lookup the case budget refuses is skipped; if all are refused the claim reads
   Not checked (budget). A count of customers is the company's own figure and stays
   Cannot verify unless a dated customer list or audited note settles it.
@@ -184,9 +205,11 @@ A seller document counts only when it is one of the document types listed; "date
 | `relationship` | customer partnership | audited_statement, company_announcement, counterparty_confirmation, seller_document | customer_confirmation, customer_contract | Customer confirmation or signed contract |
 | `since_year` | customer partnership | audited_statement, company_announcement, counterparty_confirmation, seller_document | customer_confirmation, customer_contract | Customer confirmation or signed contract |
 | `contract_value` | customer partnership | audited_statement, company_announcement, counterparty_confirmation, seller_document | customer_confirmation, customer_contract | Customer confirmation or signed contract |
-| `customer_count` | customer partnership | audited_statement, seller_document | any | Dated customer list, or audited revenue by customer |
-| `country_count` | customer partnership | audited_statement, seller_document | any | Dated customer list, or audited revenue by customer |
-| `certification` | compliance | company_announcement, counterparty_confirmation, registry, registry_mirror, seller_document | any | Certificate from the certification body, with its number, scope and validity |
+| `customer_count` | customer partnership | audited_statement, seller_document | any | Dated customer list or customer reference letters (under NDA) |
+| `country_count` | customer partnership | audited_statement, seller_document | any | Dated customer list or customer reference letters (under NDA) |
+| `customer_satisfaction_pct` | customer partnership | audited_statement, seller_document | any | Dated customer list or customer reference letters (under NDA) |
+| `certification` | compliance | company_announcement, counterparty_confirmation, registry, registry_mirror, seller_document | any | Certificate from the certification body, with its number, scope and validity, or the auditor's report under NDA |
+| `certificate_valid_until` | compliance | counterparty_confirmation, registry, registry_mirror, seller_document | audit_report, compliance_certificate | Certificate from the certification body, with its number, scope and validity, or the auditor's report under NDA |
 | `trademark` | intellectual property | company_announcement, registry, registry_mirror, seller_document | any | Trademark registration certificate or IP assignment records |
 | `mark_owner` | intellectual property | company_announcement, registry, registry_mirror, seller_document | any | Trademark registration certificate or IP assignment records |
 | `revenue` | financials | audited_statement, registry, registry_mirror | none | Audited financial statements |
@@ -194,6 +217,8 @@ A seller document counts only when it is one of the document types listed; "date
 | `ebitda` | financials | audited_statement, registry, registry_mirror | none | Audited financial statements |
 | `revenue_growth_pct` | financials | audited_statement, registry, registry_mirror | none | Audited financial statements |
 | `fiscal_year` | financials | audited_statement, registry, registry_mirror | none | Audited financial statements |
+| `net_worth` | financials | audited_statement, registry, registry_mirror | none | Audited financial statements |
+| `revenue_band` | financials | audited_statement, registry, registry_mirror | none | Audited financial statements |
 | `has_debt` | debt security | audited_statement, counterparty_confirmation, seller_document | lender_statement | Lender statements |
 | `debt_amount` | debt security | audited_statement, counterparty_confirmation, seller_document | lender_statement | Lender statements |
 | `security_registered` | debt security | registry, registry_mirror | none | Registry charge record (analyst) |
@@ -213,10 +238,30 @@ The five judgments are never blended into one score.
 3. **Business assessment:** observed signals such as headcount estimates and trend,
    open roles, locations and dated events. They are labelled as signals and never
    treated as revenue.
-4. **Financial assessment:** made only from figures in audited statements or registry
-   filings whose quotes check out and whose records are bound to the company on a
-   corroborating identifier: the same screen claims and fit use. Otherwise "Not
-   assessed: no reliable financial inputs".
+4. **Financial assessment:** what reliable financial inputs show, under stated
+   assumptions. After identity is confirmed, `verify.financials` runs for every case
+   and makes at most 2 public lookups, from the confirmed name, CIN and fixed words
+   only (never seller text): for a listed company (CIN beginning with `L`, a stock
+   symbol or IPO date on the company record, or a "Public Company" type) the exchange
+   filing and investor-relations results pages for the latest fiscal year; otherwise
+   the registry pages already found, then one registry-mirror search on the name and
+   CIN for the revenue band, net worth and last filed year. Each figure keeps its
+   verbatim quote, period ("Q2 FY27", "FY24"), unit (crore, lakh, USD) and entity
+   binding. The judgment then takes, in order:
+   - **Reported figures** from audited statements, exchange or registry filings
+     (`audited_statement`, `registry`, `registry_mirror`), or a listed company's own
+     results page (`company_announcement`, listed companies only), whose quotes check
+     out and whose records are bound to the company on a corroborating identifier:
+     the same screen claims and fit use. Reported with the latest period, growth
+     against the period of the same length a year earlier (or the one before it),
+     margins in the same period and currency, the assumptions, and a bounded
+     conclusion such as "Reported revenue ₹2,095 cr in Q2 FY27, +24% YoY (NSE
+     filing)". Never a valuation, forecast or fair value.
+   - Otherwise a data provider's revenue range, shown as **"Indicative (estimate)"**
+     and never counted as assessed.
+   - Otherwise, once the search ran, **"No public financials found — searched: …"**
+     with what was searched and what would settle it. Before the search has run:
+     "Not assessed: no reliable financial inputs".
 5. **Screening disposition:** section 5.
 
 ## 4. Company type
@@ -309,6 +354,8 @@ every judgment change, and any change in disposition.
 
 **Policy changes**
 
+- 2026-11-22.7: certifications match on the standard itself and must be current:
+  an expired certificate on a register contradicts the claim.
 - 2026-11-22.6: public lookups for partnership, customer, certification and
   trademark claims; new categories `compliance` and `intellectual_property`; a
   company's own statement alone gives Partially corroborated in those categories;

@@ -13,6 +13,7 @@
  * `Schemas["…"]` alias and delete the hand-written one; the callers read these names only.
  * `NEXT_PUBLIC_API_MODE=fixtures` resolves every call from `org-fixtures.ts`.
  */
+import { sessionChanged } from "./session-scope";
 import {
   ApiError,
   isFixtureMode,
@@ -318,8 +319,14 @@ async function request<T>(method: "GET" | "POST" | "PUT", path: string, json?: u
 }
 
 export async function signup(body: SignupIn): Promise<SignupOut> {
-  if (isFixtureMode) return (await fx()).signup(body);
-  return request("POST", "/auth/signup", body);
+  // A sign-up can sign a new account in, so it drops cached account data like a sign-in.
+  sessionChanged();
+  try {
+    if (isFixtureMode) return await (await fx()).signup(body);
+    return await request<SignupOut>("POST", "/auth/signup", body);
+  } finally {
+    sessionChanged();
+  }
 }
 
 /** The workspace's profile, or null when none has been set up. */

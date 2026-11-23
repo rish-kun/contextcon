@@ -800,14 +800,23 @@ async def test_iso_country_code_matches_a_claimed_country_name(sm, session):
 # --- Listed-company financials ---------------------------------------------------
 
 
+LISTED_CIN = "L63000MH2014PLC123456"  # an illustration, not a real CIN
+
+
 async def test_revenue_claim_gets_one_public_results_search(sm, session):
     case = await _case(session)
+    case.identity_identifiers = {"entity": {"name": NAME, "domains": [DOMAIN], "cin": LISTED_CIN}}
+    await session.commit()
     sentence = "Q2 FY27 consolidated revenue was ₹2,095 crore, up 24% YoY"
     sentences = [(sentence, "financials", [("revenue", "₹2,095 crore")])]
     span = "Consolidated revenue for Q2 FY27 was ₹2,095 crore."
     url = "https://www.nseindia.com/results/q2-fy27"
-    hits = [{"title": f"{NAME} quarterly results", "url": url, "snippet": span}]
-    crust = pune_crustdata(search_hits={"results": hits}, pages={url: f"<p>{NAME}. {span}</p>"})
+    hits = [
+        {"title": f"{NAME} quarterly results", "url": url, "snippet": f"CIN {LISTED_CIN}. {span}"}
+    ]
+    crust = pune_crustdata(
+        search_hits={"results": hits}, pages={url: f"<p>{NAME}, CIN {LISTED_CIN}. {span}</p>"}
+    )
     llm = intake_llm(sentences)
 
     def facts(system, user):
@@ -821,3 +830,24 @@ async def test_revenue_claim_gets_one_public_results_search(sm, session):
     assert searches == [f'"{NAME}" quarterly results revenue']
     assert crust.names().count("fetch_pages") <= 1
     assert ledger[sentence].status in {"supported", "partially_corroborated"}
+
+
+async def test_exchange_page_without_the_issuer_id_is_not_attached(sm, session):
+    """A name on an exchange page is not enough: a group company or namesake lists too."""
+    case = await _case(session)
+    sentence = "Q2 FY27 consolidated revenue was ₹2,095 crore, up 24% YoY"
+    sentences = [(sentence, "financials", [("revenue", "₹2,095 crore")])]
+    span = "Consolidated revenue for Q2 FY27 was ₹2,095 crore."
+    url = "https://www.nseindia.com/results/q2-fy27"
+    hits = [{"title": f"{NAME} quarterly results", "url": url, "snippet": span}]
+    crust = pune_crustdata(search_hits={"results": hits}, pages={url: f"<p>{NAME}. {span}</p>"})
+    llm = intake_llm(sentences)
+    llm.responders["EvidenceFactsDraft"] = lambda system, user: {
+        "speaks_to_claim": True,
+        "facts": [_fact("revenue", "₹2,095 crore", span)],
+    }
+    _, ledger, _ = await _verify(sm, session, case, sentences, crust, llm)
+    assert ledger[sentence].status == "cannot_verify"
+    page = (await session.execute(select(Source).where(Source.endpoint_or_url == url))).scalar_one()
+    assert page.request["attached"] is False
+    assert "fetch_pages" not in crust.names()  # an ineligible page is not fetched

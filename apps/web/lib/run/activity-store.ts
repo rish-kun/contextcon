@@ -150,6 +150,16 @@ export interface InvestorRow {
   ranked: boolean;
 }
 
+/** What the gate said it removed, split by cause. */
+export interface CompanyDrops {
+  /** The gate's own total: duplicates plus must-have failures. */
+  total: number;
+  duplicates: number;
+  failedMustHave: number;
+  /** The gate's sentence for the split, as the event stated it. */
+  detail: string | null;
+}
+
 export interface FindingGroup<T> {
   rows: T[];
   /** Group totals as the latest event stated them. */
@@ -184,6 +194,13 @@ export interface RunActivityView {
   sources: SourceRow[];
   sourceCounts: { read: number; failed: number };
   companies: FindingGroup<CompanyRow>;
+  /** The duplicate and must-have split of the latest drop event, once there is one. */
+  companyDrops: CompanyDrops | null;
+  /**
+   * Duplicates of a company that is still in play: the search returned it twice and the
+   * gate kept one. They are counted as dropped and never change the kept row.
+   */
+  companyDuplicates: ActivityItem[];
   /** Seq of the `scored` finding, once there is one. */
   companiesScoredSeq: number | null;
   /** Step key that emitted the scores, so the view can wait for it to finish. */
@@ -308,6 +325,40 @@ function subjectFinding(event: Activity): SubjectFinding {
   };
 }
 
+const DUPLICATE_OF = /^Duplicate of (.+)$/;
+
+/**
+ * True when a "dropped" row is a second copy of a company that is still in play. The
+ * pipeline gives a company returned by two search passes one id, so the drop arrives on
+ * the kept row's id and names that row as what it duplicates. A duplicate found by domain
+ * has its own id and its own row, and is a real drop.
+ */
+function isOwnDuplicate(item: ActivityItem, previous: CompanyRow, rows: Map<string, CompanyRow>): boolean {
+  if (previous.stage === "dropped" || !previous.name) return false;
+  if (DUPLICATE_OF.exec(item.reason ?? "")?.[1] !== previous.name) return false;
+  for (const row of rows.values()) {
+    if (row.id !== previous.id && row.name === previous.name) return false;
+  }
+  return true;
+}
+
+/** How many of a drop event's companies were duplicates and how many failed a must-have. */
+function dropSplit(event: Activity, items: ActivityItem[], counts: Record<string, number>): CompanyDrops {
+  const droppedItems = items.filter((item) => item.stage === "dropped");
+  const total = counts.dropped ?? droppedItems.length;
+  const stated = (pattern: RegExp) => {
+    const match = pattern.exec(event.detail ?? "");
+    return match ? Number(match[1]) : null;
+  };
+  // The event names at most eight rows, so its own sentence is read before the rows are counted.
+  const duplicates = Math.min(
+    total,
+    stated(/(\d+)\s+duplicates?\b/) ?? droppedItems.filter((item) => DUPLICATE_OF.test(item.reason ?? "")).length,
+  );
+  const failedMustHave = Math.min(total - duplicates, stated(/(\d+)\s+failed\b/) ?? total - duplicates);
+  return { total, duplicates, failedMustHave, detail: event.detail };
+}
+
 /** Build the whole view from an ordered list of events. */
 export function deriveView(events: Activity[]): RunActivityView {
   const steps = new Map<string, StepActivity>();
@@ -343,6 +394,8 @@ export function deriveView(events: Activity[]): RunActivityView {
     sources,
     sourceCounts: { read: 0, failed: 0 },
     companies: companyGroup,
+    companyDrops: null,
+    companyDuplicates: [],
     companiesScoredSeq: null,
     companiesScoredStep: null,
     claims,
@@ -467,8 +520,18 @@ export function deriveView(events: Activity[]): RunActivityView {
           case "company": {
             companyGroup.counts = { ...companyGroup.counts, ...counts };
             companyGroup.seq = event.seq;
+            if (items.some((item) => item.stage === "dropped")) {
+              view.companyDrops = dropSplit(event, items, counts);
+            }
             items.forEach((item, slot) => {
               const previous = companies.get(item.id);
+              if (item.stage === "dropped" && previous && isOwnDuplicate(item, previous, companies)) {
+                // The same record returned twice: one is merged away, the row stays in play.
+                if (!view.companyDuplicates.some((row) => row.id === item.id)) {
+                  view.companyDuplicates.push({ ...item, name: item.name ?? previous.name });
+                }
+                return;
+              }
               const merged = mergeItem<CompanyRow>(previous, item);
               merged.firstSeq = previous?.firstSeq ?? event.seq;
               merged.slot = previous?.slot ?? slot;
@@ -535,7 +598,16 @@ export function deriveView(events: Activity[]): RunActivityView {
             break;
           }
           case "investor": {
-            roundGroup.counts = { ...roundGroup.counts, ...counts };
+            // The rank event counts ranked investors under the same key the round events
+            // use for investors grouped. Grouping is the round events' figure to state.
+            const { investors: rankedInvestors, ...rankCounts } = counts;
+            roundGroup.counts = {
+              ...roundGroup.counts,
+              ...rankCounts,
+              ...(roundGroup.counts.investors === undefined && rankedInvestors !== undefined
+                ? { investors: rankedInvestors }
+                : {}),
+            };
             for (const item of items) {
               const investor: InvestorRow = investors.get(item.id) ?? {
                 key: item.id,
@@ -598,6 +670,77 @@ export function countClaimStages(claims: Iterable<ClaimLive>): Record<ClaimLive[
   const totals = { queued: 0, checking: 0, settled: 0, not_checked: 0 };
   for (const claim of claims) totals[claim.stage] += 1;
   return totals;
+}
+
+/* ───────────────────────── Reconciled counts ───────────────────────── */
+
+export interface CandidateCounts {
+  found: number;
+  /** Always `found - dropped`. */
+  inPlay: number;
+  /** Always `duplicates + failedMustHave + notRanked`. */
+  dropped: number;
+  duplicates: number;
+  failedMustHave: number;
+  /** Left out after the gate: not enriched, or removed once enriched. */
+  notRanked: number;
+  /** Dropped rows the events named, duplicates of a kept company included. */
+  named: number;
+}
+
+/**
+ * The Discover totals, from the events and nothing else, so the heading, the dropped
+ * list and a reload all state the same numbers. A duplicate the gate removed is a dropped
+ * company: `found` is everything the search returned, and it always equals `inPlay +
+ * dropped`.
+ */
+export function candidateCounts(view: RunActivityView): CandidateCounts {
+  const { rows, counts } = view.companies;
+  const droppedRows = rows.filter((row) => row.stage === "dropped").length;
+  const named = droppedRows + view.companyDuplicates.length;
+  const found = Math.max(counts.found ?? rows.length + view.companyDuplicates.length, 0);
+  const dropped = Math.min(found, Math.max(counts.dropped ?? named, named));
+  const duplicates = Math.min(dropped, view.companyDrops?.duplicates ?? 0);
+  const failedMustHave = Math.min(dropped - duplicates, view.companyDrops?.failedMustHave ?? 0);
+  return {
+    found,
+    inPlay: found - dropped,
+    dropped,
+    duplicates,
+    failedMustHave,
+    notRanked: dropped - duplicates - failedMustHave,
+    named,
+  };
+}
+
+export interface RoundStages {
+  /** Funding rounds a Crustdata call returned, or more if more have been processed. */
+  read: number;
+  /** Rounds a `round` finding has stated: attached to their company and investors. */
+  processed: number;
+  /** Processed rounds that carry a date. */
+  dated: number;
+  /** Investors named on the processed rounds. */
+  investors: number;
+}
+
+/**
+ * The three stages of an investor search, in the order the pipeline reaches them. The
+ * enrich call reports how many rounds it returned before any of them is a finding, so
+ * "read" runs ahead of "processed" and neither is ever shown as the other. `read` is
+ * never below `processed`: rounds that came with the company search were never in a call
+ * count.
+ */
+export function roundStages(view: RunActivityView): RoundStages {
+  const { rows, counts } = view.rounds;
+  const processed = counts.rounds ?? rows.length;
+  const returned = view.tally.rows.get("company_enrich")?.counts.funding_rounds ?? 0;
+  return {
+    read: Math.max(returned, processed),
+    processed,
+    dated: Math.min(processed, counts.rounds_dated ?? rows.filter((round) => round.date).length),
+    investors: counts.investors ?? view.investors.length,
+  };
 }
 
 /* ───────────────────────── Regions and pacing ───────────────────────── */

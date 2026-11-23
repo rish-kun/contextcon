@@ -132,6 +132,9 @@ class CompanyRecord(_Model):
     people: CompanyPeople | None = None
     taxonomy: dict[str, Any] | None = None
     metadata: dict[str, Any] | None = None
+    # `revenue` group: {estimated: {lower_bound_usd, upper_bound_usd, timeseries},
+    # public_markets: {stock_symbols, ipo_date, fiscal_year_end}, acquisition_status}.
+    revenue: dict[str, Any] | None = None
 
 
 class IdentifyCompanyData(_Model):

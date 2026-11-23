@@ -142,8 +142,11 @@ def build_lookup(
     entity: str | None = None,
     site: str | None = None,
     deny: tuple[str, ...] = (),
+    quote_entity: bool = True,
 ) -> str:
-    """`"<company>" ["<entity>"] <words> [site:<host>]`, public terms only."""
+    """`"<company>" ["<entity>"] <words> [site:<host>]`, public terms only. A
+    standard's name goes unquoted (`quote_entity=False`): "ISO 27001" as a phrase
+    would miss "ISO/IEC 27001"."""
     name = " ".join(terms.company_name.split())
     if not name:
         raise UnsafeQuery("no company name")
@@ -157,7 +160,7 @@ def build_lookup(
         if clean is None:
             raise UnsafeQuery("the named entity is not a short public name")
         if clean.casefold() != name.casefold():
-            parts.append(f'"{clean}"')
+            parts.append(f'"{clean}"' if quote_entity else clean)
             extra.append(clean)
     if words:
         parts.append(words)

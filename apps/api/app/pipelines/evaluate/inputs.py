@@ -65,6 +65,9 @@ from app.domain.types import (
     DatedEvent,
     ExtractedFact,
     FieldFact,
+    FinancialEstimate,
+    FinancialInputs,
+    ReportedFigure,
     SeriesPoint,
 )
 from app.domain.types import Evidence as EvidenceIn
@@ -106,7 +109,7 @@ OPERATORS: dict[str, CriterionOperator] = {
 }
 UNASSESSABLE_FIELD = "unassessable"
 
-ESTIMATE_PREFIXES = ("headcount.", "hiring.")
+ESTIMATE_PREFIXES = ("headcount.", "hiring.", "revenue.estimated")
 ESTIMATE_CLASSES = frozenset({"headcount_estimate", "professional_profile"})
 HEADCOUNT_FIELDS = ("headcount.total", "headcount.timeseries", "headcount.history")
 
@@ -469,6 +472,74 @@ def _claim_check(
     )
 
 
+# --- Financials ------------------------------------------------------------------
+
+FINANCIAL_PREFIX = "financials."
+ESTIMATE_FIELD = "revenue.estimated"
+
+
+def _date(value: Any) -> dt.date | None:
+    try:
+        return dt.date.fromisoformat(str(value)) if value else None
+    except ValueError:
+        return None
+
+
+def financial_inputs(case: Case, evidence: list[tuple[Evidence, Source]]) -> FinancialInputs:
+    """What `verify.financials` found and searched, and the provider's revenue estimate.
+
+    Figures are the `financials.<component>` rows (value: `{component, value, period,
+    period_end, period_months, amount, currency, unit}`) attached to the confirmed
+    company; the rules screen them like any fact. The search record and listing status
+    are on the case entity (`identity_identifiers.entity.financials`)."""
+    figures: list[ReportedFigure] = []
+    estimates: list[FinancialEstimate] = []
+    for e, s in sorted(evidence, key=lambda p: str(p[0].id)):
+        if e.scrubbed_at is not None:
+            continue
+        path = e.field_path or ""
+        raw = e.value if isinstance(e.value, dict) else {}
+        if path.startswith(FINANCIAL_PREFIX) and raw.get("component") in policy.COMPONENT_RULES:
+            component = raw["component"]
+            figures.append(
+                ReportedFigure(
+                    fact=ExtractedFact(
+                        id=f"{e.id}:{component}",
+                        evidence=_evidence_in(e, s, raw.get("value"), case),
+                        component=component,
+                        value=raw.get("value"),
+                    ),
+                    period=raw.get("period"),
+                    period_end=_date(raw.get("period_end")),
+                    period_months=raw.get("period_months"),
+                    amount=_number(raw.get("amount")),
+                    currency=raw.get("currency"),
+                    unit=raw.get("unit"),
+                )
+            )
+        elif path == ESTIMATE_FIELD:
+            estimates.append(
+                FinancialEstimate(
+                    lower_usd=_number(raw.get("lower_bound_usd")),
+                    upper_usd=_number(raw.get("upper_bound_usd")),
+                    as_of=e.as_of,
+                    evidence_id=str(e.id),
+                    source_label=s.title or s.publisher or s.provider,
+                )
+            )
+    entity = (case.identity_identifiers or {}).get("entity") or {}
+    record = entity.get("financials") if isinstance(entity.get("financials"), dict) else {}
+    listing = record.get("listing")
+    return FinancialInputs(
+        figures=figures,
+        estimates=estimates,
+        listing=listing if listing in ("listed", "unlisted", "unknown") else "unknown",
+        listing_basis=record.get("listing_basis"),
+        listing_signal=record.get("listing_signal"),
+        searched=[str(x) for x in record["searched"]] if "searched" in record else None,
+    )
+
+
 # --- Everything ------------------------------------------------------------------
 
 
@@ -488,4 +559,5 @@ async def load_inputs(
         criteria=await load_criteria(session, case),
         claim_checks=await load_claim_checks(session, case),
         business=business_inputs(record, evidence, events),
+        financials=financial_inputs(case, evidence),
     )

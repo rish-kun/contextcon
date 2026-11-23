@@ -10,7 +10,6 @@ while workspace totals add up each credit once.
 import uuid
 from dataclasses import dataclass, field, replace
 from decimal import Decimal
-from typing import Any
 
 from sqlalchemy import Select, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -118,7 +117,7 @@ class CostTotals:
         return self.unknown_calls > 0
 
 
-def _total_columns() -> tuple:
+def _totals_columns() -> tuple:
     return (
         func.coalesce(func.sum(CostEntry.credits), 0),
         func.coalesce(func.sum(CostEntry.usd), 0),
@@ -131,18 +130,10 @@ def _total_columns() -> tuple:
     )
 
 
-async def _totals(
-    session: AsyncSession, stmt_filter: Select, unresolved: Select | None = None
-) -> CostTotals:
-    stmt = stmt_filter.with_only_columns(*_total_columns())
-    row = (await session.execute(stmt)).one()
-    pending = 0
-    if unresolved is not None:
-        pending = int((await session.execute(unresolved)).scalar_one())
-    return _totals_of(row, pending)
-
-
-def _totals_of(row: Any, pending: int) -> CostTotals:
+def _row_totals(row, pending: int = 0) -> CostTotals:  # type: ignore[no-untyped-def]
+    """A `_totals_columns()` row (or None for no entries) as `CostTotals`."""
+    if row is None:
+        return CostTotals(unknown_calls=pending)
     return CostTotals(
         credits=_dec(row[0]),
         usd=_dec(row[1]),
@@ -153,6 +144,17 @@ def _totals_of(row: Any, pending: int) -> CostTotals:
         unknown_calls=int(row[6]) + pending,
         shared_from_run_ids=list(row[7] or []),
     )
+
+
+async def _totals(
+    session: AsyncSession, stmt_filter: Select, unresolved: Select | None = None
+) -> CostTotals:
+    stmt = stmt_filter.with_only_columns(*_totals_columns())
+    row = (await session.execute(stmt)).one()
+    pending = 0
+    if unresolved is not None:
+        pending = int((await session.execute(unresolved)).scalar_one())
+    return _row_totals(row, pending)
 
 
 async def case_totals(
@@ -170,24 +172,32 @@ async def case_totals(
 async def case_totals_many(
     session: AsyncSession, workspace_id: uuid.UUID, case_ids: list[uuid.UUID]
 ) -> dict[uuid.UUID, CostTotals]:
-    """`case_totals` for several cases in two queries (the cases list), by case id."""
+    """`case_totals` for many cases in two queries (every id gets an entry)."""
     if not case_ids:
         return {}
-    rows = await session.execute(
-        select(CostEntry.case_id, *_total_columns())
-        .join(Case, Case.id == CostEntry.case_id)
-        .where(CostEntry.case_id.in_(case_ids), Case.workspace_id == workspace_id)
-        .group_by(CostEntry.case_id)
+    rows = (
+        await session.execute(
+            select(CostEntry.case_id, *_totals_columns())
+            .join(Case, Case.id == CostEntry.case_id)
+            .where(CostEntry.case_id.in_(case_ids), Case.workspace_id == workspace_id)
+            .group_by(CostEntry.case_id)
+        )
+    ).all()
+    pending = dict(
+        (
+            await session.execute(
+                select(CallAttempt.case_id, func.count(CallAttempt.id))
+                .where(
+                    CallAttempt.workspace_id == workspace_id,
+                    CallAttempt.status == CallStatus.STARTED,
+                    CallAttempt.case_id.in_(case_ids),
+                )
+                .group_by(CallAttempt.case_id)
+            )
+        ).all()
     )
-    spent = {row[0]: row[1:] for row in rows.all()}
-    pending_rows = await session.execute(
-        _unresolved(workspace_id, CallAttempt.case_id.in_(case_ids))
-        .add_columns(CallAttempt.case_id)
-        .group_by(CallAttempt.case_id)
-    )
-    pending = {cid: int(n) for n, cid in pending_rows.all()}
-    empty = (0, 0, 0, 0, 0, 0, 0, None)
-    return {cid: _totals_of(spent.get(cid, empty), pending.get(cid, 0)) for cid in case_ids}
+    by_case = {r[0]: r[1:] for r in rows}
+    return {cid: _row_totals(by_case.get(cid), int(pending.get(cid, 0))) for cid in case_ids}
 
 
 async def discovery_run_totals(

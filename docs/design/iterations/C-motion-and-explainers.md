@@ -592,3 +592,20 @@ None blocks a first version; each has a stated fallback above.
 - A finished case opened cold shows no entrance motion beyond the page-level fade.
 - Test mode never shows a check, the word "Sent" alone, or green.
 - Each explainer with empty data shows what would fill it, and never a sample.
+
+## Revision, 22 Nov 2026: grouped diff and compact trail
+
+Two explainers changed after they met a real case (nine claims given their first status by one policy update).
+
+**Change timeline and `VersionDiff`.** Both draw their rows with `ChangeList` (`components/dealproof/change-list.tsx`), which replaces the claim-first list and the "As a result" group.
+
+- Order: the disposition, then judgments, then each claim that moved for a reason of its own (contradicted and supported first), then grouped claims.
+- A scoring-policy update that touched two or more claims with no new evidence is one row: "Policy update 22.2 → 22.3 gave 9 claims their first status", with a status tag per outcome ("8 Cannot verify"). It opens to one line per claim, and is always open in print.
+- A claim that moved on evidence stays its own row and reads "Because of new evidence" with its source chip.
+- A value with nothing before it reads "New status" (or "New"). There is no struck-through blank.
+- Statuses and dispositions are always `StatusMark` and `DispositionStamp`. The API's cause sentence, judgment field names and rule ids are turned into words in `components/case/adapt.ts`.
+- A policy-caused status change is the one status change that may carry no evidence: it names its own cause.
+
+**Evidence trail.** It sits in normal flow under the ledger row's three cells and shows the chain only: where the seller said it, sources, dated facts, the rule, the status. The claim's words, the finding, the note and what would settle it stay in the row. Wide (48rem of its own width and up) it is one line of 28px nodes joined by arrows on a shared centre line; narrower, a vertical stepper with a rail. The rule is one short line from `CLAIM_STATUS_RULE`, with the full policy text behind "Why?".
+
+**Claim ledger.** Every Cannot verify row carries "Searched: …" with the sources read, or "No public source searched yet". The API does not send a per-claim search list yet (follow-up 2 above); until it does the line is built from the sources the claim's evidence came from.
