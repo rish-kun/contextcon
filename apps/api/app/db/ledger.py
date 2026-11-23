@@ -10,6 +10,7 @@ while workspace totals add up each credit once.
 import uuid
 from dataclasses import dataclass, field, replace
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import Select, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -117,10 +118,8 @@ class CostTotals:
         return self.unknown_calls > 0
 
 
-async def _totals(
-    session: AsyncSession, stmt_filter: Select, unresolved: Select | None = None
-) -> CostTotals:
-    stmt = stmt_filter.with_only_columns(
+def _total_columns() -> tuple:
+    return (
         func.coalesce(func.sum(CostEntry.credits), 0),
         func.coalesce(func.sum(CostEntry.usd), 0),
         func.coalesce(func.sum(CostEntry.input_tokens), 0),
@@ -130,10 +129,20 @@ async def _totals(
         func.count(case((CostEntry.unknown, 1))),
         func.array_remove(func.array_agg(CostEntry.shared_from_run_id.distinct()), None),
     )
+
+
+async def _totals(
+    session: AsyncSession, stmt_filter: Select, unresolved: Select | None = None
+) -> CostTotals:
+    stmt = stmt_filter.with_only_columns(*_total_columns())
     row = (await session.execute(stmt)).one()
     pending = 0
     if unresolved is not None:
         pending = int((await session.execute(unresolved)).scalar_one())
+    return _totals_of(row, pending)
+
+
+def _totals_of(row: Any, pending: int) -> CostTotals:
     return CostTotals(
         credits=_dec(row[0]),
         usd=_dec(row[1]),
@@ -156,6 +165,29 @@ async def case_totals(
         .where(CostEntry.case_id == case_id, Case.workspace_id == workspace_id)
     )
     return await _totals(session, stmt, _unresolved(workspace_id, CallAttempt.case_id == case_id))
+
+
+async def case_totals_many(
+    session: AsyncSession, workspace_id: uuid.UUID, case_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, CostTotals]:
+    """`case_totals` for several cases in two queries (the cases list), by case id."""
+    if not case_ids:
+        return {}
+    rows = await session.execute(
+        select(CostEntry.case_id, *_total_columns())
+        .join(Case, Case.id == CostEntry.case_id)
+        .where(CostEntry.case_id.in_(case_ids), Case.workspace_id == workspace_id)
+        .group_by(CostEntry.case_id)
+    )
+    spent = {row[0]: row[1:] for row in rows.all()}
+    pending_rows = await session.execute(
+        _unresolved(workspace_id, CallAttempt.case_id.in_(case_ids))
+        .add_columns(CallAttempt.case_id)
+        .group_by(CallAttempt.case_id)
+    )
+    pending = {cid: int(n) for n, cid in pending_rows.all()}
+    empty = (0, 0, 0, 0, 0, 0, 0, None)
+    return {cid: _totals_of(spent.get(cid, empty), pending.get(cid, 0)) for cid in case_ids}
 
 
 async def discovery_run_totals(

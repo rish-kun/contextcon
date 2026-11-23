@@ -280,9 +280,11 @@ class Case(IdMixin, Base):
 
     workspace_id: Mapped[uuid.UUID] = mapped_column(_fk("workspaces.id"), index=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(_fk("users.id", ondelete="SET NULL"))
-    thesis_id: Mapped[uuid.UUID | None] = mapped_column(_fk("theses.id", ondelete="SET NULL"))
+    thesis_id: Mapped[uuid.UUID | None] = mapped_column(
+        _fk("theses.id", ondelete="SET NULL"), index=True
+    )
     candidate_id: Mapped[uuid.UUID | None] = mapped_column(
-        _fk("candidates.id", ondelete="SET NULL")
+        _fk("candidates.id", ondelete="SET NULL"), index=True
     )
     company_name: Mapped[str] = mapped_column(String(500))
     website: Mapped[str | None] = mapped_column(String(500))
@@ -360,7 +362,9 @@ class DeletionRecord(IdMixin, Base):
     workspace_id: Mapped[uuid.UUID | None] = mapped_column(
         _fk("workspaces.id", ondelete="SET NULL")
     )
-    case_id: Mapped[uuid.UUID | None] = mapped_column(_fk("cases.id", ondelete="SET NULL"))
+    case_id: Mapped[uuid.UUID | None] = mapped_column(
+        _fk("cases.id", ondelete="SET NULL"), index=True
+    )
     object_type: Mapped[str] = mapped_column(String(64))
     object_ids: Mapped[list] = mapped_column(JSONB, default=list)
     object_count: Mapped[int] = mapped_column(Integer, default=0)

@@ -119,7 +119,7 @@ function AssessmentRail({ detail }: { detail: CaseDetail }) {
   );
 }
 
-function CaseLoading() {
+export function CaseLoading() {
   return (
     <div role="status" aria-label="Loading the case" className="flex flex-col gap-4">
       <Skeleton className="h-8 w-80 max-w-full" />

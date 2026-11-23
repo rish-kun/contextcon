@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { cache } from "react";
+import { Suspense, cache } from "react";
 import { type CaseDetail, getCase } from "@/lib/api/client";
 import { CaseProvider } from "@/components/case/case-context";
-import { CaseShell } from "@/components/case/case-shell";
+import { CaseLoading, CaseShell } from "@/components/case/case-shell";
 
 /**
  * Fetch the case on the server with the reader's session, so the first paint already has
@@ -30,7 +30,27 @@ export async function generateMetadata({
   return { title: detail?.case.name ?? "Case" };
 }
 
-export default async function CaseLayout({
+/**
+ * The case read is wrapped in its own Suspense boundary: a layout that reads cookies
+ * blocks navigation until it finishes, so without it a click on a case showed nothing
+ * until the whole `GET /cases/{id}` came back. Now the skeleton shows at once and the
+ * case streams in.
+ */
+export default function CaseLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ id: string }>;
+}) {
+  return (
+    <Suspense fallback={<CaseLoading />}>
+      <LoadedCase params={params}>{children}</LoadedCase>
+    </Suspense>
+  );
+}
+
+async function LoadedCase({
   children,
   params,
 }: {

@@ -89,6 +89,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    // Start the shared workspace read (sidebar, and the pages that span cases) alongside
+    // the session check instead of after it: the screens below mount only once the user
+    // is known, and then find the read already under way (`loadWorkspace` shares it).
+    // Without a session it fails like `me()` does, and the failure is not cached.
+    loadWorkspace().catch(() => {});
     me().then(
       (user) => {
         if (!cancelled) setSession({ status: "ready", user });

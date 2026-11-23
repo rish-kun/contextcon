@@ -24,7 +24,6 @@ from app.api.cases_sections import CaseContext, register_section
 from app.api.requests import present
 from app.api.schemas.requests import RequestListOut
 from app.db.models import MessageRevision, RequestList
-from app.db.session import make_sessionmaker
 from app.pipelines.act.request_list import NoAssessment, load_request_list
 from app.settings import get_settings
 
@@ -73,11 +72,29 @@ async def _message_list(ctx: CaseContext) -> RequestList | None:
     ).scalar_one_or_none()
 
 
+class _RequestSession:
+    """Stands in for a sessionmaker: `async with sm() as s` yields the request's own
+    session and leaves it open. The repository's read methods then share the request's
+    connection instead of checking out one connection (and transaction) each."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    def __call__(self) -> _RequestSession:
+        return self
+
+    async def __aenter__(self) -> AsyncSession:
+        return self._session
+
+    async def __aexit__(self, *exc_info: object) -> None:
+        return None
+
+
 def _read_service(session: AsyncSession) -> ActService:
-    """A read-only Act service on the request's engine (no provider: nothing is sent)."""
-    sessions = make_sessionmaker(session.bind)  # type: ignore[arg-type]
+    """A read-only Act service on the request's session (no provider: nothing is sent).
+    Only `get_state` is called on it, which reads; nothing here begins a transaction."""
     config = SendConfig(enabled=get_settings().email_send_enabled)
-    return ActService(PostgresActRepository(sessions), config, None)
+    return ActService(PostgresActRepository(_RequestSession(session)), config, None)  # type: ignore[arg-type]
 
 
 async def message_section(ctx: CaseContext) -> MessageOut | None:

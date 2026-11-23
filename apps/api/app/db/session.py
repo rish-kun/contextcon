@@ -4,12 +4,14 @@ import ipaddress
 import logging
 import os
 import ssl
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from uuid import uuid4
 
+from sqlalchemy import event, exc
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -129,17 +131,54 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _install_idle_ping(engine: AsyncEngine, idle_seconds: float) -> None:
+    """Ping a pooled connection on checkout only when it sat idle for `idle_seconds`.
+
+    SQLAlchemy's `pool_pre_ping` pings on every checkout, and on asyncpg a ping is
+    BEGIN, a query and ROLLBACK: about four round trips, which to Neon (Mumbai to
+    Singapore) added ~150 ms to every session of every request. A connection used a
+    few seconds ago is alive (Neon suspends a compute only after minutes without
+    traffic), so only connections idle longer than the threshold are pinged; a fresh
+    connection is never pinged. A failed ping raises `DisconnectionError`, which makes
+    the pool drop that connection and check out another, as `pool_pre_ping` does.
+    """
+    pool = engine.sync_engine.pool
+    dialect = engine.sync_engine.dialect
+
+    @event.listens_for(pool, "checkin")
+    def _checked_in(dbapi_connection: Any, record: Any) -> None:
+        record.info["dp_idle_since"] = time.monotonic()
+
+    @event.listens_for(pool, "checkout")
+    def _checked_out(dbapi_connection: Any, record: Any, proxy: Any) -> None:
+        since = record.info.get("dp_idle_since")
+        if since is None or time.monotonic() - since < idle_seconds:
+            return
+        try:
+            dialect.do_ping(dbapi_connection)
+        except Exception as error:
+            raise exc.DisconnectionError("pooled connection failed its ping") from error
+
+
 def make_engine(url: str, **kwargs: Any) -> AsyncEngine:
     async_url, connect_args = normalise_url(url)
     connect_args.update(kwargs.pop("connect_args", {}))
-    kwargs.setdefault("pool_pre_ping", True)
+    # An explicit `pool_pre_ping=True` keeps SQLAlchemy's ping-on-every-checkout.
+    idle_ping = not kwargs.get("pool_pre_ping", False) and "poolclass" not in kwargs
     if "poolclass" not in kwargs:
         # QueuePool sizing; the 5 + 10 default ran out under streams plus in-process workers.
         kwargs.setdefault("pool_size", _env_int("DB_POOL_SIZE", 20))
         kwargs.setdefault("max_overflow", _env_int("DB_MAX_OVERFLOW", 20))
         kwargs.setdefault("pool_timeout", _env_int("DB_POOL_TIMEOUT", 10))
         kwargs.setdefault("pool_recycle", _env_int("DB_POOL_RECYCLE", 300))
-    return create_async_engine(async_url, connect_args=connect_args, **kwargs)
+        # Reuse the most recently returned connection: its prepared statements are
+        # cached (asyncpg prepares each new statement in an extra round trip) and it
+        # was used moments ago, so it needs no ping. FIFO rotated through all 20.
+        kwargs.setdefault("pool_use_lifo", True)
+    engine = create_async_engine(async_url, connect_args=connect_args, **kwargs)
+    if idle_ping:
+        _install_idle_ping(engine, _env_int("DB_PING_IDLE_SECONDS", 30))
+    return engine
 
 
 def make_sessionmaker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { cache } from "react";
+import { Suspense, cache } from "react";
 import { type CaseDetail, getShowcaseCase } from "@/lib/api/client";
 import { CaseProvider } from "@/components/case/case-context";
-import { CaseShell } from "@/components/case/case-shell";
+import { CaseLoading, CaseShell } from "@/components/case/case-shell";
 
 /** The flagged showcase case, fetched on the server without a session. */
 const loadCase = cache(async (): Promise<CaseDetail | null> => {
@@ -21,9 +21,18 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * The real case screens, read-only: the same tabs as `/app/cases/{id}`, with no verify,
  * claim, upload, identity, approval or send actions. If the server fetch fails, the
- * provider loads the case in the browser (the client maps it to the public route).
+ * provider loads the case in the browser (the client maps it to the public route). The
+ * read streams in behind a skeleton instead of holding the whole page back.
  */
-export default async function ShowcaseCaseLayout({ children }: { children: React.ReactNode }) {
+export default function ShowcaseCaseLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<CaseLoading />}>
+      <LoadedShowcaseCase>{children}</LoadedShowcaseCase>
+    </Suspense>
+  );
+}
+
+async function LoadedShowcaseCase({ children }: { children: React.ReactNode }) {
   const initial = await loadCase();
   return (
     <CaseProvider

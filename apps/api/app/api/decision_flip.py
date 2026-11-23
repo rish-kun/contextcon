@@ -21,12 +21,18 @@ import uuid
 
 from fastapi import HTTPException, Query, Response, status
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import fixture_decision_flip, fixtures
 from app.api._base import fixture_or_501, make_router, not_found
 from app.api.cases_deps import Actor, CaseSession
-from app.api.cases_sections import CaseContext, register_section, register_summary
+from app.api.cases_sections import (
+    CaseContext,
+    register_section,
+    register_summary,
+    register_summary_batch,
+)
 from app.api.schemas.common import ErrorOut
 from app.api.schemas.decision_flip import (
     DecisionFlipOut,
@@ -265,8 +271,68 @@ def _never_fails(builder):
     return safe
 
 
+async def decision_flip_summaries(
+    session: AsyncSession, workspace_id: uuid.UUID, ctxs: list[CaseContext]
+) -> dict[uuid.UUID, DecisionFlipSummaryOut | None]:
+    """`decision_flip_summary` for every case of the list in two queries. If this fails
+    it returns nothing, and each case falls back to its own (never-failing) builder."""
+    case_ids = [c.case.id for c in ctxs]
+    try:
+        async with session.begin_nested():
+            versions = (
+                await session.execute(
+                    select(VersionRow.case_id, VersionRow.id, VersionRow.version)
+                    .join(Case, Case.id == VersionRow.case_id)
+                    .where(Case.workspace_id == workspace_id, VersionRow.case_id.in_(case_ids))
+                    .order_by(VersionRow.case_id, VersionRow.version.desc())
+                    .ext(distinct_on(VersionRow.case_id))
+                )
+            ).all()
+            latest = {case_id: (vid, number) for case_id, vid, number in versions}
+            flips = {}
+            if latest:
+                rows = await session.execute(
+                    select(
+                        FlipRow.assessment_version_id,
+                        FlipRow.state,
+                        FlipRow.target,
+                        FlipRow.blocker_count,
+                    )
+                    .where(
+                        FlipRow.workspace_id == workspace_id,
+                        FlipRow.assessment_version_id.in_([v for v, _ in latest.values()]),
+                    )
+                    .order_by(
+                        FlipRow.assessment_version_id,
+                        FlipRow.created_at.desc(),
+                        FlipRow.id.desc(),
+                    )
+                    .ext(distinct_on(FlipRow.assessment_version_id))
+                )
+                flips = {r.assessment_version_id: r for r in rows.all()}
+    except Exception:
+        log.exception("decision_flip summaries failed; reading them case by case")
+        return {}
+    out: dict[uuid.UUID, DecisionFlipSummaryOut | None] = {}
+    for case_id in case_ids:
+        found = latest.get(case_id)
+        flip = flips.get(found[0]) if found else None
+        out[case_id] = (
+            DecisionFlipSummaryOut(
+                state=flip.state,
+                next_disposition=flip.target,
+                blockers_to_next=flip.blocker_count,
+                assessment_version=found[1],
+            )
+            if found and flip
+            else None
+        )
+    return out
+
+
 register_section("decision_flip", _never_fails(decision_flip_section))
 register_summary("decision_flip", _never_fails(decision_flip_summary))
+register_summary_batch("decision_flip", decision_flip_summaries)
 
 
 # --- Routes ---------------------------------------------------------------------------

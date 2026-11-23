@@ -381,14 +381,20 @@ async def load_request_list(session: AsyncSession, request_list: RequestList) ->
             .order_by(RequestItem.position)
         )
     ).scalars()
-    items: list[tuple[RequestItem, ItemView]] = []
-    for row in list(rows):
-        links = (
-            await session.execute(
-                select(RequestItemClaim.claim_id).where(RequestItemClaim.request_item_id == row.id)
+    rows = list(rows)
+    # Every item's claim links in one query (not one per item).
+    links: dict[uuid.UUID, list[uuid.UUID]] = {row.id: [] for row in rows}
+    if rows:
+        found = await session.execute(
+            select(RequestItemClaim.request_item_id, RequestItemClaim.claim_id).where(
+                RequestItemClaim.request_item_id.in_(list(links))
             )
-        ).scalars()
-        claim_ids = sorted((str(c) for c in links), key=_order_by(ctx))
+        )
+        for item_id, claim_id in found.all():
+            links[item_id].append(claim_id)
+    items: list[tuple[RequestItem, ItemView]] = []
+    for row in rows:
+        claim_ids = sorted((str(c) for c in links[row.id]), key=_order_by(ctx))
         view = render_item(row.document_requested, claim_ids, ctx)
         view.reason = row.reason
         view.priority = row.priority
