@@ -250,8 +250,52 @@ def login_limiter() -> LoginRateLimiter:
 
 def reset_login_limiter() -> None:
     """Forget the limiter so the next `login_limiter()` re-reads settings (tests)."""
-    global _limiter
+    global _limiter, _signup_limiter, _resend_limiter
     _limiter = None
+    _signup_limiter = None
+    _resend_limiter = None
+
+
+# Sign-up and "send a new verification link" reuse the same keyed sliding window. Their
+# reservations are never refunded on success: every request counts, since each one can
+# create an account or send an email.
+_signup_limiter: LoginRateLimiter | None = None
+_resend_limiter: LoginRateLimiter | None = None
+
+
+def signup_limiter() -> LoginRateLimiter:
+    """The process-wide `POST /auth/signup` limiter."""
+    global _signup_limiter
+    if _signup_limiter is None:
+        from app.auth.config import get_auth_settings
+
+        cfg = get_auth_settings()
+        _signup_limiter = LoginRateLimiter(
+            per_client=cfg.signup_max_per_client,
+            per_email=cfg.signup_max_per_email,
+            per_ip=cfg.signup_max_per_ip,
+            global_limit=cfg.signup_max_global,
+            window_seconds=cfg.signup_window_seconds,
+            max_keys=cfg.login_max_tracked_keys,
+        )
+    return _signup_limiter
+
+
+def resend_limiter() -> LoginRateLimiter:
+    """The process-wide `POST /auth/verify/resend` limiter."""
+    global _resend_limiter
+    if _resend_limiter is None:
+        from app.auth.config import get_auth_settings
+
+        cfg = get_auth_settings()
+        _resend_limiter = LoginRateLimiter(
+            per_client=cfg.resend_max_per_client,
+            per_email=cfg.resend_max_per_email,
+            per_ip=cfg.resend_max_per_ip,
+            window_seconds=cfg.resend_window_seconds,
+            max_keys=cfg.login_max_tracked_keys,
+        )
+    return _resend_limiter
 
 
 # --- Argon2 concurrency cap -------------------------------------------------------

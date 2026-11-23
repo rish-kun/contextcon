@@ -111,6 +111,14 @@ pnpm build                  # next build (web) + uv sync (api)
 
 Health check: `curl http://localhost:8000/health` returns `{"status":"ok"}`.
 
+Accounts:
+
+- **Sign up** at `/signup` with your name, email and a password (10+ characters). This creates an unverified account in a new workspace and emails a confirmation link. The link works once and expires after 24 hours (`AUTH_VERIFICATION_TTL_HOURS`); only a hash of it is stored. Opening it (`/verify`) and pressing **Confirm** switches the account on and logs you in. Sign-up answers the same way for an email that is already registered, and that person gets a "you already have an account" email instead.
+- **Email delivery:** through Resend when `RESEND_API_KEY` and `EMAIL_FROM` are set. Without them (local dev) the email, link included, is printed to the API console.
+- **Log in** at `/login` with email and password. An unconfirmed account is refused with a "confirm your email" message and a **Send a new link** button. Sign-up, resend and log-in are rate limited per email and per client IP.
+- **Staying signed in:** the `dp_session` cookie is persistent (`Max-Age`), so it survives a browser restart until the session ends after `AUTH_SESSION_TTL_HOURS` (24 by default). Log out ends it at once.
+- **Admin-created accounts** count as confirmed: `cd apps/api && uv run python -m app.auth.cli create-user --email … --name … --workspace …` (see `app/auth/cli.py`). Set `AUTH_SIGNUP_ENABLED=false` (and `NEXT_PUBLIC_SIGNUP_ENABLED=false` for the web) to allow only those.
+
 Deployment (Cloud Run `asia-south1`, Neon Postgres, GCS) is described in [`docs/deploy.md`](docs/deploy.md).
 
 ## Layout

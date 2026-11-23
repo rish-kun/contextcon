@@ -113,6 +113,9 @@ class User(IdMixin, Base):
     status: Mapped[str] = mapped_column(
         String(16), default=UserStatus.ACTIVE, server_default=UserStatus.ACTIVE.value
     )
+    # Set when the person proved they own the email (self-serve sign-up link, or created
+    # by an admin with the CLI). Null: signed up and not verified yet; cannot sign in.
+    email_verified_at: Mapped[datetime | None] = _ts()
 
     __table_args__ = (
         CheckConstraint("length(trim(display_name)) > 0", name="named"),
@@ -131,6 +134,19 @@ class AuthSession(IdMixin, Base):
     expires_at: Mapped[datetime] = _ts(nullable=False)
 
     __table_args__ = (Index("ix_auth_sessions_expires_at", "expires_at"),)
+
+
+class EmailVerificationToken(IdMixin, Base):
+    """A single-use link that proves a new user owns their email (`app.auth.verification`).
+    Only the SHA-256 of the token is stored; the row is deleted when the link is used."""
+
+    __tablename__ = "email_verification_tokens"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(_fk("users.id"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime] = _ts(nullable=False)
+
+    __table_args__ = (Index("ix_email_verification_tokens_expires_at", "expires_at"),)
 
 
 # --- Discover ----------------------------------------------------------------

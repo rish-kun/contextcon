@@ -9,7 +9,7 @@
  * Two switches for demos: an email containing "pending" signs up into the test-mode
  * waiting state, and a website containing "nomatch" or "fail" returns those lookup states.
  */
-import { ApiError, type CaseOut, type SourceRef } from "./client";
+import type { CaseOut, SourceRef } from "./client";
 import * as base from "./fixtures";
 import type {
   AutofillOut,
@@ -131,12 +131,12 @@ const EXAMPLE_PROFILE: OrgProfile = {
 
 export async function signup(body: SignupIn): Promise<SignupOut> {
   await delay(500);
-  if (body.company_url) throw new ApiError(400, "The account was not created", "fixtures");
-  if (/exists/.test(body.email)) throw new ApiError(409, "An account with this email already exists", "fixtures");
-  if (/pending/.test(body.email)) return { status: "pending", user: null };
+  const sent: SignupOut = { status: "verification_sent", email: body.email.trim().toLowerCase() };
+  // Like the API: the same answer for a bot (honeypot) or a registered email.
+  if (body.company_url || /exists/.test(body.email)) return sent;
   current().profile = {
     ...EXAMPLE_PROFILE,
-    org_name: body.organisation,
+    org_name: body.organisation || `${body.display_name}'s workspace`,
     website: null,
     goal: null,
     org_kind: null,
@@ -149,7 +149,7 @@ export async function signup(body: SignupIn): Promise<SignupOut> {
   };
   current().researchStartedAt = null;
   save();
-  return { status: "active", user: { ...(await base.me()), email: body.email, display_name: body.display_name } };
+  return sent;
 }
 
 export async function getOrgProfile(): Promise<OrgProfile | null> {

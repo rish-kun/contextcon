@@ -43,8 +43,8 @@ export default async function SignupPage() {
               <SignupForm />
             ) : (
               <p className="text-sm text-ink-secondary">
-                Sign-up opens soon. Until then, use the demo login.{" "}
-                <TextLink href="/login">Go to the login page</TextLink>
+                Sign-up is closed on this deployment. Ask the person who runs DealProof for your
+                team for an account. <TextLink href="/login">Go to the login page</TextLink>
               </p>
             )}
             <p className="border-t border-line pt-4 text-dense text-ink-secondary">

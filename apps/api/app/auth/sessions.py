@@ -1,5 +1,8 @@
 """Users, password checks and sign-in sessions in the database.
 
+Users signed up through `POST /auth/signup` start unverified (`email_verified_at` null)
+and cannot sign in until they use their link (`app.auth.verification`).
+
 The session cookie carries a 256-bit random token. Only `sha256(token)` is stored, so a
 leaked database row cannot be replayed as a cookie. Sessions have an absolute expiry;
 logout deletes the row.
@@ -130,14 +133,31 @@ async def find_workspace(db: AsyncSession, ref: str) -> Workspace:
 
 
 async def create_user(
-    db: AsyncSession, workspace_id: uuid.UUID, *, email: str, display_name: str, password: str
+    db: AsyncSession,
+    workspace_id: uuid.UUID,
+    *,
+    email: str,
+    display_name: str,
+    password: str,
+    verified: bool = True,
 ) -> User:
+    """A user with a password. Admin-created users (the CLI) count as verified; self-serve
+    sign-up passes `verified=False` and hashes the password itself (`hash_password_async`)."""
     user = await repo.create_user(
         db, workspace_id, email=normalize_email(email), display_name=display_name.strip()
     )
     user.password_hash = hash_password(password)
+    user.email_verified_at = _now() if verified else None
     await db.flush()
     return user
+
+
+async def hash_password_async(password: str) -> str:
+    """Argon2 hash off the event loop, sharing the sign-in cap on concurrent Argon2 work.
+
+    Raises `ratelimit.VerifierBusy` when no slot frees up in time."""
+    async with verification_slots().slot():
+        return await asyncio.to_thread(hash_password, password)
 
 
 async def set_password(db: AsyncSession, email: str, password: str) -> User:

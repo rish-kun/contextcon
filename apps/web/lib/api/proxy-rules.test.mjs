@@ -6,6 +6,7 @@ import {
   connectionTokens,
   downstreamResponseHeaders,
   filterSetCookie,
+  isAuthPage,
   isProtectedPath,
   isSameOriginRequest,
   parseOrigins,
@@ -97,6 +98,17 @@ test("sign-in redirect covers the app areas only", () => {
   );
   assert.equal(signInRedirect("/app/cases/1", "", true), null);
   assert.equal(signInRedirect("/", "", false), null);
+});
+
+test("login, sign-up and verify pages are public", () => {
+  for (const page of ["/login", "/signup", "/verify", "/verify/x"]) {
+    assert.equal(isAuthPage(page), true, page);
+    assert.equal(isProtectedPath(page), false, page);
+    assert.equal(signInRedirect(page, "?token=abc", false), null, page);
+  }
+  assert.equal(isAuthPage("/signups"), false);
+  assert.equal(isAuthPage("/verifying"), false);
+  assert.equal(isAuthPage("/app"), false);
 });
 
 test("CSRF: safe methods always pass", () => {
