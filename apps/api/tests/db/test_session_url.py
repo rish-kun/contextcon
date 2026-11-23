@@ -1,4 +1,5 @@
 import ssl
+from pathlib import Path
 
 import pytest
 from sqlalchemy import event
@@ -78,8 +79,15 @@ def test_explicit_non_verifying_modes_pass_through(mode: str) -> None:
 
 
 def test_verified_context_uses_a_ca_store() -> None:
-    """The image must ship CA certificates or every Neon connection fails."""
-    assert verified_ssl_context().cert_store_stats()["x509_ca"] > 0
+    """The context can reach CA certificates, or every Neon connection fails. (The image
+    itself is checked by the Dockerfile.) A CA file is loaded up front and counted; a CA
+    directory (e.g. /etc/ssl/certs on Ubuntu) is read lazily per lookup, so it counts 0
+    until a handshake and is checked by its contents instead."""
+    loaded = verified_ssl_context().cert_store_stats()["x509_ca"]
+    paths = ssl.get_default_verify_paths()
+    capath = Path(paths.capath) if paths.capath else None
+    lazy = capath is not None and capath.is_dir() and any(capath.glob("*.0"))
+    assert loaded > 0 or lazy, f"no CA certificates found ({paths})"
 
 
 def test_other_query_params_are_kept() -> None:
